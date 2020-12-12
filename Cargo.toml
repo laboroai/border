@@ -1,0 +1,18 @@
+[package]
+name = "learn-rl-rust"
+version = "0.1.0"
+authors = ["taku-y <taku.yoshioka.4096@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ndarray = "0.14.0"
+cpython = { version = "0.2.0", optional = true }
+
+[features]
+python = ["cpython"]
+
+# [[example]]
+# name = "test1"
+# required-features = ["python"]
