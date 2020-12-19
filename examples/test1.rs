@@ -1,55 +1,14 @@
 use std::cell::RefCell;
-use ndarray::Array2;
+use ndarray::{Array2}; //, s};
 
-trait Obs {
-    fn new() -> Self;
-}
-
-trait Info {}
-
-trait Env {
-    type Obs: Obs;
-    type Act;
-    type Info: Info;
-
-    fn step(&self, a: &Self::Act) -> (Self::Obs, f32, bool, Self::Info);
-}
-
-trait Policy<E: Env> {
-    fn sample(&self, obs: &E::Obs) -> E::Act;
-}
-
-struct Sampler<E: Env, P: Policy<E>> {
-    env: E,
-    pi : P,
-    obs: RefCell<E::Obs>,
-}
-
-impl<E: Env, P: Policy<E>> Sampler<E, P> {
-    fn new(env: E, pi: P) -> Self {
-        Sampler { env, pi, obs: RefCell::new(E::Obs::new()) }
-    }
-
-    fn sample(&self) {
-        let a = self.pi.sample(&self.obs.borrow());
-        let (o, r, done, info) = self.env.step(&a);
-        self.obs.replace(o);
-    }
-}
+use lrr::core::{Obs, Info, Env, Policy, Sampler};
 
 // ----------
 
 struct MyAct (f32);
 
+#[derive(Clone)]
 struct MyObs (f32);
-
-struct MyInfo ();
-
-struct MyPolicy ();
-
-struct MyEnv {
-    state: RefCell<Array2::<f32>>
-}
 
 impl Obs for MyObs {
     fn new() -> Self {
@@ -57,7 +16,11 @@ impl Obs for MyObs {
     }
 }
 
+struct MyInfo ();
+
 impl Info for MyInfo {}
+
+struct MyPolicy ();
 
 impl Policy<MyEnv> for MyPolicy {
     fn sample(&self, _: &MyObs) -> MyAct {
@@ -65,20 +28,30 @@ impl Policy<MyEnv> for MyPolicy {
     }
 }
 
+struct MyEnv {
+    state: RefCell<Array2::<f32>>,
+}
+
 impl Env for MyEnv {
     type Obs  = MyObs;
     type Act  = MyAct;
     type Info = MyInfo;
 
-    fn step(&self, a: &MyAct) -> (MyObs, f32, bool, MyInfo) {
-        (MyObs(0.1), 0.0, true, MyInfo{})
+    fn step(&self, _a: &MyAct) -> (MyObs, f32, bool, MyInfo) {
+        let mut state = self.state.borrow_mut();
+        state[[0, 0]] += 1.0;
+        (MyObs(state[[0, 0]]), 0.0, true, MyInfo{})
+    }
+
+    fn reset(&self) -> MyObs {
+        MyObs(0.0)
     }
 }
 
 impl MyEnv {
     fn new() -> Self {
         MyEnv {
-            state: RefCell::new(Array2::<f32>::zeros((3, 4)))
+            state: RefCell::new(Array2::<f32>::zeros((3, 4))),
         }
     }
 }
@@ -90,7 +63,7 @@ fn main() {
     let pi = MyPolicy {};
     let sampler = Sampler::new(env, pi);
 
-    sampler.sample();
+    sampler.sample(10);
 
     println!("finished!");
 }

@@ -1,5 +1,5 @@
 [package]
-name = "learn-rl-rust"
+name = "lrr"
 version = "0.1.0"
 authors = ["taku-y <taku.yoshioka.4096@gmail.com>"]
 edition = "2018"
