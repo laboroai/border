@@ -64,6 +64,7 @@ fn main() {
     let sampler = Sampler::new(env, pi);
 
     sampler.sample(10);
+    sampler.sample(20);
 
     println!("finished!");
 }
