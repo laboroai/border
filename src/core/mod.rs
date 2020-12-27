@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::fmt::Debug;
 
 pub trait Obs: Clone {
     fn new() -> Self;
@@ -10,10 +11,11 @@ pub trait Env {
     type Obs: Obs;
     type Act;
     type Info: Info;
+    type ERR: Debug;
 
     fn step(&self, a: &Self::Act) -> (Self::Obs, f32, bool, Self::Info);
 
-    fn reset(&self) -> Self::Obs;
+    fn reset(&self) -> Result<Self::Obs, Self::ERR>;
 }
 
 pub trait Policy<E: Env> {
@@ -37,7 +39,7 @@ impl<E: Env, P: Policy<E>> Sampler<E, P> {
 
     pub fn sample(&self, n: usize) {
         let mut obs = match self.obs.replace(None) {
-            None => self.env.reset(),
+            None => self.env.reset().unwrap(),
             Some(obs) => obs.clone()
         };
         let mut done_last = false;
@@ -45,7 +47,7 @@ impl<E: Env, P: Policy<E>> Sampler<E, P> {
         for _ in 0..n {
             let a = self.pi.sample(&obs);
             let (o, _r, done, _info) = self.env.step(&a);
-            obs = if done { self.env.reset() } else { o };
+            obs = if done { self.env.reset().unwrap() } else { o };
             done_last = done;
         }
 
