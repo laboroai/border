@@ -64,17 +64,19 @@ impl<E: Env, P: Policy<E>> Sampler<E, P> {
 
         let mut done_last;
         let mut step;
+        let mut i = 0;
 
-        let a = self.pi.sample(&obs);
-        step = self.env.step(&a);
-        obs = if step.is_done { self.env.reset().unwrap() } else { step.obs };
-        done_last = step.is_done;
-
-        for _ in 1..n {
+        loop {
             let a = self.pi.sample(&obs);
             step = self.env.step(&a);
             obs = if step.is_done { self.env.reset().unwrap() } else { step.obs };
             done_last = step.is_done;
+            if i == n - 1 {
+                break;
+            }
+            else {
+                i += 1;
+            }
         }
 
         if done_last {
