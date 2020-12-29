@@ -56,16 +56,23 @@ impl<E: Env, P: Policy<E>> Sampler<E, P> {
         }
     }
 
-    pub fn sample(&self, n: usize) {
+    pub fn sample(&self, n: usize) -> Step<E::Obs, E::Info> {
         let mut obs = match self.obs.replace(None) {
             None => self.env.reset().unwrap(),
             Some(obs) => obs.clone()
         };
-        let mut done_last = false;
 
-        for _ in 0..n {
+        let mut done_last;
+        let mut step;
+
+        let a = self.pi.sample(&obs);
+        step = self.env.step(&a);
+        obs = if step.is_done { self.env.reset().unwrap() } else { step.obs };
+        done_last = step.is_done;
+
+        for _ in 1..n {
             let a = self.pi.sample(&obs);
-            let step = self.env.step(&a);
+            step = self.env.step(&a);
             obs = if step.is_done { self.env.reset().unwrap() } else { step.obs };
             done_last = step.is_done;
         }
@@ -74,18 +81,29 @@ impl<E: Env, P: Policy<E>> Sampler<E, P> {
             self.obs.replace(None);
         }
         else {
-            self.obs.replace(Some(obs));
+            self.obs.replace(Some(obs.clone()));
         }
+
+        Step::new(obs, step.reward, step.is_done, step.info)
     }
 }
 
 pub trait Agent<E: Env>: Policy<E> {
-    fn observe(&self);
+    /// Return `true` if training of the agent is finished.
+    fn observe(&self, step: Step<E::Obs, E::Info>) -> bool;
 }
 
 pub struct Trainer<E: Env, A: Agent<E>> {
     sampler: Sampler<E, A>,
+    agent: A
 }
 
 impl<E: Env, A: Agent<E>> Trainer<E, A> {
+    pub fn train(&self) {
+        loop {
+            let step = self.sampler.sample(1);
+            let is_finished = self.agent.observe(step);
+            if is_finished { break; }
+        }
+    }
 }
