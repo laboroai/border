@@ -60,19 +60,6 @@ impl<E, M, I, O> Policy<E> for DQN<E, M, I, O> where
         self.train = false;
     }
 
-    // fn sample(&self, obs: &PyNDArrayObs) -> PyGymDiscreteAct {
-    //     let obs = obs.0.view().to_slice().unwrap();
-    //     let obs: Tensor = Tensor::of_slice(obs);
-    //     let a = obs.apply(&self.qnet);
-    //     let a: i32 = if self.train {
-    //         a.softmax(-1, Float)
-    //         .multinomial(1, false)
-    //         .into()
-    //     } else {
-    //         a.argmax(-1, true).into()
-    //     };
-    //     PyGymDiscreteAct::new(a as u32)
-    // }
     fn sample(&self, obs: &E::Obs) -> E::Act {
         let obs = self.from_obs.convert(obs);
         let a = obs.apply(&self.qnet);
@@ -86,12 +73,12 @@ impl<E, M, I, O> Policy<E> for DQN<E, M, I, O> where
     }
 }
 
-// impl<M> Agent<PyGymEnv<PyGymDiscreteAct>> for DQN<E, M, I, O> where
-//     E: Env,
-//     M: Module + Clone,
-//     I: ModuleInputAdapter<E>,
-//     O: ModuleOutputAdapter<E> {
-//     fn observe(&self, _step: Step<PyNDArrayObs, PyGymInfo>) -> bool {
-//         true
-//     }
-// }
+impl<E, M, I, O> Agent<E> for DQN<E, M, I, O> where
+    E: Env,
+    M: Module + Clone,
+    I: ModuleObsAdapter<E::Obs>,
+    O: ModuleActAdapter<E::Act> {
+    fn observe(&self, _step: Step<E::Obs, E::Info>) -> bool {
+        true
+    }
+}

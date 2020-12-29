@@ -26,5 +26,5 @@ fn main() {
     );
     let mut trainer = Trainer::new(env, dqn);
 
-    // trainer.train();
+    trainer.train();
 }
