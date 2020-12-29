@@ -1,6 +1,7 @@
 use pyo3::{Python};
-use lrr::core::{Policy, Trainer};
-use lrr::py_gym_env::{PyGymEnv, PyGymDiscreteAct, PyNDArrayObs};
+use lrr::core::{Trainer};
+use lrr::py_gym_env::{PyGymEnv, PyGymDiscreteAct, PyNDArrayObs,
+                      PyNDArrayObsAdapter, PyGymDiscreteActAdapter};
 use lrr::agents::{DQN, dqn::QNetwork};
 
 fn main() {
@@ -16,8 +17,14 @@ fn main() {
     };
     env.set_render(false);
     let qnet = QNetwork::new(4, 2, 0.01);
-    let dqn = DQN::new(qnet, 0, 0);
+    let dqn: DQN<PyGymEnv<PyGymDiscreteAct>, _, _, _> = DQN::new(
+        qnet,
+        0,
+        0,
+        PyNDArrayObsAdapter::new(),
+        PyGymDiscreteActAdapter::new()
+    );
     let mut trainer = Trainer::new(env, dqn);
 
-    trainer.train();
+    // trainer.train();
 }

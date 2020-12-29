@@ -3,37 +3,19 @@ use tch::{Tensor, nn::Module, Kind::Float};
 use crate::core::{Obs, Policy, Agent, Step, Env};
 use crate::py_gym_env::{PyGymEnv, PyNDArrayObs, PyGymDiscreteAct, PyGymInfo};
 
-pub trait ModuleInputAdapter<T: Obs> {
+pub trait ModuleObsAdapter<T: Obs> {
     fn convert(&self, obs: &T) -> Tensor;
 }
 
-pub trait ModuleOutputAdapter<T> {
+pub trait ModuleActAdapter<T> {
     fn convert(&self, act: &Tensor) -> T;
 }
-
-// pub struct PyNDArrayObsAdapter<E: Env> {
-//     phantom: PhantomData<E>
-// }
-
-// impl<E: Env> ModuleInputAdapter<E> for PyNDArrayObsAdapter<E> {
-//     fn new() -> Self {
-//         Self {
-//             phantom: PhantomData
-//         }
-//     }
-
-//     fn convert(&self, obs: &E::Obs) -> Tensor {
-//         let obs = obs.0.view().to_slice().unwrap();
-//         // let obs: Tensor = Tensor::of_slice(obs);
-//         Tensor::of_slice(obs)
-//     }
-// }
 
 pub struct DQN<E, M, I, O> where
     E: Env,
     M: Module + Clone,
-    I: ModuleInputAdapter<E::Obs>,
-    O: ModuleOutputAdapter<E::Act> {
+    I: ModuleObsAdapter<E::Obs>,
+    O: ModuleActAdapter<E::Act> {
     n_samples_per_opt: usize,
     n_updates_per_opt: usize,
     qnet: M,
@@ -47,8 +29,8 @@ pub struct DQN<E, M, I, O> where
 impl<E, M, I, O> DQN<E, M, I, O> where 
     E: Env,
     M: Module + Clone,
-    I: ModuleInputAdapter<E::Obs>,
-    O: ModuleOutputAdapter<E::Act> {
+    I: ModuleObsAdapter<E::Obs>,
+    O: ModuleActAdapter<E::Act> {
     pub fn new(qnet: M, n_samples_per_opt: usize, n_updates_per_opt: usize,
                from_obs: I, into_act: O) -> Self {
         let qnet_tgt = qnet.clone();
@@ -68,8 +50,8 @@ impl<E, M, I, O> DQN<E, M, I, O> where
 impl<E, M, I, O> Policy<E> for DQN<E, M, I, O> where 
     E: Env,
     M: Module + Clone,
-    I: ModuleInputAdapter<E::Obs>,
-    O: ModuleOutputAdapter<E::Act> {
+    I: ModuleObsAdapter<E::Obs>,
+    O: ModuleActAdapter<E::Act> {
     fn train(&mut self) {
         self.train = true;
     }
