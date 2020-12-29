@@ -1,17 +1,8 @@
 use pyo3::{Python};
 use lrr::core::{Policy, Sampler};
 use lrr::py_gym_env::{PyGymEnv, PyGymDiscreteAct, PyNDArrayObs};
-
-struct MyDiscreteRandomPolicy {}
-
-impl Policy<PyGymEnv<PyGymDiscreteAct>> for MyDiscreteRandomPolicy {
-    fn sample(&self, _: &PyNDArrayObs) -> PyGymDiscreteAct {
-        PyGymDiscreteAct::new(fastrand::u32(..=1))
-    }
-
-    fn train(&mut self) {}
-    fn eval(&mut self) {}
-}
+use lrr::agents::{DQN, dqn::QNetwork};
+// struct MyDiscreteRandomPolicy {}
 
 fn main() {
     let mut env = match PyGymEnv::<PyGymDiscreteAct>::new("CartPole-v0") {
@@ -25,7 +16,8 @@ fn main() {
         }
     };
     env.set_render(false);
-    let pi = MyDiscreteRandomPolicy {};
+    let qnet = QNetwork::new(4, 2, 0.01);
+    let pi = DQN::new(qnet, 0, 0);
     let sampler = Sampler::new(env, pi);
 
     sampler.sample(100);

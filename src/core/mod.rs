@@ -39,6 +39,8 @@ pub trait Env {
 
 pub trait Policy<E: Env> {
     fn sample(&self, obs: &E::Obs) -> E::Act;
+    fn train(&mut self);
+    fn eval(&mut self);
 }
 
 pub struct Sampler<E: Env, P: Policy<E>> {

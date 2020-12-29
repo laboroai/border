@@ -11,7 +11,7 @@ pub struct PyGymInfo {}
 impl Info for PyGymInfo {}
 
 #[derive(Clone)]
-pub struct PyNDArrayObs (ArrayD<f32>);
+pub struct PyNDArrayObs (pub ArrayD<f32>);
 
 impl Obs for PyNDArrayObs {
     fn new() -> Self {

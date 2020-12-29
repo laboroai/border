@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 ndarray = "0.14"
-# tch = "0.3.0"
+tch = "0.3.0"
 numpy = "0.13"
 pyo3 = "0.13"
 fastrand = "1.4.0"
