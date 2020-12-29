@@ -1,11 +1,10 @@
-// use tch::Tensor;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use ndarray::{Array, ArrayD, IxDyn};
 use pyo3::{IntoPy, PyErr, PyObject, PyResult, Python};
 use pyo3::types::{PyTuple};
 use numpy::{PyArrayDyn};
-use crate::core::{Info, Obs, Env};
+use crate::core::{Info, Obs, Step, Env};
 
 pub struct PyGymInfo {}
 
@@ -97,8 +96,9 @@ impl<A: PyGymEnvAct + Debug> Env for PyGymEnv<A> {
         ))
     }
 
-    fn step(&self, a: &A) -> (PyNDArrayObs, f32, bool, PyGymInfo) {
-        println!("{:?}", &a);
+    // fn step(&self, a: &A) -> (PyNDArrayObs, f32, bool, PyGymInfo) {
+    fn step(&self, a: &A) -> Step<PyNDArrayObs, PyGymInfo> {
+            println!("{:?}", &a);
         pyo3::Python::with_gil(|py| {
             if self.render {
                 let _ = self.env.call_method0(py, "render");
@@ -116,7 +116,7 @@ impl<A: PyGymEnvAct + Debug> Env for PyGymEnv<A> {
             let r: f32 = step.get_item(1).extract().unwrap();
             let is_done: bool = step.get_item(2).extract().unwrap();
 
-            (PyNDArrayObs(obs4), r, is_done, PyGymInfo{})
+            Step::new(PyNDArrayObs(obs4), r, is_done, PyGymInfo{})
         })
     }
 }
