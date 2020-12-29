@@ -96,7 +96,6 @@ impl<A: PyGymEnvAct + Debug> Env for PyGymEnv<A> {
         ))
     }
 
-    // fn step(&self, a: &A) -> (PyNDArrayObs, f32, bool, PyGymInfo) {
     fn step(&self, a: &A) -> Step<PyNDArrayObs, PyGymInfo> {
             println!("{:?}", &a);
         pyo3::Python::with_gil(|py| {
