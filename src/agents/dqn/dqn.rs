@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig, Kind::Float};
-use crate::core::{Policy, Agent};
-use crate::py_gym_env::{PyGymEnv, PyNDArrayObs, PyGymDiscreteAct};
+use crate::core::{Env, Policy, Agent, Step};
+use crate::py_gym_env::{PyGymEnv, PyNDArrayObs, PyGymDiscreteAct, PyGymInfo};
 use crate::agents::dqn::QNetwork;
 
 pub struct DQN<M: Module + Clone> {
@@ -39,12 +39,18 @@ impl<M: Module + Clone> Policy<PyGymEnv<PyGymDiscreteAct>> for DQN<M> {
         let obs: Tensor = Tensor::of_slice(obs);
         let a = obs.apply(&self.qnet);
         let a: i32 = if self.train {
-            a.softmax(1, Float)
+            a.softmax(-1, Float)
             .multinomial(1, false)
             .into()
         } else {
             a.argmax(-1, true).into()
         };
         PyGymDiscreteAct::new(a as u32)
+    }
+}
+
+impl<M: Module + Clone> Agent<PyGymEnv<PyGymDiscreteAct>> for DQN<M> {
+    fn observe(&self, step: Step<PyNDArrayObs, PyGymInfo>) -> bool {
+        true
     }
 }

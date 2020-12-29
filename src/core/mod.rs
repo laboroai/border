@@ -1,5 +1,7 @@
 use std::cell::RefCell;
 use std::fmt::Debug;
+pub mod trainer;
+pub use trainer::Trainer;
 
 pub trait Obs: Clone {
     fn new() -> Self;
@@ -95,19 +97,4 @@ impl<E: Env, P: Policy<E>> Sampler<E, P> {
 pub trait Agent<E: Env>: Policy<E> {
     /// Return `true` if training of the agent is finished.
     fn observe(&self, step: Step<E::Obs, E::Info>) -> bool;
-}
-
-pub struct Trainer<E: Env, A: Agent<E>> {
-    sampler: Sampler<E, A>,
-    agent: A
-}
-
-impl<E: Env, A: Agent<E>> Trainer<E, A> {
-    pub fn train(&self) {
-        loop {
-            let step = self.sampler.sample(1);
-            let is_finished = self.agent.observe(step);
-            if is_finished { break; }
-        }
-    }
 }
