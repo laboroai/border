@@ -1,8 +1,6 @@
-use std::convert::TryFrom;
-use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig, Kind::Float};
-use crate::core::{Env, Policy, Agent, Step};
+use tch::{Tensor, nn::Module, Kind::Float};
+use crate::core::{Policy, Agent, Step};
 use crate::py_gym_env::{PyGymEnv, PyNDArrayObs, PyGymDiscreteAct, PyGymInfo};
-use crate::agents::dqn::QNetwork;
 
 pub struct DQN<M: Module + Clone> {
     n_samples_per_opt: usize,
@@ -50,7 +48,7 @@ impl<M: Module + Clone> Policy<PyGymEnv<PyGymDiscreteAct>> for DQN<M> {
 }
 
 impl<M: Module + Clone> Agent<PyGymEnv<PyGymDiscreteAct>> for DQN<M> {
-    fn observe(&self, step: Step<PyNDArrayObs, PyGymInfo>) -> bool {
+    fn observe(&self, _step: Step<PyNDArrayObs, PyGymInfo>) -> bool {
         true
     }
 }

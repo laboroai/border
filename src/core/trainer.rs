@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use crate::core::{Env, Policy, Agent, Step};
+use crate::core::{Env, Agent, Step};
 
 pub struct Trainer<E: Env, A: Agent<E>> {
     env: E,

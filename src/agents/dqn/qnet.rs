@@ -1,5 +1,4 @@
 use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
-use crate::core::{Policy, Agent};
 
 #[derive(Debug)]
 pub struct QNetwork {
