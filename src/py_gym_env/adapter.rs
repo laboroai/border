@@ -1,7 +1,7 @@
 
 use tch::{Tensor};
 use crate::py_gym_env::{PyNDArrayObs, PyGymDiscreteAct};
-use crate::agents::adapter::{ModuleObsAdapter, ModuleActAdapter};
+use crate::agents::adapter::{TchObsAdapter, TchActAdapter};
 
 pub struct PyNDArrayObsAdapter {
     shape: Vec<i64>
@@ -15,7 +15,7 @@ impl PyNDArrayObsAdapter {
     }
 }
 
-impl ModuleObsAdapter<PyNDArrayObs> for PyNDArrayObsAdapter {
+impl TchObsAdapter<PyNDArrayObs> for PyNDArrayObsAdapter {
     fn convert(&self, obs: &PyNDArrayObs) -> Tensor {
         let obs = obs.0.view().to_slice().unwrap();
         Tensor::of_slice(obs)
@@ -38,7 +38,7 @@ impl PyGymDiscreteActAdapter {
     }
 }
 
-impl ModuleActAdapter<PyGymDiscreteAct> for PyGymDiscreteActAdapter {
+impl TchActAdapter<PyGymDiscreteAct> for PyGymDiscreteActAdapter {
     fn convert(&self, act: &Tensor) -> PyGymDiscreteAct {
         let a: i32 = act.into();
         PyGymDiscreteAct::new(a as u32)

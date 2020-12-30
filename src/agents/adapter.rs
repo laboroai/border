@@ -1,7 +1,7 @@
 use tch::Tensor;
 use crate::core::Obs;
 
-pub trait ModuleObsAdapter<T: Obs> {
+pub trait TchObsAdapter<T: Obs> {
     /// Converts [crate::core::Env::Obs] to tch tensor.
     fn convert(&self, obs: &T) -> Tensor;
 
@@ -9,7 +9,7 @@ pub trait ModuleObsAdapter<T: Obs> {
     fn shape(&self) -> &[i64];
 }
 
-pub trait ModuleActAdapter<T> {
+pub trait TchActAdapter<T> {
     /// Converts tch tensor to [crate::core::Env::Act].
     fn convert(&self, act: &Tensor) -> T;
 

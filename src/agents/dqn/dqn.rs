@@ -1,14 +1,14 @@
 use std::cell::RefCell;
 use std::marker::PhantomData;
-use tch::{no_grad, Kind::Float, Tensor, kind::FLOAT_CPU, nn::Module};
-use crate::{agents::ReplayBuffer, core::{Policy, Agent, Step, Env}};
-use crate::agents::{ModuleActAdapter, ModuleObsAdapter};
+use tch::{no_grad, Kind::Float, Tensor};
+use crate::{agents::{ReplayBuffer, Model}, core::{Policy, Agent, Step, Env}};
+use crate::agents::{TchActAdapter, TchObsAdapter};
 
 pub struct DQN<E, M, I, O> where
     E: Env,
-    M: Module + Clone,
-    I: ModuleObsAdapter<E::Obs>,
-    O: ModuleActAdapter<E::Act> {
+    M: Model + Clone,
+    I: TchObsAdapter<E::Obs>,
+    O: TchActAdapter<E::Act> {
     n_samples_per_opt: usize,
     n_updates_per_opt: usize,
     n_opts_per_soft_update: usize,
@@ -29,9 +29,9 @@ pub struct DQN<E, M, I, O> where
 
 impl<E, M, I, O> DQN<E, M, I, O> where 
     E: Env,
-    M: Module + Clone,
-    I: ModuleObsAdapter<E::Obs>,
-    O: ModuleActAdapter<E::Act> {
+    M: Model + Clone,
+    I: TchObsAdapter<E::Obs>,
+    O: TchActAdapter<E::Act> {
 
     #[allow(clippy::too_many_arguments)]
     pub fn new(qnet: M, replay_buffer: ReplayBuffer<E, I, O>, from_obs: I, into_act: O,
@@ -72,24 +72,23 @@ impl<E, M, I, O> DQN<E, M, I, O> where
         let _ = self.prev_obs.replace(Some(next_obs));
     }
 
-    fn compute_loss(&self, batch: (Tensor, Tensor, Tensor, Tensor)) -> Tensor {
+    fn update_qnet(&mut self, batch: (Tensor, Tensor, Tensor, Tensor)) {
         let (obs, a, r, next_obs) = batch;
-        let pred = {
-            let a = a;
-            let x = self.qnet.forward(&obs);
-            x.gather(-1, &a, false)
+        let loss = {
+            let pred = {
+                let a = a;
+                let x = self.qnet.forward(&obs);
+                x.gather(-1, &a, false)
+            };
+            let tgt = no_grad(|| {
+                let x = self.qnet_tgt.forward(&next_obs);
+                let y = x.argmax(-1, false).unsqueeze(-1);
+                let x = x.gather(-1, &y, false);
+                r + self.discount_factor * x
+            });
+            pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0)
         };
-        let tgt = no_grad(|| {
-            let x = self.qnet_tgt.forward(&next_obs);
-            let y = x.argmax(-1, false).unsqueeze(-1);
-            let x = x.gather(-1, &y, false);
-            r + self.discount_factor * x
-        });
-        pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0)
-    }
-
-    fn update_qnet(&self, loss: Tensor) {
-        // self.qnet.opt.backward_step(&loss);
+        self.qnet.backward_step(&loss);
     }
 
     fn soft_update_qnet_tgt(&self) {
@@ -99,9 +98,9 @@ impl<E, M, I, O> DQN<E, M, I, O> where
 
 impl<E, M, I, O> Policy<E> for DQN<E, M, I, O> where 
     E: Env,
-    M: Module + Clone,
-    I: ModuleObsAdapter<E::Obs>,
-    O: ModuleActAdapter<E::Act> {
+    M: Model + Clone,
+    I: TchObsAdapter<E::Obs>,
+    O: TchActAdapter<E::Act> {
     fn train(&mut self) {
         self.train = true;
     }
@@ -112,7 +111,7 @@ impl<E, M, I, O> Policy<E> for DQN<E, M, I, O> where
 
     fn sample(&self, obs: &E::Obs) -> E::Act {
         let obs = self.from_obs.convert(obs);
-        let a = obs.apply(&self.qnet);
+        let a = self.qnet.forward(&obs);
         let a = if self.train {
             a.softmax(-1, Float)
             .multinomial(1, false)
@@ -125,9 +124,9 @@ impl<E, M, I, O> Policy<E> for DQN<E, M, I, O> where
 
 impl<E, M, I, O> Agent<E> for DQN<E, M, I, O> where
     E: Env,
-    M: Module + Clone,
-    I: ModuleObsAdapter<E::Obs>,
-    O: ModuleActAdapter<E::Act> {
+    M: Model + Clone,
+    I: TchObsAdapter<E::Obs>,
+    O: TchActAdapter<E::Act> {
 
     fn push_obs(&self, obs: &E::Obs) {
         self.prev_obs.replace(Some(self.from_obs.convert(obs)));
@@ -145,8 +144,7 @@ impl<E, M, I, O> Agent<E> for DQN<E, M, I, O> where
             if self.replay_buffer.len() >= self.min_transitions_warmup {
                 for _ in 0..self.n_updates_per_opt {
                     let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
-                    let loss = self.compute_loss(batch);
-                    self.update_qnet(loss);
+                    self.update_qnet(batch);
                 };
 
                 self.count_opts_per_soft_update += 1;

@@ -1,4 +1,5 @@
 use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
+use crate::agents::Model;
 
 #[derive(Debug)]
 pub struct QNetwork {
@@ -47,8 +48,12 @@ impl QNetwork {
     }
 }
 
-impl Module for QNetwork {
+impl Model for QNetwork {
     fn forward(&self, xs: &Tensor) -> Tensor {
         self.network.forward(xs)
+    }
+
+    fn backward_step(&mut self, loss: &Tensor) {
+        self.opt.backward_step(loss);
     }
 }

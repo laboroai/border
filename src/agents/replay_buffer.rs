@@ -1,12 +1,12 @@
 use std::marker::PhantomData;
 use tch::{Tensor, kind::{FLOAT_CPU, INT64_CPU}};
 use crate::core::{Env};
-use crate::agents::adapter::{ModuleObsAdapter, ModuleActAdapter};
+use crate::agents::adapter::{TchObsAdapter, TchActAdapter};
 
 pub struct ReplayBuffer<E, I, O> where
     E: Env,
-    I: ModuleObsAdapter<E::Obs>,
-    O: ModuleActAdapter<E::Act> {
+    I: TchObsAdapter<E::Obs>,
+    O: TchActAdapter<E::Act> {
     obs: Tensor,
     next_obs: Tensor,
     rewards: Tensor,
@@ -24,8 +24,8 @@ fn concat(capacity: usize, shape: &[i64]) -> Vec<i64> {
 #[allow(clippy::len_without_is_empty)]
 impl<E, I, O> ReplayBuffer<E, I, O> where
     E: Env,
-    I: ModuleObsAdapter<E::Obs>,
-    O: ModuleActAdapter<E::Act> {
+    I: TchObsAdapter<E::Obs>,
+    O: TchActAdapter<E::Act> {
     pub fn new(capacity: usize, from_obs: &I, into_act: &O) -> Self {
         let shape_obs = concat(capacity, from_obs.shape());
         let shape_act = concat(capacity, into_act.shape());
