@@ -4,9 +4,7 @@ use ndarray::{Array, ArrayD, IxDyn};
 use pyo3::{IntoPy, PyErr, PyObject, PyResult, Python};
 use pyo3::types::{PyTuple};
 use numpy::{PyArrayDyn};
-use tch::{Tensor};
 use crate::core::{Info, Obs, Step, Env};
-use crate::agents::dqn::{ModuleObsAdapter, ModuleActAdapter};
 
 pub struct PyGymInfo {}
 
@@ -37,36 +35,6 @@ impl PyGymDiscreteAct {
 impl PyGymEnvAct for PyGymDiscreteAct {
     fn to_pyobj(&self, py: Python) -> PyObject {
         self.0.into_py(py)
-    }
-}
-
-pub struct PyNDArrayObsAdapter {}
-
-impl PyNDArrayObsAdapter {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
-impl ModuleObsAdapter<PyNDArrayObs> for PyNDArrayObsAdapter {
-    fn convert(&self, obs: &PyNDArrayObs) -> Tensor {
-        let obs = obs.0.view().to_slice().unwrap();
-        Tensor::of_slice(obs)
-    }
-}
-
-pub struct PyGymDiscreteActAdapter {}
-
-impl PyGymDiscreteActAdapter {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
-impl ModuleActAdapter<PyGymDiscreteAct> for PyGymDiscreteActAdapter {
-    fn convert(&self, act: &Tensor) -> PyGymDiscreteAct {
-        let a: i32 = act.into();
-        PyGymDiscreteAct::new(a as u32)
     }
 }
 

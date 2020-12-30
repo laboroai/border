@@ -1,6 +1,12 @@
+use std::marker::PhantomData;
 use tch::{Tensor, kind::{FLOAT_CPU, INT64_CPU}};
+use crate::core::{Env};
+use crate::agents::adapter::{ModuleObsAdapter, ModuleActAdapter};
 
-pub struct ReplayBuffer {
+pub struct ReplayBuffer<E, I, O> where
+    E: Env,
+    I: ModuleObsAdapter<E::Obs>,
+    O: ModuleActAdapter<E::Act> {
     obs: Tensor,
     next_obs: Tensor,
     rewards: Tensor,
@@ -8,18 +14,29 @@ pub struct ReplayBuffer {
     capacity: usize,
     len: usize,
     i: usize,
+    phandom: PhantomData<(E, I, O)>,
 }
 
-impl ReplayBuffer {
-    fn new(capacity: usize, num_obs: usize, num_actions: usize) -> Self {
+fn concat(capacity: usize, shape: &[i64]) -> Vec<i64> {
+    [&[capacity as i64], shape].concat()
+}
+
+impl<E, I, O> ReplayBuffer<E, I, O> where
+    E: Env,
+    I: ModuleObsAdapter<E::Obs>,
+    O: ModuleActAdapter<E::Act> {
+    fn new(capacity: usize, from_obs: &I, into_act: &O, ) -> Self {
+        let shape_obs = concat(capacity, from_obs.shape());
+        let shape_act = concat(capacity, into_act.shape());
         Self {
-            obs: Tensor::zeros(&[capacity as _, num_obs as _], FLOAT_CPU),
-            next_obs: Tensor::zeros(&[capacity as _, num_obs as _], FLOAT_CPU),
+            obs: Tensor::zeros(shape_obs.as_slice(), FLOAT_CPU),
+            next_obs: Tensor::zeros(shape_obs.as_slice(), FLOAT_CPU),
             rewards: Tensor::zeros(&[capacity as _, 1], FLOAT_CPU),
-            actions: Tensor::zeros(&[capacity as _, num_actions as _], FLOAT_CPU),
+            actions: Tensor::zeros(shape_act.as_slice(), FLOAT_CPU),
             capacity,
             len: 0,
             i: 0,
+            phandom: PhantomData,
         }
     }
 

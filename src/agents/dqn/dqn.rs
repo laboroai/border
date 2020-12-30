@@ -1,17 +1,8 @@
 use std::cell::RefCell;
 use std::marker::PhantomData;
 use tch::{Tensor, nn::Module, Kind::Float};
-use crate::core::{Obs, Policy, Agent, Step, Env};
-use crate::py_gym_env::{PyGymEnv, PyNDArrayObs, PyGymDiscreteAct, PyGymInfo};
-use crate::agents::ReplayBuffer;
-
-pub trait ModuleObsAdapter<T: Obs> {
-    fn convert(&self, obs: &T) -> Tensor;
-}
-
-pub trait ModuleActAdapter<T> {
-    fn convert(&self, act: &Tensor) -> T;
-}
+use crate::core::{Policy, Agent, Step, Env};
+use crate::agents::{ModuleActAdapter, ModuleObsAdapter};
 
 pub struct DQN<E, M, I, O> where
     E: Env,
