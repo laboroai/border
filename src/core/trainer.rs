@@ -5,14 +5,18 @@ pub struct Trainer<E: Env, A: Agent<E>> {
     env: E,
     agent: A,
     obs: RefCell<Option<E::Obs>>,
+    max_opts: usize,
+    count_opts: usize,
 }
 
 impl<E: Env, A: Agent<E>> Trainer<E, A> {
-    pub fn new(env: E, agent: A) -> Self {
+    pub fn new(env: E, agent: A, max_opts: usize) -> Self {
         Trainer {
             env,
             agent,
-            obs: RefCell::new(None)
+            obs: RefCell::new(None),
+            max_opts,
+            count_opts: 0,
         }
     }
 
@@ -25,7 +29,7 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
                 self.agent.push_obs(&obs);
                 obs
             },
-            Some(obs) => obs.clone()
+            Some(obs) => obs
         };
         let a = self.agent.sample(&obs);
         let step = self.env.step(&a);
@@ -41,11 +45,12 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
     }
 
     pub fn train(&mut self) {
-        self.agent.train();
+        self.agent.train(); // set to training mode
         loop {
             let step = self.sample();
-            let is_finished = self.agent.observe(step);
-            if is_finished { break; }
+            let is_optimized = self.agent.observe(step);
+            if is_optimized { self.count_opts += 1; }
+            if self.count_opts >= self.max_opts { break; }
         }
     }
 }

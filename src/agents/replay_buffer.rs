@@ -67,4 +67,8 @@ impl<E, I, O> ReplayBuffer<E, I, O> where
 
         Some((states, actions, rewards, next_states))
     }
+
+    pub fn len(&self) -> usize {
+        self.len
+    }
 }

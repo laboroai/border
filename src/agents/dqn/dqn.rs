@@ -11,6 +11,9 @@ pub struct DQN<E, M, I, O> where
     O: ModuleActAdapter<E::Act> {
     n_samples_per_opt: usize,
     n_updates_per_opt: usize,
+    n_opts_per_soft_update: usize,
+    min_transitions_warmup: usize,
+    batch_size: usize,
     qnet: M,
     qnet_tgt: M,
     from_obs: I,
@@ -18,7 +21,9 @@ pub struct DQN<E, M, I, O> where
     train: bool,
     phantom: PhantomData<E>,
     prev_obs: RefCell<Option<Tensor>>,
-    replay_buffer: ReplayBuffer<E, I, O>
+    replay_buffer: ReplayBuffer<E, I, O>,
+    count_samples_per_opt: usize,
+    count_opts_per_soft_update: usize,
 }
 
 impl<E, M, I, O> DQN<E, M, I, O> where 
@@ -26,12 +31,19 @@ impl<E, M, I, O> DQN<E, M, I, O> where
     M: Module + Clone,
     I: ModuleObsAdapter<E::Obs>,
     O: ModuleActAdapter<E::Act> {
-    pub fn new(qnet: M, replay_buffer: ReplayBuffer<E, I, O>, n_samples_per_opt: usize,
-               n_updates_per_opt: usize, from_obs: I, into_act: O) -> Self {
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(qnet: M, replay_buffer: ReplayBuffer<E, I, O>, from_obs: I, into_act: O,
+               n_samples_per_opt: usize, n_updates_per_opt: usize,
+               n_opts_per_soft_update: usize, min_transitions_warmup: usize,
+               batch_size: usize) -> Self {
         let qnet_tgt = qnet.clone();
         DQN {
             n_samples_per_opt,
             n_updates_per_opt,
+            n_opts_per_soft_update,
+            min_transitions_warmup,
+            batch_size,
             qnet,
             qnet_tgt,
             from_obs,
@@ -40,6 +52,8 @@ impl<E, M, I, O> DQN<E, M, I, O> where
             phantom: PhantomData,
             prev_obs: RefCell::new(None),
             replay_buffer,
+            count_samples_per_opt: 0,
+            count_opts_per_soft_update: 0,
         }
     }
 
@@ -54,6 +68,19 @@ impl<E, M, I, O> DQN<E, M, I, O> where
             &next_obs
         );
         let _ = self.prev_obs.replace(Some(next_obs));
+    }
+
+    fn compute_loss(&self, batch: (Tensor, Tensor, Tensor, Tensor)) -> Tensor {
+        // TODO: implement this
+        batch.0
+    }
+
+    fn update_qnet(&self, loss: Tensor) {
+        // TODO: implement this
+    }
+
+    fn soft_update_qnet_tgt(&self) {
+        // TODO: implement this
     }
 }
 
@@ -96,6 +123,27 @@ impl<E, M, I, O> Agent<E> for DQN<E, M, I, O> where
     fn observe(&mut self, step: Step<E::Obs, E::Act, E::Info>) -> bool {
         // Push transition to the replay buffer
         self.push_transition(step);
-        true
+
+        // Do optimization 1 step
+        self.count_samples_per_opt += 1;
+        if self.count_samples_per_opt == self.n_samples_per_opt {
+            self.count_samples_per_opt = 0;
+
+            if self.replay_buffer.len() >= self.min_transitions_warmup {
+                for _ in 0..self.n_updates_per_opt {
+                    let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
+                    let loss = self.compute_loss(batch);
+                    self.update_qnet(loss);
+                };
+
+                self.count_opts_per_soft_update += 1;
+                if self.count_opts_per_soft_update == self.n_opts_per_soft_update {
+                    self.count_opts_per_soft_update = 0;
+                    self.soft_update_qnet_tgt();
+                }
+                return true;
+            }
+        }
+        false
     }
 }

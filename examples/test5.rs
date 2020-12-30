@@ -23,12 +23,19 @@ fn main() {
     let dqn: DQN<PyGymEnv<PyGymDiscreteAct>, _, _, _> = DQN::new(
         qnet,
         replay_buffer,
-        0,
-        0,
         from_obs,
         into_act,
+        10,
+        1,
+        10,
+        8,
+        8
     );
-    let mut trainer = Trainer::new(env, dqn);
+    let mut trainer = Trainer::new(
+        env,
+        dqn,
+        2,
+    );
 
     trainer.train();
 }
