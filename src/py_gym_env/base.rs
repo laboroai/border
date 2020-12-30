@@ -4,7 +4,7 @@ use ndarray::{Array, ArrayD, IxDyn};
 use pyo3::{IntoPy, PyErr, PyObject, PyResult, Python};
 use pyo3::types::{PyTuple};
 use numpy::{PyArrayDyn};
-use crate::core::{Info, Obs, Step, Env};
+use crate::core::{Obs, Act, Info, Step, Env};
 
 pub struct PyGymInfo {}
 
@@ -19,11 +19,11 @@ impl Obs for PyNDArrayObs {
     }
 }
 
-pub trait PyGymEnvAct {
+pub trait PyGymEnvAct: Act {
     fn to_pyobj(&self, py: Python) -> PyObject;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PyGymDiscreteAct (u32);
 
 impl PyGymDiscreteAct {
@@ -31,6 +31,8 @@ impl PyGymDiscreteAct {
         PyGymDiscreteAct { 0: v }
     }
 }
+
+impl Act for PyGymDiscreteAct {}
 
 impl PyGymEnvAct for PyGymDiscreteAct {
     fn to_pyobj(&self, py: Python) -> PyObject {
@@ -96,14 +98,15 @@ impl<A: PyGymEnvAct + Debug> Env for PyGymEnv<A> {
         ))
     }
 
-    fn step(&self, a: &A) -> Step<PyNDArrayObs, PyGymInfo> {
+    fn step(&self, a: &A) -> Step<PyNDArrayObs, A, PyGymInfo> {
             println!("{:?}", &a);
         pyo3::Python::with_gil(|py| {
             if self.render {
                 let _ = self.env.call_method0(py, "render");
             }
-            let a = a.to_pyobj(py);
-            let ret = self.env.call_method(py, "step", (a,), None).unwrap();
+            let a = a.clone();
+            let a_py = a.to_pyobj(py);
+            let ret = self.env.call_method(py, "step", (a_py,), None).unwrap();
 
             let step: &PyTuple = ret.extract(py).unwrap();
 
@@ -115,7 +118,7 @@ impl<A: PyGymEnvAct + Debug> Env for PyGymEnv<A> {
             let r: f32 = step.get_item(1).extract().unwrap();
             let is_done: bool = step.get_item(2).extract().unwrap();
 
-            Step::new(PyNDArrayObs(obs4), r, is_done, PyGymInfo{})
+            Step::new(PyNDArrayObs(obs4), a, r, is_done, PyGymInfo{})
         })
     }
 }

@@ -18,7 +18,7 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
 
     /// The agent take an action and apply it to the environment.
     /// Then return [crate::core::base::Step] object.
-    fn sample(&self) -> Step<E::Obs, E::Info> {
+    fn sample(&self) -> Step<E::Obs, E::Act, E::Info> {
         let obs = match self.obs.replace(None) {
             None => {
                 let obs = self.env.reset().unwrap();

@@ -16,7 +16,7 @@ impl<E: Env, P: Policy<E>> Sampler<E, P> {
         }
     }
 
-    pub fn sample(&self, n: usize) -> Step<E::Obs, E::Info> {
+    pub fn sample(&self, n: usize) -> Step<E::Obs, E::Act, E::Info> {
         let mut obs = match self.obs.replace(None) {
             None => self.env.reset().unwrap(),
             Some(obs) => obs.clone()
@@ -25,9 +25,10 @@ impl<E: Env, P: Policy<E>> Sampler<E, P> {
         let mut done_last;
         let mut step;
         let mut i = 0;
+        let mut a;
 
         loop {
-            let a = self.pi.sample(&obs);
+            a = self.pi.sample(&obs);
             step = self.env.step(&a);
             obs = if step.is_done { self.env.reset().unwrap() } else { step.obs };
             done_last = step.is_done;
@@ -46,6 +47,6 @@ impl<E: Env, P: Policy<E>> Sampler<E, P> {
             self.obs.replace(Some(obs.clone()));
         }
 
-        Step::new(obs, step.reward, step.is_done, step.info)
+        Step::new(obs, a, step.reward, step.is_done, step.info)
     }
 }
