@@ -3,6 +3,7 @@ use crate::core::{Env, Agent, Step};
 
 pub struct Trainer<E: Env, A: Agent<E>> {
     env: E,
+    env_eval: E,
     agent: A,
     obs: RefCell<Option<E::Obs>>,
     max_opts: usize,
@@ -10,9 +11,10 @@ pub struct Trainer<E: Env, A: Agent<E>> {
 }
 
 impl<E: Env, A: Agent<E>> Trainer<E, A> {
-    pub fn new(env: E, agent: A, max_opts: usize) -> Self {
+    pub fn new(env: E, env_eval: E, agent: A, max_opts: usize) -> Self {
         Trainer {
             env,
+            env_eval,
             agent,
             obs: RefCell::new(None),
             max_opts,

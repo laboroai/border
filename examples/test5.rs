@@ -16,6 +16,7 @@ fn main() {
         }
     };
     env.set_render(false);
+    let env_eval = env.clone();
     let qnet = QNetwork::new(4, 2, 0.01);
     let from_obs = PyNDArrayObsAdapter::new(&[4]);
     let into_act = PyGymDiscreteActAdapter::new(&[1]);
@@ -33,6 +34,7 @@ fn main() {
     );
     let mut trainer = Trainer::new(
         env,
+        env_eval,
         dqn,
         2,
     );

@@ -41,6 +41,7 @@ impl PyGymEnvAct for PyGymDiscreteAct {
 }
 
 /// Adapted from [tch-rs RL example](https://github.com/LaurentMazare/tch-rs/tree/master/examples/reinforcement-learning)
+#[derive(Debug, Clone)]
 pub struct PyGymEnv<A> {
     render: bool,
     env: PyObject,
