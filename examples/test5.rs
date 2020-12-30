@@ -30,7 +30,8 @@ fn main() {
         1,
         10,
         8,
-        8
+        8,
+        0.99
     );
     let mut trainer = Trainer::new(
         env,

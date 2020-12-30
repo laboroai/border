@@ -21,23 +21,24 @@ impl Clone for QNetwork {
 
 impl QNetwork {
     pub fn new(in_dim: usize, out_dim: usize, learning_rate: f64) -> Self {
-        let var_store = nn::VarStore::new(tch::Device::Cpu);
-        let opt = nn::Adam::default().build(&var_store, 1e-3).unwrap();
-        let p = &var_store.root();
+        let vs = nn::VarStore::new(tch::Device::Cpu);
+        let p = &vs.root();
+        let network = nn::seq()
+            .add(nn::linear(
+                p / "cl1",
+                in_dim as _,
+                400,
+                Default::default(),
+            ))
+            .add_fn(|xs| xs.relu())
+            .add(nn::linear(p / "cl2", 400, 300, Default::default()))
+            .add_fn(|xs| xs.relu())
+            .add(nn::linear(p / "cl3", 300, out_dim as _, Default::default()));
+        let opt = nn::Adam::default().build(&vs, 1e-3).unwrap();
         Self {
-            network: nn::seq()
-                .add(nn::linear(
-                    p / "cl1",
-                    in_dim as _,
-                    400,
-                    Default::default(),
-                ))
-                .add_fn(|xs| xs.relu())
-                .add(nn::linear(p / "cl2", 400, 300, Default::default()))
-                .add_fn(|xs| xs.relu())
-                .add(nn::linear(p / "cl3", 300, out_dim as _, Default::default())),
+            network,
             device: p.device(),
-            var_store,
+            var_store: vs,
             in_dim,
             out_dim,
             opt,

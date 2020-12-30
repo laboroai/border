@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::marker::PhantomData;
-use tch::{Tensor, nn::Module, Kind::Float};
+use tch::{no_grad, Kind::Float, Tensor, kind::FLOAT_CPU, nn::Module};
 use crate::{agents::ReplayBuffer, core::{Policy, Agent, Step, Env}};
 use crate::agents::{ModuleActAdapter, ModuleObsAdapter};
 
@@ -24,6 +24,7 @@ pub struct DQN<E, M, I, O> where
     replay_buffer: ReplayBuffer<E, I, O>,
     count_samples_per_opt: usize,
     count_opts_per_soft_update: usize,
+    discount_factor: f64,
 }
 
 impl<E, M, I, O> DQN<E, M, I, O> where 
@@ -36,7 +37,7 @@ impl<E, M, I, O> DQN<E, M, I, O> where
     pub fn new(qnet: M, replay_buffer: ReplayBuffer<E, I, O>, from_obs: I, into_act: O,
                n_samples_per_opt: usize, n_updates_per_opt: usize,
                n_opts_per_soft_update: usize, min_transitions_warmup: usize,
-               batch_size: usize) -> Self {
+               batch_size: usize, discount_factor: f64) -> Self {
         let qnet_tgt = qnet.clone();
         DQN {
             n_samples_per_opt,
@@ -54,6 +55,7 @@ impl<E, M, I, O> DQN<E, M, I, O> where
             replay_buffer,
             count_samples_per_opt: 0,
             count_opts_per_soft_update: 0,
+            discount_factor,
         }
     }
 
@@ -71,12 +73,23 @@ impl<E, M, I, O> DQN<E, M, I, O> where
     }
 
     fn compute_loss(&self, batch: (Tensor, Tensor, Tensor, Tensor)) -> Tensor {
-        // TODO: implement this
-        batch.0
+        let (obs, a, r, next_obs) = batch;
+        let pred = {
+            let a = a;
+            let x = self.qnet.forward(&obs);
+            x.gather(-1, &a, false)
+        };
+        let tgt = no_grad(|| {
+            let x = self.qnet_tgt.forward(&next_obs);
+            let y = x.argmax(-1, false).unsqueeze(-1);
+            let x = x.gather(-1, &y, false);
+            r + self.discount_factor * x
+        });
+        pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0)
     }
 
     fn update_qnet(&self, loss: Tensor) {
-        // TODO: implement this
+        // self.qnet.opt.backward_step(&loss);
     }
 
     fn soft_update_qnet_tgt(&self) {

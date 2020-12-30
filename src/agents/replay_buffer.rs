@@ -21,6 +21,7 @@ fn concat(capacity: usize, shape: &[i64]) -> Vec<i64> {
     [&[capacity as i64], shape].concat()
 }
 
+#[allow(clippy::len_without_is_empty)]
 impl<E, I, O> ReplayBuffer<E, I, O> where
     E: Env,
     I: ModuleObsAdapter<E::Obs>,
@@ -28,11 +29,13 @@ impl<E, I, O> ReplayBuffer<E, I, O> where
     pub fn new(capacity: usize, from_obs: &I, into_act: &O) -> Self {
         let shape_obs = concat(capacity, from_obs.shape());
         let shape_act = concat(capacity, into_act.shape());
+        // TODO: choose kind of action (FLOAT_CPU or INT64_CPU) depending on
+        // whether action is discrete or continuous
         Self {
             obs: Tensor::zeros(shape_obs.as_slice(), FLOAT_CPU),
             next_obs: Tensor::zeros(shape_obs.as_slice(), FLOAT_CPU),
             rewards: Tensor::zeros(&[capacity as _, 1], FLOAT_CPU),
-            actions: Tensor::zeros(shape_act.as_slice(), FLOAT_CPU),
+            actions: Tensor::zeros(shape_act.as_slice(), INT64_CPU),
             capacity,
             len: 0,
             i: 0,
