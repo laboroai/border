@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use tch::{Tensor, nn::Module, Kind::Float};
 use crate::core::{Obs, Policy, Agent, Step, Env};
 use crate::py_gym_env::{PyGymEnv, PyNDArrayObs, PyGymDiscreteAct, PyGymInfo};
+use crate::agents::ReplayBuffer;
 
 pub trait ModuleObsAdapter<T: Obs> {
     fn convert(&self, obs: &T) -> Tensor;
@@ -48,6 +49,9 @@ impl<E, M, I, O> DQN<E, M, I, O> where
             prev_obs: RefCell::new(None)
         }
     }
+
+    fn push_transition(&mut self, step: Step<E::Obs, E::Info>) {
+    }
 }
 
 impl<E, M, I, O> Policy<E> for DQN<E, M, I, O> where 
@@ -86,8 +90,9 @@ impl<E, M, I, O> Agent<E> for DQN<E, M, I, O> where
         self.prev_obs.replace(Some(self.from_obs.convert(obs)));
     }
 
-    fn observe(&self, step: Step<E::Obs, E::Info>) -> bool {
-        // self.push_sample(step);
+    fn observe(&mut self, step: Step<E::Obs, E::Info>) -> bool {
+        // Push transition to the replay buffer
+        self.push_transition(step);
         true
     }
 }

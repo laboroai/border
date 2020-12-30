@@ -47,7 +47,7 @@ pub trait Agent<E: Env>: Policy<E> {
     ///
     /// Return `true` if training of the agent is finished.
     /// TODO: Check the description. 
-    fn observe(&self, step: Step<E::Obs, E::Info>) -> bool;
+    fn observe(&mut self, step: Step<E::Obs, E::Info>) -> bool;
 
     /// Push observation to the agent.
     /// This method is used when resetting the environment.
