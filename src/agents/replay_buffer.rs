@@ -25,7 +25,7 @@ impl<E, I, O> ReplayBuffer<E, I, O> where
     E: Env,
     I: ModuleObsAdapter<E::Obs>,
     O: ModuleActAdapter<E::Act> {
-    fn new(capacity: usize, from_obs: &I, into_act: &O, ) -> Self {
+    pub fn new(capacity: usize, from_obs: &I, into_act: &O) -> Self {
         let shape_obs = concat(capacity, from_obs.shape());
         let shape_act = concat(capacity, into_act.shape());
         Self {
@@ -40,7 +40,7 @@ impl<E, I, O> ReplayBuffer<E, I, O> where
         }
     }
 
-    fn push(&mut self, obs: &Tensor, actions: &Tensor, reward: &Tensor, next_obs: &Tensor) {
+    pub fn push(&mut self, obs: &Tensor, actions: &Tensor, reward: &Tensor, next_obs: &Tensor) {
         let i = self.i % self.capacity;
         self.obs.get(i as _).copy_(obs);
         self.rewards.get(i as _).copy_(reward);
@@ -52,7 +52,7 @@ impl<E, I, O> ReplayBuffer<E, I, O> where
         }
     }
 
-    fn random_batch(&self, batch_size: usize) -> Option<(Tensor, Tensor, Tensor, Tensor)> {
+    pub fn random_batch(&self, batch_size: usize) -> Option<(Tensor, Tensor, Tensor, Tensor)> {
         if self.len < 3 {
             return None;
         }

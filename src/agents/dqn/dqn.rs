@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::marker::PhantomData;
 use tch::{Tensor, nn::Module, Kind::Float};
-use crate::core::{Policy, Agent, Step, Env};
+use crate::{agents::ReplayBuffer, core::{Policy, Agent, Step, Env}};
 use crate::agents::{ModuleActAdapter, ModuleObsAdapter};
 
 pub struct DQN<E, M, I, O> where
@@ -18,6 +18,7 @@ pub struct DQN<E, M, I, O> where
     train: bool,
     phantom: PhantomData<E>,
     prev_obs: RefCell<Option<Tensor>>,
+    replay_buffer: ReplayBuffer<E, I, O>
 }
 
 impl<E, M, I, O> DQN<E, M, I, O> where 
@@ -25,8 +26,8 @@ impl<E, M, I, O> DQN<E, M, I, O> where
     M: Module + Clone,
     I: ModuleObsAdapter<E::Obs>,
     O: ModuleActAdapter<E::Act> {
-    pub fn new(qnet: M, n_samples_per_opt: usize, n_updates_per_opt: usize,
-               from_obs: I, into_act: O) -> Self {
+    pub fn new(qnet: M, replay_buffer: ReplayBuffer<E, I, O>, n_samples_per_opt: usize,
+               n_updates_per_opt: usize, from_obs: I, into_act: O) -> Self {
         let qnet_tgt = qnet.clone();
         DQN {
             n_samples_per_opt,
@@ -37,7 +38,8 @@ impl<E, M, I, O> DQN<E, M, I, O> where
             into_act,
             train: false,
             phantom: PhantomData,
-            prev_obs: RefCell::new(None)
+            prev_obs: RefCell::new(None),
+            replay_buffer,
         }
     }
 
