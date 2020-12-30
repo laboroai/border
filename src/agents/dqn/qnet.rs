@@ -56,4 +56,8 @@ impl Model for QNetwork {
     fn backward_step(&mut self, loss: &Tensor) {
         self.opt.backward_step(loss);
     }
+
+    fn get_var_store(&mut self) -> &mut nn::VarStore {
+        &mut self.var_store
+    }
 }

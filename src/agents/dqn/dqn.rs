@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use tch::{no_grad, Kind::Float, Tensor};
 use crate::{agents::{ReplayBuffer, Model}, core::{Policy, Agent, Step, Env}};
 use crate::agents::{TchActAdapter, TchObsAdapter};
+use crate::agents::tch::util::track;
 
 pub struct DQN<E, M, I, O> where
     E: Env,
@@ -25,6 +26,7 @@ pub struct DQN<E, M, I, O> where
     count_samples_per_opt: usize,
     count_opts_per_soft_update: usize,
     discount_factor: f64,
+    tau: f64,
 }
 
 impl<E, M, I, O> DQN<E, M, I, O> where 
@@ -37,7 +39,7 @@ impl<E, M, I, O> DQN<E, M, I, O> where
     pub fn new(qnet: M, replay_buffer: ReplayBuffer<E, I, O>, from_obs: I, into_act: O,
                n_samples_per_opt: usize, n_updates_per_opt: usize,
                n_opts_per_soft_update: usize, min_transitions_warmup: usize,
-               batch_size: usize, discount_factor: f64) -> Self {
+               batch_size: usize, discount_factor: f64, tau: f64) -> Self {
         let qnet_tgt = qnet.clone();
         DQN {
             n_samples_per_opt,
@@ -56,6 +58,7 @@ impl<E, M, I, O> DQN<E, M, I, O> where
             count_samples_per_opt: 0,
             count_opts_per_soft_update: 0,
             discount_factor,
+            tau,
         }
     }
 
@@ -91,8 +94,8 @@ impl<E, M, I, O> DQN<E, M, I, O> where
         self.qnet.backward_step(&loss);
     }
 
-    fn soft_update_qnet_tgt(&self) {
-        // TODO: implement this
+    fn soft_update_qnet_tgt(&mut self) {
+        track(&mut self.qnet_tgt, &mut self.qnet, self.tau);
     }
 }
 

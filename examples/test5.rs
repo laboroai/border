@@ -28,10 +28,11 @@ fn main() {
         into_act,
         10,
         1,
-        10,
+        1,
         8,
         8,
-        0.99
+        0.99,
+        0.005
     );
     let mut trainer = Trainer::new(
         env,
