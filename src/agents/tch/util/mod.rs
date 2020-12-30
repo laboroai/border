@@ -1,3 +1,4 @@
+use log::trace;
 use crate::agents::Model;
 
 pub fn track(dest: &mut impl Model, src: &mut impl Model, tau: f64) {
@@ -12,5 +13,5 @@ pub fn track(dest: &mut impl Model, src: &mut impl Model, tau: f64) {
             dest.copy_(&(tau * src + (1.0 - tau) * &*dest));
         }
     });
-    println!("soft update");
+    trace!("soft update");
 }

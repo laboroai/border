@@ -12,6 +12,8 @@ tch = "0.3.0"
 numpy = "0.13"
 pyo3 = "0.13"
 fastrand = "1.4.0"
+log = "0.4"
+env_logger = "0.8.2"
 
 # [features]
 # python = ["pyo3"]

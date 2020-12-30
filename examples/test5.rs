@@ -5,6 +5,9 @@ use lrr::py_gym_env::adapter::{PyNDArrayObsAdapter, PyGymDiscreteActAdapter};
 use lrr::agents::{DQN, dqn::QNetwork, ReplayBuffer};
 
 fn main() {
+    std::env::set_var("RUST_LOG", "trace");
+    env_logger::init();
+
     let mut env = match PyGymEnv::<PyGymDiscreteAct>::new("CartPole-v0") {
         Ok(env) => env,
         Err(e) => {

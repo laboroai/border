@@ -5,6 +5,7 @@ use pyo3::{IntoPy, PyErr, PyObject, PyResult, Python};
 use pyo3::types::{PyTuple};
 use numpy::{PyArrayDyn};
 use crate::core::{Obs, Act, Info, Step, Env};
+use log::{trace};
 
 pub struct PyGymInfo {}
 
@@ -100,7 +101,7 @@ impl<A: PyGymEnvAct + Debug> Env for PyGymEnv<A> {
     }
 
     fn step(&self, a: &A) -> Step<PyNDArrayObs, A, PyGymInfo> {
-        println!("{:?}", &a);
+        trace!("{:?}", &a);
         pyo3::Python::with_gil(|py| {
             if self.render {
                 let _ = self.env.call_method0(py, "render");
