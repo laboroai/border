@@ -44,6 +44,10 @@ impl ModuleActAdapter<PyGymDiscreteAct> for PyGymDiscreteActAdapter {
         PyGymDiscreteAct::new(a as u32)
     }
 
+    fn back(&self, act: &PyGymDiscreteAct) -> Tensor {
+        (act.0 as i64).into()
+    }
+
     fn shape(&self) -> &[i64] {
         self.shape.as_slice()
     }

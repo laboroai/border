@@ -44,16 +44,16 @@ impl<E, M, I, O> DQN<E, M, I, O> where
     }
 
     fn push_transition(&mut self, step: Step<E::Obs, E::Act, E::Info>) {
-        // let next_obs = self.from_obs.convert(&step.obs);
-        // let obs = self.prev_obs.replace(None).unwrap();
-        // self.replay_buffer.push(
-        //     &obs,
-        //     step.act,
-        //     // TODO: check if reward have a dimension, not scalar
-        //     &step.reward.into(),
-        //     &next_obs
-        // );
-        // let _ = self.prev_obs.replace(Some(next_obs));
+        let next_obs = self.from_obs.convert(&step.obs);
+        let obs = self.prev_obs.replace(None).unwrap();
+        self.replay_buffer.push(
+            &obs,
+            &self.into_act.back(&step.act),
+            // TODO: check if reward have a dimension, not scalar
+            &step.reward.into(),
+            &next_obs
+        );
+        let _ = self.prev_obs.replace(Some(next_obs));
     }
 }
 

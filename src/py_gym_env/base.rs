@@ -24,7 +24,7 @@ pub trait PyGymEnvAct: Act {
 }
 
 #[derive(Debug, Clone)]
-pub struct PyGymDiscreteAct (u32);
+pub struct PyGymDiscreteAct (pub(in crate::py_gym_env) u32);
 
 impl PyGymDiscreteAct {
     pub fn new(v: u32) -> Self {

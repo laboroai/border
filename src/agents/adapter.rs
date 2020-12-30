@@ -13,6 +13,9 @@ pub trait ModuleActAdapter<T> {
     /// Converts tch tensor to [crate::core::Env::Act].
     fn convert(&self, act: &Tensor) -> T;
 
+    /// Convert back [crate::core::Env::Act] to tensor.
+    fn back(&self, act: &T) -> Tensor;
+
     /// Return the shape of tensors of action.
     fn shape(&self) -> &[i64];
 }
