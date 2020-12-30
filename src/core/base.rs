@@ -30,7 +30,6 @@ pub trait Env {
     type Info: Info;
     type ERR: Debug;
 
-    // fn step(&self, a: &Self::Act) -> (Self::Obs, f32, bool, Self::Info);
     fn step(&self, a: &Self::Act) -> Step<Self::Obs, Self::Info>;
 
     fn reset(&self) -> Result<Self::Obs, Self::ERR>;
@@ -43,6 +42,14 @@ pub trait Policy<E: Env> {
 }
 
 pub trait Agent<E: Env>: Policy<E> {
+    /// Observe a [crate::core::base::Step] object.
+    /// The agent is expected to do training its policy based on the observation.
+    ///
     /// Return `true` if training of the agent is finished.
+    /// TODO: Check the description. 
     fn observe(&self, step: Step<E::Obs, E::Info>) -> bool;
+
+    /// Push observation to the agent.
+    /// This method is used when resetting the environment.
+    fn push_obs(&self, obs: &E::Obs);
 }

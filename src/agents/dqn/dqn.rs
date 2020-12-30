@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::marker::PhantomData;
 use tch::{Tensor, nn::Module, Kind::Float};
 use crate::core::{Obs, Policy, Agent, Step, Env};
@@ -24,6 +25,7 @@ pub struct DQN<E, M, I, O> where
     into_act: O,
     train: bool,
     phantom: PhantomData<E>,
+    prev_obs: RefCell<Option<Tensor>>,
 }
 
 impl<E, M, I, O> DQN<E, M, I, O> where 
@@ -43,6 +45,7 @@ impl<E, M, I, O> DQN<E, M, I, O> where
             into_act,
             train: false,
             phantom: PhantomData,
+            prev_obs: RefCell::new(None)
         }
     }
 }
@@ -78,7 +81,13 @@ impl<E, M, I, O> Agent<E> for DQN<E, M, I, O> where
     M: Module + Clone,
     I: ModuleObsAdapter<E::Obs>,
     O: ModuleActAdapter<E::Act> {
-    fn observe(&self, _step: Step<E::Obs, E::Info>) -> bool {
+
+    fn push_obs(&self, obs: &E::Obs) {
+        self.prev_obs.replace(Some(self.from_obs.convert(obs)));
+    }
+
+    fn observe(&self, step: Step<E::Obs, E::Info>) -> bool {
+        // self.push_sample(step);
         true
     }
 }
