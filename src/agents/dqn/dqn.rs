@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::marker::PhantomData;
+use log::trace;
 use tch::{no_grad, Kind::Float, Tensor};
 use crate::{agents::{ReplayBuffer, Model}, core::{Policy, Agent, Step, Env}};
 use crate::agents::{TchActAdapter, TchObsAdapter};

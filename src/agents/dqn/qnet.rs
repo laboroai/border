@@ -28,14 +28,14 @@ impl QNetwork {
             .add(nn::linear(
                 p / "cl1",
                 in_dim as _,
-                400,
+                256,
                 Default::default(),
             ))
             .add_fn(|xs| xs.relu())
-            .add(nn::linear(p / "cl2", 400, 300, Default::default()))
-            .add_fn(|xs| xs.relu())
-            .add(nn::linear(p / "cl3", 300, out_dim as _, Default::default()));
-        let opt = nn::Adam::default().build(&vs, 1e-3).unwrap();
+            // .add(nn::linear(p / "cl2", 400, 300, Default::default()))
+            // .add_fn(|xs| xs.relu())
+            .add(nn::linear(p / "cl3", 256, out_dim as _, Default::default()));
+        let opt = nn::Adam::default().build(&vs, learning_rate).unwrap();
         Self {
             network,
             device: p.device(),
