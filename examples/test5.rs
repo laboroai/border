@@ -19,8 +19,8 @@ fn main() {
         }
     };
     env.set_render(false);
-    let mut env_eval = env.clone();
-    env_eval.set_render(true);
+    let env_eval = env.clone();
+    // env_eval.set_render(true);
     let qnet = QNetwork::new(4, 2, 0.001);
     let from_obs = PyNDArrayObsAdapter::new(&[4]);
     let into_act = PyGymDiscreteActAdapter::new(&[1]);

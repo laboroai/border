@@ -11,6 +11,7 @@ pub struct ReplayBuffer<E, I, O> where
     next_obs: Tensor,
     rewards: Tensor,
     actions: Tensor,
+    not_dones: Tensor,
     capacity: usize,
     len: usize,
     i: usize,
@@ -36,6 +37,7 @@ impl<E, I, O> ReplayBuffer<E, I, O> where
             next_obs: Tensor::zeros(shape_obs.as_slice(), FLOAT_CPU),
             rewards: Tensor::zeros(&[capacity as _, 1], FLOAT_CPU),
             actions: Tensor::zeros(shape_act.as_slice(), INT64_CPU),
+            not_dones: Tensor::zeros(&[capacity as _, 1], FLOAT_CPU),
             capacity,
             len: 0,
             i: 0,
@@ -43,19 +45,21 @@ impl<E, I, O> ReplayBuffer<E, I, O> where
         }
     }
 
-    pub fn push(&mut self, obs: &Tensor, actions: &Tensor, reward: &Tensor, next_obs: &Tensor) {
+    pub fn push(&mut self, obs: &Tensor, actions: &Tensor, reward: &Tensor, next_obs: &Tensor,
+                not_done: &Tensor) {
         let i = self.i % self.capacity;
         self.obs.get(i as _).copy_(obs);
         self.rewards.get(i as _).copy_(reward);
         self.actions.get(i as _).copy_(actions);
         self.next_obs.get(i as _).copy_(next_obs);
+        self.not_dones.get(i as _).copy_(not_done);
         self.i += 1;
         if self.len < self.capacity {
             self.len += 1;
         }
     }
 
-    pub fn random_batch(&self, batch_size: usize) -> Option<(Tensor, Tensor, Tensor, Tensor)> {
+    pub fn random_batch(&self, batch_size: usize) -> Option<(Tensor, Tensor, Tensor, Tensor, Tensor)> {
         if self.len < 3 {
             return None;
         }
@@ -67,8 +71,9 @@ impl<E, I, O> ReplayBuffer<E, I, O> where
         let next_states = self.next_obs.index_select(0, &batch_indexes);
         let actions = self.actions.index_select(0, &batch_indexes);
         let rewards = self.rewards.index_select(0, &batch_indexes);
+        let not_dones = self.not_dones.index_select(0, &batch_indexes);
 
-        Some((states, actions, rewards, next_states))
+        Some((states, actions, rewards, next_states, not_dones))
     }
 
     pub fn len(&self) -> usize {

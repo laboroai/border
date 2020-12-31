@@ -99,18 +99,19 @@ impl<E, M, I, O> DQN<E, M, I, O> where
     fn push_transition(&mut self, step: Step<E::Obs, E::Act, E::Info>) {
         let next_obs = self.from_obs.convert(&step.obs);
         let obs = self.prev_obs.replace(None).unwrap();
+        let not_done = (if step.is_done { 0.0 } else { 1.0 }).into();
         self.replay_buffer.push(
             &obs,
             &self.into_act.back(&step.act),
-            // TODO: check if reward have a dimension, not scalar
             &step.reward.into(),
-            &next_obs
+            &next_obs,
+            &not_done,
         );
         let _ = self.prev_obs.replace(Some(next_obs));
     }
 
-    fn update_qnet(&mut self, batch: (Tensor, Tensor, Tensor, Tensor)) {
-        let (obs, a, r, next_obs) = batch;
+    fn update_qnet(&mut self, batch: (Tensor, Tensor, Tensor, Tensor, Tensor)) {
+        let (obs, a, r, next_obs, not_done) = batch;
         let loss = {
             let pred = {
                 let a = a;
@@ -121,7 +122,7 @@ impl<E, M, I, O> DQN<E, M, I, O> where
                 let x = self.qnet_tgt.forward(&next_obs);
                 let y = x.argmax(-1, false).unsqueeze(-1);
                 let x = x.gather(-1, &y, false);
-                r + self.discount_factor * x
+                r + not_done * self.discount_factor * x
             });
             pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0)
         };
@@ -151,7 +152,7 @@ impl<E, M, I, O> Policy<E> for DQN<E, M, I, O> where
         let a = self.qnet.forward(&obs);
         let a = if self.train {
             a.softmax(-1, Float)
-            .multinomial(1, false)
+            .multinomial(1, true)
         } else {
             a.argmax(-1, true)
         };
