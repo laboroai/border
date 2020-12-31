@@ -28,15 +28,14 @@ fn main() {
         qnet,
         replay_buffer,
         from_obs,
-        into_act,
-        10,
-        1,
-        1,
-        8,
-        8,
-        0.99,
-        0.005
-    );
+        into_act)
+        .n_samples_per_opt(10)
+        .n_updates_per_opt(1)
+        .n_opts_per_soft_update(1)
+        .min_transitions_warmup(8)
+        .batch_size(8)
+        .discount_factor(0.99)
+        .tau(0.005);
     let mut trainer = Trainer::new(
         env,
         env_eval,

@@ -36,30 +36,63 @@ impl<E, M, I, O> DQN<E, M, I, O> where
     O: TchActAdapter<E::Act> {
 
     #[allow(clippy::too_many_arguments)]
-    pub fn new(qnet: M, replay_buffer: ReplayBuffer<E, I, O>, from_obs: I, into_act: O,
-               n_samples_per_opt: usize, n_updates_per_opt: usize,
-               n_opts_per_soft_update: usize, min_transitions_warmup: usize,
-               batch_size: usize, discount_factor: f64, tau: f64) -> Self {
+    pub fn new(qnet: M, replay_buffer: ReplayBuffer<E, I, O>, from_obs: I, into_act: O)
+            -> Self {
         let qnet_tgt = qnet.clone();
         DQN {
-            n_samples_per_opt,
-            n_updates_per_opt,
-            n_opts_per_soft_update,
-            min_transitions_warmup,
-            batch_size,
             qnet,
             qnet_tgt,
+            replay_buffer,
             from_obs,
             into_act,
-            train: false,
-            phantom: PhantomData,
-            prev_obs: RefCell::new(None),
-            replay_buffer,
+            n_samples_per_opt: 1,
+            n_updates_per_opt: 1,
+            n_opts_per_soft_update: 1,
+            min_transitions_warmup: 1,
+            batch_size: 1,
+            discount_factor: 0.99,
+            tau: 0.005,
             count_samples_per_opt: 0,
             count_opts_per_soft_update: 0,
-            discount_factor,
-            tau,
+            train: false,
+            prev_obs: RefCell::new(None),
+            phantom: PhantomData,
         }
+    }
+
+    pub fn n_samples_per_opt(mut self, v: usize) -> Self {
+        self.n_samples_per_opt = v;
+        self
+    }
+
+    pub fn n_updates_per_opt(mut self, v: usize) -> Self {
+        self.n_updates_per_opt = v;
+        self
+    }
+
+    pub fn n_opts_per_soft_update(mut self, v: usize) -> Self {
+        self.n_opts_per_soft_update = v;
+        self
+    }
+
+    pub fn min_transitions_warmup(mut self, v: usize) -> Self {
+        self.min_transitions_warmup = v;
+        self
+    }
+
+    pub fn batch_size(mut self, v: usize) -> Self {
+        self.batch_size = v;
+        self
+    }
+
+    pub fn discount_factor(mut self, v: f64) -> Self {
+        self.discount_factor = v;
+        self
+    }
+
+    pub fn tau(mut self, v: f64) -> Self {
+        self.tau = v;
+        self
     }
 
     fn push_transition(&mut self, step: Step<E::Obs, E::Act, E::Info>) {
