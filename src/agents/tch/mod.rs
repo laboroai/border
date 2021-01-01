@@ -1,5 +1,6 @@
 pub mod util;
 
+use std::{path::Path, error::Error};
 use tch::{Tensor, nn};
 
 pub trait Model {
@@ -8,4 +9,6 @@ pub trait Model {
     fn backward_step(&mut self, loss: &Tensor);
 
     fn get_var_store(&mut self) -> &mut nn::VarStore;
+
+    fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>>;
 }

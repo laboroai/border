@@ -1,3 +1,4 @@
+use std::{path::Path, error::Error};
 use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
 use crate::agents::Model;
 
@@ -59,5 +60,9 @@ impl Model for QNetwork {
 
     fn get_var_store(&mut self) -> &mut nn::VarStore {
         &mut self.var_store
+    }
+
+    fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>> {
+        Ok(())
     }
 }

@@ -1,4 +1,4 @@
-use std::{error, cell::RefCell, marker::PhantomData, path::Path};
+use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{no_grad, Kind::Float, Tensor};
 use crate::{agents::{ReplayBuffer, Model}, core::{Policy, Agent, Step, Env}};
 use crate::agents::{TchActAdapter, TchObsAdapter};
@@ -194,7 +194,9 @@ impl<E, M, I, O> Agent<E> for DQN<E, M, I, O> where
         false
     }
 
-    fn save(&self, path: impl AsRef<Path>) -> Result<(), Box<dyn error::Error>> {
+    fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>> {
+        fs::create_dir(&path)?;
+        self.qnet.save(&path.as_ref().join("qnet.pt").as_path())?;
         Ok(())
     }
 

@@ -59,7 +59,7 @@ pub trait Agent<E: Env>: Policy<E> {
     fn push_obs(&self, obs: &E::Obs);
 
     /// Save the model in the given directory
-    fn save(&self, path: impl AsRef<Path>) -> Result<(), Box<dyn error::Error>>;
+    fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn error::Error>>;
 
     // /// Load the model from the given directory
     // fn load(&mut self, path: path::Path) -> Result<(), Box<dyn error::Error>>;
