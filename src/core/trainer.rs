@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use log::{info};
-use crate::core::{Env, Agent, util::sample};
+use crate::core::{Env, Agent, util::{sample, eval}};
 
 pub struct Trainer<E: Env, A: Agent<E>> {
     env: E,
@@ -75,16 +75,16 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
     pub fn train(&mut self) {
         self.agent.train(); // set to training mode
         loop {
-            // let step = self.sample(&self.env);
             let step = sample(&self.env, &mut self.agent, &self.obs);
             let is_optimized = self.agent.observe(step);
             if is_optimized {
                 self.count_opts += 1;
                 if self.count_opts % self.n_opts_per_eval == 0 {
-                    self.eval();
+                    // self.eval();
+                    eval(&self.env_eval, &mut self.agent, self.n_episodes_per_eval, Some(self.count_opts));
                     self.agent.train();
                 }
-            }    
+            }
             if self.count_opts >= self.max_opts {
                 break;
             }
