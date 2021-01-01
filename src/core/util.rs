@@ -8,7 +8,9 @@ pub fn sample<E: Env, A: Agent<E>>(env: &E, agent: &mut A, obs_prev: &RefCell<Op
     let obs = match obs_prev.replace(None) {
         None => {
             let obs = env.reset().unwrap();
-            agent.push_obs(&obs);
+            if agent.is_train() {
+                agent.push_obs(&obs);
+            }
             obs
         },
         Some(obs) => obs
@@ -35,8 +37,7 @@ pub fn eval<E: Env, A: Agent<E>>(env: &E, agent: &mut A, n_episodes_per_eval: us
 
     for _ in 0..n_episodes_per_eval {
         let mut r_sum = 0.0;
-        let obs = env.reset().unwrap();
-        let obs_prev = RefCell::new(Some(obs));
+        let obs_prev = RefCell::new(None);
         loop {
             let step = sample(env, agent, &obs_prev);
             r_sum += step.reward;

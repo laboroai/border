@@ -1,5 +1,5 @@
 use std::error::Error;
-use lrr::core::{Trainer, Agent};
+use lrr::core::{Trainer, Agent, util};
 use lrr::py_gym_env::{PyGymEnv, PyGymDiscreteAct};
 use lrr::py_gym_env::adapter::{PyNDArrayObsAdapter, PyGymDiscreteActAdapter};
 use lrr::agents::{DQN, dqn::QNetwork, ReplayBuffer};
@@ -29,9 +29,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     tch::manual_seed(42);
 
-    let mut env = PyGymEnv::<PyGymDiscreteAct>::new("CartPole-v0")?;
-    env.set_render(false);
-    let env_eval = env.clone();
+    let env = PyGymEnv::<PyGymDiscreteAct>::new("CartPole-v0")?;
+    let env_eval = PyGymEnv::<PyGymDiscreteAct>::new("CartPole-v0")?;
     let agent = create_agent();
     let mut trainer = Trainer::new(
         env,
@@ -46,7 +45,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut env = PyGymEnv::<PyGymDiscreteAct>::new("CartPole-v0")?;
     let mut agent = create_agent();
+    env.set_render(true);
     agent.load("./examples/test5")?;
+    util::eval(&env, &mut agent, 5, None);
 
     Ok(())
 }

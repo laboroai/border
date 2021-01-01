@@ -145,6 +145,10 @@ impl<E, M, I, O> Policy<E> for DQN<E, M, I, O> where
         self.train = false;
     }
 
+    fn is_train(&self) -> bool {
+        self.train
+    }
+
     fn sample(&self, obs: &E::Obs) -> E::Act {
         let obs = self.from_obs.convert(obs);
         let a = self.qnet.forward(&obs);

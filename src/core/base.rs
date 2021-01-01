@@ -44,6 +44,7 @@ pub trait Policy<E: Env> {
     fn sample(&self, obs: &E::Obs) -> E::Act;
     fn train(&mut self);
     fn eval(&mut self);
+    fn is_train(&self) -> bool;
 }
 
 pub trait Agent<E: Env>: Policy<E> {
