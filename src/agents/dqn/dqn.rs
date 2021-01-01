@@ -197,10 +197,13 @@ impl<E, M, I, O> Agent<E> for DQN<E, M, I, O> where
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>> {
         fs::create_dir(&path)?;
         self.qnet.save(&path.as_ref().join("qnet.pt").as_path())?;
+        self.qnet_tgt.save(&path.as_ref().join("qnet_tgt.pt").as_path())?;
         Ok(())
     }
 
-    // fn load(&mut self, path: Path) -> Result<(), Box<dyn error::Error> {
-    //     Ok()
-    // }
+    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<(), Box<dyn Error>> {
+        self.qnet.load(&path.as_ref().join("qnet.pt").as_path())?;
+        self.qnet_tgt.load(&path.as_ref().join("qnet_tgt.pt").as_path())?;
+        Ok(())
+    }
 }

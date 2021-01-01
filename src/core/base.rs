@@ -62,5 +62,5 @@ pub trait Agent<E: Env>: Policy<E> {
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn error::Error>>;
 
     // /// Load the model from the given directory
-    // fn load(&mut self, path: path::Path) -> Result<(), Box<dyn error::Error>>;
+    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<(), Box<dyn error::Error>>;
 }

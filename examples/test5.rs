@@ -1,4 +1,4 @@
-use pyo3::{Python};
+use std::error::Error;
 use lrr::core::{Trainer, Agent};
 use lrr::py_gym_env::{PyGymEnv, PyGymDiscreteAct};
 use lrr::py_gym_env::adapter::{PyNDArrayObsAdapter, PyGymDiscreteActAdapter};
@@ -24,23 +24,14 @@ fn create_agent() -> impl Agent<PyGymEnv<PyGymDiscreteAct>> {
     agent
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     std::env::set_var("RUST_LOG", "info");
     env_logger::init();
+    tch::manual_seed(42);
 
-    let mut env = match PyGymEnv::<PyGymDiscreteAct>::new("CartPole-v0") {
-        Ok(env) => env,
-        Err(e) => {
-            let gil = Python::acquire_gil();
-            let py = gil.python();
-            println!("{:?}", e.ptype(py));
-            println!("{:?}", e.pvalue(py));
-            panic!();
-        }
-    };
+    let mut env = PyGymEnv::<PyGymDiscreteAct>::new("CartPole-v0")?;
     env.set_render(false);
     let env_eval = env.clone();
-    // env_eval.set_render(true);
     let agent = create_agent();
     let mut trainer = Trainer::new(
         env,
@@ -51,5 +42,11 @@ fn main() {
         .n_episodes_per_eval(5);
 
     trainer.train();
-    trainer.get_agent().save("./examples/test5").unwrap();
+    trainer.get_agent().save("./examples/test5")?;
+
+    let mut env = PyGymEnv::<PyGymDiscreteAct>::new("CartPole-v0")?;
+    let mut agent = create_agent();
+    agent.load("./examples/test5")?;
+
+    Ok(())
 }

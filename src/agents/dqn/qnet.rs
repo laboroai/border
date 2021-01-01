@@ -1,4 +1,5 @@
 use std::{path::Path, error::Error};
+use log::{info, trace};
 use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
 use crate::agents::Model;
 
@@ -63,6 +64,18 @@ impl Model for QNetwork {
     }
 
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>> {
+        self.var_store.save(&path)?;
+        info!("Save qnet to {:?}", path.as_ref());
+        let vs = self.var_store.variables();
+        for (name, _) in vs.iter() {
+            trace!("Save variable {}", name);
+        };
+        Ok(())
+    }
+
+    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<(), Box<dyn Error>> {
+        self.var_store.load(&path)?;
+        info!("Load qnet from {:?}", path.as_ref());
         Ok(())
     }
 }

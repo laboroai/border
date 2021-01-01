@@ -11,4 +11,6 @@ pub trait Model {
     fn get_var_store(&mut self) -> &mut nn::VarStore;
 
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>>;
+
+    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<(), Box<dyn Error>>;
 }
