@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, path::Path, error};
 
 pub trait Obs: Clone {
     fn new() -> Self;
@@ -57,4 +57,10 @@ pub trait Agent<E: Env>: Policy<E> {
     /// Push observation to the agent.
     /// This method is used when resetting the environment.
     fn push_obs(&self, obs: &E::Obs);
+
+    /// Save the model in the given directory
+    fn save(&self, path: impl AsRef<Path>) -> Result<(), Box<dyn error::Error>>;
+
+    // /// Load the model from the given directory
+    // fn load(&mut self, path: path::Path) -> Result<(), Box<dyn error::Error>>;
 }

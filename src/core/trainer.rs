@@ -42,6 +42,10 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
         self
     }
 
+    pub fn get_agent(&self) -> &impl Agent<E> {
+        &self.agent
+    }
+
     /// The agent take an action and apply it to the environment.
     /// Then return [crate::core::base::Step] object.
     fn sample(&self, env: &E) -> Step<E::Obs, E::Act, E::Info> {

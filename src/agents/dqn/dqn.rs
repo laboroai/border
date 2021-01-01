@@ -1,6 +1,4 @@
-use std::cell::RefCell;
-use std::marker::PhantomData;
-use log::trace;
+use std::{error, cell::RefCell, marker::PhantomData, path::Path};
 use tch::{no_grad, Kind::Float, Tensor};
 use crate::{agents::{ReplayBuffer, Model}, core::{Policy, Agent, Step, Env}};
 use crate::agents::{TchActAdapter, TchObsAdapter};
@@ -195,4 +193,12 @@ impl<E, M, I, O> Agent<E> for DQN<E, M, I, O> where
         }
         false
     }
+
+    fn save(&self, path: impl AsRef<Path>) -> Result<(), Box<dyn error::Error>> {
+        Ok(())
+    }
+
+    // fn load(&mut self, path: Path) -> Result<(), Box<dyn error::Error> {
+    //     Ok()
+    // }
 }
