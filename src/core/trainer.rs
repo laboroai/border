@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use log::{info};
-use crate::core::{Env, Agent, Step};
+use crate::core::{Env, Agent, util::sample};
 
 pub struct Trainer<E: Env, A: Agent<E>> {
     env: E,
@@ -46,30 +46,6 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
         &self.agent
     }
 
-    /// The agent take an action and apply it to the environment.
-    /// Then return [crate::core::base::Step] object.
-    fn sample(&self, env: &E) -> Step<E::Obs, E::Act, E::Info> {
-        let obs = match self.obs.replace(None) {
-            None => {
-                let obs = env.reset().unwrap();
-                self.agent.push_obs(&obs);
-                obs
-            },
-            Some(obs) => obs
-        };
-        let a = self.agent.sample(&obs);
-        let step = env.step(&a);
-
-        if step.is_done {
-            self.obs.replace(None);
-        }
-        else {
-            self.obs.replace(Some(step.obs.clone()));
-        }
-
-        step
-    }
-
     pub fn eval(&mut self) {
         // TODO: check the maximum number of steps of the environment for evaluation.
         // If it is infinite, the number of evaluation steps should be given in place of
@@ -82,7 +58,7 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
             let obs = self.env_eval.reset().unwrap();
             self.obs.replace(Some(obs));    
             loop {
-                let step = self.sample(&self.env_eval);
+                let step = sample(&self.env_eval, &mut self.agent, &self.obs);
                 r_sum += step.reward;
                 if step.is_done { break; }
             }
@@ -99,7 +75,8 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
     pub fn train(&mut self) {
         self.agent.train(); // set to training mode
         loop {
-            let step = self.sample(&self.env);
+            // let step = self.sample(&self.env);
+            let step = sample(&self.env, &mut self.agent, &self.obs);
             let is_optimized = self.agent.observe(step);
             if is_optimized {
                 self.count_opts += 1;

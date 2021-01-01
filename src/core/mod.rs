@@ -4,3 +4,4 @@ pub mod trainer;
 pub use trainer::Trainer;
 pub mod sampler;
 pub use sampler::Sampler;
+pub mod util;
