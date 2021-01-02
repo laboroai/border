@@ -100,7 +100,7 @@ impl<A: PyGymEnvAct + Debug> Env for PyGymEnv<A> {
         ))
     }
 
-    fn step(&self, a: &A) -> Step<PyNDArrayObs, A, PyGymInfo> {
+    fn step(&self, a: &A) -> Step<Self> {
         trace!("{:?}", &a);
         pyo3::Python::with_gil(|py| {
             if self.render {

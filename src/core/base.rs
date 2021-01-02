@@ -9,16 +9,16 @@ pub trait Act: Clone {
 
 pub trait Info {}
 
-pub struct Step<O: Obs, A: Act, I: Info> {
-    pub act: A,
-    pub obs: O,
+pub struct Step<E: Env> {
+    pub act: E::Act,
+    pub obs: E::Obs,
     pub reward: f32,
     pub is_done: bool,
-    pub info: I,
+    pub info: E::Info,
 }
 
-impl<O: Obs, A: Act, I: Info> Step<O, A, I> {
-    pub fn new(obs: O, act: A, reward: f32, is_done: bool, info: I) -> Self {
+impl<E: Env> Step<E> {
+    pub fn new(obs: E::Obs, act: E::Act, reward: f32, is_done: bool, info: E::Info) -> Self {
         Step {
             act,
             obs,
@@ -35,7 +35,7 @@ pub trait Env {
     type Info: Info;
     type ERR: Debug;
 
-    fn step(&self, a: &Self::Act) -> Step<Self::Obs, Self::Act, Self::Info>;
+    fn step(&self, a: &Self::Act) -> Step<Self> where Self: Sized;
 
     fn reset(&self) -> Result<Self::Obs, Self::ERR>;
 }
@@ -53,7 +53,7 @@ pub trait Agent<E: Env>: Policy<E> {
     ///
     /// Return `true` if training of the agent is finished.
     /// TODO: Check the description. 
-    fn observe(&mut self, step: Step<E::Obs, E::Act, E::Info>) -> bool;
+    fn observe(&mut self, step: Step<E>) -> bool;
 
     /// Push observation to the agent.
     /// This method is used when resetting the environment.

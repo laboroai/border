@@ -16,7 +16,7 @@ impl<E: Env, P: Policy<E>> Sampler<E, P> {
         }
     }
 
-    pub fn sample(&self, n: usize) -> Step<E::Obs, E::Act, E::Info> {
+    pub fn sample(&self, n: usize) -> Step<E> {
         let mut obs = match self.obs.replace(None) {
             None => self.env.reset().unwrap(),
             Some(obs) => obs.clone()

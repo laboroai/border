@@ -94,7 +94,7 @@ impl<E, M, I, O> DQN<E, M, I, O> where
         self
     }
 
-    fn push_transition(&mut self, step: Step<E::Obs, E::Act, E::Info>) {
+    fn push_transition(&mut self, step: Step<E>) {
         let next_obs = self.from_obs.convert(&step.obs);
         let obs = self.prev_obs.replace(None).unwrap();
         let not_done = (if step.is_done { 0.0 } else { 1.0 }).into();
@@ -172,7 +172,7 @@ impl<E, M, I, O> Agent<E> for DQN<E, M, I, O> where
         self.prev_obs.replace(Some(self.from_obs.convert(obs)));
     }
 
-    fn observe(&mut self, step: Step<E::Obs, E::Act, E::Info>) -> bool {
+    fn observe(&mut self, step: Step<E>) -> bool {
         // Push transition to the replay buffer
         self.push_transition(step);
 
