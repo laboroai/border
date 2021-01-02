@@ -137,18 +137,6 @@ impl<E, M, I, O> Policy<E> for DQN<E, M, I, O> where
     M: Model + Clone,
     I: TchObsAdapter<E::Obs>,
     O: TchActAdapter<E::Act> {
-    fn train(&mut self) {
-        self.train = true;
-    }
-
-    fn eval(&mut self) {
-        self.train = false;
-    }
-
-    fn is_train(&self) -> bool {
-        self.train
-    }
-
     fn sample(&self, obs: &E::Obs) -> E::Act {
         let obs = self.from_obs.convert(obs);
         let a = self.qnet.forward(&obs);
@@ -167,6 +155,17 @@ impl<E, M, I, O> Agent<E> for DQN<E, M, I, O> where
     M: Model + Clone,
     I: TchObsAdapter<E::Obs>,
     O: TchActAdapter<E::Act> {
+    fn train(&mut self) {
+        self.train = true;
+    }
+
+    fn eval(&mut self) {
+        self.train = false;
+    }
+
+    fn is_train(&self) -> bool {
+        self.train
+    }
 
     fn push_obs(&self, obs: &E::Obs) {
         self.prev_obs.replace(Some(self.from_obs.convert(obs)));

@@ -50,22 +50,19 @@ pub trait Env {
 pub trait Policy<E: Env> {
     /// Sample an action given an observation.
     fn sample(&self, obs: &E::Obs) -> E::Act;
-
-    /// Set the policy to training mode.
-    /// TODO: consider moving this method to `Agent`.
-    fn train(&mut self);
-
-    /// Set the policy to evaluation mode.
-    /// TODO: consider moving this method to `Agent.`
-    fn eval(&mut self);
-
-    /// Return if it is in training mode.
-    /// TODO: consider moving this method to `Agent.`
-    fn is_train(&self) -> bool;
 }
 
 /// Represents a trainable policy on an environment.
 pub trait Agent<E: Env>: Policy<E> {
+    /// Set the policy to training mode.
+    fn train(&mut self);
+
+    /// Set the policy to evaluation mode.
+    fn eval(&mut self);
+
+    /// Return if it is in training mode.
+    fn is_train(&self) -> bool;
+
     /// Observe a [crate::core::base::Step] object.
     /// The agent is expected to do training its policy based on the observation.
     ///
