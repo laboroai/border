@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use log::{info};
 use crate::core::{Env, Agent, util::{sample, eval}};
 
 pub struct Trainer<E: Env, A: Agent<E>> {
@@ -54,7 +53,8 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
             if is_optimized {
                 self.count_opts += 1;
                 if self.count_opts % self.n_opts_per_eval == 0 {
-                    eval(&self.env_eval, &mut self.agent, self.n_episodes_per_eval, Some(self.count_opts));
+                    self.agent.eval();
+                    eval(&self.env_eval, &self.agent, self.n_episodes_per_eval, Some(self.count_opts));
                     self.agent.train();
                 }
             }
