@@ -1,5 +1,5 @@
 use std::error::Error;
-use lrr::core::{Trainer, Policy, Agent, util};
+use lrr::core::{Trainer, Agent, util};
 use lrr::py_gym_env::{PyGymEnv, PyGymDiscreteAct};
 use lrr::py_gym_env::adapter::{PyNDArrayObsAdapter, PyGymDiscreteActAdapter};
 use lrr::agents::{DQN, dqn::QNetwork, ReplayBuffer};
