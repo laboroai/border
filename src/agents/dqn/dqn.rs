@@ -1,14 +1,15 @@
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{no_grad, Kind::Float, Tensor};
-use crate::{agents::{ReplayBuffer, Model}, core::{Policy, Agent, Step, Env}};
-use crate::agents::{TchActAdapter, TchObsAdapter};
+use crate::core::{Policy, Agent, Step, Env};
+use crate::agents::{ReplayBuffer, TchBufferableActInfo, TchBufferableObsInfo, Model,
+                    TchActAdapter, TchObsAdapter};
 use crate::agents::tch::util::track;
 
-pub struct DQN<E, M, I, O> where
+pub struct DQN<E, M> where
     E: Env,
     M: Model + Clone,
-    I: TchObsAdapter<E::Obs>,
-    O: TchActAdapter<E::Act> {
+    E::Obs :TchBufferableObsInfo + Into<Tensor>,
+    E::Act :TchBufferableActInfo + Into<Tensor> + From<Tensor> {
     n_samples_per_opt: usize,
     n_updates_per_opt: usize,
     n_opts_per_soft_update: usize,
@@ -16,34 +17,29 @@ pub struct DQN<E, M, I, O> where
     batch_size: usize,
     qnet: M,
     qnet_tgt: M,
-    from_obs: I,
-    into_act: O,
     train: bool,
     phantom: PhantomData<E>,
     prev_obs: RefCell<Option<Tensor>>,
-    replay_buffer: ReplayBuffer<E, I, O>,
+    replay_buffer: ReplayBuffer<E>,
     count_samples_per_opt: usize,
     count_opts_per_soft_update: usize,
     discount_factor: f64,
     tau: f64,
 }
 
-impl<E, M, I, O> DQN<E, M, I, O> where 
+impl<E, M> DQN<E, M> where 
     E: Env,
     M: Model + Clone,
-    I: TchObsAdapter<E::Obs>,
-    O: TchActAdapter<E::Act> {
-
+    E::Obs :TchBufferableObsInfo + Into<Tensor>,
+    E::Act :TchBufferableActInfo + Into<Tensor> + From<Tensor> {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(qnet: M, replay_buffer: ReplayBuffer<E, I, O>, from_obs: I, into_act: O)
+    pub fn new(qnet: M, replay_buffer: ReplayBuffer<E>)
             -> Self {
         let qnet_tgt = qnet.clone();
         DQN {
             qnet,
             qnet_tgt,
             replay_buffer,
-            from_obs,
-            into_act,
             n_samples_per_opt: 1,
             n_updates_per_opt: 1,
             n_opts_per_soft_update: 1,
@@ -95,12 +91,12 @@ impl<E, M, I, O> DQN<E, M, I, O> where
     }
 
     fn push_transition(&mut self, step: Step<E>) {
-        let next_obs = self.from_obs.convert(&step.obs);
+        let next_obs = step.obs.into();
         let obs = self.prev_obs.replace(None).unwrap();
         let not_done = (if step.is_done { 0.0 } else { 1.0 }).into();
         self.replay_buffer.push(
             &obs,
-            &self.into_act.back(&step.act),
+            &step.act.clone().into(),
             &step.reward.into(),
             &next_obs,
             &not_done,
@@ -132,13 +128,13 @@ impl<E, M, I, O> DQN<E, M, I, O> where
     }
 }
 
-impl<E, M, I, O> Policy<E> for DQN<E, M, I, O> where 
+impl<E, M,> Policy<E> for DQN<E, M,> where 
     E: Env,
     M: Model + Clone,
-    I: TchObsAdapter<E::Obs>,
-    O: TchActAdapter<E::Act> {
+    E::Obs :TchBufferableObsInfo + Into<Tensor>,
+    E::Act :TchBufferableActInfo + Into<Tensor> + From<Tensor> {
     fn sample(&self, obs: &E::Obs) -> E::Act {
-        let obs = self.from_obs.convert(obs);
+        let obs = obs.clone().into();
         let a = self.qnet.forward(&obs);
         let a = if self.train {
             a.softmax(-1, Float)
@@ -146,15 +142,16 @@ impl<E, M, I, O> Policy<E> for DQN<E, M, I, O> where
         } else {
             a.argmax(-1, true)
         };
-        self.into_act.convert(&a)
+        a.into()
     }
 }
 
-impl<E, M, I, O> Agent<E> for DQN<E, M, I, O> where
+impl<E, M,> Agent<E> for DQN<E, M,> where
     E: Env,
     M: Model + Clone,
-    I: TchObsAdapter<E::Obs>,
-    O: TchActAdapter<E::Act> {
+    E::Obs :TchBufferableObsInfo + Into<Tensor>,
+    E::Act :TchBufferableActInfo + Into<Tensor> + From<Tensor> {
+
     fn train(&mut self) {
         self.train = true;
     }
@@ -168,7 +165,7 @@ impl<E, M, I, O> Agent<E> for DQN<E, M, I, O> where
     }
 
     fn push_obs(&self, obs: &E::Obs) {
-        self.prev_obs.replace(Some(self.from_obs.convert(obs)));
+        self.prev_obs.replace(Some(obs.clone().into()));
     }
 
     fn observe(&mut self, step: Step<E>) -> bool {

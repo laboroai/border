@@ -6,7 +6,7 @@ pub trait Obs: Clone {
 }
 
 /// Represents an action of the environment.
-pub trait Act: Clone {
+pub trait Act: Clone + Debug {
 }
 
 /// Represents additional information to `Obs` and `Act`.

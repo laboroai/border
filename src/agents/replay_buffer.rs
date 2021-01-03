@@ -1,12 +1,23 @@
 use std::marker::PhantomData;
 use tch::{Tensor, kind::{FLOAT_CPU, INT64_CPU}};
 use crate::core::{Env};
-use crate::agents::adapter::{TchObsAdapter, TchActAdapter};
 
-pub struct ReplayBuffer<E, I, O> where
+pub trait TchBufferableObsInfo {
+    fn tch_kind() -> (tch::Kind, tch::Device);
+
+    fn shape() -> Vec<i64>;
+}
+
+pub trait TchBufferableActInfo {
+    fn tch_kind() -> (tch::Kind, tch::Device);
+
+    fn shape() -> Vec<i64>;
+}
+
+pub struct ReplayBuffer<E> where
     E: Env,
-    I: TchObsAdapter<E::Obs>,
-    O: TchActAdapter<E::Act> {
+    E::Obs: TchBufferableObsInfo,
+    E::Act: TchBufferableActInfo {
     obs: Tensor,
     next_obs: Tensor,
     rewards: Tensor,
@@ -15,7 +26,7 @@ pub struct ReplayBuffer<E, I, O> where
     capacity: usize,
     len: usize,
     i: usize,
-    phandom: PhantomData<(E, I, O)>,
+    phandom: PhantomData<E>,
 }
 
 fn concat(capacity: usize, shape: &[i64]) -> Vec<i64> {
@@ -23,20 +34,20 @@ fn concat(capacity: usize, shape: &[i64]) -> Vec<i64> {
 }
 
 #[allow(clippy::len_without_is_empty)]
-impl<E, I, O> ReplayBuffer<E, I, O> where
+impl<E> ReplayBuffer<E> where
     E: Env,
-    I: TchObsAdapter<E::Obs>,
-    O: TchActAdapter<E::Act> {
-    pub fn new(capacity: usize, from_obs: &I, into_act: &O) -> Self {
-        let shape_obs = concat(capacity, from_obs.shape());
-        let shape_act = concat(capacity, into_act.shape());
+    E::Obs: TchBufferableObsInfo,
+    E::Act: TchBufferableActInfo {
+    pub fn new(capacity: usize) -> Self {
+        let shape_obs = concat(capacity, &E::Obs::shape().as_slice());
+        let shape_act = concat(capacity, &E::Act::shape().as_slice());
         // TODO: choose kind of action (FLOAT_CPU or INT64_CPU) depending on
         // whether action is discrete or continuous
         Self {
-            obs: Tensor::zeros(shape_obs.as_slice(), FLOAT_CPU),
-            next_obs: Tensor::zeros(shape_obs.as_slice(), FLOAT_CPU),
+            obs: Tensor::zeros(shape_obs.as_slice(), E::Obs::tch_kind()),
+            next_obs: Tensor::zeros(shape_obs.as_slice(), E::Obs::tch_kind()),
             rewards: Tensor::zeros(&[capacity as _, 1], FLOAT_CPU),
-            actions: Tensor::zeros(shape_act.as_slice(), INT64_CPU),
+            actions: Tensor::zeros(shape_act.as_slice(), E::Act::tch_kind()),
             not_dones: Tensor::zeros(&[capacity as _, 1], FLOAT_CPU),
             capacity,
             len: 0,

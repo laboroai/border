@@ -1,19 +1,99 @@
 use std::error::Error;
-use lrr::core::{Trainer, Agent, util};
-use lrr::py_gym_env::{PyGymEnv, PyGymDiscreteAct};
-use lrr::py_gym_env::adapter::{PyNDArrayObsAdapter, PyGymDiscreteActAdapter};
-use lrr::agents::{DQN, dqn::QNetwork, ReplayBuffer};
+use ndarray::{ArrayD, IxDyn};
+use pyo3::{PyObject, IntoPy};
+use numpy::{PyArrayDyn};
+use tch::Tensor;
+use lrr::core::{Obs, Act, Trainer, Agent, util};
+use lrr::py_gym_env::PyGymEnv;
+use lrr::agents::{DQN, dqn::QNetwork, ReplayBuffer, TchBufferableActInfo, TchBufferableObsInfo};
 
-fn create_agent() -> impl Agent<PyGymEnv<PyGymDiscreteAct>> {
+#[derive(Clone, Debug)]
+pub struct CartPoleObs (pub ArrayD<f32>);
+
+impl Obs for CartPoleObs {
+    fn new() -> Self {
+        CartPoleObs(ArrayD::<f32>::zeros(IxDyn(&[1])))
+    }
+}
+
+impl TchBufferableObsInfo for CartPoleObs {
+    fn shape() -> Vec<i64> {
+        vec![4]
+    }
+
+    fn tch_kind() -> (tch::Kind, tch::Device) {
+        tch::kind::FLOAT_CPU
+    }
+}
+
+impl From<PyObject> for CartPoleObs {
+    fn from(obs: PyObject) -> Self {
+        pyo3::Python::with_gil(|py| {
+            let obs: &PyArrayDyn<f64> = obs.extract(py).unwrap();
+            let obs = obs.to_owned_array();
+            let obs = obs.mapv(|elem| elem as f32);
+            Self {
+                0: obs
+            }
+        })
+    }
+}
+
+impl Into<Tensor> for CartPoleObs {
+    fn into(self) -> Tensor {
+        let obs = self.0.view().to_slice().unwrap();
+        Tensor::of_slice(obs)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct CartPoleAct (u32);
+
+impl Act for CartPoleAct {}
+
+impl CartPoleAct {
+    pub fn new(v: u32) -> Self {
+        CartPoleAct { 0: v }
+    }
+}
+
+impl Into<PyObject> for CartPoleAct {
+    fn into(self) -> PyObject {
+        pyo3::Python::with_gil(|py| {
+            self.0.into_py(py)
+        })
+    }
+}
+
+impl Into<Tensor> for CartPoleAct {
+    fn into(self) -> Tensor {
+        (self.0 as i32).into()
+    }
+}
+
+impl From<Tensor> for CartPoleAct {
+    fn from(t: Tensor) -> Self {
+        let a: i32 = t.into();
+        Self::new(a as u32)
+    }
+}
+
+impl TchBufferableActInfo for CartPoleAct {
+    fn shape() -> Vec<i64> {
+        vec![1]
+    }
+
+    fn tch_kind() -> (tch::Kind, tch::Device) {
+        tch::kind::INT64_CPU
+    }
+}
+
+fn create_agent() -> impl Agent<PyGymEnv<CartPoleObs, CartPoleAct>> {
     let qnet = QNetwork::new(4, 2, 0.001);
-    let from_obs = PyNDArrayObsAdapter::new(&[4]);
-    let into_act = PyGymDiscreteActAdapter::new(&[1]);
-    let replay_buffer = ReplayBuffer::<PyGymEnv<PyGymDiscreteAct>, _, _>::new(10000, &from_obs, &into_act);
-    let agent: DQN<PyGymEnv<PyGymDiscreteAct>, _, _, _> = DQN::new(
+    let replay_buffer = ReplayBuffer::<PyGymEnv<CartPoleObs, CartPoleAct>>::new(10000);
+    let agent: DQN<PyGymEnv<CartPoleObs, CartPoleAct>, _> = DQN::new(
         qnet,
-        replay_buffer,
-        from_obs,
-        into_act)
+        replay_buffer)
         .n_samples_per_opt(50)
         .n_updates_per_opt(1)
         .n_opts_per_soft_update(1)
@@ -29,8 +109,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     tch::manual_seed(42);
 
-    let env = PyGymEnv::<PyGymDiscreteAct>::new("CartPole-v0")?;
-    let env_eval = PyGymEnv::<PyGymDiscreteAct>::new("CartPole-v0")?;
+    let env = PyGymEnv::<CartPoleObs, CartPoleAct>::new("CartPole-v0")?;
+    let env_eval = PyGymEnv::<CartPoleObs, CartPoleAct>::new("CartPole-v0")?;
     let agent = create_agent();
     let mut trainer = Trainer::new(
         env,
@@ -43,7 +123,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     trainer.train();
     trainer.get_agent().save("./examples/test5")?;
 
-    let mut env = PyGymEnv::<PyGymDiscreteAct>::new("CartPole-v0")?;
+    let mut env = PyGymEnv::<CartPoleObs, CartPoleAct>::new("CartPole-v0")?;
     let mut agent = create_agent();
     env.set_render(true);
     agent.load("./examples/test5")?;
