@@ -1,47 +1,16 @@
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use ndarray::{Array, ArrayD, IxDyn};
-use pyo3::{IntoPy, PyErr, PyObject, PyResult, Python};
+use log::{trace};
+use ndarray::{Array, IxDyn};
+use pyo3::{PyErr, PyObject, PyResult, Python};
 use pyo3::types::{PyTuple};
 use numpy::{PyArrayDyn};
-use crate::core::{Obs, Act, Info, Step, Env};
-use log::{trace};
+use crate::core::{Info, Step, Env};
+use crate::py_gym_env::{PyNDArrayObs, PyGymEnvAct};
 
 pub struct PyGymInfo {}
 
 impl Info for PyGymInfo {}
-
-#[derive(Clone, Debug)]
-pub struct PyNDArrayObs (pub ArrayD<f32>);
-
-impl Obs for PyNDArrayObs {
-    fn new() -> Self {
-        PyNDArrayObs(ArrayD::<f32>::zeros(IxDyn(&[1])))
-    }
-}
-
-pub trait PyGymEnvAct: Act + Into<PyObject> {}
-
-#[derive(Debug, Clone)]
-pub struct PyGymDiscreteAct (pub(in crate::py_gym_env) u32);
-
-impl PyGymDiscreteAct {
-    pub fn new(v: u32) -> Self {
-        PyGymDiscreteAct { 0: v }
-    }
-}
-
-impl Act for PyGymDiscreteAct {}
-
-impl PyGymEnvAct for PyGymDiscreteAct {}
-
-impl Into<PyObject> for PyGymDiscreteAct {
-    fn into(self) -> PyObject {
-        pyo3::Python::with_gil(|py| {
-            self.0.into_py(py)
-        })
-    }
-}
 
 /// Adapted from [tch-rs RL example](https://github.com/LaurentMazare/tch-rs/tree/master/examples/reinforcement-learning)
 #[derive(Debug, Clone)]
