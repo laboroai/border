@@ -11,7 +11,7 @@ pub struct PyGymInfo {}
 
 impl Info for PyGymInfo {}
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PyNDArrayObs (pub ArrayD<f32>);
 
 impl Obs for PyNDArrayObs {
@@ -20,9 +20,7 @@ impl Obs for PyNDArrayObs {
     }
 }
 
-pub trait PyGymEnvAct: Act {
-    fn to_pyobj(&self, py: Python) -> PyObject;
-}
+pub trait PyGymEnvAct: Act + Into<PyObject> {}
 
 #[derive(Debug, Clone)]
 pub struct PyGymDiscreteAct (pub(in crate::py_gym_env) u32);
@@ -35,9 +33,13 @@ impl PyGymDiscreteAct {
 
 impl Act for PyGymDiscreteAct {}
 
-impl PyGymEnvAct for PyGymDiscreteAct {
-    fn to_pyobj(&self, py: Python) -> PyObject {
-        self.0.into_py(py)
+impl PyGymEnvAct for PyGymDiscreteAct {}
+
+impl Into<PyObject> for PyGymDiscreteAct {
+    fn into(self) -> PyObject {
+        pyo3::Python::with_gil(|py| {
+            self.0.into_py(py)
+        })
     }
 }
 
@@ -59,6 +61,7 @@ impl<A: PyGymEnvAct + Debug> PyGymEnv<A> {
         let env = gym.call("make", (name,), None)?;
         let _ = env.call_method("seed", (42,), None)?;
         let action_space = env.getattr("action_space")?;
+        // println!("{:?}", action_space);
         let action_space = if let Ok(val) = action_space.getattr("n") {
             val.extract()?
         } else {
@@ -66,6 +69,7 @@ impl<A: PyGymEnvAct + Debug> PyGymEnv<A> {
             action_space[0]
         };
         let observation_space = env.getattr("observation_space")?;
+        // println!("{:?}", observation_space);
         let observation_space = observation_space.getattr("shape")?.extract()?;
         Ok(PyGymEnv {
             render: false,
@@ -106,13 +110,13 @@ impl<A: PyGymEnvAct + Debug> Env for PyGymEnv<A> {
             if self.render {
                 let _ = self.env.call_method0(py, "render");
             }
-            let a = a.clone();
-            let a_py = a.to_pyobj(py);
+            let a_py = a.clone().into();
             let ret = self.env.call_method(py, "step", (a_py,), None).unwrap();
 
             let step: &PyTuple = ret.extract(py).unwrap();
 
             let obs1: &PyArrayDyn<f64> = step.get_item(0).extract().unwrap();
+            // let obs1: &PyArrayDyn<u8> = step.get_item(0).extract().unwrap();
             let obs2 = obs1.readonly();
             let obs3 = obs2.as_array();
             let obs4 = obs3.mapv(|elem| elem as f32);
@@ -120,7 +124,7 @@ impl<A: PyGymEnvAct + Debug> Env for PyGymEnv<A> {
             let r: f32 = step.get_item(1).extract().unwrap();
             let is_done: bool = step.get_item(2).extract().unwrap();
 
-            Step::new(PyNDArrayObs(obs4), a, r, is_done, PyGymInfo{})
+            Step::new(PyNDArrayObs(obs4), a.clone(), r, is_done, PyGymInfo{})
         })
     }
 }
