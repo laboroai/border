@@ -1,7 +1,7 @@
 use std::error::Error;
-use ndarray::{ArrayD, IxDyn};
+use ndarray::ArrayD;
 use pyo3::{PyObject, IntoPy};
-use numpy::{PyArrayDyn};
+use numpy::PyArrayDyn;
 use tch::Tensor;
 use lrr::core::{Obs, Act, Trainer, Agent, util};
 use lrr::py_gym_env::PyGymEnv;
@@ -10,11 +10,7 @@ use lrr::agents::{DQN, dqn::QNetwork, ReplayBuffer, TchBufferableActInfo, TchBuf
 #[derive(Clone, Debug)]
 pub struct CartPoleObs (pub ArrayD<f32>);
 
-impl Obs for CartPoleObs {
-    fn new() -> Self {
-        CartPoleObs(ArrayD::<f32>::zeros(IxDyn(&[1])))
-    }
-}
+impl Obs for CartPoleObs {}
 
 impl TchBufferableObsInfo for CartPoleObs {
     fn shape() -> Vec<i64> {

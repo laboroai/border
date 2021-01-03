@@ -1,13 +1,10 @@
 use std::{fmt::Debug, path::Path, error};
 
 /// Represents an observation of the environment.
-pub trait Obs: Clone {
-    fn new() -> Self;
-}
+pub trait Obs: Clone {}
 
 /// Represents an action of the environment.
-pub trait Act: Clone + Debug {
-}
+pub trait Act: Clone + Debug {}
 
 /// Represents additional information to `Obs` and `Act`.
 pub trait Info {}

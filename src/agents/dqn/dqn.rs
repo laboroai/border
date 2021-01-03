@@ -1,8 +1,7 @@
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{no_grad, Kind::Float, Tensor};
 use crate::core::{Policy, Agent, Step, Env};
-use crate::agents::{ReplayBuffer, TchBufferableActInfo, TchBufferableObsInfo, Model,
-                    TchActAdapter, TchObsAdapter};
+use crate::agents::{ReplayBuffer, TchBufferableActInfo, TchBufferableObsInfo, Model};
 use crate::agents::tch::util::track;
 
 pub struct DQN<E, M> where

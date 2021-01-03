@@ -1,5 +1,3 @@
-pub mod adapter;
-pub use adapter::{TchObsAdapter, TchActAdapter};
 pub mod replay_buffer;
 pub use replay_buffer::{ReplayBuffer, TchBufferableActInfo, TchBufferableObsInfo};
 pub mod dqn;
