@@ -127,7 +127,7 @@ impl<E, M> DQN<E, M> where
     }
 }
 
-impl<E, M,> Policy<E> for DQN<E, M,> where 
+impl<E, M> Policy<E> for DQN<E, M> where 
     E: Env,
     M: Model + Clone,
     E::Obs :TchBufferableObsInfo + Into<Tensor>,
@@ -145,7 +145,7 @@ impl<E, M,> Policy<E> for DQN<E, M,> where
     }
 }
 
-impl<E, M,> Agent<E> for DQN<E, M,> where
+impl<E, M> Agent<E> for DQN<E, M> where
     E: Env,
     M: Model + Clone,
     E::Obs :TchBufferableObsInfo + Into<Tensor>,
