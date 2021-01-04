@@ -1,4 +1,4 @@
-use std::{fmt::Debug, path::Path, error};
+use std::{fmt::Debug, path::Path, error::Error};
 
 /// Represents an observation of the environment.
 pub trait Obs: Clone {}
@@ -35,11 +35,10 @@ pub trait Env {
     type Obs: Obs;
     type Act: Act;
     type Info: Info;
-    type ERR: Debug;
 
     fn step(&self, a: &Self::Act) -> Step<Self> where Self: Sized;
 
-    fn reset(&self) -> Result<Self::Obs, Self::ERR>;
+    fn reset(&self) -> Result<Self::Obs, Box<dyn Error>>;
 }
 
 /// Represents a policy. on an environment. It is based on a mapping from an observation
@@ -75,8 +74,8 @@ pub trait Agent<E: Env>: Policy<E> {
     /// This method commonly creates a number of files consisting the agent
     /// into the given directory. For example, [crate::agents::dqn::DQN] agent saves
     /// two Q-networks corresponding to the original and target networks.
-    fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn error::Error>>;
+    fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>>;
 
     /// Load the agent from the given directory.
-    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<(), Box<dyn error::Error>>;
+    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<(), Box<dyn Error>>;
 }

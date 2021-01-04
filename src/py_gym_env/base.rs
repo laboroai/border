@@ -1,7 +1,7 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, error::Error};
 use std::marker::PhantomData;
 use log::{trace};
-use pyo3::{PyErr, PyObject, PyResult, Python, ToPyObject};
+use pyo3::{PyObject, PyResult, Python, ToPyObject};
 use pyo3::types::{PyTuple};
 use crate::core::{Obs, Act, Info, Step, Env};
 
@@ -59,10 +59,9 @@ impl<O, A> Env for PyGymEnv<O, A> where
     type Obs = O;
     type Act = A;
     type Info = PyGymInfo;
-    type ERR = PyErr;
 
     /// Resets the environment, returning the observation tensor.
-    fn reset(&self) -> PyResult<O>  {
+    fn reset(&self) -> Result<O, Box<dyn Error>>  {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let obs = self.env.call_method0(py, "reset")?;
