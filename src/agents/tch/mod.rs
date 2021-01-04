@@ -1,4 +1,6 @@
 pub mod util;
+pub mod replay_buffer;
+pub use replay_buffer::ReplayBuffer;
 
 use std::{path::Path, error::Error};
 use tch::{Tensor, nn};
