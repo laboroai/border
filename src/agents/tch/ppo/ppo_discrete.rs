@@ -3,6 +3,7 @@ use tch::{no_grad, Kind::Float, Tensor};
 use crate::core::{Policy, Agent, Step, Env};
 use crate::agents::{ReplayBuffer, TchBufferableActInfo, TchBufferableObsInfo,
                     MultiheadModel};
+use crate::agents::tch::Batch;
 
 pub struct PPODiscrete<E, M> where
     E: Env,
@@ -36,13 +37,50 @@ impl<E, M> PPODiscrete<E, M> where
             batch_size: 1,
             model,
             train: false,
-            prev_obs: RefCell::new(None),
             replay_buffer,
             count_samples_per_opt: 0,
             discount_factor: 0.99,
             prev_obs: RefCell::new(None),
             phandom: PhantomData,
         }
+    }
+
+    pub fn n_samples_per_opt(mut self, v: usize) -> Self {
+        self.n_samples_per_opt = v;
+        self
+    }
+
+    pub fn n_updates_per_opt(mut self, v: usize) -> Self {
+        self.n_updates_per_opt = v;
+        self
+    }
+
+    pub fn batch_size(mut self, v: usize) -> Self {
+        self.batch_size = v;
+        self
+    }
+
+    pub fn discount_factor(mut self, v: f64) -> Self {
+        self.discount_factor = v;
+        self
+    }
+
+    fn push_transition(&mut self, step: Step<E>) {
+        let next_obs = step.obs.into();
+        let obs = self.prev_obs.replace(None).unwrap();
+        let not_done = (if step.is_done { 0.0 } else { 1.0 }).into();
+        self.replay_buffer.push(
+            &obs,
+            &step.act.clone().into(),
+            &step.reward.into(),
+            &next_obs,
+            &not_done,
+        );
+        let _ = self.prev_obs.replace(Some(next_obs));
+    }
+
+    fn update_model(&mut self, batch: Batch) {
+
     }
 }
 
@@ -96,13 +134,11 @@ impl <E, M> Agent<E> for PPODiscrete<E, M> where
         if self.count_samples_per_opt == self.n_samples_per_opt {
             self.count_samples_per_opt = 0;
 
-            if self.replay_buffer.len() >= self.min_transitions_warmup {
-                for _ in 0..self.n_updates_per_opt {
-                    let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
-                    self.update_model(batch);
-                };
-                return true;
-            }
+            for _ in 0..self.n_updates_per_opt {
+                let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
+                self.update_model(batch);
+            };
+            return true;
         }
         false
     }

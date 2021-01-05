@@ -33,6 +33,14 @@ fn concat(capacity: usize, shape: &[i64]) -> Vec<i64> {
     [&[capacity as i64], shape].concat()
 }
 
+pub struct Batch {
+    pub obs: Tensor,
+    pub next_obs: Tensor,
+    pub actions: Tensor,
+    pub rewards: Tensor,
+    pub not_dones: Tensor,
+}
+
 #[allow(clippy::len_without_is_empty)]
 impl<E> ReplayBuffer<E> where
     E: Env,
@@ -70,7 +78,7 @@ impl<E> ReplayBuffer<E> where
         }
     }
 
-    pub fn random_batch(&self, batch_size: usize) -> Option<(Tensor, Tensor, Tensor, Tensor, Tensor)> {
+    pub fn random_batch(&self, batch_size: usize) -> Option<Batch> {
         if self.len < 3 {
             return None;
         }
@@ -78,13 +86,13 @@ impl<E> ReplayBuffer<E> where
         let batch_size = batch_size.min(self.len - 1);
         let batch_indexes = Tensor::randint((self.len - 2) as _, &[batch_size as _], INT64_CPU);
 
-        let states = self.obs.index_select(0, &batch_indexes);
-        let next_states = self.next_obs.index_select(0, &batch_indexes);
+        let obs = self.obs.index_select(0, &batch_indexes);
+        let next_obs = self.next_obs.index_select(0, &batch_indexes);
         let actions = self.actions.index_select(0, &batch_indexes);
         let rewards = self.rewards.index_select(0, &batch_indexes);
         let not_dones = self.not_dones.index_select(0, &batch_indexes);
 
-        Some((states, actions, rewards, next_states, not_dones))
+        Some(Batch {obs, actions, rewards, next_obs, not_dones})
     }
 
     pub fn len(&self) -> usize {

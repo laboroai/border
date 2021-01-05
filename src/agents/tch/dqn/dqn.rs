@@ -2,7 +2,7 @@ use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{no_grad, Kind::Float, Tensor};
 use crate::core::{Policy, Agent, Step, Env};
 use crate::agents::{ReplayBuffer, TchBufferableActInfo, TchBufferableObsInfo, Model};
-use crate::agents::tch::util::track;
+use crate::agents::tch::{Batch, util::track};
 
 pub struct DQN<E, M> where
     E: Env,
@@ -103,8 +103,12 @@ impl<E, M> DQN<E, M> where
         let _ = self.prev_obs.replace(Some(next_obs));
     }
 
-    fn update_qnet(&mut self, batch: (Tensor, Tensor, Tensor, Tensor, Tensor)) {
-        let (obs, a, r, next_obs, not_done) = batch;
+    fn update_qnet(&mut self, batch: Batch) {
+        let obs = batch.obs;
+        let a = batch.actions;
+        let r = batch.rewards;
+        let next_obs = batch.next_obs;
+        let not_done = batch.not_dones;
         let loss = {
             let pred = {
                 let a = a;
