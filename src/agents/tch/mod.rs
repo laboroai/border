@@ -2,8 +2,10 @@ pub mod util;
 pub mod replay_buffer;
 pub mod dqn;
 pub mod ppo;
-pub use replay_buffer::{ReplayBuffer, TchBufferableActInfo, TchBufferableObsInfo, Batch};
+use ppo::ppo_discrete;
+pub use replay_buffer::{ReplayBuffer, TchBufferableActInfo, TchBufferableObsInfo, Batch, Batch2};
 pub use dqn::{DQN, QNetwork};
+pub use ppo_discrete::PPODiscrete;
 
 use std::{path::Path, error::Error};
 use tch::{Tensor, nn};

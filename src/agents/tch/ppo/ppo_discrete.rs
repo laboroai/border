@@ -3,7 +3,7 @@ use tch::{no_grad, Kind::Float, Tensor};
 use crate::core::{Policy, Agent, Step, Env};
 use crate::agents::{ReplayBuffer, TchBufferableActInfo, TchBufferableObsInfo,
                     MultiheadModel};
-use crate::agents::tch::Batch;
+use crate::agents::tch::Batch2;
 
 pub struct PPODiscrete<E, M> where
     E: Env,
@@ -79,8 +79,23 @@ impl<E, M> PPODiscrete<E, M> where
         let _ = self.prev_obs.replace(Some(next_obs));
     }
 
-    fn update_model(&mut self, batch: Batch) {
-
+    fn update_model(&mut self, batch: Batch2) {
+        // adapted from ppo.rs in tch-rs RL example
+        let (critic, actor) = self.model.forward(&batch.obs);
+        let log_probs = actor.log_softmax(-1, tch::Kind::Float);
+        let probs = actor.softmax(-1, tch::Kind::Float);
+        let action_log_probs = {
+            let index = batch.actions.unsqueeze(-1); //.to_device(device);
+            log_probs.gather(-1, &index, false).squeeze1(-1)
+        };
+        let dist_entropy = (-log_probs * probs)
+            .sum1(&[-1], false, tch::Kind::Float)
+            .mean(tch::Kind::Float);
+        let advantages = batch.returns - critic;
+        let value_loss = (&advantages * &advantages).mean(tch::Kind::Float);
+        let action_loss = (-advantages.detach() * action_log_probs).mean(tch::Kind::Float);
+        let loss = value_loss * 0.5 + action_loss - dist_entropy * 0.01;
+        self.model.backward_step(&loss);
     }
 }
 
@@ -134,8 +149,13 @@ impl <E, M> Agent<E> for PPODiscrete<E, M> where
         if self.count_samples_per_opt == self.n_samples_per_opt {
             self.count_samples_per_opt = 0;
 
+            // Store returns in the replay buffer
+            let (estimated_return, _)
+                = self.model.forward(&self.prev_obs.borrow().as_ref().unwrap());
+            self.replay_buffer.update_returns(estimated_return, self.discount_factor);
+
             for _ in 0..self.n_updates_per_opt {
-                let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
+                let batch = self.replay_buffer.random_batch2(self.batch_size).unwrap();
                 self.update_model(batch);
             };
             return true;
