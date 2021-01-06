@@ -51,6 +51,9 @@ impl QNetwork {
 }
 
 impl Model for QNetwork {
+    type Input = Tensor;
+    type Output = Tensor;
+
     fn forward(&self, xs: &Tensor) -> Tensor {
         self.network.forward(xs)
     }

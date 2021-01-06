@@ -1,7 +1,7 @@
 use std::{path::Path, error::Error};
 use log::{info, trace};
 use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
-use super::MultiheadModel;
+use crate::agents::tch::model::Model;
 
 #[derive(Debug)]
 pub struct StateValueAndDiscreteActProb {
@@ -35,7 +35,10 @@ impl StateValueAndDiscreteActProb {
     }
 }
 
-impl MultiheadModel for StateValueAndDiscreteActProb {
+impl Model for StateValueAndDiscreteActProb {
+    type Input = Tensor;
+    type Output = (Tensor, Tensor);
+
     fn forward(&self, xs: &Tensor) -> (Tensor, Tensor) {
         let shared = self.network.forward(xs);
         (shared.apply(&self.critic), shared.apply(&self.actor))

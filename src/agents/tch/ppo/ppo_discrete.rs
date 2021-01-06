@@ -2,13 +2,13 @@ use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{Kind::Float, Tensor};
 use crate::core::{Policy, Agent, Step, Env};
 use crate::agents::{ReplayBuffer, TchBufferableActInfo, TchBufferableObsInfo};
-use crate::agents::tch::model::MultiheadModel;
+use crate::agents::tch::model::Model;
 use crate::agents::tch::Batch2;
 
 pub struct PPODiscrete<E, M> where
     E: Env,
-    M: MultiheadModel, // + Clone
-    E::Obs :TchBufferableObsInfo + Into<Tensor>,
+    M: Model<Input=Tensor, Output=(Tensor, Tensor)>, // + Clone
+    E::Obs :TchBufferableObsInfo + Into<M::Input>,
     E::Act :TchBufferableActInfo + Into<Tensor> + From<Tensor> {
 
     n_samples_per_opt: usize, // NOTE: must be equal to replay buffer size
@@ -25,8 +25,8 @@ pub struct PPODiscrete<E, M> where
 
 impl<E, M> PPODiscrete<E, M> where
     E: Env,
-    M: MultiheadModel, // + Clone
-    E::Obs :TchBufferableObsInfo + Into<Tensor>,
+    M: Model<Input=Tensor, Output=(Tensor, Tensor)>, // + Clone
+    E::Obs :TchBufferableObsInfo + Into<M::Input>,
     E::Act :TchBufferableActInfo + Into<Tensor> + From<Tensor> {
 
     pub fn new(model: M, n_samples_per_opt: usize) -> Self {
@@ -101,8 +101,8 @@ impl<E, M> PPODiscrete<E, M> where
 
 impl <E, M> Policy<E> for PPODiscrete<E, M> where
     E: Env,
-    M: MultiheadModel, // + Clone,
-    E::Obs :TchBufferableObsInfo + Into<Tensor>,
+    M: Model<Input=Tensor, Output=(Tensor, Tensor)>, // + Clone,
+    E::Obs :TchBufferableObsInfo + Into<M::Input>,
     E::Act :TchBufferableActInfo + Into<Tensor> + From<Tensor> {
 
     fn sample(&self, obs: &E::Obs) -> E::Act {
@@ -120,8 +120,8 @@ impl <E, M> Policy<E> for PPODiscrete<E, M> where
 
 impl <E, M> Agent<E> for PPODiscrete<E, M> where
     E: Env,
-    M: MultiheadModel, // + Clone
-    E::Obs :TchBufferableObsInfo + Into<Tensor>,
+    M: Model<Input=Tensor, Output=(Tensor, Tensor)>, // + Clone
+    E::Obs :TchBufferableObsInfo + Into<M::Input>,
     E::Act :TchBufferableActInfo + Into<Tensor> + From<Tensor> {
 
     fn train(&mut self) {

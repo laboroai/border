@@ -8,8 +8,8 @@ use crate::agents::tch::{Batch, util::track};
 pub struct DQN<E, M> where
     E: Env,
     M: Model + Clone,
-    E::Obs :TchBufferableObsInfo + Into<Tensor>,
-    E::Act :TchBufferableActInfo + Into<Tensor> + From<Tensor> {
+    E::Obs :TchBufferableObsInfo + Into<M::Input>,
+    E::Act :TchBufferableActInfo + Into<Tensor> + From<M::Output> {
     n_samples_per_opt: usize,
     n_updates_per_opt: usize,
     n_opts_per_soft_update: usize,
@@ -29,7 +29,7 @@ pub struct DQN<E, M> where
 
 impl<E, M> DQN<E, M> where 
     E: Env,
-    M: Model + Clone,
+    M: Model<Input=Tensor, Output=Tensor> + Clone,
     E::Obs :TchBufferableObsInfo + Into<Tensor>,
     E::Act :TchBufferableActInfo + Into<Tensor> + From<Tensor> {
     #[allow(clippy::too_many_arguments)]
@@ -134,9 +134,9 @@ impl<E, M> DQN<E, M> where
 
 impl<E, M> Policy<E> for DQN<E, M> where 
     E: Env,
-    M: Model + Clone,
-    E::Obs :TchBufferableObsInfo + Into<Tensor>,
-    E::Act :TchBufferableActInfo + Into<Tensor> + From<Tensor> {
+    M: Model<Input=Tensor, Output=Tensor> + Clone,
+    E::Obs :TchBufferableObsInfo + Into<M::Input>,
+    E::Act :TchBufferableActInfo + Into<Tensor> + From<M::Output> {
     fn sample(&self, obs: &E::Obs) -> E::Act {
         let obs = obs.clone().into();
         let a = self.qnet.forward(&obs);
@@ -152,9 +152,9 @@ impl<E, M> Policy<E> for DQN<E, M> where
 
 impl<E, M> Agent<E> for DQN<E, M> where
     E: Env,
-    M: Model + Clone,
-    E::Obs :TchBufferableObsInfo + Into<Tensor>,
-    E::Act :TchBufferableActInfo + Into<Tensor> + From<Tensor> {
+    M: Model<Input=Tensor, Output=Tensor> + Clone,
+    E::Obs :TchBufferableObsInfo + Into<M::Input>,
+    E::Act :TchBufferableActInfo + Into<Tensor> + From<M::Output> {
 
     fn train(&mut self) {
         self.train = true;
