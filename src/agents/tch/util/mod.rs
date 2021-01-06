@@ -1,5 +1,5 @@
 use log::trace;
-use crate::agents::Model;
+use crate::agents::tch::model::Model;
 
 pub fn track(dest: &mut impl Model, src: &mut impl Model, tau: f64) {
     let src = &mut src.get_var_store();

@@ -5,7 +5,6 @@ use numpy::PyArrayDyn;
 use tch::Tensor;
 use lrr::core::{Obs, Act, Trainer, Agent, util};
 use lrr::py_gym_env::PyGymEnv;
-// use lrr::agents::{DQN, QNetwork, ReplayBuffer, TchBufferableActInfo, TchBufferableObsInfo};
 use lrr::agents::tch::{DQN, QNetwork, ReplayBuffer, TchBufferableActInfo, TchBufferableObsInfo};
 
 #[derive(Clone, Debug)]

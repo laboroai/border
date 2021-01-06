@@ -5,7 +5,7 @@ use numpy::PyArrayDyn;
 use tch::Tensor;
 use lrr::core::{Obs, Act, Trainer, Agent, util};
 use lrr::py_gym_env::PyGymEnv;
-use lrr::agents::tch::{PPODiscrete, ReplayBuffer, TchBufferableActInfo, TchBufferableObsInfo};
+use lrr::agents::tch::{PPODiscrete, TchBufferableActInfo, TchBufferableObsInfo};
 
 fn main() {}
 
@@ -87,18 +87,12 @@ fn main() {}
 // }
 
 // fn create_agent() -> impl Agent<PyGymEnv<CartPoleObs, CartPoleAct>> {
-//     let qnet = QNetwork::new(4, 2, 0.001);
-//     let replay_buffer = ReplayBuffer::<PyGymEnv<CartPoleObs, CartPoleAct>>::new(10000);
-//     let agent: DQN<PyGymEnv<CartPoleObs, CartPoleAct>, _> = DQN::new(
-//         qnet,
-//         replay_buffer)
-//         .n_samples_per_opt(50)
+//     let mh_model = QNetwork::new(4, 2, 0.001);
+//     let agent: PPODiscrete<PyGymEnv<CartPoleObs, CartPoleAct>, _> = PPODiscrete::new(
+//         mh_model, 200)
 //         .n_updates_per_opt(1)
-//         .n_opts_per_soft_update(1)
-//         .min_transitions_warmup(100)
 //         .batch_size(64)
-//         .discount_factor(0.99)
-//         .tau(0.005);
+//         .discount_factor(0.99);
 //     agent
 // }
 

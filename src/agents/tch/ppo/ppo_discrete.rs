@@ -1,8 +1,8 @@
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{no_grad, Kind::Float, Tensor};
 use crate::core::{Policy, Agent, Step, Env};
-use crate::agents::{ReplayBuffer, TchBufferableActInfo, TchBufferableObsInfo,
-                    MultiheadModel};
+use crate::agents::{ReplayBuffer, TchBufferableActInfo, TchBufferableObsInfo};
+use crate::agents::tch::model::MultiheadModel;
 use crate::agents::tch::Batch2;
 
 pub struct PPODiscrete<E, M> where

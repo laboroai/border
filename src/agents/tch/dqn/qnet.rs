@@ -1,7 +1,7 @@
 use std::{path::Path, error::Error};
 use log::{info, trace};
 use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
-use crate::agents::Model;
+use crate::agents::tch::model::Model;
 
 #[derive(Debug)]
 pub struct QNetwork {
