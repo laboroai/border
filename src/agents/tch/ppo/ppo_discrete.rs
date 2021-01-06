@@ -7,7 +7,7 @@ use crate::agents::tch::Batch2;
 
 pub struct PPODiscrete<E, M> where
     E: Env,
-    M: MultiheadModel + Clone, // TODO: define multihead model
+    M: MultiheadModel, // + Clone
     E::Obs :TchBufferableObsInfo + Into<Tensor>,
     E::Act :TchBufferableActInfo + Into<Tensor> + From<Tensor> {
 
@@ -25,7 +25,7 @@ pub struct PPODiscrete<E, M> where
 
 impl<E, M> PPODiscrete<E, M> where
     E: Env,
-    M: MultiheadModel + Clone, // TODO: define multihead model
+    M: MultiheadModel, // + Clone
     E::Obs :TchBufferableObsInfo + Into<Tensor>,
     E::Act :TchBufferableActInfo + Into<Tensor> + From<Tensor> {
 
@@ -101,7 +101,7 @@ impl<E, M> PPODiscrete<E, M> where
 
 impl <E, M> Policy<E> for PPODiscrete<E, M> where
     E: Env,
-    M: MultiheadModel + Clone, // TODO: define multihead model
+    M: MultiheadModel, // + Clone,
     E::Obs :TchBufferableObsInfo + Into<Tensor>,
     E::Act :TchBufferableActInfo + Into<Tensor> + From<Tensor> {
 
@@ -120,7 +120,7 @@ impl <E, M> Policy<E> for PPODiscrete<E, M> where
 
 impl <E, M> Agent<E> for PPODiscrete<E, M> where
     E: Env,
-    M: MultiheadModel + Clone, // TODO: define multihead model
+    M: MultiheadModel, // + Clone
     E::Obs :TchBufferableObsInfo + Into<Tensor>,
     E::Act :TchBufferableActInfo + Into<Tensor> + From<Tensor> {
 
