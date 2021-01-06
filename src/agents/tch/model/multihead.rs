@@ -1,8 +1,6 @@
 use std::{path::Path, error::Error};
 use log::{info, trace};
 use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
-use crate::agents::tch::model::Model;
-
 use super::MultiheadModel;
 
 #[derive(Debug)]

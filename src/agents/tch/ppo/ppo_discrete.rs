@@ -1,5 +1,5 @@
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
-use tch::{no_grad, Kind::Float, Tensor};
+use tch::{Kind::Float, Tensor};
 use crate::core::{Policy, Agent, Step, Env};
 use crate::agents::{ReplayBuffer, TchBufferableActInfo, TchBufferableObsInfo};
 use crate::agents::tch::model::MultiheadModel;
@@ -154,7 +154,7 @@ impl <E, M> Agent<E> for PPODiscrete<E, M> where
                 = self.model.forward(&self.prev_obs.borrow().as_ref().unwrap());
             self.replay_buffer.update_returns(estimated_return, self.discount_factor);
 
-            for i in 0..self.n_updates_per_opt {
+            for _ in 0..self.n_updates_per_opt {
                 let batch = self.replay_buffer.random_batch2(self.batch_size).unwrap();
                 self.update_model(batch);
             };
