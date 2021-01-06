@@ -86,9 +86,9 @@ impl TchBufferableActInfo for CartPoleAct {
 }
 
 fn create_agent() -> impl Agent<PyGymEnv<CartPoleObs, CartPoleAct>> {
-    let mh_model = StateValueAndDiscreteActProb::new(4, 2, 0.001);
+    let mh_model = StateValueAndDiscreteActProb::new(4, 2, 0.0001);
     let agent: PPODiscrete<PyGymEnv<CartPoleObs, CartPoleAct>, _> = PPODiscrete::new(
-        mh_model, 200)
+        mh_model, 50)
         .n_updates_per_opt(1)
         .batch_size(64)
         .discount_factor(0.99);
@@ -112,7 +112,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .n_episodes_per_eval(5);
 
     trainer.train();
-    trainer.get_agent().save("./examples/test5")?;
+    trainer.get_agent().save("./examples/test7")?;
 
     let mut env = PyGymEnv::<CartPoleObs, CartPoleAct>::new("CartPole-v0")?;
     let mut agent = create_agent();

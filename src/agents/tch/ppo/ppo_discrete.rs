@@ -85,7 +85,7 @@ impl<E, M> PPODiscrete<E, M> where
         let log_probs = actor.log_softmax(-1, tch::Kind::Float);
         let probs = actor.softmax(-1, tch::Kind::Float);
         let action_log_probs = {
-            let index = batch.actions.unsqueeze(-1); //.to_device(device);
+            let index = batch.actions; //.to_device(device);
             log_probs.gather(-1, &index, false).squeeze1(-1)
         };
         let dist_entropy = (-log_probs * probs)
@@ -154,7 +154,7 @@ impl <E, M> Agent<E> for PPODiscrete<E, M> where
                 = self.model.forward(&self.prev_obs.borrow().as_ref().unwrap());
             self.replay_buffer.update_returns(estimated_return, self.discount_factor);
 
-            for _ in 0..self.n_updates_per_opt {
+            for i in 0..self.n_updates_per_opt {
                 let batch = self.replay_buffer.random_batch2(self.batch_size).unwrap();
                 self.update_model(batch);
             };

@@ -110,10 +110,10 @@ impl<E> ReplayBuffer<E> where
         // adapted from ppo.rs in tch-rs RL example
         self.returns = {
             let r = Tensor::zeros(&[self.len as i64], FLOAT_CPU);
-            r.get(-1).copy_(&estimated_return);
+            r.get(-1).unsqueeze(-1).copy_(&estimated_return);
             for s in (0..(self.len - 2) as i64).rev() {
                 let r_s = self.rewards.get(s) + r.get(s + 1) * self.not_dones.get(s) * gamma;
-                r.get(s).copy_(&r_s);
+                r.get(s).unsqueeze(-1).copy_(&r_s);
             }
             Some(r)
         };
