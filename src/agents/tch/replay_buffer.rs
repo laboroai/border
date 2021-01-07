@@ -43,10 +43,6 @@ pub struct ReplayBuffer<E, O, A> where
     phandom: PhantomData<E>,
 }
 
-fn concat(capacity: usize, shape: &[i64]) -> Vec<i64> {
-    [&[capacity as i64], shape].concat()
-}
-
 #[allow(clippy::len_without_is_empty)]
 impl<E, O, A> ReplayBuffer<E, O, A> where
     E: Env,
@@ -71,7 +67,6 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
     pub fn push(&mut self, obs: &O::Item, action: &A::Item, reward: &Tensor, next_obs: &O::Item,
                 not_done: &Tensor) {
         let i = (self.i % self.capacity) as i64;
-        // self.obs.get(i as _).copy_(obs);
         self.obs.push(i, obs);
         self.next_obs.push(i, next_obs);
         self.actions.push(i, action);

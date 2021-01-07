@@ -9,7 +9,7 @@ pub struct DQN<E, M, O, A> where
     E: Env,
     M: Model + Clone,
     E::Obs :Into<M::Input>,
-    E::Act :From<M::Output>,
+    E::Act :From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
@@ -34,7 +34,7 @@ impl<E, M, O, A> DQN<E, M, O, A> where
     E: Env,
     M: Model<Input=Tensor, Output=Tensor> + Clone,
     E::Obs :Into<M::Input>,
-    E::Act :From<M::Output>,
+    E::Act :From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
@@ -142,7 +142,7 @@ impl<E, M, O, A> Policy<E> for DQN<E, M, O, A> where
     E: Env,
     M: Model<Input=Tensor, Output=Tensor> + Clone,
     E::Obs :Into<M::Input>,
-    E::Act :From<M::Output>,
+    E::Act :From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
@@ -163,7 +163,7 @@ impl<E, M, O, A> Agent<E> for DQN<E, M, O, A> where
     E: Env,
     M: Model<Input=Tensor, Output=Tensor> + Clone,
     E::Obs :Into<M::Input>,
-    E::Act :From<M::Output>,
+    E::Act :From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
