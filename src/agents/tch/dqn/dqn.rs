@@ -1,15 +1,18 @@
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{no_grad, Kind::Float, Tensor};
 use crate::core::{Policy, Agent, Step, Env};
-use crate::agents::{ReplayBuffer, TchBufferableActInfo, TchBufferableObsInfo};
+use crate::agents::tch::{ReplayBuffer, TchBuffer, TchBatch};
 use crate::agents::tch::model::Model;
-use crate::agents::tch::{Batch, util::track};
+use crate::agents::tch::util::track;
 
-pub struct DQN<E, M> where
+pub struct DQN<E, M, O, A> where
     E: Env,
     M: Model + Clone,
-    E::Obs :TchBufferableObsInfo + Into<M::Input>,
-    E::Act :TchBufferableActInfo + Into<Tensor> + From<M::Output> {
+    E::Obs :Into<M::Input>,
+    E::Act :From<M::Output>,
+    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
+    A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
+{
     n_samples_per_opt: usize,
     n_updates_per_opt: usize,
     n_opts_per_soft_update: usize,
@@ -19,21 +22,24 @@ pub struct DQN<E, M> where
     qnet_tgt: M,
     train: bool,
     phantom: PhantomData<E>,
-    prev_obs: RefCell<Option<Tensor>>,
-    replay_buffer: ReplayBuffer<E>,
+    prev_obs: RefCell<Option<E::Obs>>,
+    replay_buffer: ReplayBuffer<E, O, A>,
     count_samples_per_opt: usize,
     count_opts_per_soft_update: usize,
     discount_factor: f64,
     tau: f64,
 }
 
-impl<E, M> DQN<E, M> where 
+impl<E, M, O, A> DQN<E, M, O, A> where 
     E: Env,
     M: Model<Input=Tensor, Output=Tensor> + Clone,
-    E::Obs :TchBufferableObsInfo + Into<Tensor>,
-    E::Act :TchBufferableActInfo + Into<Tensor> + From<Tensor> {
+    E::Obs :Into<M::Input>,
+    E::Act :From<M::Output>,
+    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
+    A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
+{
     #[allow(clippy::too_many_arguments)]
-    pub fn new(qnet: M, replay_buffer: ReplayBuffer<E>)
+    pub fn new(qnet: M, replay_buffer: ReplayBuffer<E, O, A>)
             -> Self {
         let qnet_tgt = qnet.clone();
         DQN {
@@ -91,12 +97,12 @@ impl<E, M> DQN<E, M> where
     }
 
     fn push_transition(&mut self, step: Step<E>) {
-        let next_obs = step.obs.into();
+        let next_obs = step.obs;
         let obs = self.prev_obs.replace(None).unwrap();
         let not_done = (if step.is_done { 0.0 } else { 1.0 }).into();
         self.replay_buffer.push(
             &obs,
-            &step.act.clone().into(),
+            &step.act,
             &step.reward.into(),
             &next_obs,
             &not_done,
@@ -104,7 +110,7 @@ impl<E, M> DQN<E, M> where
         let _ = self.prev_obs.replace(Some(next_obs));
     }
 
-    fn update_qnet(&mut self, batch: Batch) {
+    fn update_qnet(&mut self, batch: TchBatch<E, O, A>) {
         let obs = batch.obs;
         let a = batch.actions;
         let r = batch.rewards;
@@ -132,11 +138,14 @@ impl<E, M> DQN<E, M> where
     }
 }
 
-impl<E, M> Policy<E> for DQN<E, M> where 
+impl<E, M, O, A> Policy<E> for DQN<E, M, O, A> where 
     E: Env,
     M: Model<Input=Tensor, Output=Tensor> + Clone,
-    E::Obs :TchBufferableObsInfo + Into<M::Input>,
-    E::Act :TchBufferableActInfo + Into<Tensor> + From<M::Output> {
+    E::Obs :Into<M::Input>,
+    E::Act :From<M::Output>,
+    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
+    A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
+{
     fn sample(&self, obs: &E::Obs) -> E::Act {
         let obs = obs.clone().into();
         let a = self.qnet.forward(&obs);
@@ -150,12 +159,14 @@ impl<E, M> Policy<E> for DQN<E, M> where
     }
 }
 
-impl<E, M> Agent<E> for DQN<E, M> where
+impl<E, M, O, A> Agent<E> for DQN<E, M, O, A> where
     E: Env,
     M: Model<Input=Tensor, Output=Tensor> + Clone,
-    E::Obs :TchBufferableObsInfo + Into<M::Input>,
-    E::Act :TchBufferableActInfo + Into<Tensor> + From<M::Output> {
-
+    E::Obs :Into<M::Input>,
+    E::Act :From<M::Output>,
+    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
+    A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
+{
     fn train(&mut self) {
         self.train = true;
     }
@@ -169,7 +180,7 @@ impl<E, M> Agent<E> for DQN<E, M> where
     }
 
     fn push_obs(&self, obs: &E::Obs) {
-        self.prev_obs.replace(Some(obs.clone().into()));
+        self.prev_obs.replace(Some(obs.clone()));
     }
 
     fn observe(&mut self, step: Step<E>) -> bool {

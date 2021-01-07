@@ -1,34 +1,37 @@
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{Kind::Float, Tensor};
 use crate::core::{Policy, Agent, Step, Env};
-use crate::agents::{ReplayBuffer, TchBufferableActInfo, TchBufferableObsInfo};
+use crate::agents::tch::{ReplayBuffer, TchBuffer, TchBatch};
 use crate::agents::tch::model::Model;
-use crate::agents::tch::Batch2;
 
-pub struct PPODiscrete<E, M> where
+pub struct PPODiscrete<E, M, O, A> where
     E: Env,
     M: Model<Input=Tensor, Output=(Tensor, Tensor)>, // + Clone
-    E::Obs :TchBufferableObsInfo + Into<M::Input>,
-    E::Act :TchBufferableActInfo + Into<Tensor> + From<Tensor> {
-
+    E::Obs :Into<M::Input> + Clone,
+    E::Act :From<Tensor>,
+    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
+    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
+{
     n_samples_per_opt: usize, // NOTE: must be equal to replay buffer size
     n_updates_per_opt: usize,
     batch_size: usize,
     model: M,
     train: bool,
-    prev_obs: RefCell<Option<Tensor>>,
-    replay_buffer: ReplayBuffer<E>,
+    prev_obs: RefCell<Option<E::Obs>>,
+    replay_buffer: ReplayBuffer<E, O, A>,
     count_samples_per_opt: usize,
     discount_factor: f64,
     phandom: PhantomData<E>,
 }
 
-impl<E, M> PPODiscrete<E, M> where
+impl<E, M, O, A> PPODiscrete<E, M, O, A> where
     E: Env,
     M: Model<Input=Tensor, Output=(Tensor, Tensor)>, // + Clone
-    E::Obs :TchBufferableObsInfo + Into<M::Input>,
-    E::Act :TchBufferableActInfo + Into<Tensor> + From<Tensor> {
-
+    E::Obs :Into<M::Input> + Clone,
+    E::Act :From<Tensor>,
+    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
+    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
+{
     pub fn new(model: M, n_samples_per_opt: usize) -> Self {
         let replay_buffer = ReplayBuffer::new(n_samples_per_opt);
         PPODiscrete {
@@ -66,7 +69,7 @@ impl<E, M> PPODiscrete<E, M> where
     }
 
     fn push_transition(&mut self, step: Step<E>) {
-        let next_obs = step.obs.into();
+        let next_obs = step.obs;
         let obs = self.prev_obs.replace(None).unwrap();
         let not_done = (if step.is_done { 0.0 } else { 1.0 }).into();
         self.replay_buffer.push(
@@ -79,7 +82,7 @@ impl<E, M> PPODiscrete<E, M> where
         let _ = self.prev_obs.replace(Some(next_obs));
     }
 
-    fn update_model(&mut self, batch: Batch2) {
+    fn update_model(&mut self, batch: TchBatch<E, O, A>) {
         // adapted from ppo.rs in tch-rs RL example
         let (critic, actor) = self.model.forward(&batch.obs);
         let log_probs = actor.log_softmax(-1, tch::Kind::Float);
@@ -91,7 +94,7 @@ impl<E, M> PPODiscrete<E, M> where
         let dist_entropy = (-log_probs * probs)
             .sum1(&[-1], false, tch::Kind::Float)
             .mean(tch::Kind::Float);
-        let advantages = batch.returns - critic;
+        let advantages = batch.returns.unwrap() - critic;
         let value_loss = (&advantages * &advantages).mean(tch::Kind::Float);
         let action_loss = (-advantages.detach() * action_log_probs).mean(tch::Kind::Float);
         let loss = value_loss * 0.5 + action_loss - dist_entropy * 0.01;
@@ -99,12 +102,14 @@ impl<E, M> PPODiscrete<E, M> where
     }
 }
 
-impl <E, M> Policy<E> for PPODiscrete<E, M> where
+impl <E, M, O, A> Policy<E> for PPODiscrete<E, M, O, A> where
     E: Env,
     M: Model<Input=Tensor, Output=(Tensor, Tensor)>, // + Clone,
-    E::Obs :TchBufferableObsInfo + Into<M::Input>,
-    E::Act :TchBufferableActInfo + Into<Tensor> + From<Tensor> {
-
+    E::Obs :Into<M::Input> + Clone,
+    E::Act :From<Tensor>,
+    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
+    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
+{
     fn sample(&self, obs: &E::Obs) -> E::Act {
         let obs = obs.clone().into();
         let (_, a) = self.model.forward(&obs);
@@ -118,12 +123,14 @@ impl <E, M> Policy<E> for PPODiscrete<E, M> where
     }
 }
 
-impl <E, M> Agent<E> for PPODiscrete<E, M> where
+impl <E, M, O, A> Agent<E> for PPODiscrete<E, M, O, A> where
     E: Env,
     M: Model<Input=Tensor, Output=(Tensor, Tensor)>, // + Clone
-    E::Obs :TchBufferableObsInfo + Into<M::Input>,
-    E::Act :TchBufferableActInfo + Into<Tensor> + From<Tensor> {
-
+    E::Obs :Into<M::Input> + Clone,
+    E::Act :From<Tensor>,
+    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
+    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
+{
     fn train(&mut self) {
         self.train = true;
     }
@@ -137,7 +144,7 @@ impl <E, M> Agent<E> for PPODiscrete<E, M> where
     }
 
     fn push_obs(&self, obs: &E::Obs) {
-        self.prev_obs.replace(Some(obs.clone().into()));
+        self.prev_obs.replace(Some(obs.clone()));
     }
 
     fn observe(&mut self, step: Step<E>) -> bool {
@@ -151,11 +158,11 @@ impl <E, M> Agent<E> for PPODiscrete<E, M> where
 
             // Store returns in the replay buffer
             let (estimated_return, _)
-                = self.model.forward(&self.prev_obs.borrow().as_ref().unwrap());
+                = self.model.forward(&self.prev_obs.borrow().to_owned().unwrap().into());
             self.replay_buffer.update_returns(estimated_return, self.discount_factor);
 
             for _ in 0..self.n_updates_per_opt {
-                let batch = self.replay_buffer.random_batch2(self.batch_size).unwrap();
+                let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
                 self.update_model(batch);
             };
             return true;
