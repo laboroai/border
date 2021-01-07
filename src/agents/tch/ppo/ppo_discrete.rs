@@ -74,7 +74,7 @@ impl<E, M, O, A> PPODiscrete<E, M, O, A> where
         let not_done = (if step.is_done { 0.0 } else { 1.0 }).into();
         self.replay_buffer.push(
             &obs,
-            &step.act.clone().into(),
+            &step.act,
             &step.reward.into(),
             &next_obs,
             &not_done,
