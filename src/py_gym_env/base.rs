@@ -2,7 +2,7 @@ use std::{fmt::Debug, error::Error};
 use std::marker::PhantomData;
 use log::{trace};
 use pyo3::{PyObject, PyResult, Python, ToPyObject};
-use pyo3::types::{PyTuple};
+use pyo3::types::{PyTuple, IntoPyDict};
 use crate::core::{Obs, Act, Info, Step, Env};
 
 pub struct PyGymInfo {}
@@ -25,6 +25,14 @@ impl<O, A> PyGymEnv<O, A> where
     pub fn new(name: &str) -> PyResult<Self> {
         let gil = Python::acquire_gil();
         let py = gil.python();
+
+        // sys.argv is used by pyglet library, which is responsible for rendering.
+        // Depending on the environment, however, sys.argv can be empty.
+        // For that case, sys argv is set here.
+        // See https://github.com/PyO3/pyo3/issues/1241#issuecomment-715952517
+        let locals = [("sys", py.import("sys")?)].into_py_dict(py);
+        let _ = py.eval("sys.argv.insert(0, 'PyGymEnv')", None, Some(&locals))?;
+
         let gym = py.import("gym")?;
         let env = gym.call("make", (name,), None)?;
         let _ = env.call_method("seed", (42,), None)?;
