@@ -70,12 +70,6 @@ impl Into<PyObject> for CartPoleAct {
     }
 }
 
-impl Into<Tensor> for CartPoleAct {
-    fn into(self) -> Tensor {
-        (self.0 as i32).into()
-    }
-}
-
 impl From<Tensor> for CartPoleAct {
     fn from(t: Tensor) -> Self {
         let a: i32 = t.into();
