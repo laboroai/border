@@ -1,36 +1,17 @@
 use std::marker::PhantomData;
 use tch::{Tensor, kind::{FLOAT_CPU, INT64_CPU}};
-use crate::core::{Env};
+use crate::core::Env;
+use crate::agents::tch::replay_buffer::{TchReplayBufferBase, TchBuffer, TchBatch};
 
-pub trait TchVecBuffer {
-    type Item;
-    type SubBatch;
-
-    fn new(capacity: usize, n_envs: usize) -> Self;
-
-    fn push(&mut self, index: i64, item: &Self::Item);
-
-    fn batch(&self, batch_indexes: &Tensor) -> Self::SubBatch;
-}
-
-pub struct TchBatch<E: Env, O, A> where
-    O: TchVecBuffer<Item = E::Obs>,
-    A: TchVecBuffer<Item = E::Act> {
-
-    pub obs: O::SubBatch,
-    pub next_obs: O::SubBatch,
-    pub actions: A::SubBatch,
-    pub rewards: Tensor,
-    pub not_dones: Tensor,
-    pub returns: Option<Tensor>,
-    phantom: PhantomData<E>,
+pub trait WithCapacityAndProcs {
+    fn new(capacity: usize, n_procs: usize) -> Self;
 }
 
 pub struct VecReplayBuffer<E, O, A> where
     E: Env,
-    O: TchVecBuffer<Item = E::Obs>,
-    A: TchVecBuffer<Item = E::Act> {
-
+    O: TchBuffer<Item = E::Obs> + WithCapacityAndProcs,
+    A: TchBuffer<Item = E::Act> + WithCapacityAndProcs
+{
     obs: O,
     next_obs: O,
     actions: A,
@@ -46,16 +27,18 @@ pub struct VecReplayBuffer<E, O, A> where
 #[allow(clippy::len_without_is_empty)]
 impl<E, O, A> VecReplayBuffer<E, O, A> where
     E: Env,
-    O: TchVecBuffer<Item = E::Obs>,
-    A: TchVecBuffer<Item = E::Act> {
+    O: TchBuffer<Item = E::Obs> + WithCapacityAndProcs,
+    A: TchBuffer<Item = E::Act> + WithCapacityAndProcs
+{
+    pub fn new(capacity: usize, n_procs: usize) -> Self {
+        assert!(capacity % n_procs == 0); // TODO: better error handling
 
-    pub fn new(capacity: usize, n_envs: usize) -> Self {
         Self {
-            obs: O::new(capacity, n_envs),
-            next_obs: O::new(capacity, n_envs),
-            actions: A::new(capacity, n_envs),
-            rewards: Tensor::zeros(&[capacity as _, n_envs as _, 1], FLOAT_CPU),
-            not_dones: Tensor::zeros(&[capacity as _, n_envs as _, 1], FLOAT_CPU),
+            obs: O::new(capacity, n_procs),
+            next_obs: O::new(capacity, n_procs),
+            actions: A::new(capacity, n_procs),
+            rewards: Tensor::zeros(&[capacity as _, n_procs as _, 1], FLOAT_CPU),
+            not_dones: Tensor::zeros(&[capacity as _, n_procs as _, 1], FLOAT_CPU),
             returns: None,
             capacity,
             len: 0,
@@ -63,8 +46,14 @@ impl<E, O, A> VecReplayBuffer<E, O, A> where
             phandom: PhantomData,
         }
     }
+}
 
-    pub fn push(&mut self, obs: &O::Item, action: &A::Item, reward: &Tensor, next_obs: &O::Item,
+impl<E, O, A> TchReplayBufferBase<E, O, A> for VecReplayBuffer<E, O, A> where
+    E: Env,
+    O: TchBuffer<Item = E::Obs> + WithCapacityAndProcs,
+    A: TchBuffer<Item = E::Act> + WithCapacityAndProcs
+{
+    fn push(&mut self, obs: &O::Item, action: &A::Item, reward: &Tensor, next_obs: &O::Item,
                 not_done: &Tensor) {
         let i = (self.i % self.capacity) as i64;
         self.obs.push(i, obs);
@@ -78,7 +67,7 @@ impl<E, O, A> VecReplayBuffer<E, O, A> where
         }
     }
 
-    pub fn random_batch(&self, batch_size: usize) -> Option<TchBatch<E, O, A>> {
+    fn random_batch(&self, batch_size: usize) -> Option<TchBatch<E, O, A>> {
         if self.len < 3 {
             return None;
         }
@@ -90,6 +79,8 @@ impl<E, O, A> VecReplayBuffer<E, O, A> where
         let next_obs = self.next_obs.batch(&batch_indexes);
         let actions = self.actions.batch(&batch_indexes);
         let rewards = self.rewards.index_select(0, &batch_indexes);
+        println!("{:?}", rewards.size());
+        panic!();
         let not_dones = self.not_dones.index_select(0, &batch_indexes);
         // let returns = match self.returns.as_ref() {
         //     Some(r) => Some(r.index_select(0, &batch_indexes)),
@@ -101,7 +92,15 @@ impl<E, O, A> VecReplayBuffer<E, O, A> where
         Some(TchBatch {obs, actions, rewards, next_obs, not_dones, returns, phantom})
     }
 
-    pub fn len(&self) -> usize {
+    fn update_returns(&mut self, estimated_return: Tensor, gamma: f64) {
+        unimplemented!();
+    }
+
+    fn clear_returns(&mut self) {
+        unimplemented!();
+    }
+
+    fn len(&self) -> usize {
         self.len
     }
 }
