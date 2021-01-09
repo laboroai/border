@@ -193,8 +193,9 @@ def make_env(env_id, img_dir, seed, rank):
         env.seed(seed + rank)
         if img_dir is not None:
             env = ImageSaver(env, img_dir, rank)
-        env = wrap_deepmind(env)
-        env = WrapPyTorch(env)
+        if env_id != "CartPole-v0": # Tweak for dqn_cartpole_par.rs
+            env = wrap_deepmind(env)
+            env = WrapPyTorch(env)
         return env
 
     return _thunk
@@ -302,6 +303,6 @@ class SubprocVecEnv(VecEnv):
 # Create the environment.
 def make(env_name, img_dir, num_processes):
     envs = SubprocVecEnv([
-        make_env(env_name, img_dir, 1337, i) for i in range(num_processes)
+        make_env(env_name, img_dir, 42, i) for i in range(num_processes)
     ])
     return envs
