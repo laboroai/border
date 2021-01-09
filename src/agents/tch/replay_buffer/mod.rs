@@ -1,3 +1,3 @@
 pub mod base;
 pub mod vec;
-pub use base::{ReplayBuffer, TchBuffer, TchBatch};
+pub use base::{TchReplayBufferBase, ReplayBuffer, TchBuffer, TchBatch, WithCapacity};

@@ -5,7 +5,7 @@ use numpy::PyArrayDyn;
 use tch::Tensor;
 use lrr::core::{Obs, Act, Trainer, Agent, util};
 use lrr::py_gym_env::PyGymEnv;
-use lrr::agents::tch::{DQN, QNetwork, ReplayBuffer, TchBuffer};
+use lrr::agents::tch::{DQN, QNetwork, ReplayBuffer, TchBuffer, WithCapacity};
 
 #[derive(Clone, Debug)]
 pub struct CartPoleObs (pub ArrayD<f32>);
@@ -36,15 +36,17 @@ struct CartPoleObsBuffer {
     obs: Tensor
 }
 
-impl TchBuffer for CartPoleObsBuffer {
-    type Item = CartPoleObs;
-    type SubBatch = Tensor;
-
+impl WithCapacity for CartPoleObsBuffer {
     fn new(capacity: usize) -> Self {
         Self {
             obs: Tensor::zeros(&[capacity as _, 4], tch::kind::FLOAT_CPU),
         }
     }
+}
+
+impl TchBuffer for CartPoleObsBuffer {
+    type Item = CartPoleObs;
+    type SubBatch = Tensor;
 
     fn push(&mut self, index: i64, item: &CartPoleObs) {
         let obs = item.0.view().to_slice().unwrap();
@@ -87,15 +89,17 @@ struct CartPoleActBuffer {
     act: Tensor
 }
 
-impl TchBuffer for CartPoleActBuffer {
-    type Item = CartPoleAct;
-    type SubBatch = Tensor;
-
+impl WithCapacity for CartPoleActBuffer {
     fn new(capacity: usize) -> Self {
         Self {
             act: Tensor::zeros(&[capacity as _, 1], tch::kind::INT64_CPU),
         }
     }
+}
+
+impl TchBuffer for CartPoleActBuffer {
+    type Item = CartPoleAct;
+    type SubBatch = Tensor;
 
     fn push(&mut self, index: i64, item: &CartPoleAct) {
         let act = (item.0 as i32).into();
@@ -115,7 +119,7 @@ fn create_agent() -> impl Agent<PyGymEnv<CartPoleObs, CartPoleAct>> {
     let qnet = QNetwork::new(4, 2, 0.001);
     let replay_buffer 
         = ReplayBuffer::<E, O, A>::new(10000);
-    let agent: DQN<E, _, _, _> = DQN::new(
+    let agent: DQN<E, _, _, _, _> = DQN::new(
         qnet,
         replay_buffer)
         .n_samples_per_opt(50)

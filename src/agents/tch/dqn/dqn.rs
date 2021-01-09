@@ -1,15 +1,16 @@
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{no_grad, Kind::Float, Tensor};
 use crate::core::{Policy, Agent, Step, Env};
-use crate::agents::tch::{ReplayBuffer, TchBuffer, TchBatch};
+use crate::agents::tch::replay_buffer::{TchReplayBufferBase, TchBuffer, TchBatch};
 use crate::agents::tch::model::Model;
 use crate::agents::tch::util::track;
 
-pub struct DQN<E, M, O, A> where
+pub struct DQN<E, M, R, O, A> where
     E: Env,
     M: Model + Clone,
     E::Obs :Into<M::Input>,
     E::Act :From<Tensor>,
+    R: TchReplayBufferBase<E, O, A>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
@@ -21,25 +22,26 @@ pub struct DQN<E, M, O, A> where
     qnet: M,
     qnet_tgt: M,
     train: bool,
-    phantom: PhantomData<E>,
+    phantom: PhantomData<(E, O, A)>,
     prev_obs: RefCell<Option<E::Obs>>,
-    replay_buffer: ReplayBuffer<E, O, A>,
+    replay_buffer: R,
     count_samples_per_opt: usize,
     count_opts_per_soft_update: usize,
     discount_factor: f64,
     tau: f64,
 }
 
-impl<E, M, O, A> DQN<E, M, O, A> where 
+impl<E, M, R, O, A> DQN<E, M, R, O, A> where 
     E: Env,
     M: Model<Input=Tensor, Output=Tensor> + Clone,
     E::Obs :Into<M::Input>,
     E::Act :From<Tensor>,
+    R: TchReplayBufferBase<E, O, A>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(qnet: M, replay_buffer: ReplayBuffer<E, O, A>)
+    pub fn new(qnet: M, replay_buffer: R)
             -> Self {
         let qnet_tgt = qnet.clone();
         DQN {
@@ -138,11 +140,12 @@ impl<E, M, O, A> DQN<E, M, O, A> where
     }
 }
 
-impl<E, M, O, A> Policy<E> for DQN<E, M, O, A> where 
+impl<E, M, R, O, A> Policy<E> for DQN<E, M, R, O, A> where 
     E: Env,
     M: Model<Input=Tensor, Output=Tensor> + Clone,
     E::Obs :Into<M::Input>,
     E::Act :From<Tensor>,
+    R: TchReplayBufferBase<E, O, A>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
@@ -159,11 +162,12 @@ impl<E, M, O, A> Policy<E> for DQN<E, M, O, A> where
     }
 }
 
-impl<E, M, O, A> Agent<E> for DQN<E, M, O, A> where
+impl<E, M, R, O, A> Agent<E> for DQN<E, M, R, O, A> where
     E: Env,
     M: Model<Input=Tensor, Output=Tensor> + Clone,
     E::Obs :Into<M::Input>,
     E::Act :From<Tensor>,
+    R: TchReplayBufferBase<E, O, A>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
