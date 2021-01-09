@@ -140,17 +140,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         env,
         env_eval,
         agent)
-        .max_opts(1000)
+        .max_opts(100)
         .n_opts_per_eval(50)
         .n_episodes_per_eval(5);
 
     trainer.train();
-    trainer.get_agent().save("./examples/test5")?;
+    trainer.get_agent().save("./examples/model/dqn_cartpole")?;
 
     let mut env = PyGymEnv::<CartPoleObs, CartPoleAct>::new("CartPole-v0")?;
     let mut agent = create_agent();
     env.set_render(true);
-    agent.load("./examples/test5")?;
+    agent.load("./examples/model/dqn_cartpole")?;
     agent.eval();
     util::eval(&env, &agent, 5, None);
 

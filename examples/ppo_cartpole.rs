@@ -139,12 +139,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         .n_episodes_per_eval(5);
 
     trainer.train();
-    trainer.get_agent().save("./examples/test7")?;
+    trainer.get_agent().save("./examples/model/ppo_cartpole")?;
 
     let mut env = PyGymEnv::<CartPoleObs, CartPoleAct>::new("CartPole-v0")?;
     let mut agent = create_agent();
     env.set_render(true);
-    agent.load("./examples/test7")?;
+    agent.load("./examples/model/ppo_cartpole")?;
     agent.eval();
     util::eval(&env, &agent, 5, None);
 
