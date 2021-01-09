@@ -5,7 +5,7 @@ use numpy::PyArrayDyn;
 use tch::Tensor;
 use lrr::core::{Obs, Act, Trainer, Agent, util};
 use lrr::py_gym_env::PyGymEnv;
-use lrr::agents::tch::{PPODiscrete, TchBuffer, WithCapacity};
+use lrr::agents::tch::{PPODiscrete, TchBuffer};
 use lrr::agents::tch::model::StateValueAndDiscreteActProb;
 
 #[derive(Clone, Debug)]
@@ -37,17 +37,15 @@ struct CartPoleObsBuffer {
     obs: Tensor
 }
 
-impl WithCapacity for CartPoleObsBuffer {
+impl TchBuffer for CartPoleObsBuffer {
+    type Item = CartPoleObs;
+    type SubBatch = Tensor;
+
     fn new(capacity: usize) -> Self {
         Self {
             obs: Tensor::zeros(&[capacity as _, 4], tch::kind::FLOAT_CPU),
         }
     }
-}
-
-impl TchBuffer for CartPoleObsBuffer {
-    type Item = CartPoleObs;
-    type SubBatch = Tensor;
 
     fn push(&mut self, index: i64, item: &CartPoleObs) {
         let obs = item.0.view().to_slice().unwrap();
@@ -90,17 +88,15 @@ struct CartPoleActBuffer {
     act: Tensor
 }
 
-impl WithCapacity for CartPoleActBuffer {
+impl TchBuffer for CartPoleActBuffer {
+    type Item = CartPoleAct;
+    type SubBatch = Tensor;
+
     fn new(capacity: usize) -> Self {
         Self {
             act: Tensor::zeros(&[capacity as _, 1], tch::kind::INT64_CPU),
         }
     }
-}
-
-impl TchBuffer for CartPoleActBuffer {
-    type Item = CartPoleAct;
-    type SubBatch = Tensor;
 
     fn push(&mut self, index: i64, item: &CartPoleAct) {
         let act = (item.0 as i32).into();

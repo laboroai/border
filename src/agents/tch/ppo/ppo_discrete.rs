@@ -1,17 +1,16 @@
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{Kind::Float, Tensor};
-use crate::{agents::tch::WithCapacity, core::{Policy, Agent, Step, Env}};
+use crate::core::{Policy, Agent, Step, Env};
 use crate::agents::tch::{ReplayBuffer, TchBuffer, TchBatch};
 use crate::agents::tch::model::Model;
-use crate::agents::tch::replay_buffer::TchReplayBufferBase;
 
 pub struct PPODiscrete<E, M, O, A> where
     E: Env,
     M: Model<Input=Tensor, Output=(Tensor, Tensor)>, // + Clone
     E::Obs :Into<M::Input> + Clone,
     E::Act :From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = M::Input> + WithCapacity,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor> + WithCapacity,
+    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
+    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
     n_samples_per_opt: usize, // NOTE: must be equal to replay buffer size
     n_updates_per_opt: usize,
@@ -30,8 +29,8 @@ impl<E, M, O, A> PPODiscrete<E, M, O, A> where
     M: Model<Input=Tensor, Output=(Tensor, Tensor)>, // + Clone
     E::Obs :Into<M::Input> + Clone,
     E::Act :From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = M::Input> + WithCapacity,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor> + WithCapacity,
+    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
+    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
     pub fn new(model: M, n_samples_per_opt: usize) -> Self {
         let replay_buffer = ReplayBuffer::new(n_samples_per_opt);
@@ -108,8 +107,8 @@ impl <E, M, O, A> Policy<E> for PPODiscrete<E, M, O, A> where
     M: Model<Input=Tensor, Output=(Tensor, Tensor)>, // + Clone,
     E::Obs :Into<M::Input> + Clone,
     E::Act :From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = M::Input> + WithCapacity,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor> + WithCapacity,
+    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
+    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
     fn sample(&self, obs: &E::Obs) -> E::Act {
         let obs = obs.clone().into();
@@ -129,8 +128,8 @@ impl <E, M, O, A> Agent<E> for PPODiscrete<E, M, O, A> where
     M: Model<Input=Tensor, Output=(Tensor, Tensor)>, // + Clone
     E::Obs :Into<M::Input> + Clone,
     E::Act :From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = M::Input> + WithCapacity,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor> + WithCapacity,
+    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
+    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
     fn train(&mut self) {
         self.train = true;

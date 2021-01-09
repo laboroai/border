@@ -2,13 +2,11 @@ use std::marker::PhantomData;
 use tch::{Tensor, kind::{FLOAT_CPU, INT64_CPU}};
 use crate::core::{Env};
 
-pub trait WithCapacity {
-    fn new(capacity: usize) -> Self;
-}
-
 pub trait TchBuffer {
     type Item;
     type SubBatch;
+
+    fn new(capacity: usize) -> Self;
 
     fn push(&mut self, index: i64, item: &Self::Item);
 
@@ -28,23 +26,10 @@ pub struct TchBatch<E: Env, O, A> where
     phantom: PhantomData<E>,
 }
 
-#[allow(clippy::len_without_is_empty)]
-pub trait TchReplayBufferBase<E, O, A> where
-    E: Env,
-    O: TchBuffer<Item = E::Obs>,
-    A: TchBuffer<Item = E::Act>
-{
-    fn push(&mut self, obs: &O::Item, action: &A::Item, reward: &Tensor, next_obs: &O::Item, not_done: &Tensor);
-    fn random_batch(&self, batch_size: usize) -> Option<TchBatch<E, O, A>>;
-    fn update_returns(&mut self, estimated_return: Tensor, gamma: f64);
-    fn clear_returns(&mut self);
-    fn len(&self) -> usize;
-}
-
 pub struct ReplayBuffer<E, O, A> where
     E: Env,
-    O: TchBuffer<Item = E::Obs> + WithCapacity,
-    A: TchBuffer<Item = E::Act> + WithCapacity {
+    O: TchBuffer<Item = E::Obs>,
+    A: TchBuffer<Item = E::Act> {
 
     obs: O,
     next_obs: O,
@@ -61,9 +46,9 @@ pub struct ReplayBuffer<E, O, A> where
 #[allow(clippy::len_without_is_empty)]
 impl<E, O, A> ReplayBuffer<E, O, A> where
     E: Env,
-    O: TchBuffer<Item = E::Obs> + WithCapacity,
-    A: TchBuffer<Item = E::Act> + WithCapacity
-{
+    O: TchBuffer<Item = E::Obs>,
+    A: TchBuffer<Item = E::Act> {
+
     pub fn new(capacity: usize) -> Self {
         Self {
             obs: O::new(capacity),
@@ -78,15 +63,9 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
             phandom: PhantomData,
         }
     }
-}
 
-impl<E, O, A> TchReplayBufferBase<E, O, A> for ReplayBuffer<E, O, A> where
-    E: Env,
-    O: TchBuffer<Item = E::Obs> + WithCapacity,
-    A: TchBuffer<Item = E::Act> + WithCapacity
-{
-    fn push(&mut self, obs: &O::Item, action: &A::Item, reward: &Tensor, next_obs: &O::Item,
-            not_done: &Tensor) {
+    pub fn push(&mut self, obs: &O::Item, action: &A::Item, reward: &Tensor, next_obs: &O::Item,
+                not_done: &Tensor) {
         let i = (self.i % self.capacity) as i64;
         self.obs.push(i, obs);
         self.next_obs.push(i, next_obs);
@@ -99,7 +78,7 @@ impl<E, O, A> TchReplayBufferBase<E, O, A> for ReplayBuffer<E, O, A> where
         }
     }
 
-    fn random_batch(&self, batch_size: usize) -> Option<TchBatch<E, O, A>> {
+    pub fn random_batch(&self, batch_size: usize) -> Option<TchBatch<E, O, A>> {
         if self.len < 3 {
             return None;
         }
@@ -121,7 +100,7 @@ impl<E, O, A> TchReplayBufferBase<E, O, A> for ReplayBuffer<E, O, A> where
         Some(TchBatch {obs, actions, rewards, next_obs, not_dones, returns, phantom})
     }
 
-    fn update_returns(&mut self, estimated_return: Tensor, gamma: f64) {
+    pub fn update_returns(&mut self, estimated_return: Tensor, gamma: f64) {
         // adapted from ppo.rs in tch-rs RL example
         self.returns = {
             let r = Tensor::zeros(&[self.len as i64], FLOAT_CPU);
@@ -134,11 +113,11 @@ impl<E, O, A> TchReplayBufferBase<E, O, A> for ReplayBuffer<E, O, A> where
         };
     }
 
-    fn clear_returns(&mut self) {
+    pub fn clear_returns(&mut self) {
         self.returns = None;
     }
 
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.len
     }
 }
