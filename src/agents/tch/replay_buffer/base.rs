@@ -25,7 +25,7 @@ pub struct TchBatch<E: Env, O, A> where
     pub rewards: Tensor,
     pub not_dones: Tensor,
     pub returns: Option<Tensor>,
-    pub phantom: PhantomData<E>,
+    phantom: PhantomData<E>,
 }
 
 #[allow(clippy::len_without_is_empty)]
@@ -44,8 +44,8 @@ pub trait TchReplayBufferBase<E, O, A> where
 pub struct ReplayBuffer<E, O, A> where
     E: Env,
     O: TchBuffer<Item = E::Obs> + WithCapacity,
-    A: TchBuffer<Item = E::Act> + WithCapacity
-{
+    A: TchBuffer<Item = E::Act> + WithCapacity {
+
     obs: O,
     next_obs: O,
     actions: A,
