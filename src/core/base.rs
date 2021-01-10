@@ -1,7 +1,13 @@
 use std::{fmt::Debug, path::Path, error::Error};
 
 /// Represents an observation of the environment.
-pub trait Obs: Clone {}
+pub trait Obs: Clone {
+    fn zero(n_procs: usize) -> Self;
+
+    /// Replace elements of observation where `is_done[i] == 1.0`.
+    /// This method assumes that `is_done.len() == n_procs`.
+    fn merge(self, obs_reset: Self, is_done: &[f32]) -> Self;
+}
 
 /// Represents an action of the environment.
 pub trait Act: Clone + Debug {}
@@ -10,16 +16,17 @@ pub trait Act: Clone + Debug {}
 pub trait Info {}
 
 /// Represents all information given at every step of agent-envieronment interaction.
+/// `reward` and `is_done` have the same length, the number of processes (environments).
 pub struct Step<E: Env> {
     pub act: E::Act,
     pub obs: E::Obs,
-    pub reward: f32,
-    pub is_done: bool,
+    pub reward: Vec<f32>,
+    pub is_done: Vec<f32>,
     pub info: E::Info,
 }
 
 impl<E: Env> Step<E> {
-    pub fn new(obs: E::Obs, act: E::Act, reward: f32, is_done: bool, info: E::Info) -> Self {
+    pub fn new(obs: E::Obs, act: E::Act, reward: Vec<f32>, is_done: Vec<f32>, info: E::Info) -> Self {
         Step {
             act,
             obs,
@@ -38,7 +45,9 @@ pub trait Env {
 
     fn step(&self, a: &Self::Act) -> Step<Self> where Self: Sized;
 
-    fn reset(&self) -> Result<Self::Obs, Box<dyn Error>>;
+    /// Reset the i-th environment if `is_done[i]==1.0`.
+    /// Thei-th return value should be ignored if `is_done[i]==0.0`.
+    fn reset(&self, is_done: Option<&Vec<f32>>) -> Result<Self::Obs, Box<dyn Error>>;
 }
 
 /// Represents a policy. on an environment. It is based on a mapping from an observation

@@ -71,11 +71,12 @@ impl<E, M, O, A> PPODiscrete<E, M, O, A> where
     fn push_transition(&mut self, step: Step<E>) {
         let next_obs = step.obs;
         let obs = self.prev_obs.replace(None).unwrap();
-        let not_done = (if step.is_done { 0.0 } else { 1.0 }).into();
+        let reward = Tensor::of_slice(&step.reward[..]);
+        let not_done = Tensor::from(1f32) - Tensor::of_slice(&step.is_done[..]);
         self.replay_buffer.push(
             &obs,
             &step.act,
-            &step.reward.into(),
+            &reward,
             &next_obs,
             &not_done,
         );

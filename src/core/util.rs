@@ -1,66 +1,65 @@
 use std::cell::RefCell;
 use log::info;
-use crate::core::{Step, Env, Policy, Agent};
+use crate::core::{Obs, Step, Env, Policy};
 
 /// The agent take an action and apply it to the environment.
 /// Then return [crate::core::base::Step] object.
-pub fn sample<E: Env, A: Agent<E>>(env: &E, agent: &mut A, obs_prev: &RefCell<Option<E::Obs>>) -> Step<E> {
-    let obs = match obs_prev.replace(None) {
-        None => {
-            let obs = env.reset().unwrap();
-            if agent.is_train() {
-                agent.push_obs(&obs);
-            }
-            obs
-        },
-        Some(obs) => obs
-    };
-    let a = agent.sample(&obs);
-    let step = env.step(&a);
-
-    if step.is_done {
-        obs_prev.replace(None);
-    }
-    else {
-        obs_prev.replace(Some(step.obs.clone()));
-    }
-
-    step
-}
-
-/// The agent take an action and apply it to the environment.
-/// Then return [crate::core::base::Step] object.
-pub fn sample_with_policy<E: Env, P: Policy<E>>(env: &E, policy: &P, obs_prev: &RefCell<Option<E::Obs>>) -> Step<E> {
-    let obs = match obs_prev.replace(None) {
-        None => env.reset().unwrap(),
-        Some(obs) => obs
-    };
+pub fn sample<E: Env, P: Policy<E>>(env: &E, policy: &P, obs_prev: &RefCell<Option<E::Obs>>) -> Step<E> {
+    let obs = obs_prev.replace(None)
+        .expect("Observation buffer is not initialized.");
+    // {
+    //     None => {
+    //         let obs = env.reset().unwrap();
+    //         if agent.is_train() {
+    //             agent.push_obs(&obs);
+    //         }
+    //         obs
+    //     },
+    //     Some(obs) => obs
+    // };
     let a = policy.sample(&obs);
     let step = env.step(&a);
-
-    if step.is_done {
-        obs_prev.replace(None);
-    }
-    else {
-        obs_prev.replace(Some(step.obs.clone()));
-    }
-
+    // let mask = step.is_done.iter().map(|&x| 1.0 - x).collect();
+    let obs_reset = env.reset(Some(&step.is_done)).unwrap();
+    obs_prev.replace(Some(step.obs.clone().merge(obs_reset, &step.is_done)));
     step
 }
 
+// /// The agent take an action and apply it to the environment.
+// /// Then return [crate::core::base::Step] object.
+// pub fn sample_with_policy<E: Env, P: Policy<E>>(env: &E, policy: &P, obs_prev: &RefCell<Option<E::Obs>>) -> Step<E> {
+//     let obs = match obs_prev.replace(None) {
+//         None => env.reset().unwrap(),
+//         Some(obs) => obs
+//     };
+//     let a = policy.sample(&obs);
+//     let step = env.step(&a);
+
+//     if step.is_done {
+//         obs_prev.replace(None);
+//     }
+//     else {
+//         obs_prev.replace(Some(step.obs.clone()));
+//     }
+
+//     step
+// }
+
+/// This method assumes that `n_proc`=1.
 pub fn eval<E: Env, P: Policy<E>>(env: &E, policy: &P, n_episodes_per_eval: usize, count_opts: Option<usize>) {
     // TODO: check the maximum number of steps of the environment for evaluation.
     // If it is infinite, the number of evaluation steps should be given in place of
     // n_episodes_per_eval.
     let mut rs = Vec::new();
+    let obs = env.reset(None).unwrap();
+    let obs_prev = RefCell::new(Some(obs));
 
     for _ in 0..n_episodes_per_eval {
         let mut r_sum = 0.0;
-        let obs_prev = RefCell::new(None);
         loop {
-            let step = sample_with_policy(env, policy, &obs_prev);
-            r_sum += step.reward;
-            if step.is_done { break; }
+            let step = sample(env, policy, &obs_prev);
+            r_sum += &step.reward[0];
+            if step.is_done[0] == 1.0 as f32 { break; }
         }
         rs.push(r_sum);
     }

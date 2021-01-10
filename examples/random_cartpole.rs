@@ -1,5 +1,5 @@
 use std::error::Error;
-use ndarray::ArrayD;
+use ndarray::{Axis, Array, ArrayD, IxDyn};
 use pyo3::{PyObject, IntoPy};
 use numpy::PyArrayDyn;
 use lrr::core::{Obs, Act, Policy, util};
@@ -8,7 +8,26 @@ use lrr::py_gym_env::PyGymEnv;
 #[derive(Clone, Debug)]
 pub struct CartPoleObs (pub ArrayD<f32>);
 
-impl Obs for CartPoleObs {}
+impl Obs for CartPoleObs {
+    fn zero(n_procs: usize) -> Self {
+        Self(Array::zeros(IxDyn(&[n_procs, 4])))
+    }
+
+    fn merge(mut self, obs_reset: Self, is_done: &[f32]) -> Self {
+        let any = is_done.iter().fold(0, |x, v| x + *v as i32);
+        if any > 0 {
+            for i in 0..is_done.len() {
+                if is_done[i] != 0.0 {
+                    self.0.index_axis_mut(Axis(0), i).assign(&obs_reset.0.index_axis(Axis(0), i));
+                }
+            }
+            self
+        }
+        else {
+            self
+        }
+    }
+}
 
 impl From<PyObject> for CartPoleObs {
     fn from(obs: PyObject) -> Self {
@@ -16,9 +35,7 @@ impl From<PyObject> for CartPoleObs {
             let obs: &PyArrayDyn<f64> = obs.extract(py).unwrap();
             let obs = obs.to_owned_array();
             let obs = obs.mapv(|elem| elem as f32);
-            Self {
-                0: obs
-            }
+            Self(obs)
         })
     }
 }

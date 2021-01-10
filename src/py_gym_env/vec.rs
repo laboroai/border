@@ -70,13 +70,14 @@ impl<O, A> Env for PyVecGymEnv<O, A> where
     type Info = PyGymInfo;
 
     /// Resets the environment, returning the observation tensor.
-    fn reset(&self) -> Result<O, Box<dyn Error>>  {
-        pyo3::Python::with_gil(|py| {
-            // let gil = Python::acquire_gil();
-            // let py = gil.python();
-            let obs = self.env.call_method0(py, "reset")?;
-            Ok(obs.into())
-        })
+    fn reset(&self, is_done: Option<&Vec<f32>>) -> Result<O, Box<dyn Error>>  {
+        unimplemented!();
+        // pyo3::Python::with_gil(|py| {
+        //     // let gil = Python::acquire_gil();
+        //     // let py = gil.python();
+        //     let obs = self.env.call_method0(py, "reset")?;
+        //     Ok(obs.into())
+        // })
     }    
     
     fn step(&self, a: &A) -> Step<Self> {
@@ -87,8 +88,12 @@ impl<O, A> Env for PyVecGymEnv<O, A> where
             let step: &PyTuple = ret.extract(py).unwrap();
             let obs = step.get_item(0).to_owned();
             let obs = obs.to_object(py).into();
-            let reward: f32 = step.get_item(1).extract().unwrap();
-            let is_done: bool = step.get_item(2).extract().unwrap();
+            // let reward: f32 = step.get_item(1).extract().unwrap();
+            // let is_done: bool = step.get_item(2).extract().unwrap();
+
+            let reward = Vec::<f32>::new();
+            let is_done = Vec::<f32>::new();
+            unimplemented!();
 
             Step::<Self>::new(obs, a.clone(), reward, is_done, PyGymInfo{})
         })
