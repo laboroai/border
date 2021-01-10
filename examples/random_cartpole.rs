@@ -35,6 +35,7 @@ impl From<PyObject> for CartPoleObs {
             let obs: &PyArrayDyn<f64> = obs.extract(py).unwrap();
             let obs = obs.to_owned_array();
             let obs = obs.mapv(|elem| elem as f32);
+            let obs = obs.insert_axis(Axis(0));
             Self(obs)
         })
     }
@@ -73,6 +74,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::env::set_var("RUST_LOG", "info");
     env_logger::init();
     tch::manual_seed(42);
+    fastrand::seed(42);
 
     let env = CartPoleEnv::new("CartPole-v0")?;
     let policy = RandomPolicy{};
