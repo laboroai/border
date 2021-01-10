@@ -4,25 +4,7 @@ use crate::{agents, core::{Obs, Step, Env, Policy, Agent}};
 
 /// The agent take an action and apply it to the environment.
 /// Then return [crate::core::base::Step] object.
-pub fn sample<E: Env, A: Agent<E>>(env: &E, agent: &mut A, obs_prev: &RefCell<Option<E::Obs>>) -> Step<E> {
-    let obs = obs_prev.replace(None)
-        .expect("Observation buffer is not initialized.");
-    let a = agent.sample(&obs);
-    let step = env.step(&a);
-
-    // Replace observations if the corresponding environments are resetted.
-    let obs_reset = env.reset(Some(&step.is_done)).unwrap();
-    let obs_reset = step.obs.clone().merge(obs_reset, &step.is_done);
-    // The replacement is also needed for making transitions in the agent.
-    agent.push_obs(&obs_reset);
-    obs_prev.replace(Some(obs_reset));
-
-    step
-}
-
-/// The agent take an action and apply it to the environment.
-/// Then return [crate::core::base::Step] object.
-pub fn sample_with_policy<E: Env, P: Policy<E>>(env: &E, policy: &P, obs_prev: &RefCell<Option<E::Obs>>) -> Step<E> {
+pub fn sample<E: Env, P: Policy<E>>(env: &E, policy: &P, obs_prev: &RefCell<Option<E::Obs>>) -> Step<E> {
     let obs = obs_prev.replace(None)
         .expect("Observation buffer is not initialized.");
     let a = policy.sample(&obs);
@@ -30,10 +12,26 @@ pub fn sample_with_policy<E: Env, P: Policy<E>>(env: &E, policy: &P, obs_prev: &
 
     // Replace observations if the corresponding environments are resetted.
     let obs_reset = env.reset(Some(&step.is_done)).unwrap();
-    obs_prev.replace(Some(step.obs.clone().merge(obs_reset, &step.is_done)));
+    let obs_reset = step.obs.clone().merge(obs_reset, &step.is_done);
+    obs_prev.replace(Some(obs_reset));
 
     step
 }
+
+// /// The agent take an action and apply it to the environment.
+// /// Then return [crate::core::base::Step] object.
+// pub fn sample_with_policy<E: Env, P: Policy<E>>(env: &E, policy: &P, obs_prev: &RefCell<Option<E::Obs>>) -> Step<E> {
+//     let obs = obs_prev.replace(None)
+//         .expect("Observation buffer is not initialized.");
+//     let a = policy.sample(&obs);
+//     let step = env.step(&a);
+
+//     // Replace observations if the corresponding environments are resetted.
+//     let obs_reset = env.reset(Some(&step.is_done)).unwrap();
+//     obs_prev.replace(Some(step.obs.clone().merge(obs_reset, &step.is_done)));
+
+//     step
+// }
 
 // /// The agent take an action and apply it to the environment.
 // /// Then return [crate::core::base::Step] object.
@@ -67,7 +65,7 @@ pub fn eval<E: Env, P: Policy<E>>(env: &E, policy: &P, n_episodes_per_eval: usiz
     for _ in 0..n_episodes_per_eval {
         let mut r_sum = 0.0;
         loop {
-            let step = sample_with_policy(env, policy, &obs_prev);
+            let step = sample(env, policy, &obs_prev);
             r_sum += &step.reward[0];
             if step.is_done[0] == 1.0 as f32 { break; }
         }
