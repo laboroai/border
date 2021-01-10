@@ -12,11 +12,10 @@ pub fn sample<E: Env, A: Agent<E>>(env: &E, agent: &mut A, obs_prev: &RefCell<Op
 
     // Replace observations if the corresponding environments are resetted.
     let obs_reset = env.reset(Some(&step.is_done)).unwrap();
-    // let obs = step.obs.clone()
-    obs_prev.replace(Some(step.obs.clone().merge(obs_reset, &step.is_done)));
-
+    let obs_reset = step.obs.clone().merge(obs_reset, &step.is_done);
     // The replacement is also needed for making transitions in the agent.
-    agent.push_obs(&obs_prev);
+    agent.push_obs(&obs_reset);
+    obs_prev.replace(Some(obs_reset));
 
     step
 }
