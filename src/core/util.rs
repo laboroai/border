@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use log::info;
-use crate::{agents, core::{Obs, Step, Env, Policy, Agent}};
+use crate::{core::{Obs, Step, Env, Policy}};
 
 /// The agent take an action and apply it to the environment.
 /// Then return [crate::core::base::Step] object.
@@ -17,41 +17,6 @@ pub fn sample<E: Env, P: Policy<E>>(env: &E, policy: &P, obs_prev: &RefCell<Opti
 
     step
 }
-
-// /// The agent take an action and apply it to the environment.
-// /// Then return [crate::core::base::Step] object.
-// pub fn sample_with_policy<E: Env, P: Policy<E>>(env: &E, policy: &P, obs_prev: &RefCell<Option<E::Obs>>) -> Step<E> {
-//     let obs = obs_prev.replace(None)
-//         .expect("Observation buffer is not initialized.");
-//     let a = policy.sample(&obs);
-//     let step = env.step(&a);
-
-//     // Replace observations if the corresponding environments are resetted.
-//     let obs_reset = env.reset(Some(&step.is_done)).unwrap();
-//     obs_prev.replace(Some(step.obs.clone().merge(obs_reset, &step.is_done)));
-
-//     step
-// }
-
-// /// The agent take an action and apply it to the environment.
-// /// Then return [crate::core::base::Step] object.
-// pub fn sample_with_policy<E: Env, P: Policy<E>>(env: &E, policy: &P, obs_prev: &RefCell<Option<E::Obs>>) -> Step<E> {
-//     let obs = match obs_prev.replace(None) {
-//         None => env.reset().unwrap(),
-//         Some(obs) => obs
-//     };
-//     let a = policy.sample(&obs);
-//     let step = env.step(&a);
-
-//     if step.is_done {
-//         obs_prev.replace(None);
-//     }
-//     else {
-//         obs_prev.replace(Some(step.obs.clone()));
-//     }
-
-//     step
-// }
 
 /// This method assumes that `n_proc`=1.
 pub fn eval<E: Env, P: Policy<E>>(env: &E, policy: &P, n_episodes_per_eval: usize, count_opts: Option<usize>) {
