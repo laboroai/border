@@ -1,5 +1,5 @@
 use std::error::Error;
-use ndarray::ArrayD;
+use ndarray::{Axis, ArrayD, IxDyn};
 use pyo3::{PyObject, IntoPy};
 use numpy::PyArrayDyn;
 use tch::Tensor;
@@ -10,7 +10,26 @@ use lrr::agents::tch::{DQN, QNetwork, ReplayBuffer, TchBuffer};
 #[derive(Clone, Debug)]
 pub struct CartPoleObs (pub ArrayD<f32>);
 
-impl Obs for CartPoleObs {}
+impl Obs for CartPoleObs {
+    fn zero(n_procs: usize) -> Self {
+        Self(ArrayD::zeros(IxDyn(&[n_procs, 4])))
+    }
+
+    fn merge(mut self, obs_reset: Self, is_done: &[f32]) -> Self {
+        let any = is_done.iter().fold(0, |x, v| x + *v as i32);
+        if any > 0 {
+            for i in 0..is_done.len() {
+                if is_done[i] != 0.0 {
+                    self.0.index_axis_mut(Axis(0), i).assign(&obs_reset.0.index_axis(Axis(0), i));
+                }
+            }
+            self
+        }
+        else {
+            self
+        }
+    }
+}
 
 impl From<PyObject> for CartPoleObs {
     fn from(obs: PyObject) -> Self {
@@ -18,9 +37,8 @@ impl From<PyObject> for CartPoleObs {
             let obs: &PyArrayDyn<f64> = obs.extract(py).unwrap();
             let obs = obs.to_owned_array();
             let obs = obs.mapv(|elem| elem as f32);
-            Self {
-                0: obs
-            }
+            let obs = obs.insert_axis(Axis(0));
+            Self(obs)
         })
     }
 }
@@ -28,7 +46,7 @@ impl From<PyObject> for CartPoleObs {
 impl Into<Tensor> for CartPoleObs {
     fn into(self) -> Tensor {
         let obs = self.0.view().to_slice().unwrap();
-        Tensor::of_slice(obs)
+        Tensor::of_slice(obs).unsqueeze(0)
     }
 }
 
@@ -40,9 +58,11 @@ impl TchBuffer for CartPoleObsBuffer {
     type Item = CartPoleObs;
     type SubBatch = Tensor;
 
-    fn new(capacity: usize) -> Self {
+    fn new(capacity: usize, n_procs: usize) -> Self {
+        let capacity = capacity as _;
+        let n_procs = n_procs as _;
         Self {
-            obs: Tensor::zeros(&[capacity as _, 4], tch::kind::FLOAT_CPU),
+            obs: Tensor::zeros(&[capacity, n_procs, 4], tch::kind::FLOAT_CPU),
         }
     }
 
@@ -52,8 +72,12 @@ impl TchBuffer for CartPoleObsBuffer {
         self.obs.get(index).copy_(&obs);
     }
 
+    /// Create minibatch.
+    /// The second axis is squeezed, thus the batch size is
+    /// `batch_indexes.len()` times `n_procs`.
     fn batch(&self, batch_indexes: &Tensor) -> Tensor {
-        self.obs.index_select(0, &batch_indexes)
+        let batch = self.obs.index_select(0, &batch_indexes);
+        batch.flatten(0, 1)
     }
 }
 
@@ -91,9 +115,9 @@ impl TchBuffer for CartPoleActBuffer {
     type Item = CartPoleAct;
     type SubBatch = Tensor;
 
-    fn new(capacity: usize) -> Self {
+    fn new(capacity: usize, n_procs: usize) -> Self {
         Self {
-            act: Tensor::zeros(&[capacity as _, 1], tch::kind::INT64_CPU),
+            act: Tensor::zeros(&[capacity as _, n_procs as _, 1], tch::kind::INT64_CPU),
         }
     }
 
@@ -102,8 +126,11 @@ impl TchBuffer for CartPoleActBuffer {
         self.act.get(index).copy_(&act);
     }
 
+    /// Create minibatch.
+    /// The second axis is squeezed, thus the batch size is
+    /// `batch_indexes.len()` times `n_procs`.
     fn batch(&self, batch_indexes: &Tensor) -> Tensor {
-        self.act.index_select(0, &batch_indexes)
+        self.act.index_select(0, &batch_indexes).flatten(0, 1)
     }
 }
 
@@ -114,7 +141,7 @@ fn create_agent() -> impl Agent<PyGymEnv<CartPoleObs, CartPoleAct>> {
 
     let qnet = QNetwork::new(4, 2, 0.001);
     let replay_buffer 
-        = ReplayBuffer::<E, O, A>::new(10000);
+        = ReplayBuffer::<E, O, A>::new(10000, 1);
     let agent: DQN<E, _, _, _> = DQN::new(
         qnet,
         replay_buffer)
@@ -130,6 +157,7 @@ fn create_agent() -> impl Agent<PyGymEnv<CartPoleObs, CartPoleAct>> {
 
 fn main() -> Result<(), Box<dyn Error>> {
     std::env::set_var("RUST_LOG", "info");
+    // std::env::set_var("RUST_LOG", "trace");
     env_logger::init();
     tch::manual_seed(42);
 

@@ -1,3 +1,4 @@
+use log::trace;
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{no_grad, Kind::Float, Tensor};
 use crate::core::{Policy, Agent, Step, Env};
@@ -112,11 +113,19 @@ impl<E, M, O, A> DQN<E, M, O, A> where
     }
 
     fn update_qnet(&mut self, batch: TchBatch<E, O, A>) {
+        trace!("Start dqn.update_qnet()");
+
         let obs = batch.obs;
         let a = batch.actions;
         let r = batch.rewards;
         let next_obs = batch.next_obs;
         let not_done = batch.not_dones;
+        trace!("obs.shape      = {:?}", obs.size());
+        trace!("next_obs.shape = {:?}", next_obs.size());
+        trace!("a.shape        = {:?}", a.size());
+        trace!("r.shape        = {:?}", r.size());
+        trace!("not_done.shape = {:?}", not_done.size());
+
         let loss = {
             let pred = {
                 let a = a;
@@ -185,8 +194,11 @@ impl<E, M, O, A> Agent<E> for DQN<E, M, O, A> where
     }
 
     fn observe(&mut self, step: Step<E>) -> bool {
+        trace!("Start dqn.observe()");
+
         // Push transition to the replay buffer
         self.push_transition(step);
+        trace!("Push transition");
 
         // Do optimization 1 step
         self.count_samples_per_opt += 1;
@@ -196,7 +208,10 @@ impl<E, M, O, A> Agent<E> for DQN<E, M, O, A> where
             if self.replay_buffer.len() >= self.min_transitions_warmup {
                 for _ in 0..self.n_updates_per_opt {
                     let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
+                    trace!("Sample random batch");
+
                     self.update_qnet(batch);
+                    trace!("Update qnet");
                 };
 
                 self.count_opts_per_soft_update += 1;

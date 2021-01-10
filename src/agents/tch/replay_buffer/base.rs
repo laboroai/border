@@ -6,8 +6,10 @@ pub trait TchBuffer {
     type Item;
     type SubBatch;
 
-    fn new(capacity: usize) -> Self;
+    fn new(capacity: usize, n_procs: usize) -> Self;
 
+    /// Push a sample of an item (observations or actions).
+    /// Note that each item may consists of values from multiple environments.
     fn push(&mut self, index: i64, item: &Self::Item);
 
     fn batch(&self, batch_indexes: &Tensor) -> Self::SubBatch;
@@ -49,13 +51,13 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
     O: TchBuffer<Item = E::Obs>,
     A: TchBuffer<Item = E::Act> {
 
-    pub fn new(capacity: usize) -> Self {
+    pub fn new(capacity: usize, n_procs: usize) -> Self {
         Self {
-            obs: O::new(capacity),
-            next_obs: O::new(capacity),
-            actions: A::new(capacity),
-            rewards: Tensor::zeros(&[capacity as _, 1], FLOAT_CPU),
-            not_dones: Tensor::zeros(&[capacity as _, 1], FLOAT_CPU),
+            obs: O::new(capacity, n_procs),
+            next_obs: O::new(capacity, n_procs),
+            actions: A::new(capacity, n_procs),
+            rewards: Tensor::zeros(&[capacity as _, n_procs as _, 1], FLOAT_CPU),
+            not_dones: Tensor::zeros(&[capacity as _, n_procs as _, 1], FLOAT_CPU),
             returns: None,
             capacity,
             len: 0,
@@ -89,10 +91,10 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
         let obs = self.obs.batch(&batch_indexes);
         let next_obs = self.next_obs.batch(&batch_indexes);
         let actions = self.actions.batch(&batch_indexes);
-        let rewards = self.rewards.index_select(0, &batch_indexes);
-        let not_dones = self.not_dones.index_select(0, &batch_indexes);
+        let rewards = self.rewards.index_select(0, &batch_indexes).flatten(0, 1);
+        let not_dones = self.not_dones.index_select(0, &batch_indexes).flatten(0, 1);
         let returns = match self.returns.as_ref() {
-            Some(r) => Some(r.index_select(0, &batch_indexes)),
+            Some(r) => Some(r.index_select(0, &batch_indexes).flatten(0, 1)),
             None => None
         };
         let phantom = PhantomData;

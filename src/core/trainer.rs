@@ -5,7 +5,7 @@ pub struct Trainer<E: Env, A: Agent<E>> {
     env: E,
     env_eval: E,
     agent: A,
-    obs: RefCell<Option<E::Obs>>,
+    obs_prev: RefCell<Option<E::Obs>>,
     max_opts: usize,
     n_opts_per_eval: usize,
     n_episodes_per_eval: usize,
@@ -18,7 +18,7 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
             env,
             env_eval,
             agent,
-            obs: RefCell::new(None),
+            obs_prev: RefCell::new(None),
             max_opts: 0,
             n_opts_per_eval: 0,
             n_episodes_per_eval: 0,
@@ -46,9 +46,13 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
     }
 
     pub fn train(&mut self) {
+        let obs = self.env.reset(None).unwrap();
+        self.agent.push_obs(&obs);
+        self.obs_prev.replace(Some(obs));
         self.agent.train(); // set to training mode
+
         loop {
-            let step = sample(&self.env, &mut self.agent, &self.obs);
+            let step = sample(&self.env, &mut self.agent, &self.obs_prev);
             let is_optimized = self.agent.observe(step);
             if is_optimized {
                 self.count_opts += 1;

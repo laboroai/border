@@ -32,8 +32,9 @@ impl<E, M, O, A> PPODiscrete<E, M, O, A> where
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
-    pub fn new(model: M, n_samples_per_opt: usize) -> Self {
-        let replay_buffer = ReplayBuffer::new(n_samples_per_opt);
+    pub fn new(model: M, n_samples_per_opt: usize, n_procs: usize) -> Self {
+        let capacity = n_samples_per_opt;
+        let replay_buffer = ReplayBuffer::new(capacity, n_procs);
         PPODiscrete {
             n_samples_per_opt,
             n_updates_per_opt: 1,
