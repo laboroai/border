@@ -1,3 +1,4 @@
+use log::trace;
 use std::marker::PhantomData;
 use tch::{Tensor, kind::{FLOAT_CPU, INT64_CPU}};
 use crate::core::{Env};
@@ -42,6 +43,7 @@ pub struct ReplayBuffer<E, O, A> where
     capacity: usize,
     len: usize,
     i: usize,
+    n_procs: usize,
     phandom: PhantomData<E>,
 }
 
@@ -62,6 +64,7 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
             capacity,
             len: 0,
             i: 0,
+            n_procs,
             phandom: PhantomData,
         }
     }
@@ -103,13 +106,29 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
     }
 
     pub fn update_returns(&mut self, estimated_return: Tensor, gamma: f64) {
+        trace!("Start update returns");
+
         // adapted from ppo.rs in tch-rs RL example
         self.returns = {
-            let r = Tensor::zeros(&[self.len as i64], FLOAT_CPU);
-            r.get(-1).unsqueeze(-1).copy_(&estimated_return);
+            let r = Tensor::zeros(&[self.len as _, self.n_procs as _], FLOAT_CPU);
+            trace!("r.shape                = {:?}", r.size());
+            trace!("estimated_return.shape = {:?}", estimated_return.size());
+
+            r.get((self.len - 1) as _).copy_(&estimated_return.squeeze());
+            trace!("Set estimated_return to the tail of the buffer");
+
             for s in (0..(self.len - 2) as i64).rev() {
-                let r_s = self.rewards.get(s) + r.get(s + 1) * self.not_dones.get(s) * gamma;
-                r.get(s).unsqueeze(-1).copy_(&r_s);
+                trace!("self.rewards.get(s).shape   = {:?}", self.rewards.get(s).size());
+                trace!("r.get(s).shape              = {:?}", r.get(s).size());
+                trace!("self.not_dones.get(s).shape = {:?}", self.not_dones.get(s).size());
+
+                let r_s = 
+                    self.rewards.get(s).squeeze() + 
+                    gamma * r.get(s + 1) * self.not_dones.get(s).squeeze();
+                trace!("Compute r_s");
+                trace!("r_s.shape = {:?}", r_s.size());
+                r.get(s).copy_(&r_s);
+                trace!("Set r_s to the return buffer");
             }
             Some(r)
         };

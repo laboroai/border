@@ -1,3 +1,4 @@
+use log::trace;
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{Kind::Float, Tensor};
 use crate::core::{Policy, Agent, Step, Env};
@@ -85,8 +86,19 @@ impl<E, M, O, A> PPODiscrete<E, M, O, A> where
     }
 
     fn update_model(&mut self, batch: TchBatch<E, O, A>) {
+        trace!("Start ppo_discrete.update_qnet()");
+
         // adapted from ppo.rs in tch-rs RL example
+        trace!("batch.obs.shape      = {:?}", &batch.obs.size());
+        trace!("batch.next_obs.shape = {:?}", &batch.next_obs.size());
+        trace!("batch.actions.shape  = {:?}", &batch.actions.size());
+        trace!("batch.rewards.shape  = {:?}", &batch.rewards.size());
+        trace!("batch.returns.shape  = {:?}", &batch.returns.as_ref().unwrap().size());
+
         let (critic, actor) = self.model.forward(&batch.obs);
+        trace!("critic.shape        = {:?}", critic.size());
+        trace!("actor.shape         = {:?}", actor.size());
+
         let log_probs = actor.log_softmax(-1, tch::Kind::Float);
         let probs = actor.softmax(-1, tch::Kind::Float);
         let action_log_probs = {
@@ -96,10 +108,12 @@ impl<E, M, O, A> PPODiscrete<E, M, O, A> where
         let dist_entropy = (-log_probs * probs)
             .sum1(&[-1], false, tch::Kind::Float)
             .mean(tch::Kind::Float);
+
         let advantages = batch.returns.unwrap() - critic;
         let value_loss = (&advantages * &advantages).mean(tch::Kind::Float);
         let action_loss = (-advantages.detach() * action_log_probs).mean(tch::Kind::Float);
         let loss = value_loss * 0.5 + action_loss - dist_entropy * 0.01;
+
         self.model.backward_step(&loss);
     }
 }
@@ -150,6 +164,8 @@ impl <E, M, O, A> Agent<E> for PPODiscrete<E, M, O, A> where
     }
 
     fn observe(&mut self, step: Step<E>) -> bool {
+        trace!("Start ppo_discrete.observe()");
+
         // Push transition to the replay buffer
         self.push_transition(step);
 
@@ -159,13 +175,20 @@ impl <E, M, O, A> Agent<E> for PPODiscrete<E, M, O, A> where
             self.count_samples_per_opt = 0;
 
             // Store returns in the replay buffer
+            trace!("prev_obs.shape = {:?}", &self.prev_obs.borrow().to_owned().unwrap().into().size());
             let (estimated_return, _)
                 = self.model.forward(&self.prev_obs.borrow().to_owned().unwrap().into());
+            trace!("Call model.forward()");
+
             self.replay_buffer.update_returns(estimated_return, self.discount_factor);
+            trace!("Update returns");
 
             for _ in 0..self.n_updates_per_opt {
                 let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
+                trace!("Sample random batch");
+
                 self.update_model(batch);
+                trace!("Update model");
             };
             return true;
         }
