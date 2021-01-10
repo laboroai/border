@@ -18,6 +18,7 @@ impl Obs for CartPoleObs {
     fn merge(mut self, obs_reset: Self, is_done: &[f32]) -> Self {
         let any = is_done.iter().fold(0, |x, v| x + *v as i32);
         if any > 0 {
+            #[allow(clippy::needless_range_loop)]
             for i in 0..is_done.len() {
                 if is_done[i] != 0.0 {
                     self.0.index_axis_mut(Axis(0), i).assign(&obs_reset.0.index_axis(Axis(0), i));

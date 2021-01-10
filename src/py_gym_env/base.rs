@@ -1,3 +1,4 @@
+#![allow(clippy::float_cmp)]
 use std::{fmt::Debug, error::Error};
 use std::marker::PhantomData;
 use log::{trace};

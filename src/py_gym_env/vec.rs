@@ -1,3 +1,4 @@
+#![allow(unused_variables, unreachable_code)]
 /// Vectorized version of the gym environment.
 /// Adapted from tch-rs RL example.
 use std::{fmt::Debug, error::Error};

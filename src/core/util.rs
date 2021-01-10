@@ -1,3 +1,4 @@
+#![allow(clippy::float_cmp)]
 use std::cell::RefCell;
 use log::info;
 use crate::{core::{Obs, Step, Env, Policy}};

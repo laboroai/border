@@ -3,6 +3,7 @@ pub mod replay_buffer;
 pub mod dqn;
 pub mod ppo;
 pub mod model;
+pub mod py_gym_env;
 use ppo::ppo_discrete;
 pub use replay_buffer::{ReplayBuffer, TchBuffer, TchBatch};
 pub use dqn::{DQN, QNetwork};
