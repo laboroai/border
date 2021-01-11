@@ -1,4 +1,5 @@
 use std::convert::TryFrom;
+use log::trace;
 use pyo3::{PyObject, IntoPy};
 use tch::Tensor;
 use crate::core::Act;
@@ -22,10 +23,11 @@ impl From<Tensor> for TchPyGymEnvDiscreteAct {
     /// containing discrete actions. The number of elements is
     /// equal to the number of environments in the vectorized environment.
     fn from(t: Tensor) -> Self {
+        trace!("Tensor from TchPyGymEnvDiscreteAct: {:?}", t);
         Self(t.into())
     }
 }
-struct TchPyGymEnvDiscreteActBuffer {
+pub struct TchPyGymEnvDiscreteActBuffer {
     act: Tensor
 }
 
@@ -47,12 +49,13 @@ impl TchBuffer for TchPyGymEnvDiscreteActBuffer {
 
     fn new(capacity: usize, n_procs: usize) -> Self {
         Self {
-            act: Tensor::zeros(&[capacity as _, n_procs as _, 1], tch::kind::INT64_CPU),
+            act: Tensor::zeros(&[capacity as _, n_procs as _], tch::kind::INT64_CPU),
         }
     }
 
     fn push(&mut self, index: i64, item: &TchPyGymEnvDiscreteAct) {
         let act = Tensor::try_from(item.0.clone()).unwrap();
+        trace!("TchPyGymDiscreteActBuffer.push(): {:?}", act);
         self.act.get(index).copy_(&act);
     }
 
@@ -60,6 +63,6 @@ impl TchBuffer for TchPyGymEnvDiscreteActBuffer {
     /// The second axis is squeezed, thus the batch size is
     /// `batch_indexes.len()` times `n_procs`.
     fn batch(&self, batch_indexes: &Tensor) -> Tensor {
-        self.act.index_select(0, &batch_indexes).flatten(0, 1)
+        self.act.index_select(0, &batch_indexes)
     }
 }

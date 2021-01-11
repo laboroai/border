@@ -1,10 +1,11 @@
 use std::marker::PhantomData;
+use log::trace;
 use pyo3::{PyObject};
 use ndarray::{ArrayD, Axis, IxDyn};
 use numpy::PyArrayDyn;
-use tch::{Tensor, TchError};
+use tch::Tensor;
 use crate::core::Obs;
-use crate::agents::tch::TchBuffer;
+use crate::agents::tch::{TchBuffer, util::try_from};
 
 fn any(is_done: &[f32]) -> bool {
     is_done.iter().fold(0, |x, v| x + *v as i32) > 0
@@ -24,6 +25,7 @@ impl<S: Shape> Obs for TchPyGymEnvObs<S> {
     fn zero(n_procs: usize) -> Self {
         let shape = &mut S::shape().to_vec();
         shape.insert(0, n_procs as _);
+        trace!("Shape of TchPyGymEnvObs: {:?}", shape);
         Self {
             obs: ArrayD::zeros(IxDyn(&shape[..])),
             phantom: PhantomData
@@ -50,11 +52,16 @@ impl<S: Shape> From<PyObject> for TchPyGymEnvObs<S> {
             let obs = obs.to_owned_array();
             let obs = obs.mapv(|elem| elem as f32);
             let obs = {
-                if obs.shape().len() > S::shape().len() {
+                if obs.shape().len() == S::shape().len() + 1 {
+                    // In this case obs has a dimension for n_procs
+                    obs
+                }
+                else if obs.shape().len() == S::shape().len() {
+                    // add dimension for n_procs
                     obs.insert_axis(Axis(0))
                 }
                 else {
-                    obs
+                    panic!();
                 }
             };
             Self {
@@ -65,25 +72,13 @@ impl<S: Shape> From<PyObject> for TchPyGymEnvObs<S> {
     }
 }
 
-// Borrowed from tch-rs. The original code didn't work with ndarray 0.14.
-fn try_from(value: ArrayD<f32>) -> Result<Tensor, TchError> {
-    // TODO: Replace this with `?` once it works with `std::option::ErrorNone`
-    let slice = match value.as_slice() {
-        None => return Err(TchError::Convert("cannot convert to slice".to_string())),
-        Some(v) => v,
-    };
-    let tn = Tensor::f_of_slice(slice)?;
-    let shape: Vec<i64> = value.shape().iter().map(|s| *s as i64).collect();
-    Ok(tn.f_reshape(&shape)?)
-}
-
 impl<S: Shape> Into<Tensor> for TchPyGymEnvObs<S> {
     fn into(self) -> Tensor {
         try_from(self.obs).unwrap()
     }
 }
 
-struct TchPyGymEnvObsBuffer<S: Shape> {
+pub struct TchPyGymEnvObsBuffer<S: Shape> {
     obs: Tensor,
     phantom: PhantomData<S>,
 }
@@ -110,7 +105,7 @@ impl<S: Shape> TchBuffer for TchPyGymEnvObsBuffer<S> {
     }
 
     fn push(&mut self, index: i64, item: &Self::Item) {
-        let obs = try_from(item.obs.clone()).unwrap();
+        let obs = item.clone().into();
         self.obs.get(index).copy_(&obs);
     }
 

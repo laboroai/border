@@ -1,4 +1,7 @@
 use log::trace;
+use ndarray::ArrayD;
+use tch::{Tensor, TchError};
+
 use crate::agents::tch::model::Model;
 
 pub fn track(dest: &mut impl Model, src: &mut impl Model, tau: f64) {
@@ -14,4 +17,16 @@ pub fn track(dest: &mut impl Model, src: &mut impl Model, tau: f64) {
         }
     });
     trace!("soft update");
+}
+
+// Borrowed from tch-rs. The original code didn't work with ndarray 0.14.
+pub fn try_from(value: ArrayD<f32>) -> Result<Tensor, TchError> {
+    // TODO: Replace this with `?` once it works with `std::option::ErrorNone`
+    let slice = match value.as_slice() {
+        None => return Err(TchError::Convert("cannot convert to slice".to_string())),
+        Some(v) => v,
+    };
+    let tn = Tensor::f_of_slice(slice)?;
+    let shape: Vec<i64> = value.shape().iter().map(|s| *s as i64).collect();
+    Ok(tn.f_reshape(&shape)?)
 }

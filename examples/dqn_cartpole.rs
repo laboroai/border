@@ -1,11 +1,12 @@
 use std::error::Error;
+use log::trace;
 use ndarray::{Axis, ArrayD, IxDyn};
 use pyo3::{PyObject, IntoPy};
 use numpy::PyArrayDyn;
 use tch::Tensor;
 use lrr::core::{Obs, Act, Trainer, Agent, util};
 use lrr::py_gym_env::PyGymEnv;
-use lrr::agents::tch::{DQN, QNetwork, ReplayBuffer, TchBuffer};
+use lrr::agents::tch::{DQN, QNetwork, ReplayBuffer, TchBuffer, util::try_from};
 
 #[derive(Clone, Debug)]
 pub struct CartPoleObs (pub ArrayD<f32>);
@@ -39,6 +40,7 @@ impl From<PyObject> for CartPoleObs {
             let obs = obs.to_owned_array();
             let obs = obs.mapv(|elem| elem as f32);
             let obs = obs.insert_axis(Axis(0));
+            trace!("obs from PyObject: {:?}", obs);
             Self(obs)
         })
     }
@@ -46,8 +48,7 @@ impl From<PyObject> for CartPoleObs {
 
 impl Into<Tensor> for CartPoleObs {
     fn into(self) -> Tensor {
-        let obs = self.0.view().to_slice().unwrap();
-        Tensor::of_slice(obs).unsqueeze(0)
+        try_from(self.0).unwrap()
     }
 }
 
@@ -68,8 +69,7 @@ impl TchBuffer for CartPoleObsBuffer {
     }
 
     fn push(&mut self, index: i64, item: &CartPoleObs) {
-        let obs = item.0.view().to_slice().unwrap();
-        let obs = Tensor::of_slice(obs);
+        let obs: Tensor = item.clone().into();
         self.obs.get(index).copy_(&obs);
     }
 
