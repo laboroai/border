@@ -1,9 +1,10 @@
 #![allow(clippy::float_cmp)]
+use std::borrow::Borrow;
 use std::{fmt::Debug, error::Error};
 use std::marker::PhantomData;
 use log::{trace};
 use pyo3::{PyObject, PyResult, Python, ToPyObject};
-use pyo3::types::{PyTuple, IntoPyDict};
+use pyo3::types::{PyTuple, IntoPyDict, PyList};
 use crate::core::{Obs, Act, Info, Step, Env};
 
 pub struct PyGymInfo {}
@@ -61,6 +62,17 @@ impl<O, A> PyGymEnv<O, A> where
     }
 }
 
+fn pylist_to_act(py: &Python, a: PyObject) -> PyObject {
+    let a_py_type = a.as_ref(*py).borrow().get_type().name().unwrap();
+    if a_py_type == "list" {
+        let l: &PyList = a.extract(*py).unwrap();
+        l.get_item(0).into()
+    }
+    else {
+        a
+    }
+}
+
 impl<O, A> Env for PyGymEnv<O, A> where
     O: Obs + From<PyObject>,
     A: Act + Into<PyObject> + Debug {
@@ -99,6 +111,7 @@ impl<O, A> Env for PyGymEnv<O, A> where
                 let _ = self.env.call_method0(py, "render");
             }
             let a_py = a.clone().into();
+            let a_py = pylist_to_act(&py, a_py);
             let ret = self.env.call_method(py, "step", (a_py,), None).unwrap();
             let step: &PyTuple = ret.extract(py).unwrap();
             let obs = step.get_item(0).to_owned();
