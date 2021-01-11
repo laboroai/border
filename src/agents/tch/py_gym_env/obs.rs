@@ -4,6 +4,7 @@ use ndarray::{ArrayD, Axis, IxDyn};
 use numpy::PyArrayDyn;
 use tch::{Tensor, TchError};
 use crate::core::Obs;
+use crate::agents::tch::TchBuffer;
 
 fn any(is_done: &[f32]) -> bool {
     is_done.iter().fold(0, |x, v| x + *v as i32) > 0
@@ -79,5 +80,45 @@ fn try_from(value: ArrayD<f32>) -> Result<Tensor, TchError> {
 impl<S: Shape> Into<Tensor> for TchPyGymEnvObs<S> {
     fn into(self) -> Tensor {
         try_from(self.obs).unwrap()
+    }
+}
+
+struct TchPyGymEnvObsBuffer<S: Shape> {
+    obs: Tensor,
+    phantom: PhantomData<S>,
+}
+
+fn concat_slices(s1: &[i64], s2: &[i64]) -> Vec<i64> {
+    let mut v = Vec::from(s1);
+    v.append(&mut Vec::from(s2));
+    v
+}
+
+impl<S: Shape> TchBuffer for TchPyGymEnvObsBuffer<S> {
+    type Item = TchPyGymEnvObs<S>;
+    type SubBatch = Tensor;
+
+    fn new(capacity: usize, n_procs: usize) -> Self {
+        let capacity = capacity as _;
+        let n_procs = n_procs as _;
+        let shape = concat_slices(&[capacity, n_procs],
+            S::shape().iter().map(|v| *v as i64).collect::<Vec<_>>().as_slice());
+        Self {
+            obs: Tensor::zeros(&shape, tch::kind::FLOAT_CPU),
+            phantom: PhantomData
+        }
+    }
+
+    fn push(&mut self, index: i64, item: &Self::Item) {
+        let obs = try_from(item.obs.clone()).unwrap();
+        self.obs.get(index).copy_(&obs);
+    }
+
+    /// Create minibatch.
+    /// The second axis is squeezed, thus the batch size is
+    /// `batch_indexes.len()` times `n_procs`.
+    fn batch(&self, batch_indexes: &Tensor) -> Tensor {
+        let batch = self.obs.index_select(0, &batch_indexes);
+        batch.flatten(0, 1)
     }
 }
