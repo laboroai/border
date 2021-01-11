@@ -19,7 +19,7 @@ pub struct PyGymEnv<O, A> {
     env: PyObject,
     action_space: i64,
     observation_space: Vec<usize>,
-    action_type: PhantomData<(O, A)>,
+    phantom: PhantomData<(O, A)>,
 }
 
 impl<O, A> PyGymEnv<O, A> where 
@@ -53,7 +53,7 @@ impl<O, A> PyGymEnv<O, A> where
             env: env.into(),
             action_space,
             observation_space,
-            action_type: PhantomData,
+            phantom: PhantomData,
         })
     }
 
