@@ -27,6 +27,7 @@ impl From<Tensor> for TchPyGymEnvDiscreteAct {
         Self(t.into())
     }
 }
+
 pub struct TchPyGymEnvDiscreteActBuffer {
     act: Tensor
 }

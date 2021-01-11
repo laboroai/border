@@ -110,16 +110,21 @@ impl<O, A> Env for PyGymEnv<O, A> where
             if self.render {
                 let _ = self.env.call_method0(py, "render");
             }
+
+            // Process action for continuous or discrete
             let a_py = a.clone().into();
-            let a_py = pylist_to_act(&py, a_py);
+            // let a_py = pylist_to_act(&py, a_py);
+
             let ret = self.env.call_method(py, "step", (a_py,), None).unwrap();
             let step: &PyTuple = ret.extract(py).unwrap();
+
             let obs = step.get_item(0).to_owned();
             let obs = obs.to_object(py).into();
             let reward: Vec<f32> = vec![step.get_item(1).extract().unwrap()];
             let is_done: Vec<f32> = vec![
                 if step.get_item(2).extract().unwrap() {1.0} else {0.0}
             ];
+
             Step::<Self>::new(obs, a.clone(), reward, is_done, PyGymInfo{})
         })
     }
