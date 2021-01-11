@@ -1,4 +1,4 @@
 pub mod obs;
-pub mod act;
+pub mod act_d;
 pub use obs::{TchPyGymEnvObs, TchPyGymEnvObsBuffer, Shape};
-pub use act::{TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActBuffer};
+pub use act_d::{TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActBuffer};
