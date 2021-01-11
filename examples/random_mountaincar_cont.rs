@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     tch::manual_seed(42);
     fastrand::seed(42);
 
-    let mut env = E::new("MountainCarContinuous-v0")?;
+    let mut env = E::new("MountainCarContinuous-v0", true)?;
     env.set_render(true);
     let policy = RandomPolicy{};
     util::eval(&env, &policy, 5, None);

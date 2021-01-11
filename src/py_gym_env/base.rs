@@ -19,13 +19,14 @@ pub struct PyGymEnv<O, A> {
     env: PyObject,
     action_space: i64,
     observation_space: Vec<usize>,
+    continuous_action: bool,
     phantom: PhantomData<(O, A)>,
 }
 
 impl<O, A> PyGymEnv<O, A> where 
     O: Obs + From<PyObject>,
     A: Act + Into<PyObject> {
-    pub fn new(name: &str) -> PyResult<Self> {
+    pub fn new(name: &str, continuous_action: bool) -> PyResult<Self> {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
@@ -53,6 +54,7 @@ impl<O, A> PyGymEnv<O, A> where
             env: env.into(),
             action_space,
             observation_space,
+            continuous_action,
             phantom: PhantomData,
         })
     }
@@ -112,8 +114,11 @@ impl<O, A> Env for PyGymEnv<O, A> where
             }
 
             // Process action for continuous or discrete
-            let a_py = a.clone().into();
-            // let a_py = pylist_to_act(&py, a_py);
+            let a_py = {
+                let a_py = a.clone().into();
+                if !self.continuous_action { pylist_to_act(&py, a_py) }
+                else { a_py }
+            };
 
             let ret = self.env.call_method(py, "step", (a_py,), None).unwrap();
             let step: &PyTuple = ret.extract(py).unwrap();

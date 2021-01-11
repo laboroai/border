@@ -43,8 +43,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     tch::manual_seed(42);
 
-    let env = CartPoleEnv::new("CartPole-v0")?;
-    let env_eval = CartPoleEnv::new("CartPole-v0")?;
+    let env = CartPoleEnv::new("CartPole-v0", false)?;
+    let env_eval = CartPoleEnv::new("CartPole-v0", false)?;
     let agent = create_agent();
     let mut trainer = Trainer::new(
         env,
@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     trainer.train();
     trainer.get_agent().save("./examples/model/dqn_cartpole")?;
 
-    let mut env = CartPoleEnv::new("CartPole-v0")?;
+    let mut env = CartPoleEnv::new("CartPole-v0", false)?;
     let mut agent = create_agent();
     env.set_render(true);
     agent.load("./examples/model/dqn_cartpole")?;
