@@ -28,12 +28,12 @@ pub struct SAC<E, Q, P, O, A> where
 
 impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
     E: Env,
-    Q: Model + Clone,
-    P: Model,
-    E::Obs :Into<P::Input>,
+    Q: Model<Input = (O::SubBatch, A::SubBatch), Output = ActionValue> + Clone,
+    P: Model<Output = (ActMean, ActStd)>,
+    E::Obs :Into<O::SubBatch>,
     E::Act :From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
+    O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
+    A: TchBuffer<Item = E::Act>,
 {
     pub fn new(qnet: M, replay_buffer: ReplayBuffer<E, O, A>)
             -> Self {
@@ -72,16 +72,55 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
         );
         let _ = self.prev_obs.replace(Some(next_obs));
     }
+
+    fn action_logp(&self, o: &Tensor) -> (Tensor, Tensor) {
+        let (m, s) = self.pi.forward(&o);
+        let z = Tensor::randn(m.size().into(), tch::kind::FLOAT_CPU);
+        let next_a = (&s * &z + &m).tanh();
+        let log_p = Normal::logp(&z, &s) - (1 - &a.pow(2) + self.epsilon);
+
+        (next_a, log_p)
+    }
+
+    fn update_critic(&mut self, batch: TchBatch<E, O, A>) {
+        trace!("Start sac.update_critic()");
+
+        let o = batch.obs;
+        let a = batch.actions;
+        let r = batch.rewards;
+        let next_o = batch.next_obs;
+        let not_done = batch.not_dones;
+        trace!("obs.shape      = {:?}", o.size());
+        trace!("next_obs.shape = {:?}", next_o.size());
+        trace!("act.shape      = {:?}", a.size());
+        trace!("reward.shape   = {:?}", r.size());
+        trace!("not_done.shape = {:?}", not_done.size());
+
+        let loss = {
+            let pred = self.qnet.forward((&o, &a));
+            let tgt = {
+                let next_q = tch::no_grad(|| {
+                    let (next_a, log_p) = self.action_logp(&next_o);
+                    let next_q = self.qnet_tgt.forward(&next_o, &next_a);
+                    next_q - self.alpha * log_p
+                });
+                r + not_done * self.gamma * next_q
+            };
+            0.5 * pred.mse_loss(&tgt, tch::Reduction::Mean)
+        };
+
+        self.qnet.backward_step(&loss);
+    }
 }
 
 impl<E, Q, P, O, A> Policy<E> for SAC<E, Q, P, O, A> where
     E: Env,
-    Q: Model + Clone,
-    P: Model,
-    E::Obs :Into<P::Input>,
+    Q: Model<Input = (O::SubBatch, A::SubBatch), Output = ActionValue> + Clone,
+    P: Model<Output = (ActMean, ActStd)>,
+    E::Obs :Into<O::SubBatch>,
     E::Act :From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
+    O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
+    A: TchBuffer<Item = E::Act>,
 {
     fn sample(&self, obs: &E::Obs) -> E::Act {
         let obs = obs.clone().into();
@@ -92,7 +131,7 @@ impl<E, Q, P, O, A> Policy<E> for SAC<E, Q, P, O, A> where
         else {
             m
         };
-        a.into()
+        a.tanh().into()
     }
 }
 
@@ -138,8 +177,9 @@ impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A> where
                     let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
                     trace!("Sample random batch");
 
-                    self.update_qnet(batch);
-                    trace!("Update qnet");
+                    self.update_critic(batch);
+                    self.update_actor(batch);
+                    trace!("Update models");
                 };
 
                 self.count_opts_per_soft_update += 1;
