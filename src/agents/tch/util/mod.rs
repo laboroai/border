@@ -30,3 +30,8 @@ pub fn try_from(value: ArrayD<f32>) -> Result<Tensor, TchError> {
     let shape: Vec<i64> = value.shape().iter().map(|s| *s as i64).collect();
     Ok(tn.f_reshape(&shape)?)
 }
+
+pub fn sum_keep1(t: &Tensor) -> Tensor {
+    let t_ = t.view([[t.size().as_slice()[0]], [-1i64]].concat().as_slice());
+    t_.sum1(&[-1], false, tch::Kind::Float)
+}

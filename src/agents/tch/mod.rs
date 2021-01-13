@@ -2,7 +2,7 @@ pub mod util;
 pub mod replay_buffer;
 pub mod dqn;
 pub mod ppo;
-// pub mod sac;
+pub mod sac;
 pub mod model;
 pub mod py_gym_env;
 use ppo::ppo_discrete;
