@@ -2,9 +2,9 @@ use log::trace;
 use ndarray::ArrayD;
 use tch::{Tensor, TchError};
 
-use crate::agents::tch::model::Model;
+use crate::agents::tch::model::ModelBase;
 
-pub fn track(dest: &mut impl Model, src: &mut impl Model, tau: f64) {
+pub fn track(dest: &mut impl ModelBase, src: &mut impl ModelBase, tau: f64) {
     let src = &mut src.get_var_store();
     let dest = &mut dest.get_var_store();
     tch::no_grad(|| {

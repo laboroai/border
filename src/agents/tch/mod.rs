@@ -9,3 +9,4 @@ use ppo::ppo_discrete;
 pub use replay_buffer::{ReplayBuffer, TchBuffer, TchBatch};
 pub use dqn::{DQN, QNetwork};
 pub use ppo_discrete::PPODiscrete;
+pub use sac::SAC;

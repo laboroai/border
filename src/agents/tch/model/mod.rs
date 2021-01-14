@@ -1,4 +1,8 @@
 pub mod base;
 pub mod multihead;
-pub use base::Model;
+pub mod model1;
+pub mod model2;
+pub use base::{ModelBase, Model1, Model2};
 pub use multihead::StateValueAndDiscreteActProb;
+pub use model1::Model1_1;
+pub use model2::Model2_1;

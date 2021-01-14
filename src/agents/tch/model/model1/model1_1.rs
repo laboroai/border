@@ -4,7 +4,7 @@ use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
 use crate::agents::tch::model::{ModelBase, Model1};
 
 #[derive(Debug)]
-pub struct QNetwork {
+pub struct Model1_1 {
     var_store: nn::VarStore,
     network: nn::Sequential,
     device: Device,
@@ -14,7 +14,7 @@ pub struct QNetwork {
     learning_rate: f64
 }
 
-impl Clone for QNetwork {
+impl Clone for Model1_1 {
     fn clone(&self) -> Self {
         let mut new = Self::new(self.in_dim, self.out_dim, self.learning_rate);
         new.var_store.copy(&self.var_store).unwrap();
@@ -22,7 +22,7 @@ impl Clone for QNetwork {
     }
 }
 
-impl QNetwork {
+impl Model1_1 {
     pub fn new(in_dim: usize, out_dim: usize, learning_rate: f64) -> Self {
         let vs = nn::VarStore::new(tch::Device::Cpu);
         let p = &vs.root();
@@ -50,7 +50,7 @@ impl QNetwork {
     }
 }
 
-impl ModelBase for QNetwork {
+impl ModelBase for Model1_1 {
     fn backward_step(&mut self, loss: &Tensor) {
         self.opt.backward_step(loss);
     }
@@ -76,7 +76,7 @@ impl ModelBase for QNetwork {
     }
 }
 
-impl Model1 for QNetwork {
+impl Model1 for Model1_1 {
     type Input = Tensor;
     type Output = Tensor;
 

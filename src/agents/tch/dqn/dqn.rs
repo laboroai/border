@@ -3,12 +3,12 @@ use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{no_grad, Kind::Float, Tensor};
 use crate::core::{Policy, Agent, Step, Env};
 use crate::agents::tch::{ReplayBuffer, TchBuffer, TchBatch};
-use crate::agents::tch::model::Model;
+use crate::agents::tch::model::Model1;
 use crate::agents::tch::util::track;
 
 pub struct DQN<E, M, O, A> where
     E: Env,
-    M: Model + Clone,
+    M: Model1 + Clone,
     E::Obs :Into<M::Input>,
     E::Act :From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
@@ -33,7 +33,7 @@ pub struct DQN<E, M, O, A> where
 
 impl<E, M, O, A> DQN<E, M, O, A> where 
     E: Env,
-    M: Model<Input=Tensor, Output=Tensor> + Clone,
+    M: Model1<Input=Tensor, Output=Tensor> + Clone,
     E::Obs :Into<M::Input>,
     E::Act :From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
@@ -150,7 +150,7 @@ impl<E, M, O, A> DQN<E, M, O, A> where
 
 impl<E, M, O, A> Policy<E> for DQN<E, M, O, A> where 
     E: Env,
-    M: Model<Input=Tensor, Output=Tensor> + Clone,
+    M: Model1<Input=Tensor, Output=Tensor> + Clone,
     E::Obs :Into<M::Input>,
     E::Act :From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
@@ -171,7 +171,7 @@ impl<E, M, O, A> Policy<E> for DQN<E, M, O, A> where
 
 impl<E, M, O, A> Agent<E> for DQN<E, M, O, A> where
     E: Env,
-    M: Model<Input=Tensor, Output=Tensor> + Clone,
+    M: Model1<Input=Tensor, Output=Tensor> + Clone,
     E::Obs :Into<M::Input>,
     E::Act :From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
