@@ -1,8 +1,8 @@
 use std::error::Error;
 use lrr::core::{Trainer, Agent, util};
 use lrr::py_gym_env::PyGymEnv;
-use lrr::agents::tch::{DQN, QNetwork, ReplayBuffer};
-use lrr::agents::tch::py_gym_env::{TchPyGymEnvObs, TchPyGymEnvDiscreteAct, Shape,
+use lrr::agents::tch::{Shape, DQN, QNetwork, ReplayBuffer};
+use lrr::agents::tch::py_gym_env::{TchPyGymEnvObs, TchPyGymEnvDiscreteAct,
     TchPyGymEnvDiscreteActBuffer, TchPyGymEnvObsBuffer};
 
 #[derive(Debug, Clone)]

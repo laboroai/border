@@ -5,14 +5,10 @@ use ndarray::{ArrayD, Axis, IxDyn};
 use numpy::PyArrayDyn;
 use tch::Tensor;
 use crate::core::Obs;
-use crate::agents::tch::{TchBuffer, util::try_from};
+use crate::agents::tch::{Shape, TchBuffer, util::try_from};
 
 fn any(is_done: &[f32]) -> bool {
     is_done.iter().fold(0, |x, v| x + *v as i32) > 0
-}
-
-pub trait Shape: Clone {
-    fn shape() -> &'static [usize];
 }
 
 #[derive(Clone, Debug)]
