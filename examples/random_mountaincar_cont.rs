@@ -1,7 +1,9 @@
 use std::error::Error;
 use lrr::core::{Policy, util};
+use ndarray::Array;
 use lrr::py_gym_env::PyGymEnv;
-use lrr::agents::tch::py_gym_env::{TchPyGymEnvObs, TchPyGymEnvContinuousAct, Shape};
+use lrr::agents::tch::Shape;
+use lrr::agents::tch::py_gym_env::{TchPyGymEnvObs, TchPyGymEnvContinuousAct};
 
 #[derive(Debug, Clone)]
 struct MountainCarObsShape {}
@@ -12,15 +14,24 @@ impl Shape for MountainCarObsShape {
     }
 }
 
+#[derive(Debug, Clone)]
+struct MountainCarActShape {}
+
+impl Shape for MountainCarActShape {
+    fn shape() -> &'static [usize] {
+        &[1]
+    }
+}
+
 type O = TchPyGymEnvObs<MountainCarObsShape>;
-type A = TchPyGymEnvContinuousAct;
+type A = TchPyGymEnvContinuousAct<MountainCarActShape>;
 type E = PyGymEnv<O, A>;
 
 struct RandomPolicy {}
 
 impl Policy<E> for RandomPolicy {
     fn sample(&self, _: &O) -> A {
-        A::new(vec![2.0 * fastrand::f32() - 1.0])
+        A::new(Array::from(vec![2.0 * fastrand::f32() - 1.0]).into_dyn())
     }
 }
 
