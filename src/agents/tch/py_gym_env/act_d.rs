@@ -64,6 +64,7 @@ impl TchBuffer for TchPyGymEnvDiscreteActBuffer {
     /// The second axis is squeezed, thus the batch size is
     /// `batch_indexes.len()` times `n_procs`.
     fn batch(&self, batch_indexes: &Tensor) -> Tensor {
-        self.act.index_select(0, &batch_indexes)
+        let batch = self.act.index_select(0, &batch_indexes);
+        batch.flatten(0, 1)
     }
 }

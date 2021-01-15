@@ -5,12 +5,14 @@ use ndarray::{ArrayD, Axis, IxDyn};
 use numpy::PyArrayDyn;
 use tch::Tensor;
 use crate::core::Obs;
-use crate::agents::tch::{Shape, TchBuffer, util::try_from};
+use crate::agents::tch::{Shape, TchBuffer, util::try_from, util::concat_slices};
 
 fn any(is_done: &[f32]) -> bool {
     is_done.iter().fold(0, |x, v| x + *v as i32) > 0
 }
 
+/// Represents observation.
+/// Currently, it supports 1-dimentional vector only.
 #[derive(Clone, Debug)]
 pub struct TchPyGymEnvObs<S: Shape> {
     obs: ArrayD<f32>,
@@ -77,12 +79,6 @@ impl<S: Shape> Into<Tensor> for TchPyGymEnvObs<S> {
 pub struct TchPyGymEnvObsBuffer<S: Shape> {
     obs: Tensor,
     phantom: PhantomData<S>,
-}
-
-fn concat_slices(s1: &[i64], s2: &[i64]) -> Vec<i64> {
-    let mut v = Vec::from(s1);
-    v.append(&mut Vec::from(s2));
-    v
 }
 
 impl<S: Shape> TchBuffer for TchPyGymEnvObsBuffer<S> {
