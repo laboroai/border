@@ -1,27 +1,36 @@
 use std::error::Error;
 use lrr::core::{Trainer, Agent, util};
 use lrr::py_gym_env::PyGymEnv;
-use lrr::agents::tch::{SAC, ReplayBuffer};
-use lrr::agents::tch::model::{Model1_1, Model2_1};
-use lrr::agents::tch::py_gym_env::{TchPyGymEnvObs, TchPyGymEnvContinuousAct, Shape,
+use lrr::agents::tch::{SAC, ReplayBuffer, Shape};
+use lrr::agents::tch::model::{Model1_2, Model2_1};
+use lrr::agents::tch::py_gym_env::{TchPyGymEnvObs, TchPyGymEnvContinuousAct,
     TchPyGymEnvContinuousActBuffer, TchPyGymEnvObsBuffer};
 
 #[derive(Debug, Clone)]
-struct MountainCarObsShape {}
+struct ObsShape {}
 
-impl Shape for MountainCarObsShape {
+impl Shape for ObsShape {
     fn shape() -> &'static [usize] {
         &[2]
     }
 }
 
-type O = TchPyGymEnvObs<MountainCarObsShape>;
-type A = TchPyGymEnvContinuousAct;
-type E = PyGymEnv<O, A>;
+#[derive(Debug, Clone)]
+struct ActShape {}
+
+impl Shape for ActShape {
+    fn shape() -> &'static [usize] {
+        &[1]
+    }
+}
+
+type E = PyGymEnv<TchPyGymEnvObs<ObsShape>, TchPyGymEnvContinuousAct<ActShape>>;
+type O = TchPyGymEnvObsBuffer<ObsShape>;
+type A = TchPyGymEnvContinuousActBuffer<ActShape>;
 
 fn create_agent() -> impl Agent<E> {
     let qnet = Model2_1::new(3, 1, 1e-4);
-    let pi = Model1_1::new(2, 1, 1e-4);
+    let pi = Model1_2::new(2, 1, 1e-4);
     let replay_buffer
         = ReplayBuffer::<E, O, A>::new(10000, 1);
     let agent: SAC<E, _, _, _, _> = SAC::new(

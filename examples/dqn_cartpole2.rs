@@ -38,7 +38,7 @@ fn create_agent() -> impl Agent<CartPoleEnv> {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    std::env::set_var("RUST_LOG", "info");
+    // std::env::set_var("RUST_LOG", "info");
     // std::env::set_var("RUST_LOG", "trace");
     env_logger::init();
     tch::manual_seed(42);

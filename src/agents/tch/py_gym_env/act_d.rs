@@ -29,20 +29,9 @@ impl From<Tensor> for TchPyGymEnvDiscreteAct {
 }
 
 pub struct TchPyGymEnvDiscreteActBuffer {
-    act: Tensor
+    act: Tensor,
+    n_procs: i64,
 }
-
-// // Borrowed from tch-rs. The original code didn't work with ndarray 0.14.
-// fn try_from(value: ndarray::Array<$type, D>) -> Result<Self, Self::Error> {
-//     // TODO: Replace this with `?` once it works with `std::option::ErrorNone`
-//     let slice = match value.as_slice() {
-//         None => return Err(TchError::Convert("cannot convert to slice".to_string())),
-//         Some(v) => v,
-//     };
-//     let tn = Self::f_of_slice(slice)?;
-//     let shape: Vec<i64> = value.shape().iter().map(|s| *s as i64).collect();
-//     Ok(tn.f_reshape(&shape)?)
-// }
 
 impl TchBuffer for TchPyGymEnvDiscreteActBuffer {
     type Item = TchPyGymEnvDiscreteAct;
@@ -51,6 +40,7 @@ impl TchBuffer for TchPyGymEnvDiscreteActBuffer {
     fn new(capacity: usize, n_procs: usize) -> Self {
         Self {
             act: Tensor::zeros(&[capacity as _, n_procs as _], tch::kind::INT64_CPU),
+            n_procs: n_procs as _
         }
     }
 
@@ -65,6 +55,8 @@ impl TchBuffer for TchPyGymEnvDiscreteActBuffer {
     /// `batch_indexes.len()` times `n_procs`.
     fn batch(&self, batch_indexes: &Tensor) -> Tensor {
         let batch = self.act.index_select(0, &batch_indexes);
-        batch.flatten(0, 1)
+        let batch = batch.flatten(0, 1).unsqueeze(-1);
+        debug_assert!(batch.size().as_slice() == [batch_indexes.size()[0], self.n_procs]);
+        batch
     }
 }

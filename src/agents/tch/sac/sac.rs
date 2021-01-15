@@ -43,12 +43,12 @@ pub struct SAC<E, Q, P, O, A> where
 impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
     E: Env,
     Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
-    P: Model1<Output = (ActMean, ActStd)>,
+    P: Model1<Output = (ActMean, ActStd)> + Clone,
     E::Obs :Into<O::SubBatch>,
     E::Act :From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
-    P::Input: Clone,
+    P::Input: Copy,
     {
     pub fn new(qnet: Q, pi: P, replay_buffer: ReplayBuffer<E, O, A>) -> Self {
         let qnet_tgt = qnet.clone();
@@ -72,6 +72,41 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
             prev_obs: RefCell::new(None),
             phantom: PhantomData,
         }
+    }
+
+    pub fn n_samples_per_opt(mut self, v: usize) -> Self {
+        self.n_samples_per_opt = v;
+        self
+    }
+
+    pub fn n_updates_per_opt(mut self, v: usize) -> Self {
+        self.n_updates_per_opt = v;
+        self
+    }
+
+    pub fn n_opts_per_soft_update(mut self, v: usize) -> Self {
+        self.n_opts_per_soft_update = v;
+        self
+    }
+
+    pub fn min_transitions_warmup(mut self, v: usize) -> Self {
+        self.min_transitions_warmup = v;
+        self
+    }
+
+    pub fn batch_size(mut self, v: usize) -> Self {
+        self.batch_size = v;
+        self
+    }
+
+    pub fn discount_factor(mut self, v: f64) -> Self {
+        self.gamma = v;
+        self
+    }
+
+    pub fn tau(mut self, v: f64) -> Self {
+        self.tau = v;
+        self
     }
 
     // Adapted from dqn.rs
@@ -160,13 +195,13 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
 
 impl<E, Q, P, O, A> Policy<E> for SAC<E, Q, P, O, A> where
     E: Env,
-    // Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
-    P: Model1<Output = (ActMean, ActStd)>,
+    Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
+    P: Model1<Output = (ActMean, ActStd)> + Clone,
     E::Obs :Into<O::SubBatch>,
     E::Act :From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
-    // P::Input: Clone,
+    P::Input: Copy,
 {
     fn sample(&self, obs: &E::Obs) -> E::Act {
         let obs = obs.clone().into();
@@ -184,12 +219,12 @@ impl<E, Q, P, O, A> Policy<E> for SAC<E, Q, P, O, A> where
 impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A> where
     E: Env,
     Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
-    P: Model1<Output = (ActMean, ActStd)>,
+    P: Model1<Output = (ActMean, ActStd)> + Clone,
     E::Obs :Into<O::SubBatch>,
     E::Act :From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
-    P::Input: Clone,
+    P::Input: Copy,
 {
     fn train(&mut self) {
         self.train = true;
