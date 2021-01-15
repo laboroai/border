@@ -28,6 +28,7 @@ pub struct SAC<E, Q, P, O, A> where
     tau: f64,
     alpha: f64,
     epsilon: f64,
+    max_std: f64,
     n_samples_per_opt: usize,
     n_updates_per_opt: usize,
     n_opts_per_soft_update: usize,
@@ -58,8 +59,9 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
             replay_buffer,
             gamma: 0.99,
             tau: 0.005,
-            alpha: 1.0,
+            alpha: 0.1,
             epsilon: 1e-8,
+            max_std: 100.0,
             n_samples_per_opt: 1,
             n_updates_per_opt: 1,
             n_opts_per_soft_update: 1,
@@ -125,7 +127,8 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
     }
 
     fn action_logp(&self, o: &P::Input) -> (A::SubBatch, Tensor) {
-        let (mean, std) = self.pi.forward(o);
+        let (mean, lstd) = self.pi.forward(o);
+        let std = lstd.exp().minimum(&Tensor::from(self.max_std));
         let z = Tensor::randn(mean.size().as_slice(), tch::kind::FLOAT_CPU);
         let a = (&std * &z + &mean).tanh();
         let log_p = normal_logp(&z, &mean, &std)
@@ -175,7 +178,7 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
             trace!("      pred.size(): {:?}", pred.size());
             trace!("       tgt.size(): {:?}", tgt.size());
 
-            0.5 * pred.mse_loss(&tgt, tch::Reduction::Mean)
+            pred.mse_loss(&tgt, tch::Reduction::Mean)
         };
 
         self.qnet.backward_step(&loss);
@@ -188,7 +191,7 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
             let o = &batch.obs;
             let (a, log_p) = self.action_logp(o);
             let qval = self.qnet.forward(o, &a).squeeze();
-            let loss = (self.alpha * log_p.detach() - &qval).mean(tch::Kind::Float);
+            let loss = (self.alpha * &log_p - &qval).mean(tch::Kind::Float);
 
             trace!("    a.size(): {:?}", a.size());
             trace!("log_p.size(): {:?}", log_p.size());
@@ -216,12 +219,13 @@ impl<E, Q, P, O, A> Policy<E> for SAC<E, Q, P, O, A> where
 {
     fn sample(&self, obs: &E::Obs) -> E::Act {
         let obs = obs.clone().into();
-        let (m, s) = self.pi.forward(&obs);
+        let (mean, lstd) = self.pi.forward(&obs);
+        let std = lstd.exp(); //.minimum(&Tensor::from(self.max_std));
         let act = if self.train {
-            s * Tensor::randn(&m.size(), tch::kind::FLOAT_CPU) + m
+            std * Tensor::randn(&mean.size(), tch::kind::FLOAT_CPU) + mean
         }
         else {
-            m
+            mean
         };
         act.tanh().into()
     }

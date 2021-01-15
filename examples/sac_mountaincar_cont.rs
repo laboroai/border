@@ -32,9 +32,10 @@ type E = PyGymEnv<TchPyGymEnvObs<ObsShape>, TchPyGymEnvContinuousAct<ActShape>>;
 type O = TchPyGymEnvObsBuffer<ObsShape>;
 type A = TchPyGymEnvContinuousActBuffer<ActShape>;
 
+// https://github.com/p-christ/Deep-Reinforcement-Learning-Algorithms-with-PyTorch/blob/master/results/Mountain_Car.py
 fn create_agent() -> impl Agent<E> {
-    let qnet = Model2_1::new(3, 1, 1e-4);
-    let pi = Model1_2::new(2, 1, 1e-4);
+    let qnet = Model2_1::new(3, 1, 2e-2);
+    let pi = Model1_2::new(2, 1, 3e-3);
     let replay_buffer
         = ReplayBuffer::<E, O, A>::new(10000, 1);
     let agent: SAC<E, _, _, _, _> = SAC::new(
@@ -44,8 +45,8 @@ fn create_agent() -> impl Agent<E> {
         .n_samples_per_opt(50)
         .n_updates_per_opt(1)
         .n_opts_per_soft_update(1)
-        .min_transitions_warmup(100)
-        .batch_size(64)
+        .min_transitions_warmup(256)
+        .batch_size(256)
         .discount_factor(0.99)
         .tau(0.005);
     agent
