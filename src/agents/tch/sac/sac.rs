@@ -48,8 +48,7 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
     E::Act :From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
-    P::Input: Copy,
-    {
+{
     pub fn new(qnet: Q, pi: P, replay_buffer: ReplayBuffer<E, O, A>) -> Self {
         let qnet_tgt = qnet.clone();
         SAC {
@@ -133,42 +132,48 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
             - (1 - a.pow(2).log() + Tensor::from(self.epsilon));
         let log_p = sum_keep1(&log_p);
 
-        debug_assert!(a.size().as_slice() == [self.batch_size as i64]);
-        debug_assert!(log_p.size().as_slice() == [self.batch_size as i64]);
+        debug_assert_eq!(a.size().as_slice()[0], self.batch_size as i64);
+        debug_assert_eq!(log_p.size().as_slice(), [self.batch_size as i64]);
 
         (a, log_p)
     }
 
     fn update_critic(&mut self, batch: &TchBatch<E, O, A>) {
-        trace!("Start sac.update_critic()");
+        trace!("SAC.update_critic()");
 
         let loss = {
-            let o_ = batch.obs.clone();
-            let a_ = batch.actions.copy();
-            let next_o = batch.next_obs.clone();
-            let r = batch.rewards.copy();
-            let not_done = batch.not_dones.copy();
+            let o = &batch.obs;
+            let a = &batch.actions;
+            let next_o = &batch.next_obs;
+            let r = &batch.rewards;
+            let not_done = &batch.not_dones;
             // trace!("obs.shape      = {:?}", o.size());
             // trace!("next_obs.shape = {:?}", next_o.size());
             // trace!("act.shape      = {:?}", a.size());
             trace!("reward.shape   = {:?}", r.size());
             trace!("not_done.shape = {:?}", not_done.size());
 
-            let o= &o_;
-            let a = &a_;
-
             let pred = self.qnet.forward(&o, &a);
             let tgt = {
                 let next_q = no_grad(|| {
                     let (next_a, next_log_p) = self.action_logp(&next_o);
                     let next_q = self.qnet_tgt.forward(&next_o, &next_a);
-                    next_q - self.alpha * next_log_p
+                    trace!("    next_q.size(): {:?}", next_q.size());
+                    trace!("next_log_p.size(): {:?}", next_log_p.size());
+                    next_q - self.alpha * (next_log_p.unsqueeze(-1))
                 });
-                &r + &not_done * Tensor::from(self.gamma) * next_q
+                trace!("         r.size(): {:?}", r.size());
+                trace!("  not_done.size(): {:?}", not_done.size());
+                trace!("    next_q.size(): {:?}", next_q.size());
+                r + not_done * Tensor::from(self.gamma) * next_q
             };
 
-            debug_assert!(pred.size().as_slice() == [self.batch_size as i64]);
-            debug_assert!(tgt.size().as_slice() == [self.batch_size as i64]);
+            let pred = pred.squeeze();
+            let tgt = tgt.squeeze();
+            debug_assert_eq!(pred.size().as_slice(), [self.batch_size as i64]);
+            debug_assert_eq!(tgt.size().as_slice(), [self.batch_size as i64]);
+            trace!("      pred.size(): {:?}", pred.size());
+            trace!("       tgt.size(): {:?}", tgt.size());
 
             0.5 * pred.mse_loss(&tgt, tch::Reduction::Mean)
         };
@@ -177,12 +182,19 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
     }
 
     fn update_actor(&mut self, batch: &TchBatch<E, O, A>) {
-        trace!("Start sac.update_actor()");
+        trace!("SAC.update_actor()");
 
         let loss = {
-            let o = batch.obs.clone();
-            let (a, log_p) = self.action_logp(&o);
-            self.alpha * log_p.detach() - self.qnet.forward(&o, &a)
+            let o = &batch.obs;
+            let (a, log_p) = self.action_logp(o);
+            let qval = self.qnet.forward(o, &a).squeeze();
+            let loss = (self.alpha * log_p.detach() - &qval).mean(tch::Kind::Float);
+
+            trace!("    a.size(): {:?}", a.size());
+            trace!("log_p.size(): {:?}", log_p.size());
+            trace!(" qval.size(): {:?}", qval.size());
+
+            loss
         };
 
         self.pi.backward_step(&loss);
@@ -201,7 +213,6 @@ impl<E, Q, P, O, A> Policy<E> for SAC<E, Q, P, O, A> where
     E::Act :From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
-    P::Input: Copy,
 {
     fn sample(&self, obs: &E::Obs) -> E::Act {
         let obs = obs.clone().into();
@@ -224,7 +235,6 @@ impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A> where
     E::Act :From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
-    P::Input: Copy,
 {
     fn train(&mut self) {
         self.train = true;

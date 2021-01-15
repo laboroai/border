@@ -29,8 +29,18 @@ impl<S: Shape> Act for TchPyGymEnvContinuousAct<S> {}
 /// TODO: check action representation in the vectorized environment.
 impl<S: Shape> Into<PyObject> for TchPyGymEnvContinuousAct<S> {
     fn into(self) -> PyObject {
+        let act = (&self.act).clone();
+        let act = {
+            if S::squeeze_first_dim() {
+                debug_assert!(self.act.shape()[0] == 1);
+                act.remove_axis(ndarray::Axis(0))
+            }
+            else {
+                act
+            }
+        };
         pyo3::Python::with_gil(|py| {
-            let act = PyArrayDyn::<f32>::from_array(py, &self.act);
+            let act = PyArrayDyn::<f32>::from_array(py, &act);
             act.into_py(py)
         })
     }

@@ -38,7 +38,7 @@ impl Model1_2 {
             .add_fn(|xs| xs.relu())
             // .add(nn::linear(p / "cl2", 400, 300, Default::default()))
             // .add_fn(|xs| xs.relu())
-            .add(nn::linear(p / "cl3", 256, out_dim as _, Default::default()));
+            .add(nn::linear(p / "cl3", 256, 256, Default::default()));
             let head_mean = nn::linear(p / "ml", 256, out_dim as _, Default::default());
             let head_lstd = nn::linear(p / "sl", 256, out_dim as _, Default::default());
 
@@ -88,7 +88,10 @@ impl Model1 for Model1_2 {
     type Output = (Tensor, Tensor);
 
     fn forward(&self, xs: &Tensor) -> Self::Output {
+        trace!("Model1_2.forward()");
+        trace!("xs.size() = {:?}", xs.size());
         let xs = self.network.forward(xs);
+        trace!("network.forward(xs).size() = {:?}", xs.size());
         (xs.apply(&self.head_mean), xs.apply(&self.head_lstd).exp())
     }
 }
