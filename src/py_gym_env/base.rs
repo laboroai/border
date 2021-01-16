@@ -146,12 +146,11 @@ impl<O, A> Env for PyGymEnv<O, A> where
 
             let c = *self.count_steps.borrow();
             self.count_steps.replace(c + 1);
-            // if let Some(max_steps) = self.max_steps {
-            //     if *self.count_steps.borrow() >= max_steps {
-            //         is_done[0] = 1.0;
-            //         println!("max_steps: {:?}", max_steps);
-            //     }
-            // };
+            if let Some(max_steps) = self.max_steps {
+                if *self.count_steps.borrow() >= max_steps {
+                    is_done[0] = 1.0;
+                }
+            };
 
             // if is_done[0] == 1.0 {
             //     println!("is_done");
