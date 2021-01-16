@@ -27,16 +27,10 @@ impl Model1_1 {
         let vs = nn::VarStore::new(tch::Device::Cpu);
         let p = &vs.root();
         let network = nn::seq()
-            .add(nn::linear(
-                p / "cl1",
-                in_dim as _,
-                256,
-                Default::default(),
-            ))
+            .add(nn::linear(p / "al1", in_dim as _, 100, Default::default()))
             .add_fn(|xs| xs.relu())
-            // .add(nn::linear(p / "cl2", 400, 300, Default::default()))
-            // .add_fn(|xs| xs.relu())
-            .add(nn::linear(p / "cl3", 256, out_dim as _, Default::default()));
+            .add(nn::linear(p / "al2", 100, out_dim as _, Default::default()))
+            .add_fn(|xs| 2.0 * xs.tanh());
         let opt = nn::Adam::default().build(&vs, learning_rate).unwrap();
         Self {
             network,

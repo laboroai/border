@@ -5,7 +5,7 @@ use tch::{Tensor, TchError};
 use crate::agents::tch::model::ModelBase;
 
 pub fn track<M: ModelBase>(dest: &mut M, src: &mut M, tau: f64) {
-        let src = &mut src.get_var_store();
+    let src = &mut src.get_var_store();
     let dest = &mut dest.get_var_store();
     tch::no_grad(|| {
         for (dest, src) in dest
