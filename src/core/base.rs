@@ -1,7 +1,7 @@
 use std::{fmt::Debug, path::Path, error::Error};
 
 /// Represents an observation of the environment.
-pub trait Obs: Clone {
+pub trait Obs: Clone + Debug {
     fn zero(n_procs: usize) -> Self;
 
     /// Replace elements of observation where `is_done[i] == 1.0`.

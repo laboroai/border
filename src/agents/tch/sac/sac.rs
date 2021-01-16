@@ -1,3 +1,5 @@
+use std::io;
+use std::io::prelude::*;
 use log::trace;
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{no_grad, Tensor};
@@ -11,7 +13,7 @@ type ActMean = Tensor;
 type ActStd = Tensor;
 
 fn normal_logp(x: &Tensor, mean: &Tensor, std: &Tensor) -> Tensor {
-    Tensor::from(-0.5 * (2.0 * std::f32::consts::PI).ln())
+    Tensor::from(-0.5 * (2.0 * std::f32::consts::PI).ln() as f32)
     - 0.5 * ((x - mean) / std).pow(2) - std.log()
 }
 
@@ -110,6 +112,11 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
         self
     }
 
+    pub fn alpha(mut self, v: f64) -> Self {
+        self.alpha = v;
+        self
+    }
+
     // Adapted from dqn.rs
     fn push_transition(&mut self, step: Step<E>) {
         let next_obs = step.obs;
@@ -127,13 +134,20 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
     }
 
     fn action_logp(&self, o: &P::Input) -> (A::SubBatch, Tensor) {
+        trace!("SAC.action_logp()");
+
         let (mean, lstd) = self.pi.forward(o);
         let std = lstd.exp().minimum(&Tensor::from(self.max_std));
         let z = Tensor::randn(mean.size().as_slice(), tch::kind::FLOAT_CPU);
         let a = (&std * &z + &mean).tanh();
         let log_p = normal_logp(&z, &mean, &std)
-            - (1 - a.pow(2).log() + Tensor::from(self.epsilon));
+            - (Tensor::from(1f32) - a.pow(2.0) + Tensor::from(self.epsilon)).log();
         let log_p = sum_keep1(&log_p);
+
+        trace!(" mean.size(): {:?}", mean.size());
+        trace!("  std.size(): {:?}", std.size());
+        trace!("    z.size(): {:?}", z.size());
+        trace!("log_p.size(): {:?}", log_p.size());
 
         debug_assert_eq!(a.size().as_slice()[0], self.batch_size as i64);
         debug_assert_eq!(log_p.size().as_slice(), [self.batch_size as i64]);
@@ -178,7 +192,10 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
             trace!("      pred.size(): {:?}", pred.size());
             trace!("       tgt.size(): {:?}", tgt.size());
 
-            pred.mse_loss(&tgt, tch::Reduction::Mean)
+            let loss = pred.mse_loss(&tgt, tch::Reduction::Mean);
+            trace!("    critic loss: {:?}", loss);
+
+            loss
         };
 
         self.qnet.backward_step(&loss);
@@ -196,6 +213,10 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
             trace!("    a.size(): {:?}", a.size());
             trace!("log_p.size(): {:?}", log_p.size());
             trace!(" qval.size(): {:?}", qval.size());
+            trace!("  actor loss: {:?}", loss);
+
+            // let mut stdin = io::stdin();
+            // let _ = stdin.read(&mut [0u8]).unwrap();
 
             loss
         };
@@ -220,7 +241,7 @@ impl<E, Q, P, O, A> Policy<E> for SAC<E, Q, P, O, A> where
     fn sample(&self, obs: &E::Obs) -> E::Act {
         let obs = obs.clone().into();
         let (mean, lstd) = self.pi.forward(&obs);
-        let std = lstd.exp(); //.minimum(&Tensor::from(self.max_std));
+        let std = lstd.exp().minimum(&Tensor::from(self.max_std));
         let act = if self.train {
             std * Tensor::randn(&mean.size(), tch::kind::FLOAT_CPU) + mean
         }

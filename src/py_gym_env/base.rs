@@ -2,6 +2,7 @@
 use std::borrow::Borrow;
 use std::{fmt::Debug, error::Error};
 use std::marker::PhantomData;
+use std::cell::RefCell;
 use log::{trace};
 use pyo3::{PyObject, PyResult, Python, ToPyObject};
 use pyo3::types::{PyTuple, IntoPyDict, PyList};
@@ -20,6 +21,8 @@ pub struct PyGymEnv<O, A> {
     action_space: i64,
     observation_space: Vec<usize>,
     continuous_action: bool,
+    count_steps: RefCell<usize>,
+    max_steps: Option<usize>,
     phantom: PhantomData<(O, A)>,
 }
 
@@ -55,6 +58,8 @@ impl<O, A> PyGymEnv<O, A> where
             action_space,
             observation_space,
             continuous_action,
+            count_steps: RefCell::new(0),
+            max_steps: None,
             phantom: PhantomData,
         })
     }
@@ -62,6 +67,11 @@ impl<O, A> PyGymEnv<O, A> where
     pub fn set_render(&mut self, render: bool) {
         self.render = render;
     }
+
+    pub fn max_steps(mut self, v: Option<usize>) -> Self {
+        self.max_steps = v;
+        self
+    }    
 }
 
 fn pylist_to_act(py: &Python, a: PyObject) -> PyObject {
@@ -85,6 +95,7 @@ impl<O, A> Env for PyGymEnv<O, A> where
     /// Resets the environment, returning the observation tensor.
     /// In this environment, the length of `is_done` is assumed to be 1.
     fn reset(&self, is_done: Option<&Vec<f32>>) -> Result<O, Box<dyn Error>>  {
+        trace!("PyGymEnv.reset()");
         match is_done {
             None => {
                 pyo3::Python::with_gil(|py| {
@@ -97,6 +108,7 @@ impl<O, A> Env for PyGymEnv<O, A> where
                     Ok(O::zero(1))
                 }
                 else {
+                    self.count_steps.replace(0);
                     pyo3::Python::with_gil(|py| {
                         let obs = self.env.call_method0(py, "reset")?;
                         Ok(obs.into())
@@ -107,7 +119,9 @@ impl<O, A> Env for PyGymEnv<O, A> where
     }
 
     fn step(&self, a: &A) -> Step<Self> {
-        trace!("{:?}", &a);
+        trace!("PyGymEnv.step()");        
+        trace!("a     : {:?}", &a);
+
         pyo3::Python::with_gil(|py| {
             if self.render {
                 let _ = self.env.call_method0(py, "render");
@@ -126,9 +140,27 @@ impl<O, A> Env for PyGymEnv<O, A> where
             let obs = step.get_item(0).to_owned();
             let obs = obs.to_object(py).into();
             let reward: Vec<f32> = vec![step.get_item(1).extract().unwrap()];
-            let is_done: Vec<f32> = vec![
+            let mut is_done: Vec<f32> = vec![
                 if step.get_item(2).extract().unwrap() {1.0} else {0.0}
             ];
+
+            let c = *self.count_steps.borrow();
+            self.count_steps.replace(c + 1);
+            // if let Some(max_steps) = self.max_steps {
+            //     if *self.count_steps.borrow() >= max_steps {
+            //         is_done[0] = 1.0;
+            //         println!("max_steps: {:?}", max_steps);
+            //     }
+            // };
+
+            // if is_done[0] == 1.0 {
+            //     println!("is_done");
+            //     println!("     reward: {:?}", reward);
+            //     println!("count_steps: {:?}", *self.count_steps.borrow());
+            // }
+
+            // trace!("obs   : {:?}", obs);
+            // trace!("reward: {:?}", reward);
 
             Step::<Self>::new(obs, a.clone(), reward, is_done, PyGymInfo{})
         })
