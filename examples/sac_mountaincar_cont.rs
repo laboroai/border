@@ -45,10 +45,11 @@ fn create_agent() -> impl Agent<E> {
         .n_samples_per_opt(50)
         .n_updates_per_opt(1)
         .n_opts_per_soft_update(1)
-        .min_transitions_warmup(256)
+        .min_transitions_warmup(1000)
         .batch_size(256)
-        .discount_factor(0.99)
-        .tau(0.005);
+        .discount_factor(0.999)
+        .tau(0.05)
+        .alpha(0.1);
     agent
 }
 
@@ -65,7 +66,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         env,
         env_eval,
         agent)
-        .max_opts(1000)
+        .max_opts(5000)
         .n_opts_per_eval(50)
         .n_episodes_per_eval(5);
 
