@@ -10,9 +10,13 @@ type ActionValue = Tensor;
 type ActMean = Tensor;
 type ActStd = Tensor;
 
-fn normal_logp(x: &Tensor, mean: &Tensor, std: &Tensor) -> Tensor {
-    Tensor::from(-0.5 * (2.0 * std::f32::consts::PI).ln() as f32)
-    - 0.5 * ((x - mean) / std).pow(2) - std.log()
+// fn normal_logp(x: &Tensor, mean: &Tensor, std: &Tensor) -> Tensor {
+//     Tensor::from(-0.5 * (2.0 * std::f32::consts::PI).ln() as f32)
+//     - 0.5 * ((x - mean) / std).pow(2) - std.log()
+// }
+
+fn normal_logp(x: &Tensor) -> Tensor {
+    Tensor::from(-0.5 * (2.0 * std::f32::consts::PI).ln() as f32) - 0.5 * x.pow(2)
 }
 
 pub struct SAC<E, Q, P, O, A> where
@@ -28,6 +32,7 @@ pub struct SAC<E, Q, P, O, A> where
     tau: f64,
     alpha: f64,
     epsilon: f64,
+    min_std: f64,
     max_std: f64,
     n_samples_per_opt: usize,
     n_updates_per_opt: usize,
@@ -58,8 +63,9 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
             gamma: 0.99,
             tau: 0.005,
             alpha: 0.1,
-            epsilon: 1e-8,
-            max_std: 100.0,
+            epsilon: 1e-4,
+            min_std: 1e-3,
+            max_std: 2.0,
             n_samples_per_opt: 1,
             n_updates_per_opt: 1,
             min_transitions_warmup: 1,
@@ -126,11 +132,11 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
         trace!("SAC.action_logp()");
 
         let (mean, lstd) = self.pi.forward(o);
-        let std = lstd.exp().minimum(&Tensor::from(self.max_std));
+        let std = lstd.exp().clip(self.min_std, self.max_std); //.minimum(&Tensor::from(self.max_std));
         let z = Tensor::randn(mean.size().as_slice(), tch::kind::FLOAT_CPU);
         // TODO: parametrize output scale; 2.0 is for pendulum env
         let a = (&std * &z + &mean).tanh();
-        let log_p = normal_logp(&z, &mean, &std)
+        let log_p = normal_logp(&z); //, &mean, &std)
             - (Tensor::from(1f32) - a.pow(2.0) + Tensor::from(self.epsilon)).log();
         let log_p = sum_keep1(&log_p);
 
@@ -299,12 +305,14 @@ impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A> where
         fs::create_dir(&path)?;
         self.qnet.save(&path.as_ref().join("qnet.pt").as_path())?;
         self.qnet_tgt.save(&path.as_ref().join("qnet_tgt.pt").as_path())?;
+        self.pi.save(&path.as_ref().join("pi.pt").as_path())?;
         Ok(())
     }
 
     fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<(), Box<dyn Error>> {
         self.qnet.load(&path.as_ref().join("qnet.pt").as_path())?;
         self.qnet_tgt.load(&path.as_ref().join("qnet_tgt.pt").as_path())?;
+        self.pi.load(&path.as_ref().join("pi.pt").as_path())?;
         Ok(())
     }
 }

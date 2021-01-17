@@ -33,10 +33,10 @@ type O = TchPyGymEnvObsBuffer<ObsShape>;
 type A = TchPyGymEnvContinuousActBuffer<ActShape>;
 
 fn create_agent() -> impl Agent<E> {
-    let qnet = Model2_1::new(4, 1, 2e-2);
-    let pi = Model1_2::new(3, 1, 3e-3);
+    let qnet = Model2_1::new(4, 1, 1e-3);
+    let pi = Model1_2::new(3, 1, 1e-4);
     let replay_buffer
-        = ReplayBuffer::<E, O, A>::new(10000, 1);
+        = ReplayBuffer::<E, O, A>::new(100_000, 1);
     let agent: SAC<E, _, _, _, _> = SAC::new(
         qnet,
         pi,
@@ -46,7 +46,7 @@ fn create_agent() -> impl Agent<E> {
         .min_transitions_warmup(200)
         .batch_size(100)
         .discount_factor(0.99)
-        .tau(0.005)
+        .tau(0.05)
         .alpha(1.0);
     agent
 }
