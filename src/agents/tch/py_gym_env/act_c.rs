@@ -74,7 +74,7 @@ impl<S: Shape> TchBuffer for TchPyGymEnvContinuousActBuffer<S> {
         let shape = concat_slices(&[capacity, n_procs],
             S::shape().iter().map(|v| *v as i64).collect::<Vec<_>>().as_slice());
         Self {
-            act: Tensor::zeros(&shape, tch::kind::INT64_CPU),
+            act: Tensor::zeros(&shape, tch::kind::FLOAT_CPU),
             phantom: PhantomData,
         }
     }

@@ -55,11 +55,9 @@ pub struct DDPG<E, Q, P, O, A> where
     tau: f64,
     n_samples_per_opt: usize,
     n_updates_per_opt: usize,
-    n_opts_per_soft_update: usize,
     min_transitions_warmup: usize,
     batch_size: usize,
     count_samples_per_opt: usize,
-    count_opts_per_soft_update: usize,
     train: bool,
     prev_obs: RefCell<Option<E::Obs>>,
     phantom: PhantomData<E>
@@ -88,11 +86,9 @@ impl<E, Q, P, O, A> DDPG<E, Q, P, O, A> where
             tau: 0.005,
             n_samples_per_opt: 1,
             n_updates_per_opt: 1,
-            n_opts_per_soft_update: 1,
             min_transitions_warmup: 1,
             batch_size: 1,
             count_samples_per_opt: 0,
-            count_opts_per_soft_update: 0,
             train: false,
             prev_obs: RefCell::new(None),
             phantom: PhantomData,
@@ -106,11 +102,6 @@ impl<E, Q, P, O, A> DDPG<E, Q, P, O, A> where
 
     pub fn n_updates_per_opt(mut self, v: usize) -> Self {
         self.n_updates_per_opt = v;
-        self
-    }
-
-    pub fn n_opts_per_soft_update(mut self, v: usize) -> Self {
-        self.n_opts_per_soft_update = v;
         self
     }
 
@@ -165,7 +156,6 @@ impl<E, Q, P, O, A> DDPG<E, Q, P, O, A> where
             trace!("reward.shape   = {:?}", r.size());
             trace!("not_done.shape = {:?}", not_done.size());
 
-            let pred = self.critic.forward(&o, &a);
             let tgt = {
                 let next_q = no_grad(|| {
                     let next_a = self.actor_tgt.forward(&next_o);
@@ -176,6 +166,7 @@ impl<E, Q, P, O, A> DDPG<E, Q, P, O, A> where
                 trace!("    next_q.size(): {:?}", next_q.size());
                 r + not_done * Tensor::from(self.gamma) * next_q
             };
+            let pred = self.critic.forward(&o, &a);
 
             let pred = pred.squeeze();
             let tgt = tgt.squeeze();
@@ -184,7 +175,9 @@ impl<E, Q, P, O, A> DDPG<E, Q, P, O, A> where
             trace!("      pred.size(): {:?}", pred.size());
             trace!("       tgt.size(): {:?}", tgt.size());
 
-            let loss = pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0);
+            // let loss = pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0);
+            let diff = tgt - pred;
+            let loss = (&diff * &diff).mean(tch::Kind::Float);
             trace!("    critic loss: {:?}", loss);
 
             loss
@@ -205,7 +198,7 @@ impl<E, Q, P, O, A> DDPG<E, Q, P, O, A> where
             // trace!("    a.size(): {:?}", a.size());
             // trace!("log_p.size(): {:?}", log_p.size());
             // trace!(" qval.size(): {:?}", qval.size());
-            // trace!("  actor loss: {:?}", loss);
+            trace!("  actor loss: {:?}", loss);
 
             // let mut stdin = io::stdin();
             // let _ = stdin.read(&mut [0u8]).unwrap();
@@ -233,7 +226,7 @@ impl<E, Q, P, O, A> Policy<E> for DDPG<E, Q, P, O, A> where
 {
     fn sample(&mut self, obs: &E::Obs) -> E::Act {
         let obs = obs.clone().into();
-        let act = self.actor.forward(&obs);
+        let act = tch::no_grad(|| self.actor.forward(&obs));
         if self.train {
             self.action_noise.apply(&act).clip(-2.0, 2.0).into()
         }
@@ -288,14 +281,9 @@ impl<E, Q, P, O, A> Agent<E> for DDPG<E, Q, P, O, A> where
 
                     self.update_critic(&batch);
                     self.update_actor(&batch);
+                    self.soft_update();
                     trace!("Update models");
                 };
-
-                self.count_opts_per_soft_update += 1;
-                if self.count_opts_per_soft_update == self.n_opts_per_soft_update {
-                    self.count_opts_per_soft_update = 0;
-                    self.soft_update();
-                }
                 updated = true;
             }
             self.action_noise.update();
