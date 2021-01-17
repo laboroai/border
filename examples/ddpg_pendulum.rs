@@ -36,19 +36,18 @@ fn create_agent() -> impl Agent<E> {
     let critic = Model2_1::new(4, 1, 1e-3);
     let actor = Model1_1::new(3, 1, 1e-4);
     let replay_buffer
-        = ReplayBuffer::<E, O, A>::new(2000, 1);
+        = ReplayBuffer::<E, O, A>::new(100_000, 1);
     let agent: DDPG<E, _, _, _, _> = DDPG::new(
         critic,
         actor,
         replay_buffer)
-        .n_samples_per_opt(1)
-        .n_updates_per_opt(1)
-        .min_transitions_warmup(2000)
-        .batch_size(256)
+        .n_samples_per_opt(200)
+        .n_updates_per_opt(200)
+        .min_transitions_warmup(200)
+        .batch_size(100)
         .discount_factor(0.99)
-        .n_opts_per_soft_update(200)
-        .tau(1.0);
-        // .tau(0.05);
+        .n_opts_per_soft_update(1)
+        .tau(0.005);
     agent
 }
 
@@ -66,7 +65,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         env_eval,
         agent)
         .max_opts(200 * 1000)
-        .n_opts_per_eval(2000)
+        .n_opts_per_eval(1)
         .n_episodes_per_eval(5);
 
     trainer.train();
@@ -77,7 +76,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     env.set_render(true);
     agent.load("./examples/model/ddpg_pendulum")?;
     agent.eval();
-    util::eval(&env, &agent, 5, None);
+    util::eval(&env, &mut agent, 5, None);
 
     Ok(())
 }

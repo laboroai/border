@@ -16,7 +16,7 @@ struct ActionNoise {
 impl ActionNoise {
     pub fn new() -> Self {
         Self {
-            var: 1.0
+            var: 0.5
         }
     }
 
@@ -213,14 +213,14 @@ impl<E, Q, P, O, A> DDPG<E, Q, P, O, A> where
 
 impl<E, Q, P, O, A> Policy<E> for DDPG<E, Q, P, O, A> where
     E: Env,
-    Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
+    // Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
     P: Model1<Output = A::SubBatch> + Clone,
     E::Obs :Into<O::SubBatch>,
     E::Act :From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
-    fn sample(&self, obs: &E::Obs) -> E::Act {
+    fn sample(&mut self, obs: &E::Obs) -> E::Act {
         let obs = obs.clone().into();
         let act = self.actor.forward(&obs);
         if self.train {

@@ -156,7 +156,7 @@ impl<E, M, O, A> Policy<E> for DQN<E, M, O, A> where
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
-    fn sample(&self, obs: &E::Obs) -> E::Act {
+    fn sample(&mut self, obs: &E::Obs) -> E::Act {
         let obs = obs.clone().into();
         let a = self.qnet.forward(&obs);
         let a = if self.train {

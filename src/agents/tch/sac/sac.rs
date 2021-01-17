@@ -238,7 +238,7 @@ impl<E, Q, P, O, A> Policy<E> for SAC<E, Q, P, O, A> where
     O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
-    fn sample(&self, obs: &E::Obs) -> E::Act {
+    fn sample(&mut self, obs: &E::Obs) -> E::Act {
         let obs = obs.clone().into();
         let (mean, lstd) = self.pi.forward(&obs);
         let std = lstd.exp().minimum(&Tensor::from(self.max_std));

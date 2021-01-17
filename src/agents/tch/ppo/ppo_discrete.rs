@@ -126,7 +126,7 @@ impl <E, M, O, A> Policy<E> for PPODiscrete<E, M, O, A> where
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
-    fn sample(&self, obs: &E::Obs) -> E::Act {
+    fn sample(&mut self, obs: &E::Obs) -> E::Act {
         let obs = obs.clone().into();
         let (_, a) = self.model.forward(&obs);
         let a = if self.train {
