@@ -228,6 +228,7 @@ impl<E, Q, P, O, A> Policy<E> for DDPG<E, Q, P, O, A> where
         let obs = obs.clone().into();
         let act = tch::no_grad(|| self.actor.forward(&obs));
         if self.train {
+            // TODO: parametrize output scale; 2.0 is for pendulum env
             self.action_noise.apply(&act).clip(-2.0, 2.0).into()
         }
         else {

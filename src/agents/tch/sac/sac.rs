@@ -1,5 +1,3 @@
-use std::io;
-use std::io::prelude::*;
 use log::trace;
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{no_grad, Tensor};
@@ -33,11 +31,9 @@ pub struct SAC<E, Q, P, O, A> where
     max_std: f64,
     n_samples_per_opt: usize,
     n_updates_per_opt: usize,
-    n_opts_per_soft_update: usize,
     min_transitions_warmup: usize,
     batch_size: usize,
     count_samples_per_opt: usize,
-    count_opts_per_soft_update: usize,
     train: bool,
     prev_obs: RefCell<Option<E::Obs>>,
     phantom: PhantomData<E>
@@ -66,11 +62,9 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
             max_std: 100.0,
             n_samples_per_opt: 1,
             n_updates_per_opt: 1,
-            n_opts_per_soft_update: 1,
             min_transitions_warmup: 1,
             batch_size: 1,
             count_samples_per_opt: 0,
-            count_opts_per_soft_update: 0,
             train: false,
             prev_obs: RefCell::new(None),
             phantom: PhantomData,
@@ -84,11 +78,6 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
 
     pub fn n_updates_per_opt(mut self, v: usize) -> Self {
         self.n_updates_per_opt = v;
-        self
-    }
-
-    pub fn n_opts_per_soft_update(mut self, v: usize) -> Self {
-        self.n_opts_per_soft_update = v;
         self
     }
 
@@ -139,6 +128,7 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
         let (mean, lstd) = self.pi.forward(o);
         let std = lstd.exp().minimum(&Tensor::from(self.max_std));
         let z = Tensor::randn(mean.size().as_slice(), tch::kind::FLOAT_CPU);
+        // TODO: parametrize output scale; 2.0 is for pendulum env
         let a = (&std * &z + &mean).tanh();
         let log_p = normal_logp(&z, &mean, &std)
             - (Tensor::from(1f32) - a.pow(2.0) + Tensor::from(self.epsilon)).log();
@@ -296,14 +286,9 @@ impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A> where
 
                     self.update_critic(&batch);
                     self.update_actor(&batch);
+                    self.soft_update_qnet_tgt();
                     trace!("Update models");
                 };
-
-                self.count_opts_per_soft_update += 1;
-                if self.count_opts_per_soft_update == self.n_opts_per_soft_update {
-                    self.count_opts_per_soft_update = 0;
-                    self.soft_update_qnet_tgt();
-                }
                 return true;
             }
         }

@@ -41,14 +41,13 @@ fn create_agent() -> impl Agent<E> {
         qnet,
         pi,
         replay_buffer)
-        .n_samples_per_opt(50)
-        .n_updates_per_opt(1)
-        .n_opts_per_soft_update(1)
-        .min_transitions_warmup(1000)
-        .batch_size(256)
-        .discount_factor(0.999)
-        .tau(0.05)
-        .alpha(0.1);
+        .n_samples_per_opt(200)
+        .n_updates_per_opt(200)
+        .min_transitions_warmup(200)
+        .batch_size(100)
+        .discount_factor(0.99)
+        .tau(0.005)
+        .alpha(1.0);
     agent
 }
 
@@ -65,8 +64,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         env,
         env_eval,
         agent)
-        .max_opts(5000)
-        .n_opts_per_eval(50)
+        .max_opts(100)
+        .n_opts_per_eval(1)
         .n_episodes_per_eval(5);
 
     trainer.train();
@@ -77,7 +76,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     env.set_render(true);
     agent.load("./examples/model/sac_pendulum")?;
     agent.eval();
-    util::eval(&env, &agent, 5, None);
+    util::eval(&env, &mut agent, 5, None);
 
     Ok(())
 }
