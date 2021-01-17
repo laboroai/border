@@ -9,23 +9,33 @@ use crate::agents::tch::util::track;
 type ActionValue = Tensor;
 
 struct ActionNoise {
-    // adapted from https://github.com/xtma/simple-pytorch-rl/blob/master/ddpg.py
-    var: f32
+    mu: f64,
+    theta: f64,
+    sigma: f64,
+    state: Tensor
 }
 
 impl ActionNoise {
     pub fn new() -> Self {
+        let n_procs = 1;
         Self {
-            var: 0.5
+            mu: 0.0,
+            theta: 0.15,
+            sigma: 0.1,
+            state: Tensor::ones(&[n_procs, 1], tch::kind::FLOAT_CPU),
         }
     }
 
     pub fn update(&mut self) {
-        self.var = (self.var * 0.999).max(0.01);
+        // self.var = (self.var * 0.999).max(0.01);
     }
 
-    pub fn apply(&self, t: &Tensor) -> Tensor {
-        t + self.var * Tensor::randn(t.size().as_slice(), tch::kind::FLOAT_CPU)
+    pub fn apply(&mut self, t: &Tensor) -> Tensor {
+        let dx = self.theta * (self.mu - &self.state)
+            + self.sigma * Tensor::randn(&self.state.size(), tch::kind::FLOAT_CPU);
+        self.state += dx;
+        t + &self.state
+        //self.var * Tensor::randn(t.size().as_slice(), tch::kind::FLOAT_CPU)
     }
 }
 
@@ -191,6 +201,7 @@ impl<E, Q, P, O, A> DDPG<E, Q, P, O, A> where
             let act = self.actor.forward(obs);
             let loss = -self.critic.forward(obs, &act).mean(tch::Kind::Float);
 
+            // trace!("  obs.size(): {:?}", obs.size());
             // trace!("    a.size(): {:?}", a.size());
             // trace!("log_p.size(): {:?}", log_p.size());
             // trace!(" qval.size(): {:?}", qval.size());
