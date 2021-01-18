@@ -39,6 +39,7 @@ impl<S: Shape> Into<PyObject> for TchPyGymEnvContinuousAct<S> {
                 act
             }
         };
+        // let act = 2f32 * act;
         pyo3::Python::with_gil(|py| {
             let act = PyArrayDyn::<f32>::from_array(py, &act);
             act.into_py(py)
