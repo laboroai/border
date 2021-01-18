@@ -136,7 +136,7 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
         let z = Tensor::randn(mean.size().as_slice(), tch::kind::FLOAT_CPU);
         // TODO: parametrize output scale; 2.0 is for pendulum env
         let a = (&std * &z + &mean).tanh();
-        let log_p = normal_logp(&z); //, &mean, &std)
+        let log_p = normal_logp(&z) //; //, &mean, &std)
             - (Tensor::from(1f32) - a.pow(2.0) + Tensor::from(self.epsilon)).log();
         let log_p = sum_keep1(&log_p);
 

@@ -28,8 +28,8 @@ impl Shape for ActShape {
     }
 }
 
-type E = PyGymEnv<TchPyGymEnvObs<ObsShape>, TchPyGymEnvContinuousAct<ActShape>>;
-type O = TchPyGymEnvObsBuffer<ObsShape>;
+type E = PyGymEnv<TchPyGymEnvObs<ObsShape, f64>, TchPyGymEnvContinuousAct<ActShape>>;
+type O = TchPyGymEnvObsBuffer<ObsShape, f64>;
 type A = TchPyGymEnvContinuousActBuffer<ActShape>;
 
 fn create_agent() -> impl Agent<E> {

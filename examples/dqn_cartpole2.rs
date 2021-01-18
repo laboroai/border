@@ -14,11 +14,11 @@ impl Shape for CartPoleObsShape {
     }
 }
 
-type CartPoleEnv = PyGymEnv<TchPyGymEnvObs<CartPoleObsShape>, TchPyGymEnvDiscreteAct>;
+type CartPoleEnv = PyGymEnv<TchPyGymEnvObs<CartPoleObsShape, f64>, TchPyGymEnvDiscreteAct>;
 
 fn create_agent() -> impl Agent<CartPoleEnv> {
     type E = CartPoleEnv;
-    type O = TchPyGymEnvObsBuffer<CartPoleObsShape>;
+    type O = TchPyGymEnvObsBuffer<CartPoleObsShape, f64>;
     type A = TchPyGymEnvDiscreteActBuffer;
 
     let qnet = QNetwork::new(4, 2, 0.001);
