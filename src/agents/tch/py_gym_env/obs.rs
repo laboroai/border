@@ -14,12 +14,16 @@ fn any(is_done: &[f32]) -> bool {
 /// Represents observation.
 /// Currently, it supports 1-dimentional vector only.
 #[derive(Clone, Debug)]
-pub struct TchPyGymEnvObs<S: Shape> {
+pub struct TchPyGymEnvObs<S: Shape, D> where
+    D: Clone + std::fmt::Debug
+{
     obs: ArrayD<f32>,
-    phantom: PhantomData<S>
+    phantom: PhantomData<(S, D)>
 }
 
-impl<S: Shape> Obs for TchPyGymEnvObs<S> {
+impl<S: Shape, D> Obs for TchPyGymEnvObs<S, D> where
+    D: Clone + std::fmt::Debug
+{
     fn zero(n_procs: usize) -> Self {
         let shape = &mut S::shape().to_vec();
         shape.insert(0, n_procs as _);
@@ -43,9 +47,40 @@ impl<S: Shape> Obs for TchPyGymEnvObs<S> {
     }
 }
 
-impl<S: Shape> From<PyObject> for TchPyGymEnvObs<S> {
+impl<S: Shape> From<PyObject> for TchPyGymEnvObs<S, f32>
+{
     fn from(obs: PyObject) -> Self {
         pyo3::Python::with_gil(|py| {
+            // let obs: &PyArrayDyn<f64> = obs.extract(py).unwrap();
+            let obs: &PyArrayDyn<f32> = obs.extract(py).unwrap();
+            let obs = obs.to_owned_array();
+            let obs = obs.mapv(|elem| elem as f32);
+            let obs = {
+                if obs.shape().len() == S::shape().len() + 1 {
+                    // In this case obs has a dimension for n_procs
+                    obs
+                }
+                else if obs.shape().len() == S::shape().len() {
+                    // add dimension for n_procs
+                    obs.insert_axis(Axis(0))
+                }
+                else {
+                    panic!();
+                }
+            };
+            Self {
+                obs,
+                phantom: PhantomData,
+            }
+        })
+    }
+}
+
+impl<S: Shape> From<PyObject> for TchPyGymEnvObs<S, f64>
+{
+    fn from(obs: PyObject) -> Self {
+        pyo3::Python::with_gil(|py| {
+            // let obs: &PyArrayDyn<f64> = obs.extract(py).unwrap();
             let obs: &PyArrayDyn<f64> = obs.extract(py).unwrap();
             let obs = obs.to_owned_array();
             let obs = obs.mapv(|elem| elem as f32);
@@ -70,19 +105,25 @@ impl<S: Shape> From<PyObject> for TchPyGymEnvObs<S> {
     }
 }
 
-impl<S: Shape> Into<Tensor> for TchPyGymEnvObs<S> {
+impl<S: Shape, D> Into<Tensor> for TchPyGymEnvObs<S, D> where
+    D: Clone + std::fmt::Debug
+{
     fn into(self) -> Tensor {
         try_from(self.obs).unwrap()
     }
 }
 
-pub struct TchPyGymEnvObsBuffer<S: Shape> {
+pub struct TchPyGymEnvObsBuffer<S, D> where
+    D: Clone + std::fmt::Debug
+{
     obs: Tensor,
-    phantom: PhantomData<S>,
+    phantom: PhantomData<(S, D)>,
 }
 
-impl<S: Shape> TchBuffer for TchPyGymEnvObsBuffer<S> {
-    type Item = TchPyGymEnvObs<S>;
+impl<S: Shape, D> TchBuffer for TchPyGymEnvObsBuffer<S, D> where
+    D: Clone + std::fmt::Debug
+{
+    type Item = TchPyGymEnvObs<S, D>;
     type SubBatch = Tensor;
 
     fn new(capacity: usize, n_procs: usize) -> Self {
