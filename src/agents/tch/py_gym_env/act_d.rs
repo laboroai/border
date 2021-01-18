@@ -6,7 +6,7 @@ use crate::core::Act;
 use crate::agents::tch::TchBuffer;
 
 #[derive(Clone, Debug)]
-pub struct TchPyGymEnvDiscreteAct (Vec<i32>);
+pub struct TchPyGymEnvDiscreteAct (pub Vec<i32>);
 
 impl Act for TchPyGymEnvDiscreteAct {}
 
