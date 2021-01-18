@@ -1,76 +1,28 @@
 use std::error::Error;
-use ndarray::{Axis, Array, ArrayD, IxDyn};
-use pyo3::{PyObject, IntoPy};
-use numpy::PyArrayDyn;
-use lrr::core::{Obs, Act, Policy, util};
+use lrr::core::{Policy, util};
 use lrr::py_gym_env::PyGymEnv;
+use lrr::agents::tch::Shape;
+use lrr::agents::tch::py_gym_env::{TchPyGymEnvObs, TchPyGymEnvDiscreteAct};
 
-#[derive(Clone, Debug)]
-pub struct CartPoleObs (pub ArrayD<f32>);
+#[derive(Debug, Clone)]
+struct CartPoleObsShape {}
 
-impl Obs for CartPoleObs {
-    fn zero(n_procs: usize) -> Self {
-        Self(Array::zeros(IxDyn(&[n_procs, 4])))
-    }
-
-    fn merge(mut self, obs_reset: Self, is_done: &[f32]) -> Self {
-        let any = is_done.iter().fold(0, |x, v| x + *v as i32);
-        if any > 0 {
-            #[allow(clippy::needless_range_loop)]
-            for i in 0..is_done.len() {
-                if is_done[i] != 0.0 {
-                    self.0.index_axis_mut(Axis(0), i).assign(&obs_reset.0.index_axis(Axis(0), i));
-                }
-            }
-            self
-        }
-        else {
-            self
-        }
+impl Shape for CartPoleObsShape {
+    fn shape() -> &'static [usize] {
+        &[4]
     }
 }
 
-impl From<PyObject> for CartPoleObs {
-    fn from(obs: PyObject) -> Self {
-        pyo3::Python::with_gil(|py| {
-            let obs: &PyArrayDyn<f64> = obs.extract(py).unwrap();
-            let obs = obs.to_owned_array();
-            let obs = obs.mapv(|elem| elem as f32);
-            let obs = obs.insert_axis(Axis(0));
-            Self(obs)
-        })
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct CartPoleAct (u32);
-
-impl Act for CartPoleAct {}
-
-impl Into<PyObject> for CartPoleAct {
-    #[allow(unreachable_code)]
-    fn into(self) -> PyObject {
-        unimplemented!();
-        // TODO: support vectorized
-        pyo3::Python::with_gil(|py| {
-            self.0.into_py(py)
-        })
-    }
-}
-
-impl CartPoleAct {
-    pub fn new(v: u32) -> Self {
-        CartPoleAct { 0: v }
-    }
-}
-
-type CartPoleEnv = PyGymEnv::<CartPoleObs, CartPoleAct>;
+type O = TchPyGymEnvObs<CartPoleObsShape, f64>;
+type A = TchPyGymEnvDiscreteAct;
+type E = PyGymEnv<O, A>;
 
 struct RandomPolicy {}
 
-impl Policy<CartPoleEnv> for RandomPolicy {
-    fn sample(&self, _: &CartPoleObs) -> CartPoleAct {
-        CartPoleAct::new(fastrand::u32(..=1))
+impl Policy<E> for RandomPolicy {
+    fn sample(&mut self, _: &O) -> TchPyGymEnvDiscreteAct {
+        let v = fastrand::u32(..=1);
+        TchPyGymEnvDiscreteAct(vec![v as i32])
     }
 }
 
@@ -80,9 +32,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     tch::manual_seed(42);
     fastrand::seed(42);
 
-    let env = CartPoleEnv::new("CartPole-v0")?;
-    let policy = RandomPolicy{};
-    util::eval(&env, &policy, 5, None);
+    let mut env = E::new("CartPole-v0", false)?;
+    env.set_render(true);
+    let mut policy = RandomPolicy{};
+    util::eval(&env, &mut policy, 5, None);
 
     Ok(())
 }
