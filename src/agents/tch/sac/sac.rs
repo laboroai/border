@@ -1,7 +1,8 @@
 use log::trace;
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{no_grad, Tensor};
-use crate::{core::{Policy, Agent, Step, Env}};
+use crate::core::{Policy, Agent, Step, Env};
+use crate::agents::OptInterval;
 use crate::agents::tch::{ReplayBuffer, TchBuffer, TchBatch};
 use crate::agents::tch::model::{Model1, Model2};
 use crate::agents::tch::util::{track, sum_keep1};
@@ -9,11 +10,6 @@ use crate::agents::tch::util::{track, sum_keep1};
 type ActionValue = Tensor;
 type ActMean = Tensor;
 type ActStd = Tensor;
-
-// fn normal_logp(x: &Tensor, mean: &Tensor, std: &Tensor) -> Tensor {
-//     Tensor::from(-0.5 * (2.0 * std::f32::consts::PI).ln() as f32)
-//     - 0.5 * ((x - mean) / std).pow(2) - std.log()
-// }
 
 fn normal_logp(x: &Tensor) -> Tensor {
     Tensor::from(-0.5 * (2.0 * std::f32::consts::PI).ln() as f32) - 0.5 * x.pow(2)
@@ -34,11 +30,11 @@ pub struct SAC<E, Q, P, O, A> where
     epsilon: f64,
     min_std: f64,
     max_std: f64,
-    n_samples_per_opt: usize,
+    opt_interval: OptInterval,
     n_updates_per_opt: usize,
     min_transitions_warmup: usize,
     batch_size: usize,
-    count_samples_per_opt: usize,
+    count_opt_interval: usize,
     train: bool,
     prev_obs: RefCell<Option<E::Obs>>,
     phantom: PhantomData<E>
@@ -66,19 +62,19 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
             epsilon: 1e-4,
             min_std: 1e-3,
             max_std: 2.0,
-            n_samples_per_opt: 1,
+            opt_interval: OptInterval::Steps(1),
             n_updates_per_opt: 1,
             min_transitions_warmup: 1,
             batch_size: 1,
-            count_samples_per_opt: 0,
+            count_opt_interval: 0,
             train: false,
             prev_obs: RefCell::new(None),
             phantom: PhantomData,
         }
     }
 
-    pub fn n_samples_per_opt(mut self, v: usize) -> Self {
-        self.n_samples_per_opt = v;
+    pub fn opt_interval(mut self, v: OptInterval) -> Self {
+        self.opt_interval = v;
         self
     }
 
@@ -134,9 +130,8 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
         let (mean, lstd) = self.pi.forward(o);
         let std = lstd.exp().clip(self.min_std, self.max_std); //.minimum(&Tensor::from(self.max_std));
         let z = Tensor::randn(mean.size().as_slice(), tch::kind::FLOAT_CPU);
-        // TODO: parametrize output scale; 2.0 is for pendulum env
         let a = (&std * &z + &mean).tanh();
-        let log_p = normal_logp(&z) //; //, &mean, &std)
+        let log_p = normal_logp(&z)
             - (Tensor::from(1f32) - a.pow(2.0) + Tensor::from(self.epsilon)).log();
         let log_p = sum_keep1(&log_p);
 
@@ -211,16 +206,13 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
             trace!(" qval.size(): {:?}", qval.size());
             trace!("  actor loss: {:?}", loss);
 
-            // let mut stdin = io::stdin();
-            // let _ = stdin.read(&mut [0u8]).unwrap();
-
             loss
         };
 
         self.pi.backward_step(&loss);
     }
 
-    fn soft_update_qnet_tgt(&mut self) {
+    fn soft_update(&mut self) {
         track(&mut self.qnet_tgt, &mut self.qnet, self.tau);
     }
 }
@@ -276,29 +268,57 @@ impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A> where
     fn observe(&mut self, step: Step<E>) -> bool {
         trace!("Start dqn.observe()");
 
+        let is_done_any = step.is_done.iter().fold(0, |x, v| x + *v as i32) > 0;
+
         // Push transition to the replay buffer
         self.push_transition(step);
         trace!("Push transition");
 
-        // Do optimization 1 step
-        self.count_samples_per_opt += 1;
-        if self.count_samples_per_opt == self.n_samples_per_opt {
-            self.count_samples_per_opt = 0;
-
-            if self.replay_buffer.len() >= self.min_transitions_warmup {
-                for _ in 0..self.n_updates_per_opt {
-                    let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
-                    trace!("Sample random batch");
-
-                    self.update_critic(&batch);
-                    self.update_actor(&batch);
-                    self.soft_update_qnet_tgt();
-                    trace!("Update models");
-                };
-                return true;
+        // Check if doing optimization
+        let do_optimize = match self.opt_interval {
+            OptInterval::Steps(interval) => {
+                self.count_opt_interval += 1;
+                if self.count_opt_interval == interval {
+                    self.count_opt_interval = 0;
+                    true
+                }
+                else {
+                    false
+                }
+            },
+            OptInterval::Episodes(interval) => {
+                if is_done_any {
+                    self.count_opt_interval += 1;
+                    if self.count_opt_interval == interval {
+                        self.count_opt_interval = 0;
+                        true
+                    }
+                    else {
+                        false
+                    }
+                }
+                else {
+                    false
+                }
             }
+        } && self.replay_buffer.len() >= self.min_transitions_warmup;
+
+        // Do optimization
+        if do_optimize {
+            for _ in 0..self.n_updates_per_opt {
+                let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
+                trace!("Sample random batch");
+
+                self.update_critic(&batch);
+                self.update_actor(&batch);
+                self.soft_update();
+                trace!("Update models");
+            };
+            true
         }
-        false
+        else {
+            false
+        }
     }
 
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>> {
