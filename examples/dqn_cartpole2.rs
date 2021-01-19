@@ -30,7 +30,6 @@ fn create_agent() -> impl Agent<CartPoleEnv> {
         replay_buffer)
         .opt_interval(OptInterval::Steps(50))
         .n_updates_per_opt(1)
-        .n_opts_per_soft_update(1)
         .min_transitions_warmup(100)
         .batch_size(64)
         .discount_factor(0.99)
@@ -39,8 +38,6 @@ fn create_agent() -> impl Agent<CartPoleEnv> {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    // std::env::set_var("RUST_LOG", "info");
-    // std::env::set_var("RUST_LOG", "trace");
     env_logger::init();
     tch::manual_seed(42);
 

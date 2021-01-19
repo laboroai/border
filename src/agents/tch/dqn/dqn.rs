@@ -17,7 +17,6 @@ pub struct DQN<E, M, O, A> where
 {
     opt_interval: OptInterval,
     n_updates_per_opt: usize,
-    n_opts_per_soft_update: usize,
     min_transitions_warmup: usize,
     batch_size: usize,
     qnet: M,
@@ -27,7 +26,6 @@ pub struct DQN<E, M, O, A> where
     prev_obs: RefCell<Option<E::Obs>>,
     replay_buffer: ReplayBuffer<E, O, A>,
     count_opt_interval: usize,
-    count_opts_per_soft_update: usize,
     discount_factor: f64,
     tau: f64,
 }
@@ -50,13 +48,11 @@ impl<E, M, O, A> DQN<E, M, O, A> where
             replay_buffer,
             opt_interval: OptInterval::Steps(1),
             n_updates_per_opt: 1,
-            n_opts_per_soft_update: 1,
             min_transitions_warmup: 1,
             batch_size: 1,
             discount_factor: 0.99,
             tau: 0.005,
             count_opt_interval: 0,
-            count_opts_per_soft_update: 0,
             train: false,
             prev_obs: RefCell::new(None),
             phantom: PhantomData,
@@ -70,11 +66,6 @@ impl<E, M, O, A> DQN<E, M, O, A> where
 
     pub fn n_updates_per_opt(mut self, v: usize) -> Self {
         self.n_updates_per_opt = v;
-        self
-    }
-
-    pub fn n_opts_per_soft_update(mut self, v: usize) -> Self {
-        self.n_opts_per_soft_update = v;
         self
     }
 
@@ -113,8 +104,8 @@ impl<E, M, O, A> DQN<E, M, O, A> where
         let _ = self.prev_obs.replace(Some(next_obs));
     }
 
-    fn update_qnet(&mut self, batch: TchBatch<E, O, A>) {
-        trace!("Start dqn.update_qnet()");
+    fn update_critic(&mut self, batch: TchBatch<E, O, A>) {
+        trace!("Start dqn.update_critic()");
 
         let obs = batch.obs;
         let a = batch.actions;
@@ -144,7 +135,7 @@ impl<E, M, O, A> DQN<E, M, O, A> where
         self.qnet.backward_step(&loss);
     }
 
-    fn soft_update_qnet_tgt(&mut self) {
+    fn soft_update(&mut self) {
         track(&mut self.qnet_tgt, &mut self.qnet, self.tau);
     }
 }
@@ -203,7 +194,7 @@ impl<E, M, O, A> Agent<E> for DQN<E, M, O, A> where
         self.push_transition(step);
         trace!("Push transition");
 
-        // Do optimization 1 step
+        // Check if doing optimization
         let do_optimize = match self.opt_interval {
             OptInterval::Steps(interval) => {
                 self.count_opt_interval += 1;
@@ -230,26 +221,22 @@ impl<E, M, O, A> Agent<E> for DQN<E, M, O, A> where
                     false
                 }
             }
-        };
+        } && self.replay_buffer.len() >= self.min_transitions_warmup;
 
-        if !do_optimize || self.replay_buffer.len() < self.min_transitions_warmup {
-            false
-        }
-        else {
+        // Do optimization
+        if do_optimize {
             for _ in 0..self.n_updates_per_opt {
                 let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
                 trace!("Sample random batch");
 
-                self.update_qnet(batch);
-                trace!("Update qnet");
+                self.update_critic(batch);
+                self.soft_update();
+                trace!("Update model");
             };
-
-            self.count_opts_per_soft_update += 1;
-            if self.count_opts_per_soft_update == self.n_opts_per_soft_update {
-                self.count_opts_per_soft_update = 0;
-                self.soft_update_qnet_tgt();
-            }
             true
+        }
+        else {
+            false
         }
     }
 

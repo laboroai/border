@@ -6,6 +6,7 @@ use numpy::PyArrayDyn;
 use tch::Tensor;
 use lrr::core::{Obs, Act, Trainer, Agent, util};
 use lrr::py_gym_env::PyGymEnv;
+use lrr::agents::OptInterval;
 use lrr::agents::tch::{DQN, QNetwork, ReplayBuffer, TchBuffer, util::try_from};
 
 #[derive(Clone, Debug)]
@@ -146,9 +147,8 @@ fn create_agent() -> impl Agent<PyGymEnv<CartPoleObs, CartPoleAct>> {
     let agent: DQN<E, _, _, _> = DQN::new(
         qnet,
         replay_buffer)
-        .n_samples_per_opt(50)
+        .opt_interval(OptInterval::Steps(50))
         .n_updates_per_opt(1)
-        .n_opts_per_soft_update(1)
         .min_transitions_warmup(100)
         .batch_size(64)
         .discount_factor(0.99)
