@@ -1,10 +1,12 @@
 use std::error::Error;
-use lrr::core::{Trainer, Agent, util};
+use lrr::core::{Agent, Trainer, util};
 use lrr::py_gym_env::PyGymEnv;
+use lrr::agents::OptInterval;
 use lrr::agents::tch::{DDPG, ReplayBuffer, Shape};
 use lrr::agents::tch::model::{Model1_1, Model2_1};
 use lrr::agents::tch::py_gym_env::{TchPyGymEnvObs, TchPyGymEnvContinuousAct,
     TchPyGymEnvContinuousActBuffer, TchPyGymEnvObsBuffer};
+use lrr::agents::tch::py_gym_env::act_c::RawFilter;
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -28,9 +30,9 @@ impl Shape for ActShape {
     }
 }
 
-type E = PyGymEnv<TchPyGymEnvObs<ObsShape, f64>, TchPyGymEnvContinuousAct<ActShape>>;
+type E = PyGymEnv<TchPyGymEnvObs<ObsShape, f64>, TchPyGymEnvContinuousAct<ActShape, RawFilter>>;
 type O = TchPyGymEnvObsBuffer<ObsShape, f64>;
-type A = TchPyGymEnvContinuousActBuffer<ActShape>;
+type A = TchPyGymEnvContinuousActBuffer<ActShape, RawFilter>;
 
 fn create_agent() -> impl Agent<E> {
     let critic = Model2_1::new(4, 1, 1e-3);
@@ -41,7 +43,7 @@ fn create_agent() -> impl Agent<E> {
         critic,
         actor,
         replay_buffer)
-        .n_samples_per_opt(200)
+        .opt_interval(OptInterval::Steps(200))
         .n_updates_per_opt(200)
         .min_transitions_warmup(200)
         .batch_size(100)
@@ -51,8 +53,6 @@ fn create_agent() -> impl Agent<E> {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    // std::env::set_var("RUST_LOG", "trace");
-    // std::env::set_var("RUST_LOG", "info");
     env_logger::init();
     tch::manual_seed(42);
 

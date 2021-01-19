@@ -2,6 +2,7 @@ use log::trace;
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{no_grad, Tensor};
 use crate::{core::{Policy, Agent, Step, Env}};
+use crate::agents::OptInterval;
 use crate::agents::tch::{ReplayBuffer, TchBuffer, TchBatch};
 use crate::agents::tch::model::{Model1, Model2};
 use crate::agents::tch::util::track;
@@ -53,11 +54,11 @@ pub struct DDPG<E, Q, P, O, A> where
     replay_buffer: ReplayBuffer<E, O, A>,
     gamma: f64,
     tau: f64,
-    n_samples_per_opt: usize,
+    opt_interval: OptInterval,
     n_updates_per_opt: usize,
     min_transitions_warmup: usize,
     batch_size: usize,
-    count_samples_per_opt: usize,
+    count_opt_interval: usize,
     train: bool,
     prev_obs: RefCell<Option<E::Obs>>,
     phantom: PhantomData<E>
@@ -84,19 +85,19 @@ impl<E, Q, P, O, A> DDPG<E, Q, P, O, A> where
             replay_buffer,
             gamma: 0.99,
             tau: 0.005,
-            n_samples_per_opt: 1,
+            opt_interval: OptInterval::Steps(1),
             n_updates_per_opt: 1,
             min_transitions_warmup: 1,
             batch_size: 1,
-            count_samples_per_opt: 0,
+            count_opt_interval: 0,
             train: false,
             prev_obs: RefCell::new(None),
             phantom: PhantomData,
         }
     }
 
-    pub fn n_samples_per_opt(mut self, v: usize) -> Self {
-        self.n_samples_per_opt = v;
+    pub fn opt_interval(mut self, v: OptInterval) -> Self {
+        self.opt_interval = v;
         self
     }
 
@@ -265,31 +266,60 @@ impl<E, Q, P, O, A> Agent<E> for DDPG<E, Q, P, O, A> where
     fn observe(&mut self, step: Step<E>) -> bool {
         trace!("DDPG.observe()");
 
+        let is_done_any = step.is_done.iter().fold(0, |x, v| x + *v as i32) > 0;
+        if is_done_any {
+            self.action_noise.update();
+        }
+
         // Push transition to the replay buffer
         self.push_transition(step);
         trace!("Push transition");
 
-        // Do optimization 1 step
-        let mut updated = false;
-        self.count_samples_per_opt += 1;
-        if self.count_samples_per_opt == self.n_samples_per_opt {
-            self.count_samples_per_opt = 0;
-
-            if self.replay_buffer.len() >= self.min_transitions_warmup {
-                for _ in 0..self.n_updates_per_opt {
-                    let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
-                    trace!("Sample random batch");
-
-                    self.update_critic(&batch);
-                    self.update_actor(&batch);
-                    self.soft_update();
-                    trace!("Update models");
-                };
-                updated = true;
+        // Check if doing optimization
+        let do_optimize = match self.opt_interval {
+            OptInterval::Steps(interval) => {
+                self.count_opt_interval += 1;
+                if self.count_opt_interval == interval {
+                    self.count_opt_interval = 0;
+                    true
+                }
+                else {
+                    false
+                }
+            },
+            OptInterval::Episodes(interval) => {
+                if is_done_any {
+                    self.count_opt_interval += 1;
+                    if self.count_opt_interval == interval {
+                        self.count_opt_interval = 0;
+                        true
+                    }
+                    else {
+                        false
+                    }
+                }
+                else {
+                    false
+                }
             }
-            self.action_noise.update();
+        } && self.replay_buffer.len() >= self.min_transitions_warmup;
+
+        // Do optimization
+        if do_optimize {
+            for _ in 0..self.n_updates_per_opt {
+                let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
+                trace!("Sample random batch");
+
+                self.update_critic(&batch);
+                self.update_actor(&batch);
+                self.soft_update();
+                trace!("Update models");
+            };
+            true
         }
-        updated
+        else {
+            false
+        }
     }
 
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>> {
