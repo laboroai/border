@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::fmt::Debug;
 use log::trace;
 use pyo3::{PyObject, IntoPy};
 use ndarray::{Array1, ArrayD, IxDyn};
@@ -7,15 +8,27 @@ use tch::Tensor;
 use crate::core::Act;
 use crate::agents::tch::{Shape, TchBuffer, util::try_from, util::concat_slices};
 
+/// Filtering action before applied to the environment.
+pub trait TchPyGymActFilter: Clone + Debug {
+    fn filter(act: ArrayD<f32>) -> ArrayD<f32> {
+        act
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct RawFilter {}
+
+impl TchPyGymActFilter for RawFilter {}
+
 /// Represents action.
 /// Currently, it supports 1-dimensional vector only.
 #[derive(Clone, Debug)]
-pub struct TchPyGymEnvContinuousAct<S: Shape> {
+pub struct TchPyGymEnvContinuousAct<S: Shape, F: TchPyGymActFilter> {
     act: ArrayD<f32>,
-    phantom: PhantomData<S>
+    phantom: PhantomData<(S, F)>
 }
 
-impl<S: Shape> TchPyGymEnvContinuousAct<S> {
+impl<S: Shape, F: TchPyGymActFilter> TchPyGymEnvContinuousAct<S, F> {
     pub fn new(v: ArrayD<f32>) -> Self {
         Self {
             act: v,
@@ -24,10 +37,10 @@ impl<S: Shape> TchPyGymEnvContinuousAct<S> {
     }
 }
 
-impl<S: Shape> Act for TchPyGymEnvContinuousAct<S> {}
+impl<S: Shape, F: TchPyGymActFilter> Act for TchPyGymEnvContinuousAct<S, F> {}
 
 /// TODO: check action representation in the vectorized environment.
-impl<S: Shape> Into<PyObject> for TchPyGymEnvContinuousAct<S> {
+impl<S: Shape, F: TchPyGymActFilter> Into<PyObject> for TchPyGymEnvContinuousAct<S, F> {
     fn into(self) -> PyObject {
         let act = (&self.act).clone();
         let act = {
@@ -39,7 +52,7 @@ impl<S: Shape> Into<PyObject> for TchPyGymEnvContinuousAct<S> {
                 act
             }
         };
-        // let act = 2f32 * act;
+        let act = F::filter(act);
         pyo3::Python::with_gil(|py| {
             let act = PyArrayDyn::<f32>::from_array(py, &act);
             act.into_py(py)
@@ -47,7 +60,7 @@ impl<S: Shape> Into<PyObject> for TchPyGymEnvContinuousAct<S> {
     }
 }
 
-impl<S: Shape> From<Tensor> for TchPyGymEnvContinuousAct<S> {
+impl<S: Shape, F: TchPyGymActFilter> From<Tensor> for TchPyGymEnvContinuousAct<S, F> {
     /// The first dimension is the number of environments.
     fn from(t: Tensor) -> Self {
         trace!("TchPyGymEnvContinuousAct from Tensor: {:?}", t);
@@ -60,13 +73,13 @@ impl<S: Shape> From<Tensor> for TchPyGymEnvContinuousAct<S> {
     }
 }
 
-pub struct TchPyGymEnvContinuousActBuffer<S: Shape> {
+pub struct TchPyGymEnvContinuousActBuffer<S: Shape, F: TchPyGymActFilter> {
     act: Tensor,
-    phantom: PhantomData<S>
+    phantom: PhantomData<(S, F)>
 }
 
-impl<S: Shape> TchBuffer for TchPyGymEnvContinuousActBuffer<S> {
-    type Item = TchPyGymEnvContinuousAct<S>;
+impl<S: Shape, F: TchPyGymActFilter> TchBuffer for TchPyGymEnvContinuousActBuffer<S, F> {
+    type Item = TchPyGymEnvContinuousAct<S, F>;
     type SubBatch = Tensor;
 
     fn new(capacity: usize, n_procs: usize) -> Self {

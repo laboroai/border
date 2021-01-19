@@ -1,10 +1,12 @@
 use std::error::Error;
+use ndarray::ArrayD;
 use lrr::core::{Trainer, Agent, util};
 use lrr::py_gym_env::PyGymEnv;
 use lrr::agents::tch::{SAC, ReplayBuffer, Shape};
 use lrr::agents::tch::model::{Model1_2, Model2_1};
 use lrr::agents::tch::py_gym_env::{TchPyGymEnvObs, TchPyGymEnvContinuousAct,
     TchPyGymEnvContinuousActBuffer, TchPyGymEnvObsBuffer};
+use lrr::agents::tch::py_gym_env::act_c::TchPyGymActFilter;
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -28,9 +30,18 @@ impl Shape for ActShape {
     }
 }
 
-type E = PyGymEnv<TchPyGymEnvObs<ObsShape, f64>, TchPyGymEnvContinuousAct<ActShape>>;
+#[derive(Clone, Debug)]
+struct ActFilter {}
+
+impl TchPyGymActFilter for ActFilter {
+    fn filter(act: ArrayD<f32>) -> ArrayD<f32> {
+        2f32 * act
+    }
+}
+
+type E = PyGymEnv<TchPyGymEnvObs<ObsShape, f64>, TchPyGymEnvContinuousAct<ActShape, ActFilter>>;
 type O = TchPyGymEnvObsBuffer<ObsShape, f64>;
-type A = TchPyGymEnvContinuousActBuffer<ActShape>;
+type A = TchPyGymEnvContinuousActBuffer<ActShape, ActFilter>;
 
 fn create_agent() -> impl Agent<E> {
     let qnet = Model2_1::new(4, 1, 1e-3);
@@ -52,8 +63,6 @@ fn create_agent() -> impl Agent<E> {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    // std::env::set_var("RUST_LOG", "trace");
-    // std::env::set_var("RUST_LOG", "info");
     env_logger::init();
     tch::manual_seed(42);
 
