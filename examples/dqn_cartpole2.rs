@@ -1,6 +1,7 @@
 use std::error::Error;
 use lrr::core::{Trainer, Agent, util};
 use lrr::py_gym_env::PyGymEnv;
+use lrr::agents::OptInterval;
 use lrr::agents::tch::{Shape, DQN, QNetwork, ReplayBuffer};
 use lrr::agents::tch::py_gym_env::{TchPyGymEnvObs, TchPyGymEnvDiscreteAct,
     TchPyGymEnvDiscreteActBuffer, TchPyGymEnvObsBuffer};
@@ -27,7 +28,7 @@ fn create_agent() -> impl Agent<CartPoleEnv> {
     let agent: DQN<E, _, _, _> = DQN::new(
         qnet,
         replay_buffer)
-        .n_samples_per_opt(50)
+        .opt_interval(OptInterval::Steps(50))
         .n_updates_per_opt(1)
         .n_opts_per_soft_update(1)
         .min_transitions_warmup(100)
