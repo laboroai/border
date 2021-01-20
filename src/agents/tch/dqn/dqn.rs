@@ -2,7 +2,7 @@ use log::trace;
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{no_grad, Kind::Float, Tensor};
 use crate::core::{Policy, Agent, Step, Env};
-use crate::agents::OptInterval;
+use crate::agents::{OptInterval, OptIntervalCounter};
 use crate::agents::tch::{ReplayBuffer, TchBuffer, TchBatch};
 use crate::agents::tch::model::Model1;
 use crate::agents::tch::util::track;
@@ -15,7 +15,7 @@ pub struct DQN<E, M, O, A> where
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
-    opt_interval: OptInterval,
+    opt_interval_counter: OptIntervalCounter,
     n_updates_per_opt: usize,
     min_transitions_warmup: usize,
     batch_size: usize,
@@ -25,7 +25,6 @@ pub struct DQN<E, M, O, A> where
     phantom: PhantomData<E>,
     prev_obs: RefCell<Option<E::Obs>>,
     replay_buffer: ReplayBuffer<E, O, A>,
-    count_opt_interval: usize,
     discount_factor: f64,
     tau: f64,
 }
@@ -46,21 +45,25 @@ impl<E, M, O, A> DQN<E, M, O, A> where
             qnet,
             qnet_tgt,
             replay_buffer,
-            opt_interval: OptInterval::Steps(1),
+            opt_interval_counter: OptInterval::Steps(1).counter(),
             n_updates_per_opt: 1,
             min_transitions_warmup: 1,
             batch_size: 1,
             discount_factor: 0.99,
             tau: 0.005,
-            count_opt_interval: 0,
             train: false,
             prev_obs: RefCell::new(None),
             phantom: PhantomData,
         }
     }
 
+    // pub fn opt_interval(mut self, v: OptInterval) -> Self {
+    //     self.opt_interval = v;
+    //     self
+    // }
+
     pub fn opt_interval(mut self, v: OptInterval) -> Self {
-        self.opt_interval = v;
+        self.opt_interval_counter = v.counter();
         self
     }
 
@@ -186,42 +189,15 @@ impl<E, M, O, A> Agent<E> for DQN<E, M, O, A> where
     }
 
     fn observe(&mut self, step: Step<E>) -> bool {
-        trace!("Start dqn.observe()");
+        trace!("DQN.observe()");
 
-        let is_done_any = step.is_done.iter().fold(0, |x, v| x + *v as i32) > 0;
+        // Check if doing optimization
+        let do_optimize = self.opt_interval_counter.do_optimize(&step.is_done)
+            && self.replay_buffer.len() + 1 >= self.min_transitions_warmup;
 
         // Push transition to the replay buffer
         self.push_transition(step);
         trace!("Push transition");
-
-        // Check if doing optimization
-        let do_optimize = match self.opt_interval {
-            OptInterval::Steps(interval) => {
-                self.count_opt_interval += 1;
-                if self.count_opt_interval == interval {
-                    self.count_opt_interval = 0;
-                    true
-                }
-                else {
-                    false
-                }
-            },
-            OptInterval::Episodes(interval) => {
-                if is_done_any {
-                    self.count_opt_interval += 1;
-                    if self.count_opt_interval == interval {
-                        self.count_opt_interval = 0;
-                        true
-                    }
-                    else {
-                        false
-                    }
-                }
-                else {
-                    false
-                }
-            }
-        } && self.replay_buffer.len() >= self.min_transitions_warmup;
 
         // Do optimization
         if do_optimize {

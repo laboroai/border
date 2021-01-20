@@ -2,7 +2,7 @@ use log::trace;
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{no_grad, Tensor};
 use crate::{core::{Policy, Agent, Step, Env}};
-use crate::agents::OptInterval;
+use crate::agents::{OptInterval, OptIntervalCounter};
 use crate::agents::tch::{ReplayBuffer, TchBuffer, TchBatch};
 use crate::agents::tch::model::{Model1, Model2};
 use crate::agents::tch::util::track;
@@ -27,9 +27,9 @@ impl ActionNoise {
         }
     }
 
-    pub fn update(&mut self) {
-        // self.var = (self.var * 0.999).max(0.01);
-    }
+    // pub fn update(&mut self) {
+    //     // self.var = (self.var * 0.999).max(0.01);
+    // }
 
     pub fn apply(&mut self, t: &Tensor) -> Tensor {
         let dx = self.theta * (self.mu - &self.state)
@@ -54,11 +54,10 @@ pub struct DDPG<E, Q, P, O, A> where
     replay_buffer: ReplayBuffer<E, O, A>,
     gamma: f64,
     tau: f64,
-    opt_interval: OptInterval,
     n_updates_per_opt: usize,
     min_transitions_warmup: usize,
     batch_size: usize,
-    count_opt_interval: usize,
+    opt_interval_counter: OptIntervalCounter,
     train: bool,
     prev_obs: RefCell<Option<E::Obs>>,
     phantom: PhantomData<E>
@@ -85,11 +84,10 @@ impl<E, Q, P, O, A> DDPG<E, Q, P, O, A> where
             replay_buffer,
             gamma: 0.99,
             tau: 0.005,
-            opt_interval: OptInterval::Steps(1),
             n_updates_per_opt: 1,
             min_transitions_warmup: 1,
             batch_size: 1,
-            count_opt_interval: 0,
+            opt_interval_counter: OptInterval::Steps(1).counter(),
             train: false,
             prev_obs: RefCell::new(None),
             phantom: PhantomData,
@@ -97,7 +95,7 @@ impl<E, Q, P, O, A> DDPG<E, Q, P, O, A> where
     }
 
     pub fn opt_interval(mut self, v: OptInterval) -> Self {
-        self.opt_interval = v;
+        self.opt_interval_counter = v.counter();
         self
     }
 
@@ -266,43 +264,18 @@ impl<E, Q, P, O, A> Agent<E> for DDPG<E, Q, P, O, A> where
     fn observe(&mut self, step: Step<E>) -> bool {
         trace!("DDPG.observe()");
 
-        let is_done_any = step.is_done.iter().fold(0, |x, v| x + *v as i32) > 0;
-        if is_done_any {
-            self.action_noise.update();
-        }
+        // Check if doing optimization
+        let do_optimize = self.opt_interval_counter.do_optimize(&step.is_done)
+            && self.replay_buffer.len() + 1 >= self.min_transitions_warmup;
+    
+        // let is_done_any = step.is_done.iter().fold(0, |x, v| x + *v as i32) > 0;
+        // if is_done_any {
+        //     self.action_noise.update();
+        // }
 
         // Push transition to the replay buffer
         self.push_transition(step);
         trace!("Push transition");
-
-        // Check if doing optimization
-        let do_optimize = match self.opt_interval {
-            OptInterval::Steps(interval) => {
-                self.count_opt_interval += 1;
-                if self.count_opt_interval == interval {
-                    self.count_opt_interval = 0;
-                    true
-                }
-                else {
-                    false
-                }
-            },
-            OptInterval::Episodes(interval) => {
-                if is_done_any {
-                    self.count_opt_interval += 1;
-                    if self.count_opt_interval == interval {
-                        self.count_opt_interval = 0;
-                        true
-                    }
-                    else {
-                        false
-                    }
-                }
-                else {
-                    false
-                }
-            }
-        } && self.replay_buffer.len() >= self.min_transitions_warmup;
 
         // Do optimization
         if do_optimize {
