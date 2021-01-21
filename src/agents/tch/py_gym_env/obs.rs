@@ -105,6 +105,35 @@ impl<S: Shape> From<PyObject> for TchPyGymEnvObs<S, f64>
     }
 }
 
+impl<S: Shape> From<PyObject> for TchPyGymEnvObs<S, u8>
+{
+    fn from(obs: PyObject) -> Self {
+        pyo3::Python::with_gil(|py| {
+            let obs: &PyArrayDyn<u8> = obs.extract(py).unwrap();
+            let obs = obs.to_owned_array();
+            let obs = obs.mapv(|elem| elem as f32);
+            let obs = {
+                if obs.shape().len() == S::shape().len() + 1 {
+                    // In this case obs has a dimension for n_procs
+                    obs
+                }
+                else if obs.shape().len() == S::shape().len() {
+                    // add dimension for n_procs
+                    obs.insert_axis(Axis(0))
+                }
+                else {
+                    println!("{:?}", obs.shape());
+                    panic!();
+                }
+            };
+            Self {
+                obs,
+                phantom: PhantomData,
+            }
+        })
+    }
+}
+
 impl<S: Shape, D> Into<Tensor> for TchPyGymEnvObs<S, D> where
     D: Clone + std::fmt::Debug
 {
