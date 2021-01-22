@@ -4,40 +4,15 @@ use log::trace;
 use num_traits::cast::AsPrimitive;
 use pyo3::{PyObject};
 use ndarray::{ArrayD, Axis, IxDyn};
-use numpy::{PyArrayDyn, Element};
+use numpy::Element;
 use tch::Tensor;
 use crate::core::Obs;
 use crate::agents::tch::{Shape, TchBuffer, util::try_from, util::concat_slices};
 use crate::py_gym_env::ObsFilter;
+use crate::agents::tch::py_gym_env::util::pyobj_to_arrayd;
 
 fn any(is_done: &[f32]) -> bool {
     is_done.iter().fold(0, |x, v| x + *v as i32) > 0
-}
-
-fn pyobj_to_arrayd<S, T>(obs: PyObject) -> ArrayD<f32> where
-    S: Shape,
-    T: Element + AsPrimitive<f32>,
-{
-    pyo3::Python::with_gil(|py| {
-        let obs: &PyArrayDyn<T> = obs.extract(py).unwrap();
-        let obs = obs.to_owned_array();
-        // let obs = obs.mapv(|elem| elem as f32);
-        let obs = obs.mapv(|elem| elem.as_());
-        let obs = {
-            if obs.shape().len() == S::shape().len() + 1 {
-                // In this case obs has a dimension for n_procs
-                obs
-            }
-            else if obs.shape().len() == S::shape().len() {
-                // add dimension for n_procs
-                obs.insert_axis(Axis(0))
-            }
-            else {
-                panic!();
-            }
-        };
-        obs
-    })
 }
 
 pub struct TchPyGymEnvObsRawFilter<S, T> {
