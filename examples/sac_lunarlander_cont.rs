@@ -7,6 +7,7 @@ use lrr::agents::tch::model::{Model1_2, Model2_1};
 use lrr::agents::tch::py_gym_env::{TchPyGymEnvObs, TchPyGymEnvContinuousAct,
     TchPyGymEnvContinuousActBuffer, TchPyGymEnvObsBuffer};
 use lrr::agents::tch::py_gym_env::act_c::RawFilter;
+use lrr::agents::tch::py_gym_env::obs::TchPyGymEnvObsRawFilter;
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -30,7 +31,10 @@ impl Shape for ActShape {
     }
 }
 
-type E = PyGymEnv<TchPyGymEnvObs<ObsShape, f32>, TchPyGymEnvContinuousAct<ActShape, RawFilter>>;
+type E = PyGymEnv<
+    TchPyGymEnvObs<ObsShape, f32>,
+    TchPyGymEnvContinuousAct<ActShape, RawFilter>,
+    TchPyGymEnvObsRawFilter<ObsShape, f32>>;
 type O = TchPyGymEnvObsBuffer<ObsShape, f32>;
 type A = TchPyGymEnvContinuousActBuffer<ActShape, RawFilter>;
 
@@ -53,12 +57,19 @@ fn create_agent() -> impl Agent<E> {
     agent
 }
 
+fn create_env() -> E {
+    let raw_filter = TchPyGymEnvObsRawFilter::new();
+    E::new("LunarLanderContinuous-v2", raw_filter, true)
+        .unwrap()
+        .max_steps(None)
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     tch::manual_seed(42);
 
-    let env = E::new("LunarLanderContinuous-v2", true)?.max_steps(None);
-    let env_eval = E::new("LunarLanderContinuous-v2", true)?.max_steps(None);
+    let env = create_env();
+    let env_eval = create_env();
     let agent = create_agent();
     let mut trainer = Trainer::new(
         env,
@@ -71,7 +82,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     trainer.train();
     trainer.get_agent().save("./examples/model/sac_lunarlander_cont")?;
 
-    let mut env = E::new("LunarLanderContinuous-v2", true)?.max_steps(None);
+    let mut env = create_env();
     let mut agent = create_agent();
     env.set_render(true);
     agent.load("./examples/model/sac_lunarlander_cont")?;

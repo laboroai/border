@@ -15,6 +15,7 @@ fastrand = "1.4.0"
 log = "0.4"
 env_logger = "0.8.2"
 rayon = "1.1"
+num-traits = "0.2.14"
 
 # [features]
 # python = ["pyo3"]

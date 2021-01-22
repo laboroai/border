@@ -12,10 +12,19 @@ pub struct PyGymInfo {}
 
 impl Info for PyGymInfo {}
 
+
+/// Convert PyObject to Env::Obs.
+pub trait ObsFilter<O: Obs> {
+    fn filt(&self, obs: PyObject) -> O;
+}
+
 /// Adapted from [tch-rs RL example](https://github.com/LaurentMazare/tch-rs/tree/master/examples/reinforcement-learning).
 /// It represents non-vectorized environment (`n_procs`=1).
 #[derive(Debug, Clone)]
-pub struct PyGymEnv<O, A> {
+pub struct PyGymEnv<O, A, F> where
+    O: Obs,
+    F: ObsFilter<O>
+{
     render: bool,
     env: PyObject,
     action_space: i64,
@@ -23,13 +32,16 @@ pub struct PyGymEnv<O, A> {
     continuous_action: bool,
     count_steps: RefCell<usize>,
     max_steps: Option<usize>,
-    phantom: PhantomData<(O, A)>,
+    obs_filter: F,
+    phantom: PhantomData<(O, A, F)>,
 }
 
-impl<O, A> PyGymEnv<O, A> where 
-    O: Obs + From<PyObject>,
-    A: Act + Into<PyObject> {
-    pub fn new(name: &str, continuous_action: bool) -> PyResult<Self> {
+impl<O, A, F> PyGymEnv<O, A, F> where
+    O: Obs,
+    A: Act + Into<PyObject>,
+    F: ObsFilter<O>,
+{
+        pub fn new(name: &str, obs_filter: F, continuous_action: bool) -> PyResult<Self> {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
@@ -60,6 +72,7 @@ impl<O, A> PyGymEnv<O, A> where
             continuous_action,
             count_steps: RefCell::new(0),
             max_steps: None,
+            obs_filter,
             phantom: PhantomData,
         })
     }
@@ -85,9 +98,11 @@ fn pylist_to_act(py: &Python, a: PyObject) -> PyObject {
     }
 }
 
-impl<O, A> Env for PyGymEnv<O, A> where
-    O: Obs + From<PyObject>,
-    A: Act + Into<PyObject> + Debug {
+impl<O, A, F> Env for PyGymEnv<O, A, F> where
+    O: Obs,
+    A: Act + Into<PyObject> + Debug,
+    F: ObsFilter<O>,
+{
     type Obs = O;
     type Act = A;
     type Info = PyGymInfo;
@@ -100,7 +115,7 @@ impl<O, A> Env for PyGymEnv<O, A> where
             None => {
                 pyo3::Python::with_gil(|py| {
                     let obs = self.env.call_method0(py, "reset")?;
-                    Ok(obs.into())
+                    Ok(self.obs_filter.filt(obs))
                 })
             },
             Some(v) => {
@@ -111,7 +126,7 @@ impl<O, A> Env for PyGymEnv<O, A> where
                     self.count_steps.replace(0);
                     pyo3::Python::with_gil(|py| {
                         let obs = self.env.call_method0(py, "reset")?;
-                        Ok(obs.into())
+                        Ok(self.obs_filter.filt(obs))
                     })
                 }
             }
@@ -138,7 +153,7 @@ impl<O, A> Env for PyGymEnv<O, A> where
             let step: &PyTuple = ret.extract(py).unwrap();
 
             let obs = step.get_item(0).to_owned();
-            let obs = obs.to_object(py).into();
+            let obs = self.obs_filter.filt(obs.to_object(py));
             let reward: Vec<f32> = vec![step.get_item(1).extract().unwrap()];
             let mut is_done: Vec<f32> = vec![
                 if step.get_item(2).extract().unwrap() {1.0} else {0.0}
@@ -151,15 +166,6 @@ impl<O, A> Env for PyGymEnv<O, A> where
                     is_done[0] = 1.0;
                 }
             };
-
-            // if is_done[0] == 1.0 {
-            //     println!("is_done");
-            //     println!("     reward: {:?}", reward);
-            //     println!("count_steps: {:?}", *self.count_steps.borrow());
-            // }
-
-            // trace!("obs   : {:?}", obs);
-            // trace!("reward: {:?}", reward);
 
             Step::<Self>::new(obs, a.clone(), reward, is_done, PyGymInfo{})
         })

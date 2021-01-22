@@ -5,23 +5,25 @@ use lrr::agents::OptInterval;
 use lrr::agents::tch::{Shape, DQN, QNetwork, ReplayBuffer};
 use lrr::agents::tch::py_gym_env::{TchPyGymEnvObs, TchPyGymEnvDiscreteAct,
     TchPyGymEnvDiscreteActBuffer, TchPyGymEnvObsBuffer};
+use lrr::agents::tch::py_gym_env::obs::TchPyGymEnvObsRawFilter;
 
 #[derive(Debug, Clone)]
-struct CartPoleObsShape {}
+struct ObsShape {}
 
-impl Shape for CartPoleObsShape {
+impl Shape for ObsShape {
     fn shape() -> &'static [usize] {
         &[4]
     }
 }
 
-type CartPoleEnv = PyGymEnv<TchPyGymEnvObs<CartPoleObsShape, f64>, TchPyGymEnvDiscreteAct>;
+type E = PyGymEnv<
+    TchPyGymEnvObs<ObsShape, f64>,
+    TchPyGymEnvDiscreteAct,
+    TchPyGymEnvObsRawFilter<ObsShape, f64>>;
+type O = TchPyGymEnvObsBuffer<ObsShape, f64>;
+type A = TchPyGymEnvDiscreteActBuffer;
 
-fn create_agent() -> impl Agent<CartPoleEnv> {
-    type E = CartPoleEnv;
-    type O = TchPyGymEnvObsBuffer<CartPoleObsShape, f64>;
-    type A = TchPyGymEnvDiscreteActBuffer;
-
+fn create_agent() -> impl Agent<E> {
     let qnet = QNetwork::new(4, 2, 0.001);
     let replay_buffer 
         = ReplayBuffer::<E, O, A>::new(10000, 1);
@@ -37,12 +39,17 @@ fn create_agent() -> impl Agent<CartPoleEnv> {
     agent
 }
 
+fn create_env() -> E {
+    let obs_filter = TchPyGymEnvObsRawFilter::new();
+    E::new("CartPole-v0", obs_filter, false).unwrap()
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     tch::manual_seed(42);
 
-    let env = CartPoleEnv::new("CartPole-v0", false)?;
-    let env_eval = CartPoleEnv::new("CartPole-v0", false)?;
+    let env = create_env();
+    let env_eval = create_env();
     let agent = create_agent();
     let mut trainer = Trainer::new(
         env,
@@ -55,7 +62,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     trainer.train();
     trainer.get_agent().save("./examples/model/dqn_cartpole")?;
 
-    let mut env = CartPoleEnv::new("CartPole-v0", false)?;
+    let mut env = create_env();
     let mut agent = create_agent();
     env.set_render(true);
     agent.load("./examples/model/dqn_cartpole")?;

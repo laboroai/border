@@ -4,28 +4,30 @@ use ndarray::Array;
 use lrr::py_gym_env::PyGymEnv;
 use lrr::agents::tch::Shape;
 use lrr::agents::tch::py_gym_env::{TchPyGymEnvObs, TchPyGymEnvContinuousAct};
+use lrr::agents::tch::py_gym_env::act_c::RawFilter;
+use lrr::agents::tch::py_gym_env::obs::TchPyGymEnvObsRawFilter;
 
 #[derive(Debug, Clone)]
-struct MountainCarObsShape {}
+struct ObsShape {}
 
-impl Shape for MountainCarObsShape {
+impl Shape for ObsShape {
     fn shape() -> &'static [usize] {
         &[2]
     }
 }
 
 #[derive(Debug, Clone)]
-struct MountainCarActShape {}
+struct ActShape {}
 
-impl Shape for MountainCarActShape {
+impl Shape for ActShape {
     fn shape() -> &'static [usize] {
         &[1]
     }
 }
 
-type O = TchPyGymEnvObs<MountainCarObsShape, f64>;
-type A = TchPyGymEnvContinuousAct<MountainCarActShape>;
-type E = PyGymEnv<O, A>;
+type O = TchPyGymEnvObs<ObsShape, f64>;
+type A = TchPyGymEnvContinuousAct<ActShape, RawFilter>;
+type E = PyGymEnv<O, A, TchPyGymEnvObsRawFilter<ObsShape, f64>>;
 
 struct RandomPolicy {}
 
@@ -40,7 +42,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     tch::manual_seed(42);
     fastrand::seed(42);
 
-    let mut env = E::new("MountainCarContinuous-v0", true)?;
+    let obs_filter = TchPyGymEnvObsRawFilter::new();
+    let mut env = E::new("MountainCarContinuous-v0", obs_filter, true)?;
     env.set_render(true);
     let mut policy = RandomPolicy{};
     util::eval(&env, &mut policy, 5, None);

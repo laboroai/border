@@ -1,3 +1,3 @@
 pub mod base;
 pub mod vec;
-pub use base::{PyGymInfo, PyGymEnv};
+pub use base::{PyGymInfo, PyGymEnv, ObsFilter};

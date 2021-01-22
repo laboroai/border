@@ -3,19 +3,20 @@ use lrr::core::{Policy, util};
 use lrr::py_gym_env::PyGymEnv;
 use lrr::agents::tch::Shape;
 use lrr::agents::tch::py_gym_env::{TchPyGymEnvObs, TchPyGymEnvDiscreteAct};
+use lrr::agents::tch::py_gym_env::obs::TchPyGymEnvObsRawFilter;
 
 #[derive(Debug, Clone)]
-struct CartPoleObsShape {}
+struct ObsShape {}
 
-impl Shape for CartPoleObsShape {
+impl Shape for ObsShape {
     fn shape() -> &'static [usize] {
         &[4]
     }
 }
 
-type O = TchPyGymEnvObs<CartPoleObsShape, f64>;
+type O = TchPyGymEnvObs<ObsShape, f64>;
 type A = TchPyGymEnvDiscreteAct;
-type E = PyGymEnv<O, A>;
+type E = PyGymEnv<O, A, TchPyGymEnvObsRawFilter<ObsShape, f64>>;
 
 struct RandomPolicy {}
 
@@ -27,12 +28,12 @@ impl Policy<E> for RandomPolicy {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    std::env::set_var("RUST_LOG", "info");
     env_logger::init();
     tch::manual_seed(42);
     fastrand::seed(42);
 
-    let mut env = E::new("CartPole-v0", false)?;
+    let obs_filter = TchPyGymEnvObsRawFilter::new();
+    let mut env = E::new("CartPole-v0", obs_filter, false)?;
     env.set_render(true);
     let mut policy = RandomPolicy{};
     util::eval(&env, &mut policy, 5, None);
