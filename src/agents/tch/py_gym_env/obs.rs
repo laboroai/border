@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 use log::trace;
 use num_traits::cast::AsPrimitive;
-use pyo3::{PyObject};
+use pyo3::PyObject;
 use ndarray::{ArrayD, Axis, IxDyn};
 use numpy::Element;
 use tch::Tensor;
@@ -50,6 +50,18 @@ pub struct TchPyGymEnvObs<S, T> where
 {
     obs: ArrayD<f32>,
     phantom: PhantomData<(S, T)>
+}
+
+impl<S, T> TchPyGymEnvObs<S, T> where
+    S: Shape,
+    T: Element + Debug,
+{
+    pub fn new(obs: ArrayD<f32>) -> Self {
+        Self {
+            obs,
+            phantom: PhantomData
+        }
+    }
 }
 
 impl<S, T> Obs for TchPyGymEnvObs<S, T> where
