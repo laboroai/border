@@ -8,15 +8,16 @@ use lrr::agents::tch::py_gym_env::{
     TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActBuffer
 };
 use lrr::agents::tch::py_gym_env::pong::{
-    TchPyGymEnvObsPongFilter, TchPyGymPongObsShape, PongNet
+    PongObsShape, PongObsFilter, PongNet, PongActFilter
 };
 
-type ObsShape = TchPyGymPongObsShape;
+type ObsShape = PongObsShape;
+type ObsFilter = PongObsFilter;
+type ActFilter = PongActFilter;
 type Obs = TchPyGymEnvObs<ObsShape, u8>;
-type Act = TchPyGymEnvDiscreteAct;
-type ObsFilter = TchPyGymEnvObsPongFilter;
+type Act = TchPyGymEnvDiscreteAct<ActFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8>;
-type ActBuffer = TchPyGymEnvDiscreteActBuffer;
+type ActBuffer = TchPyGymEnvDiscreteActBuffer<ActFilter>;
 type Env = PyGymEnv<Obs, Act, ObsFilter>;
 
 fn create_agent() -> impl Agent<Env> {
@@ -50,7 +51,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         env,
         env_eval,
         agent)
-        .max_opts(1000)
+        .max_opts(10000)
         .n_opts_per_eval(50)
         .n_episodes_per_eval(5);
 

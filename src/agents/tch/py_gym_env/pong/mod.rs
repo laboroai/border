@@ -1,2 +1,2 @@
 pub mod base;
-pub use base::{TchPyGymEnvObsPongFilter, TchPyGymPongObsShape, PongNet};
+pub use base::{PongObsShape, PongObsFilter, PongNet, PongActFilter};

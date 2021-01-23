@@ -10,7 +10,8 @@ use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
 use crate::py_gym_env::ObsFilter;
 use crate::agents::tch::Shape;
 use crate::agents::tch::model::{ModelBase, Model1};
-use crate::agents::tch::py_gym_env::TchPyGymEnvObs;
+use crate::agents::tch::py_gym_env::obs::TchPyGymEnvObs;
+use crate::agents::tch::py_gym_env::act_d::TchPyGymDiscreteActFilter;
 
 /// Returns ArrayD<u8>, not ArrayD<f32>
 fn pyobj_to_arrayd<S: Shape>(obs: PyObject) -> ArrayD<u8> {
@@ -35,6 +36,18 @@ fn pyobj_to_arrayd<S: Shape>(obs: PyObject) -> ArrayD<u8> {
     })
 }
 
+#[derive(Clone, Debug)]
+pub struct PongActFilter {}
+
+impl TchPyGymDiscreteActFilter for PongActFilter {
+    /// Add 2 to action.
+    ///
+    /// In Pong environment, 2 and 3 are up and down actions.
+    fn filt(act: Vec<i32>) -> Vec<i32> {
+        act.iter().map(|v| v + 2).collect()
+    }
+}
+
 /// Apply a filter to image observations in Pong.
 ///
 /// Code is adapted from [TensorFlow reinforcement learning Pong agent](https://github.com/mrahtz/tensorflow-rl-pong/blob/master/pong.py).
@@ -50,24 +63,22 @@ fn filt_pong(img: ArrayD<u8>) -> ArrayD<f32> {
 }
 
 #[derive(Clone, Debug)]
-pub struct TchPyGymPongObsShape;
+pub struct PongObsShape;
 
 /// Shape of image observation of Pong.
 ///
 /// It is after preprovessing by TchPyGymEnvObsPongFilter.
-impl Shape for TchPyGymPongObsShape {
+impl Shape for PongObsShape {
     fn shape() -> &'static [usize] {
         &[80, 80]
     }
 }
 
-type PongObsShape = TchPyGymPongObsShape;
-
-pub struct TchPyGymEnvObsPongFilter {
+pub struct PongObsFilter {
     obs_prev: RefCell<ArrayD<f32>>,
 }
 
-impl TchPyGymEnvObsPongFilter {
+impl PongObsFilter {
     pub fn new() -> Self {
         Self {
             obs_prev: RefCell::new(ArrayD::<f32>::zeros(PongObsShape::shape())),
@@ -77,9 +88,9 @@ impl TchPyGymEnvObsPongFilter {
 
 type PongObs = TchPyGymEnvObs<PongObsShape, u8>;
 
-impl ObsFilter<PongObs> for TchPyGymEnvObsPongFilter {
+impl ObsFilter<PongObs> for PongObsFilter {
     fn filt(&self, obs: PyObject) -> PongObs {
-        let obs = pyobj_to_arrayd::<TchPyGymPongObsShape>(obs);
+        let obs = pyobj_to_arrayd::<PongObsShape>(obs);
         let obs = filt_pong(obs);
         let obs_prev = self.obs_prev.replace(obs);
         let obs = self.obs_prev.borrow().clone() - obs_prev;
@@ -110,7 +121,7 @@ impl Clone for PongNet {
 impl PongNet {
     pub fn new(learning_rate: f64) -> Self {
         let in_dim = (80 * 80) as _;
-        let out_dim = 6 as _;
+        let out_dim = 2 as _;
         let vs = nn::VarStore::new(tch::Device::Cpu);
         let p = &vs.root();
 
