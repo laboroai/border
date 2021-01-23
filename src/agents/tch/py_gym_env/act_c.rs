@@ -94,8 +94,8 @@ impl<S: Shape, F: TchPyGymActFilter> TchBuffer for TchPyGymEnvContinuousActBuffe
     }
 
     fn push(&mut self, index: i64, item: &Self::Item) {
-        let act = try_from(item.act.clone()).unwrap();
-        trace!("TchPyGymDiscreteActBuffer.push(): {:?}", act);
+        let act: Tensor = try_from(item.act.clone()).unwrap();
+        debug_assert_eq!(act.size().as_slice(), &self.act.size()[1..]);
         self.act.get(index).copy_(&act);
     }
 

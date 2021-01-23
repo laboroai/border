@@ -127,7 +127,8 @@ impl<S, T> TchBuffer for TchPyGymEnvObsBuffer<S, T> where
     }
 
     fn push(&mut self, index: i64, item: &Self::Item) {
-        let obs = item.clone().into();
+        let obs: Tensor = item.clone().into();
+        debug_assert_eq!(obs.size().as_slice(), &self.obs.size()[1..]);
         self.obs.get(index).copy_(&obs);
     }
 
