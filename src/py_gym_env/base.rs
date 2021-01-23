@@ -14,8 +14,14 @@ impl Info for PyGymInfo {}
 
 
 /// Convert PyObject to Env::Obs.
+///
+/// The methods in the trait are called inside PyGymEnv.
 pub trait ObsFilter<O: Obs> {
     fn filt(&self, obs: PyObject) -> O;
+
+    fn reset(&self, obs: PyObject) -> O {
+        self.filt(obs)
+    }
 }
 
 /// Adapted from [tch-rs RL example](https://github.com/LaurentMazare/tch-rs/tree/master/examples/reinforcement-learning).
@@ -115,7 +121,7 @@ impl<O, A, F> Env for PyGymEnv<O, A, F> where
             None => {
                 pyo3::Python::with_gil(|py| {
                     let obs = self.env.call_method0(py, "reset")?;
-                    Ok(self.obs_filter.filt(obs))
+                    Ok(self.obs_filter.reset(obs))
                 })
             },
             Some(v) => {
@@ -126,7 +132,7 @@ impl<O, A, F> Env for PyGymEnv<O, A, F> where
                     self.count_steps.replace(0);
                     pyo3::Python::with_gil(|py| {
                         let obs = self.env.call_method0(py, "reset")?;
-                        Ok(self.obs_filter.filt(obs))
+                        Ok(self.obs_filter.reset(obs))
                     })
                 }
             }
