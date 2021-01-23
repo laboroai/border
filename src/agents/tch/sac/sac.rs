@@ -264,7 +264,7 @@ impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A> where
     }
 
     fn observe(&mut self, step: Step<E>) -> bool {
-        trace!("SAC.observe()");
+        trace!("SAC::observe()");
 
         // Check if doing optimization
         let do_optimize = self.opt_interval_counter.do_optimize(&step.is_done)

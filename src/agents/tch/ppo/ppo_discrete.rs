@@ -87,7 +87,7 @@ impl<E, M, O, A> PPODiscrete<E, M, O, A> where
     }
 
     fn update_model(&mut self, batch: TchBatch<E, O, A>) {
-        trace!("Start ppo_discrete.update_qnet()");
+        trace!("PPODiscrete::update_qnet()");
 
         // adapted from ppo.rs in tch-rs RL example
         trace!("batch.obs.shape      = {:?}", &batch.obs.size());
@@ -165,7 +165,7 @@ impl <E, M, O, A> Agent<E> for PPODiscrete<E, M, O, A> where
     }
 
     fn observe(&mut self, step: Step<E>) -> bool {
-        trace!("Start ppo_discrete.observe()");
+        trace!("PPODiscrete.observe()");
 
         // Push transition to the replay buffer
         self.push_transition(step);
