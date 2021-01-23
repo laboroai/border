@@ -14,14 +14,15 @@ impl Shape for ObsShape {
     }
 }
 
-type O = TchPyGymEnvObs<ObsShape, u8>;
-type A = TchPyGymEnvDiscreteAct;
-type E = PyGymEnv<O, A, TchPyGymEnvObsRawFilter<ObsShape, u8>>;
+type Obs = TchPyGymEnvObs<ObsShape, u8>;
+type Act = TchPyGymEnvDiscreteAct;
+type ObsFilter = TchPyGymEnvObsRawFilter<ObsShape, u8>;
+type Env = PyGymEnv<Obs, Act, ObsFilter>;
 
 struct RandomPolicy {}
 
-impl Policy<E> for RandomPolicy {
-    fn sample(&mut self, _: &O) -> TchPyGymEnvDiscreteAct {
+impl Policy<Env> for RandomPolicy {
+    fn sample(&mut self, _: &Obs) -> Act {
         let v = fastrand::u32(..=5);
         TchPyGymEnvDiscreteAct(vec![v as i32])
     }
@@ -32,8 +33,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     tch::manual_seed(42);
     fastrand::seed(42);
 
-    let obs_filter = TchPyGymEnvObsRawFilter::new();
-    let mut env = E::new("Pong-v0", obs_filter, false)?;
+    let obs_filter = ObsFilter::new();
+    let mut env = Env::new("Pong-v0", obs_filter, false)?;
     env.set_render(true);
     let mut policy = RandomPolicy{};
     util::eval(&env, &mut policy, 5, None);
