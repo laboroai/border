@@ -31,6 +31,9 @@ fn pyobj_to_arrayd<S: Shape>(obs: PyObject) -> ArrayD<u8> {
     })
 }
 
+/// Apply a filter to image observations in Pong.
+///
+/// Code is adapted from [TensorFlow reinforcement learning Pong agent](https://github.com/mrahtz/tensorflow-rl-pong/blob/master/pong.py).
 fn filt_pong(img: ArrayD<u8>) -> ArrayD<f32> {
     img.slice(s![35..195, .., ..]).slice(s![..;2, ..;2, ..]).index_axis(Axis(2), 0)
     .mapv(|x| { match x {
@@ -45,9 +48,12 @@ fn filt_pong(img: ArrayD<u8>) -> ArrayD<f32> {
 #[derive(Clone, Debug)]
 pub struct TchPyGymPongObsShape;
 
+/// Shape of image observation of Pong.
+///
+/// It is after preprovessing by TchPyGymEnvObsPongFilter.
 impl Shape for TchPyGymPongObsShape {
     fn shape() -> &'static [usize] {
-        &[210, 160]
+        &[80, 80]
     }
 }
 
