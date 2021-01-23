@@ -3,11 +3,11 @@ use lrr::core::{Trainer, Agent, util};
 use lrr::py_gym_env::PyGymEnv;
 use lrr::agents::OptInterval;
 use lrr::agents::tch::{Shape, DQN, QNetwork, ReplayBuffer};
-use lrr::agents::tch::py_gym_env::act_d::{
-    TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActRawFilter, TchPyGymEnvDiscreteActBuffer
-};
 use lrr::agents::tch::py_gym_env::obs::{
     TchPyGymEnvObs, TchPyGymEnvObsRawFilter, TchPyGymEnvObsBuffer
+};
+use lrr::agents::tch::py_gym_env::act_d::{
+    TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActRawFilter, TchPyGymEnvDiscreteActBuffer
 };
 
 #[derive(Debug, Clone)]

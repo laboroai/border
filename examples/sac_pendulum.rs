@@ -5,10 +5,12 @@ use lrr::py_gym_env::PyGymEnv;
 use lrr::agents::OptInterval;
 use lrr::agents::tch::{SAC, ReplayBuffer, Shape};
 use lrr::agents::tch::model::{Model1_2, Model2_1};
-use lrr::agents::tch::py_gym_env::{TchPyGymEnvObs, TchPyGymEnvContinuousAct,
-    TchPyGymEnvContinuousActBuffer, TchPyGymEnvObsBuffer};
-use lrr::agents::tch::py_gym_env::act_c::TchPyGymActFilter;
-use lrr::agents::tch::py_gym_env::obs::TchPyGymEnvObsRawFilter;
+use lrr::agents::tch::py_gym_env::obs::{
+    TchPyGymEnvObs, TchPyGymEnvObsBuffer, TchPyGymEnvObsRawFilter
+};
+use lrr::agents::tch::py_gym_env::act_c::{
+    TchPyGymEnvContinuousAct, TchPyGymEnvContinuousActBuffer, TchPyGymActFilter
+};
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -41,19 +43,18 @@ impl TchPyGymActFilter for ActFilter {
     }
 }
 
-type E = PyGymEnv<
-    TchPyGymEnvObs<ObsShape, f64>,
-    TchPyGymEnvContinuousAct<ActShape, ActFilter>,
-    TchPyGymEnvObsRawFilter<ObsShape, f64>>;
-type O = TchPyGymEnvObsBuffer<ObsShape, f64>;
-type A = TchPyGymEnvContinuousActBuffer<ActShape, ActFilter>;
+type ObsFilter = TchPyGymEnvObsRawFilter<ObsShape, f64>;
+type Obs = TchPyGymEnvObs<ObsShape, f64>;
+type Act = TchPyGymEnvContinuousAct<ActShape, ActFilter>;
+type Env = PyGymEnv<Obs, Act, ObsFilter>;
+type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
+type ActBuffer = TchPyGymEnvContinuousActBuffer<ActShape, ActFilter>;
 
-fn create_agent() -> impl Agent<E> {
+fn create_agent() -> impl Agent<Env> {
     let qnet = Model2_1::new(4, 1, 1e-3);
     let pi = Model1_2::new(3, 1, 1e-4);
-    let replay_buffer
-        = ReplayBuffer::<E, O, A>::new(100_000, 1);
-    let agent: SAC<E, _, _, _, _> = SAC::new(
+    let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(100_000, 1);
+    let agent: SAC<Env, _, _, _, _> = SAC::new(
         qnet,
         pi,
         replay_buffer)
@@ -67,9 +68,9 @@ fn create_agent() -> impl Agent<E> {
     agent
 }
 
-fn create_env() -> E {
-    let obs_filter = TchPyGymEnvObsRawFilter::new();
-    E::new("Pendulum-v0", obs_filter, true)
+fn create_env() -> Env {
+    let obs_filter = ObsFilter::new();
+    Env::new("Pendulum-v0", obs_filter, true)
         .unwrap()
         .max_steps(Some(200))
 }
