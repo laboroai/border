@@ -2,8 +2,10 @@ use std::error::Error;
 use lrr::core::{Policy, util};
 use lrr::py_gym_env::PyGymEnv;
 use lrr::agents::tch::Shape;
-use lrr::agents::tch::py_gym_env::{TchPyGymEnvObs, TchPyGymEnvDiscreteAct};
-use lrr::agents::tch::py_gym_env::obs::TchPyGymEnvObsRawFilter;
+use lrr::agents::tch::py_gym_env::obs::{TchPyGymEnvObs, TchPyGymEnvObsRawFilter};
+use lrr::agents::tch::py_gym_env::act_d::{
+    TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActRawFilter
+};
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -14,9 +16,10 @@ impl Shape for ObsShape {
     }
 }
 
-type Obs = TchPyGymEnvObs<ObsShape, u8>;
-type Act = TchPyGymEnvDiscreteAct;
 type ObsFilter = TchPyGymEnvObsRawFilter<ObsShape, u8>;
+type ActFilter = TchPyGymEnvDiscreteActRawFilter;
+type Obs = TchPyGymEnvObs<ObsShape, u8>;
+type Act = TchPyGymEnvDiscreteAct<ActFilter>;
 type Env = PyGymEnv<Obs, Act, ObsFilter>;
 
 struct RandomPolicy {}
@@ -24,7 +27,7 @@ struct RandomPolicy {}
 impl Policy<Env> for RandomPolicy {
     fn sample(&mut self, _: &Obs) -> Act {
         let v = fastrand::u32(..=5);
-        TchPyGymEnvDiscreteAct(vec![v as i32])
+        Act::new(vec![v as i32])
     }
 }
 

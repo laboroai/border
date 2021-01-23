@@ -3,9 +3,12 @@ use lrr::core::{Trainer, Agent, util};
 use lrr::py_gym_env::PyGymEnv;
 use lrr::agents::OptInterval;
 use lrr::agents::tch::{Shape, DQN, QNetwork, ReplayBuffer};
-use lrr::agents::tch::py_gym_env::{TchPyGymEnvObs, TchPyGymEnvDiscreteAct,
-    TchPyGymEnvDiscreteActBuffer, TchPyGymEnvObsBuffer};
-use lrr::agents::tch::py_gym_env::obs::TchPyGymEnvObsRawFilter;
+use lrr::agents::tch::py_gym_env::act_d::{
+    TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActRawFilter, TchPyGymEnvDiscreteActBuffer
+};
+use lrr::agents::tch::py_gym_env::obs::{
+    TchPyGymEnvObs, TchPyGymEnvObsRawFilter, TchPyGymEnvObsBuffer
+};
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -16,18 +19,18 @@ impl Shape for ObsShape {
     }
 }
 
-type E = PyGymEnv<
-    TchPyGymEnvObs<ObsShape, f64>,
-    TchPyGymEnvDiscreteAct,
-    TchPyGymEnvObsRawFilter<ObsShape, f64>>;
-type O = TchPyGymEnvObsBuffer<ObsShape, f64>;
-type A = TchPyGymEnvDiscreteActBuffer;
+type ObsFilter = TchPyGymEnvObsRawFilter<ObsShape, f64>;
+type ActFilter = TchPyGymEnvDiscreteActRawFilter;
+type Obs = TchPyGymEnvObs<ObsShape, f64>;
+type Act = TchPyGymEnvDiscreteAct<ActFilter>;
+type Env = PyGymEnv<Obs, Act, ObsFilter>;
+type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
+type ActBuffer = TchPyGymEnvDiscreteActBuffer<ActFilter>;
 
-fn create_agent() -> impl Agent<E> {
+fn create_agent() -> impl Agent<Env> {
     let qnet = QNetwork::new(4, 2, 0.001);
-    let replay_buffer 
-        = ReplayBuffer::<E, O, A>::new(10000, 1);
-    let agent: DQN<E, _, _, _> = DQN::new(
+    let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(10000, 1);
+    let agent: DQN<Env, _, _, _> = DQN::new(
         qnet,
         replay_buffer)
         .opt_interval(OptInterval::Steps(50))
@@ -39,9 +42,9 @@ fn create_agent() -> impl Agent<E> {
     agent
 }
 
-fn create_env() -> E {
-    let obs_filter = TchPyGymEnvObsRawFilter::new();
-    E::new("CartPole-v0", obs_filter, false).unwrap()
+fn create_env() -> Env {
+    let obs_filter = ObsFilter::new();
+    Env::new("CartPole-v0", obs_filter, false).unwrap()
 }
 
 fn main() -> Result<(), Box<dyn Error>> {

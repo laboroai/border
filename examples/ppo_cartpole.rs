@@ -1,11 +1,14 @@
 use std::error::Error;
 use lrr::core::{Trainer, Agent, util};
 use lrr::py_gym_env::PyGymEnv;
-use lrr::agents::OptInterval;
+// use lrr::agents::OptInterval;
 use lrr::agents::tch::{Shape, PPODiscrete};
-use lrr::agents::tch::py_gym_env::{TchPyGymEnvObs, TchPyGymEnvDiscreteAct,
-    TchPyGymEnvDiscreteActBuffer, TchPyGymEnvObsBuffer};
-use lrr::agents::tch::py_gym_env::obs::TchPyGymEnvObsRawFilter;
+use lrr::agents::tch::py_gym_env::obs::{
+    TchPyGymEnvObs, TchPyGymEnvObsRawFilter, TchPyGymEnvObsBuffer
+};
+use lrr::agents::tch::py_gym_env::act_d::{
+    TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActRawFilter, TchPyGymEnvDiscreteActBuffer
+};
 use lrr::agents::tch::model::StateValueAndDiscreteActProb;
 
 #[derive(Debug, Clone)]
@@ -17,16 +20,17 @@ impl Shape for ObsShape {
     }
 }
 
-type E = PyGymEnv<
-    TchPyGymEnvObs<ObsShape, f64>,
-    TchPyGymEnvDiscreteAct,
-    TchPyGymEnvObsRawFilter<ObsShape, f64>>;
-type O = TchPyGymEnvObsBuffer<ObsShape, f64>;
-type A = TchPyGymEnvDiscreteActBuffer;
+type ObsFilter = TchPyGymEnvObsRawFilter<ObsShape, f64>;
+type ActFilter = TchPyGymEnvDiscreteActRawFilter;
+type Obs = TchPyGymEnvObs<ObsShape, f64>;
+type Act = TchPyGymEnvDiscreteAct<ActFilter>;
+type Env = PyGymEnv<Obs, Act, ObsFilter>;
+type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
+type ActBuffer = TchPyGymEnvDiscreteActBuffer<ActFilter>;
 
-fn create_agent() -> impl Agent<E> {
+fn create_agent() -> impl Agent<Env> {
     let mh_model = StateValueAndDiscreteActProb::new(4, 2, 0.0001);
-    let agent: PPODiscrete<E, _, O, A> = PPODiscrete::new(
+    let agent: PPODiscrete<Env, _, ObsBuffer, ActBuffer> = PPODiscrete::new(
         mh_model, 100, 1)
         .n_updates_per_opt(1)
         .batch_size(64)
@@ -34,9 +38,9 @@ fn create_agent() -> impl Agent<E> {
     agent
 }
 
-fn create_env() -> E {
+fn create_env() -> Env {
     let obs_filter = TchPyGymEnvObsRawFilter::new();
-    E::new("CartPole-v0", obs_filter, false).unwrap()
+    Env::new("CartPole-v0", obs_filter, false).unwrap()
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
