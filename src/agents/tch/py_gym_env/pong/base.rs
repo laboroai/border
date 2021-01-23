@@ -13,28 +13,42 @@ use crate::agents::tch::model::{ModelBase, Model1};
 use crate::agents::tch::py_gym_env::obs::TchPyGymEnvObs;
 use crate::agents::tch::py_gym_env::act_d::TchPyGymDiscreteActFilter;
 
-/// Returns ArrayD<u8>, not ArrayD<f32>
-fn pyobj_to_arrayd<S: Shape>(obs: PyObject) -> ArrayD<u8> {
-    pyo3::Python::with_gil(|py| {
-        let obs: &PyArrayDyn<u8> = obs.extract(py).unwrap();
-        let obs = obs.to_owned_array();
-        let obs = obs.mapv(|elem| elem.as_());
-        let obs = {
-            if obs.shape().len() == S::shape().len() + 1 {
-                // In this case obs has a dimension for n_procs
-                obs
-            }
-            else if obs.shape().len() == S::shape().len() {
-                // add dimension for n_procs
-                obs.insert_axis(Axis(0))
-            }
-            else {
-                panic!();
-            }
-        };
-        obs
-    })
-}
+// /// Returns ArrayD<u8>, not ArrayD<f32>
+// fn pyobj_to_arrayd<S: Shape>(obs: PyObject) -> ArrayD<u8> {
+//     pyo3::Python::with_gil(|py| {
+//         let obs: &PyArrayDyn<u8> = obs.extract(py).unwrap();
+//         let obs = obs.to_owned_array();
+//         let obs = obs.mapv(|elem| elem.as_());
+//         let obs = {
+//             if obs.shape().len() == S::shape().len() + 1 {
+//                 // In this case obs has a dimension for n_procs
+//                 obs
+//             }
+//             else if obs.shape().len() == S::shape().len() {
+//                 // add dimension for n_procs
+//                 obs.insert_axis(Axis(0))
+//             }
+//             else {
+//                 panic!();
+//             }
+//         };
+//         obs
+//     })
+// }
+
+// /// Apply a filter to image observations in Pong.
+// ///
+// /// Code is adapted from [TensorFlow reinforcement learning Pong agent](https://github.com/mrahtz/tensorflow-rl-pong/blob/master/pong.py).
+// fn filt_pong(img: ArrayD<u8>) -> ArrayD<f32> {
+//     img.slice(s![35..195, .., ..]).slice(s![..;2, ..;2, ..]).index_axis(Axis(2), 0)
+//     .mapv(|x| { match x {
+//         144 => 0f32,
+//         109 => 0f32,
+//         0 => 0f32,
+//         _ => 1f32
+//     }})
+//     .into_dyn()
+// }
 
 #[derive(Clone, Debug)]
 pub struct PongActFilter {}
@@ -46,20 +60,6 @@ impl TchPyGymDiscreteActFilter for PongActFilter {
     fn filt(act: Vec<i32>) -> Vec<i32> {
         act.iter().map(|v| v + 2).collect()
     }
-}
-
-/// Apply a filter to image observations in Pong.
-///
-/// Code is adapted from [TensorFlow reinforcement learning Pong agent](https://github.com/mrahtz/tensorflow-rl-pong/blob/master/pong.py).
-fn filt_pong(img: ArrayD<u8>) -> ArrayD<f32> {
-    img.slice(s![35..195, .., ..]).slice(s![..;2, ..;2, ..]).index_axis(Axis(2), 0)
-    .mapv(|x| { match x {
-        144 => 0f32,
-        109 => 0f32,
-        0 => 0f32,
-        _ => 1f32
-    }})
-    .into_dyn()
 }
 
 #[derive(Clone, Debug)]
@@ -90,8 +90,23 @@ type PongObs = TchPyGymEnvObs<PongObsShape, u8>;
 
 impl ObsFilter<PongObs> for PongObsFilter {
     fn filt(&self, obs: PyObject) -> PongObs {
-        let obs = pyobj_to_arrayd::<PongObsShape>(obs);
-        let obs = filt_pong(obs);
+        let obs = pyo3::Python::with_gil(|py| {
+            let obs: &PyArrayDyn<u8> = obs.extract(py).unwrap();
+            debug_assert!(obs.shape() == [210, 160, 3]);
+            let obs = obs.to_owned_array();
+            obs.mapv(|elem| elem.as_())
+        });
+        let obs = {
+            obs.slice(s![35..195, .., ..]).slice(s![..;2, ..;2, ..]).index_axis(Axis(2), 0)
+            .mapv(|x| { match x {
+                144 => 0f32,
+                109 => 0f32,
+                0 => 0f32,
+                _ => 1f32
+            }})
+            .insert_axis(Axis(0))
+            .into_dyn()
+        };
         let obs_prev = self.obs_prev.replace(obs);
         let obs = self.obs_prev.borrow().clone() - obs_prev;
         PongObs::new(obs)
