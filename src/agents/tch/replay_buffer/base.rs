@@ -69,6 +69,12 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
         }
     }
 
+    pub fn clear(&mut self) {
+        self.len = 0;
+        self.i = 0;
+        self.returns = None;
+    }
+
     pub fn push(&mut self, obs: &O::Item, act: &A::Item, reward: &Tensor, next_obs: &O::Item,
                 not_done: &Tensor) {
         let i = (self.i % self.capacity) as i64;
