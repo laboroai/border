@@ -1,47 +1,53 @@
-use std::{path::Path, error::Error};
+use std::{path::Path, error::Error, fmt, fmt::{Formatter, Debug}};
 use log::{info, trace};
 use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
 use crate::agents::tch::model::{ModelBase, Model1};
 
-#[derive(Debug)]
 pub struct Model1_2 {
     var_store: nn::VarStore,
+    network_fn: fn(&nn::Path, usize, usize) -> nn::Sequential,
     network: nn::Sequential,
     device: Device,
     opt: nn::Optimizer<nn::Adam>,
     head_mean: nn::Linear,
     head_lstd: nn::Linear,
     in_dim: usize,
+    hidden_dim: usize,
     out_dim: usize,
     learning_rate: f64
 }
 
+// TODO: implement this
+impl Debug for Model1_2 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result { Ok(()) }
+}
+
 impl Clone for Model1_2 {
     fn clone(&self) -> Self {
-        let mut new = Self::new(self.in_dim, self.out_dim, self.learning_rate);
+        let mut new = Self::new(self.in_dim, self.hidden_dim, self.out_dim,
+                                self.learning_rate, self.network_fn);
         new.var_store.copy(&self.var_store).unwrap();
         new
     }
 }
 
 impl Model1_2 {
-    pub fn new(in_dim: usize, out_dim: usize, learning_rate: f64) -> Self {
+    pub fn new(in_dim: usize, hidden_dim: usize, out_dim: usize, learning_rate: f64,
+        network_fn: fn(&nn::Path, usize, usize) -> nn::Sequential) -> Self {
         let vs = nn::VarStore::new(tch::Device::Cpu);
         let p = &vs.root();
-        let network = nn::seq()
-            .add(nn::linear(p / "al1", in_dim as _, 400, Default::default()))
-            .add_fn(|xs| xs.relu())
-            .add(nn::linear(p / "al2", 400, 300, Default::default()))
-            .add_fn(|xs| xs.relu());
-            let head_mean = nn::linear(p / "ml", 300, out_dim as _, Default::default());
-            let head_lstd = nn::linear(p / "sl", 300, out_dim as _, Default::default());
+        let network = network_fn(p, in_dim, hidden_dim);
+        let head_mean = nn::linear(p / "ml", hidden_dim as _, out_dim as _, Default::default());
+        let head_lstd = nn::linear(p / "sl", hidden_dim as _, out_dim as _, Default::default());
 
         let opt = nn::Adam::default().build(&vs, learning_rate).unwrap();
         Self {
             network,
+            network_fn,
             device: p.device(),
             var_store: vs,
             in_dim,
+            hidden_dim,
             out_dim,
             head_mean,
             head_lstd,

@@ -47,12 +47,11 @@ fn create_actor() -> Model1_1 {
 
 fn create_critic() -> Model2_1 {
     let network_fn = |p: &nn::Path, in_dim, out_dim| nn::seq()
-        .add(nn::linear(p / "al1", in_dim as _, 64, Default::default()))
+        .add(nn::linear(p / "cl1", in_dim as _, 64, Default::default()))
         .add_fn(|xs| xs.relu())
-        .add(nn::linear(p / "al2", 64, 64, Default::default()))
+        .add(nn::linear(p / "cl2", 64, 64, Default::default()))
         .add_fn(|xs| xs.relu())
-        .add(nn::linear(p / "al3", 64, out_dim as _, Default::default()));
-        // .add_fn(|xs| xs.tanh());
+        .add(nn::linear(p / "cl3", 64, out_dim as _, Default::default()));
         Model2_1::new(10, 1, 3e-4, network_fn)
 }
 
@@ -65,8 +64,8 @@ type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f32>;
 type ActBuffer = TchPyGymEnvContinuousActBuffer<ActShape, ActFilter>;
 
 fn create_agent() -> impl Agent<Env> {
-    let actor = create_actor(); // Model1_1::new(8, 2, 1e-4);
-    let critic = create_critic(); // Model2_1::new(10, 1, 1e-3);
+    let actor = create_actor();
+    let critic = create_critic();
     let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(100_000, 1);
     let agent: DDPG<Env, _, _, _, _> = DDPG::new(
         critic,
@@ -100,8 +99,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         env,
         env_eval,
         agent)
-        .max_opts(1000000)
-        .n_opts_per_eval(10000)
+        .max_opts(200_000)
+        .n_opts_per_eval(10_000)
         .n_episodes_per_eval(5);
 
     trainer.train();

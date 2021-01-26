@@ -1,4 +1,5 @@
 use std::error::Error;
+use tch::nn;
 use lrr::core::{Agent, Trainer, util};
 use lrr::py_gym_env::PyGymEnv;
 use lrr::agents::OptInterval;
@@ -33,6 +34,29 @@ impl Shape for ActShape {
     }
 }
 
+// TODO: set action scale 2.0, as sac_pendulum
+
+fn create_actor() -> Model1_1 {
+    let network_fn = |p: &nn::Path, in_dim, out_dim| nn::seq()
+        .add(nn::linear(p / "al1", in_dim as _, 64, Default::default()))
+        .add_fn(|xs| xs.relu())
+        .add(nn::linear(p / "al2", 64, 64, Default::default()))
+        .add_fn(|xs| xs.relu())
+        .add(nn::linear(p / "al3", 64, out_dim as _, Default::default()))
+        .add_fn(|xs| xs.tanh());
+    Model1_1::new(3, 1, 3e-4, network_fn)
+}
+
+fn create_critic() -> Model2_1 {
+    let network_fn = |p: &nn::Path, in_dim, out_dim| nn::seq()
+        .add(nn::linear(p / "al1", in_dim as _, 64, Default::default()))
+        .add_fn(|xs| xs.relu())
+        .add(nn::linear(p / "al2", 64, 64, Default::default()))
+        .add_fn(|xs| xs.relu())
+        .add(nn::linear(p / "al3", 64, out_dim as _, Default::default()));
+        Model2_1::new(4, 1, 3e-4, network_fn)
+}
+
 type ObsFilter = TchPyGymEnvObsRawFilter<ObsShape, f64>;
 type ActFilter = RawFilter;
 type Obs = TchPyGymEnvObs<ObsShape, f64>;
@@ -42,19 +66,19 @@ type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
 type ActBuffer = TchPyGymEnvContinuousActBuffer<ActShape, ActFilter>;
 
 fn create_agent() -> impl Agent<Env> {
-    let critic = Model2_1::new(4, 1, 1e-3);
-    let actor = Model1_1::new(3, 1, 1e-4);
+    let actor = create_actor();
+    let critic = create_critic();
     let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(100_000, 1);
     let agent: DDPG<Env, _, _, _, _> = DDPG::new(
         critic,
         actor,
         replay_buffer)
-        .opt_interval(OptInterval::Steps(200))
-        .n_updates_per_opt(200)
-        .min_transitions_warmup(200)
-        .batch_size(100)
+        .opt_interval(OptInterval::Steps(1))
+        .n_updates_per_opt(1)
+        .min_transitions_warmup(1000)
+        .batch_size(128)
         .discount_factor(0.99)
-        .tau(0.005);
+        .tau(0.001);
     agent
 }
 
@@ -76,8 +100,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         env,
         env_eval,
         agent)
-        .max_opts(100)
-        .n_opts_per_eval(1)
+        .max_opts(200_000)
+        .n_opts_per_eval(10_000)
         .n_episodes_per_eval(5);
 
     trainer.train();
