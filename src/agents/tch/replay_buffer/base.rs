@@ -3,6 +3,16 @@ use std::marker::PhantomData;
 use tch::{Tensor, kind::{FLOAT_CPU, INT64_CPU}};
 use crate::core::{Env};
 
+/// Return binary tensor, one where reward is not zero.
+///
+/// TODO: Add test.
+fn zero_reward(reward: &Tensor) -> Tensor {
+    let zero_reward = Vec::<f32>::from(reward).iter()
+        .map(|x| {if *x == 0f32 { 1f32 } else { 0f32 }})
+        .collect::<Vec<_>>();
+    Tensor::of_slice(&zero_reward)
+}
+
 pub trait TchBuffer {
     type Item;
     type SubBatch;
@@ -44,6 +54,7 @@ pub struct ReplayBuffer<E, O, A> where
     len: usize,
     i: usize,
     n_procs: usize,
+    nonzero_reward_as_done: bool,
     phandom: PhantomData<E>,
 }
 
@@ -65,8 +76,13 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
             len: 0,
             i: 0,
             n_procs,
+            nonzero_reward_as_done: false,
             phandom: PhantomData,
         }
+    }
+
+    pub fn nonzero_reward_as_done(&mut self, v: bool) {
+        self.nonzero_reward_as_done = v;
     }
 
     pub fn clear(&mut self) {
@@ -82,7 +98,17 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
         self.next_obs.push(i, next_obs);
         self.actions.push(i, act);
         self.rewards.get(i as _).copy_(reward);
-        self.not_dones.get(i as _).copy_(not_done);
+
+        // println!("{:?}", not_done.size());
+        if !self.nonzero_reward_as_done {
+            self.not_dones.get(i as _).copy_(&not_done);
+        }
+        else {
+            let zero_reward = zero_reward(reward);
+            self.not_dones.get(i as _).copy_(&(zero_reward * not_done));
+        }
+        // println!("{:?}", not_done.size());
+        // panic!();
         self.i += 1;
         if self.len < self.capacity {
             self.len += 1;
