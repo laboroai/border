@@ -81,8 +81,9 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
         }
     }
 
-    pub fn nonzero_reward_as_done(&mut self, v: bool) {
+    pub fn nonzero_reward_as_done(mut self, v: bool) -> Self {
         self.nonzero_reward_as_done = v;
+        self
     }
 
     pub fn clear(&mut self) {

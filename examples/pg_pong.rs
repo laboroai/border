@@ -1,14 +1,16 @@
 use std::error::Error;
+use tch::nn;
 use lrr::core::{Trainer, Agent, util};
 use lrr::py_gym_env::PyGymEnv;
 use lrr::agents::OptInterval;
-use lrr::agents::tch::{DQN, ReplayBuffer};
-use lrr::agents::tch::py_gym_env::{
-    TchPyGymEnvObs, TchPyGymEnvObsBuffer,
-    TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActBuffer
+use lrr::agents::tch::{{Shape, ReplayBuffer}, pg::discrete::PGDiscrete};
+use lrr::agents::tch::model::Model1_1;
+use lrr::agents::tch::py_gym_env::obs::{
+    TchPyGymEnvObs, TchPyGymEnvObsRawFilter, TchPyGymEnvObsBuffer
 };
+use lrr::agents::tch::py_gym_env::act_d::{TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActBuffer};
 use lrr::agents::tch::py_gym_env::pong::{
-    PongObsShape, PongObsFilter, PongNet, PongActFilter
+    PongObsShape, PongObsFilter, PongActFilter
 };
 
 type ObsShape = PongObsShape;
@@ -20,17 +22,24 @@ type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer<ActFilter>;
 type Env = PyGymEnv<Obs, Act, ObsFilter>;
 
+fn create_actor() -> Model1_1 {
+    let network_fn = |p: &nn::Path, in_dim, out_dim| nn::seq()
+        .add_fn(move |xs| xs.reshape(&[-1, in_dim as _]))
+        .add(nn::linear(p / "al1", in_dim as _, 200, Default::default()))
+        .add_fn(|xs| xs.relu())
+        .add(nn::linear(p / "al2", 200, out_dim as _, Default::default()));
+    Model1_1::new(80 * 80, 2, 3e-4, network_fn)
+}
+
 fn create_agent() -> impl Agent<Env> {
-    let qnet = PongNet::new(0.001);
+    let actor = create_actor();
     let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(10000, 1)
         .nonzero_reward_as_done(true);
-    let agent: DQN<Env, _, _, _> = DQN::new(qnet, replay_buffer)
+    let agent: PGDiscrete<Env, _, _, _> = PGDiscrete::new(actor, replay_buffer)
         .opt_interval(OptInterval::Episodes(1))
-        .n_updates_per_opt(10)
-        .min_transitions_warmup(100)
-        .batch_size(64)
-        .discount_factor(0.99)
-        .tau(0.005);
+        .n_updates_per_opt(5)
+        .batch_size(128)
+        .discount_factor(0.99);
     agent
 }
 
@@ -46,21 +55,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     let env = create_env();
     let env_eval = create_env();
     let agent = create_agent();
-    let mut trainer = Trainer::new(
-        env,
-        env_eval,
-        agent)
+    let mut trainer = Trainer::new(env, env_eval, agent)
         .max_opts(10000)
-        .n_opts_per_eval(10)
+        .n_opts_per_eval(50)
         .n_episodes_per_eval(5);
 
     trainer.train();
-    trainer.get_agent().save("./examples/model/dqn_pong")?;
+    trainer.get_agent().save("./examples/model/pg_pong")?;
 
     let mut env = create_env();
     let mut agent = create_agent();
     env.set_render(true);
-    agent.load("./examples/model/dqn_pong")?;
+    agent.load("./examples/model/pg_pong")?;
     agent.eval();
     util::eval(&env, &mut agent, 5, None);
 
