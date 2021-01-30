@@ -1,6 +1,4 @@
 #![allow(unused_variables, unreachable_code)]
-/// Vectorized version of the gym environment.
-/// Adapted from tch-rs RL example.
 use std::{fmt::Debug, error::Error};
 use std::marker::PhantomData;
 use log::{trace};
@@ -17,6 +15,8 @@ pub struct PyVecGymEnv<O, A> {
     phantom: PhantomData<(O, A)>,
 }
 
+/// Vectorized version of the gym environment.
+/// Adapted from tch-rs RL example.
 impl<O, A> PyVecGymEnv<O, A> where 
     O: Obs + From<PyObject>,
     A: Act + Into<PyObject>,
