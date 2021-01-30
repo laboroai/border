@@ -1,9 +1,9 @@
 #![allow(unused_variables, unreachable_code)]
-use std::{fmt::Debug, error::Error, borrow::Borrow};
+use std::{fmt::Debug, error::Error};
 use std::marker::PhantomData;
 use log::{trace};
-use pyo3::{Py, PyObject, PyResult, PyClass};
-use pyo3::types::{PyList, IntoPyDict};
+use pyo3::{Py, PyObject, PyResult, ToPyObject};
+use pyo3::types::{PyList, IntoPyDict, PyTuple};
 use crate::core::{Obs, Act, Step, Env};
 use crate::py_gym_env::PyGymInfo;
 
@@ -107,21 +107,27 @@ impl<O, A, F> Env for PyVecGymEnv<O, A, F> where
     
     fn step(&self, a: &A) -> Step<Self> {
         trace!("{:?}", &a);
-        unimplemented!();
-        // pyo3::Python::with_gil(|py| {
-        //     let a_py = a.clone().into();
-        //     let ret = self.env.call_method(py, "step", (a_py,), None).unwrap();
-        //     let step: &PyTuple = ret.extract(py).unwrap();
-        //     let obs = step.get_item(0).to_owned();
-        //     let obs = obs.to_object(py).into();
-        //     // let reward: f32 = step.get_item(1).extract().unwrap();
-        //     // let is_done: bool = step.get_item(2).extract().unwrap();
+        pyo3::Python::with_gil(|py| {
+            let a_py = a.clone().into();
+            let ret = self.env.call_method(py, "step", (a_py,), None).unwrap();
+            let step: &PyTuple = ret.extract(py).unwrap();
 
-        //     let reward = Vec::<f32>::new();
-        //     let is_done = Vec::<f32>::new();
-        //     unimplemented!();
+            let obs = step.get_item(0).to_object(py);
+            let obs: Py<PyList> = obs.extract(py).unwrap();
+            let filtered = self.obs_filters.iter()
+                .zip(obs.as_ref(py).iter())
+                .map(|(f, o)| f.reset(o.into()))
+                .collect();
+            let obs = F::stack(filtered);
 
-        //     Step::<Self>::new(obs, a.clone(), reward, is_done, PyGymInfo{})
-        // })
+            unimplemented!();
+
+            // let reward: f32 = step.get_item(1).extract().unwrap();
+            // let is_done: bool = step.get_item(2).extract().unwrap();
+            let reward = Vec::<f32>::new();
+            let is_done = Vec::<f32>::new();
+
+            Step::<Self>::new(obs, a.clone(), reward, is_done, PyGymInfo{})
+        })
     }
 }

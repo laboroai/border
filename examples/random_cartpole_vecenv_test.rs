@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::cell::RefCell;
 use lrr::core::{Policy, util, Env as EnvTrait};
 use lrr::py_gym_env::PyVecGymEnv;
 use lrr::agents::tch::Shape;
@@ -29,7 +30,7 @@ struct RandomPolicy {}
 impl Policy<Env> for RandomPolicy {
     fn sample(&mut self, _: &Obs) -> Act {
         let v = fastrand::u32(..=1);
-        Act::new(vec![v as i32])
+        Act::new((0..N_PROCS).map(|_| fastrand::i32(..=1)).collect())
     }
 }
 
@@ -40,10 +41,17 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let obs_filters: Vec<_> = (0..N_PROCS).map(|_| ObsFilter::new()).collect();
     let env = Env::new("CartPole-v0", obs_filters, false)?;
-    let obs = env.reset(None);
+    let mut policy = RandomPolicy{};
+
+    let obs = env.reset(None).unwrap();
+    let obs_prev = RefCell::new(Some(obs));
+
+    for i in 0..5 {
+        let step = util::sample(&env, &mut policy, &obs_prev);
+    }
+
     env.close();
     // env.set_render(true);
-    // let mut policy = RandomPolicy{};
     // util::eval(&env, &mut policy, 5, None);
 
     Ok(())
