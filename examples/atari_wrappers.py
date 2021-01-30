@@ -193,7 +193,7 @@ def make_env(env_id, img_dir, seed, rank):
         env.seed(seed + rank)
         if img_dir is not None:
             env = ImageSaver(env, img_dir, rank)
-        if env_id != "CartPole-v0": # Tweak for dqn_cartpole_par.rs
+        if env_id != "CartPole-v0": # Tweak for *_cartpole_vecenv*.rs
             env = wrap_deepmind(env)
             env = WrapPyTorch(env)
         return env
@@ -247,6 +247,8 @@ def worker(remote, env_fn_wrapper):
             break
         elif cmd == 'get_spaces':
             remote.send((env.action_space, env.observation_space))
+        elif cmd == 'none':
+            remote.send(None)
         else:
             raise NotImplementedError
 
@@ -275,8 +277,8 @@ class SubprocVecEnv(VecEnv):
         for p in self.ps:
             p.start()
 
-        self.remotes[0].send(('get_spaces', None))
-        self.action_space, self.observation_space = self.remotes[0].recv()
+        # self.remotes[0].send(('get_spaces', None))
+        # self.action_space, self.observation_space = self.remotes[0].recv()
 
     def step(self, actions):
         for remote, action in zip(self.remotes, actions):
@@ -285,9 +287,18 @@ class SubprocVecEnv(VecEnv):
         obs, rews, dones, infos = zip(*results)
         return np.stack(obs), np.stack(rews), np.stack(dones), infos
 
-    def reset(self):
-        for remote in self.remotes:
-            remote.send(('reset', None))
+    def reset(self, mask=None):
+        """ `mask` is `None` or `List[float]`.
+        """
+        if mask is None:
+            for remote in self.remotes:
+                remote.send(('reset', None))
+        else:
+            for mask, remote in self.remotes:
+                if mask == 1.0:
+                    remote.send(('reset', None))
+                else:
+                    remote.send(('none', None)) # do nothing
         return np.stack([remote.recv() for remote in self.remotes])
 
     def close(self):
@@ -302,6 +313,7 @@ class SubprocVecEnv(VecEnv):
 
 # Create the environment.
 def make(env_name, img_dir, num_processes):
+    import cv2 # workaround for importing cv2 in subprocesses on mac
     envs = SubprocVecEnv([
         make_env(env_name, img_dir, 42, i) for i in range(num_processes)
     ])

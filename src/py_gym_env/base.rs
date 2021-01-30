@@ -116,7 +116,7 @@ impl<O, A, F> Env for PyGymEnv<O, A, F> where
     /// Resets the environment, returning the observation tensor.
     /// In this environment, the length of `is_done` is assumed to be 1.
     fn reset(&self, is_done: Option<&Vec<f32>>) -> Result<O, Box<dyn Error>>  {
-        trace!("PyGymEnv.reset()");
+        trace!("PyGymEnv::reset()");
         match is_done {
             None => {
                 pyo3::Python::with_gil(|py| {
