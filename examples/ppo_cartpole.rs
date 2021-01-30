@@ -1,8 +1,8 @@
 use std::error::Error;
 use lrr::core::{Trainer, Agent, util};
 use lrr::py_gym_env::PyGymEnv;
-// use lrr::agents::OptInterval;
-use lrr::agents::tch::{Shape, PPODiscrete};
+use lrr::agents::OptInterval;
+use lrr::agents::tch::{Shape, PPODiscrete, ReplayBuffer};
 use lrr::agents::tch::py_gym_env::obs::{
     TchPyGymEnvObs, TchPyGymEnvObsRawFilter, TchPyGymEnvObsBuffer
 };
@@ -30,10 +30,11 @@ type ActBuffer = TchPyGymEnvDiscreteActBuffer<ActFilter>;
 
 fn create_agent() -> impl Agent<Env> {
     let mh_model = StateValueAndDiscreteActProb::new(4, 2, 0.0001);
+    let replay_buffer = ReplayBuffer::new(200, 1);
     let agent: PPODiscrete<Env, _, ObsBuffer, ActBuffer> = PPODiscrete::new(
-        mh_model, 100, 1)
+        mh_model, OptInterval::Steps(200), replay_buffer)
         .n_updates_per_opt(1)
-        .batch_size(64)
+        .batch_size(200)
         .discount_factor(0.99);
     agent
 }
@@ -54,8 +55,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         env,
         env_eval,
         agent)
-        .max_opts(1000)
-        .n_opts_per_eval(50)
+        .max_opts(250)
+        .n_opts_per_eval(10)
         .n_episodes_per_eval(5);
 
     trainer.train();

@@ -2,7 +2,7 @@ use log::trace;
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{Kind::Float, Tensor};
 use crate::core::{Policy, Agent, Step, Env};
-// use crate::agents::{OptInterval, OptIntervalCounter};
+use crate::agents::{OptInterval, OptIntervalCounter};
 use crate::agents::tch::{ReplayBuffer, TchBuffer, TchBatch};
 use crate::agents::tch::model::Model1;
 
@@ -14,14 +14,13 @@ pub struct PPODiscrete<E, M, O, A> where
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
-    n_samples_per_opt: usize, // NOTE: must be equal to replay buffer size
+    opt_interval_counter: OptIntervalCounter,
     n_updates_per_opt: usize,
     batch_size: usize,
     model: M,
     train: bool,
     prev_obs: RefCell<Option<E::Obs>>,
     replay_buffer: ReplayBuffer<E, O, A>,
-    count_samples_per_opt: usize,
     discount_factor: f64,
     phandom: PhantomData<E>,
 }
@@ -34,25 +33,22 @@ impl<E, M, O, A> PPODiscrete<E, M, O, A> where
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
-    pub fn new(model: M, n_samples_per_opt: usize, n_procs: usize) -> Self {
-        let capacity = n_samples_per_opt;
-        let replay_buffer = ReplayBuffer::new(capacity, n_procs);
+    pub fn new(model: M, opt_interval: OptInterval, replay_buffer: ReplayBuffer<E, O, A>) -> Self {
         PPODiscrete {
-            n_samples_per_opt,
+            opt_interval_counter: opt_interval.counter(),
             n_updates_per_opt: 1,
             batch_size: 1,
             model,
             train: false,
             replay_buffer,
-            count_samples_per_opt: 0,
             discount_factor: 0.99,
             prev_obs: RefCell::new(None),
             phandom: PhantomData,
         }
     }
 
-    pub fn n_samples_per_opt(mut self, v: usize) -> Self {
-        self.n_samples_per_opt = v;
+    pub fn opt_interval(mut self, v: OptInterval) -> Self {
+        self.opt_interval_counter = v.counter();
         self
     }
 
@@ -167,30 +163,31 @@ impl <E, M, O, A> Agent<E> for PPODiscrete<E, M, O, A> where
     fn observe(&mut self, step: Step<E>) -> bool {
         trace!("PPODiscrete.observe()");
 
+        // Check if doing optimization
+        let do_optimize = self.opt_interval_counter.do_optimize(&step.is_done);
+            // && self.replay_buffer.len() + 1 >= self.min_transitions_warmup;
+
         // Push transition to the replay buffer
         self.push_transition(step);
+        trace!("Push transition");
 
-        // Do optimization 1 step
-        self.count_samples_per_opt += 1;
-        if self.count_samples_per_opt == self.n_samples_per_opt {
-            self.count_samples_per_opt = 0;
-
+        // Do optimization
+        if do_optimize {
             // Store returns in the replay buffer
-            trace!("prev_obs.shape = {:?}", &self.prev_obs.borrow().to_owned().unwrap().into().size());
+
             let (estimated_return, _)
                 = self.model.forward(&self.prev_obs.borrow().to_owned().unwrap().into());
-            trace!("Call model.forward()");
+            self.replay_buffer.update_returns(estimated_return.detach(), self.discount_factor);
 
-            self.replay_buffer.update_returns(estimated_return, self.discount_factor);
-            trace!("Update returns");
-
+            // Update model parameters
             for _ in 0..self.n_updates_per_opt {
                 let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
-                trace!("Sample random batch");
-
                 self.update_model(batch);
-                trace!("Update model");
             };
+
+            // Clear replay buffer
+            self.replay_buffer.clear();
+
             return true;
         }
         false
