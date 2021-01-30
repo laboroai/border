@@ -15,13 +15,18 @@ impl Info for PyGymInfo {}
 
 /// Convert PyObject to Env::Obs.
 ///
-/// The methods in the trait are called inside PyGymEnv.
+/// The methods in this trait are called inside PyGymEnv.
 pub trait ObsFilter<O: Obs> {
     fn filt(&self, obs: PyObject) -> O;
 
     fn reset(&self, obs: PyObject) -> O {
         self.filt(obs)
     }
+
+    /// Stack filtered observations into an observation.
+    ///
+    /// This method is used in vectorized environments.
+    fn stack(filtered: Vec<O>) -> O;
 }
 
 /// Adapted from [tch-rs RL example](https://github.com/LaurentMazare/tch-rs/tree/master/examples/reinforcement-learning).

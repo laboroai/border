@@ -285,7 +285,12 @@ class SubprocVecEnv(VecEnv):
             remote.send(('step', action))
         results = [remote.recv() for remote in self.remotes]
         obs, rews, dones, infos = zip(*results)
-        return np.stack(obs), np.stack(rews), np.stack(dones), infos
+
+        # The original implenentation of the vectorized environments
+        # returns observations as a stacked ndarray. Here, the code
+        # is modified to return a python list of objects.
+        # return np.stack(obs), np.stack(rews), np.stack(dones), infos
+        return obs, np.stack(rews), np.stack(dones), infos
 
     def reset(self, mask=None):
         """ `mask` is `None` or `List[float]`.
@@ -299,7 +304,13 @@ class SubprocVecEnv(VecEnv):
                     remote.send(('reset', None))
                 else:
                     remote.send(('none', None)) # do nothing
-        return np.stack([remote.recv() for remote in self.remotes])
+        # The original implenentation of the vectorized environments
+        # returns observations as a stacked ndarray. Here, the code
+        # is modified to return a python list of objects.
+        # return np.stack([remote.recv() for remote in self.remotes])
+        obs = [remote.recv() for remote in self.remotes]
+        # print(obs[0].shape)
+        return obs
 
     def close(self):
         for remote in self.remotes:

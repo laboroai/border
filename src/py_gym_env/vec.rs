@@ -1,9 +1,9 @@
 #![allow(unused_variables, unreachable_code)]
-use std::{fmt::Debug, error::Error};
+use std::{fmt::Debug, error::Error, borrow::Borrow};
 use std::marker::PhantomData;
 use log::{trace};
-use pyo3::{PyObject, PyResult, ToPyObject};
-use pyo3::types::{PyTuple, IntoPyDict};
+use pyo3::{Py, PyObject, PyResult, PyClass};
+use pyo3::types::{PyList, IntoPyDict};
 use crate::core::{Obs, Act, Step, Env};
 use crate::py_gym_env::PyGymInfo;
 
@@ -81,22 +81,28 @@ impl<O, A, F> Env for PyVecGymEnv<O, A, F> where
     /// If `is_done` is `Vec<f32>`, environments with `is_done[i] == 1.0` are resetted.
     fn reset(&self, is_done: Option<&Vec<f32>>) -> Result<O, Box<dyn Error>>  {
         trace!("PyVecGymEnv::reset()");
-        unimplemented!();
-        // match is_done {
-        //     None => {
-        //         pyo3::Python::with_gil(|py| {
-        //             let obs = self.env.call_method0(py, "reset")?;
-        //             Ok(self.obs_filters[0].reset(obs))
-        //         })
-        //     },
-        //     Some(v) => {
-        //         debug_assert_eq!(is_done.len(), self.n_procs);
-        //         pyo3::Python::with_gil(|py| {
-        //             let obs = self.env.call_method1(py, "reset", is_done)?;
-        //            Ok(self.obs_filters[0].reset(obs))
-        //         })
-        //     }
-        // }
+        match is_done {
+            None => {
+                pyo3::Python::with_gil(|py| {
+                    let obs = self.env.call_method0(py, "reset").unwrap();
+                    let obs: Py<PyList> = obs.extract(py).unwrap();
+                    let filtered = self.obs_filters.iter()
+                        .zip(obs.as_ref(py).iter())
+                        .map(|(f, o)| f.reset(o.into()))
+                        .collect();
+                    Ok(F::stack(filtered))
+                    // Ok(self.obs_filters[0].reset(obs))
+                })
+            },
+            Some(v) => {
+                unimplemented!();
+                // debug_assert_eq!(is_done.len(), self.n_procs);
+                // pyo3::Python::with_gil(|py| {
+                //     let obs = self.env.call_method1(py, "reset", is_done)?;
+                //    Ok(self.obs_filters[0].reset(obs))
+                // })
+            }
+        }
     }
     
     fn step(&self, a: &A) -> Step<Self> {

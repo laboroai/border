@@ -1,5 +1,5 @@
 use std::error::Error;
-use lrr::core::{Policy, util};
+use lrr::core::{Policy, util, Env as EnvTrait};
 use lrr::py_gym_env::PyVecGymEnv;
 use lrr::agents::tch::Shape;
 use lrr::agents::tch::py_gym_env::obs::{TchPyGymEnvObs, TchPyGymEnvObsRawFilter};
@@ -40,6 +40,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let obs_filters: Vec<_> = (0..N_PROCS).map(|_| ObsFilter::new()).collect();
     let env = Env::new("CartPole-v0", obs_filters, false)?;
+    let obs = env.reset(None);
     env.close();
     // env.set_render(true);
     // let mut policy = RandomPolicy{};

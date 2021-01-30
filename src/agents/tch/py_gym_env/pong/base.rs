@@ -111,6 +111,10 @@ impl ObsFilter<PongObs> for PongObsFilter {
         let obs = self.obs_prev.borrow().clone() - obs_prev;
         PongObs::new(obs)
     }
+
+    fn stack(_filtered: Vec<PongObs>) -> PongObs {
+        unimplemented!();
+    }
 }
 
 /// Action value function.

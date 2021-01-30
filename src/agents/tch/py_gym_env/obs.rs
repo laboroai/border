@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use log::trace;
 use num_traits::cast::AsPrimitive;
 use pyo3::PyObject;
-use ndarray::{ArrayD, Axis, IxDyn};
+use ndarray::{ArrayD, Axis, IxDyn, stack};
 use numpy::Element;
 use tch::Tensor;
 use crate::core::Obs;
@@ -38,6 +38,19 @@ impl<S, T> ObsFilter<TchPyGymEnvObs<S, T>> for TchPyGymEnvObsRawFilter<S, T> whe
         TchPyGymEnvObs {
             obs: pyobj_to_arrayd::<S, T>(obs),
             phantom: PhantomData,
+        }
+    }
+
+    /// Stack filtered observation objects in the given vector.
+    fn stack(filtered: Vec<TchPyGymEnvObs<S, T>>) -> TchPyGymEnvObs<S, T> {
+        let arrays: Vec<_> = filtered.iter().map(|o| {
+            debug_assert_eq!(&o.obs.shape()[1..], S::shape());
+            o.obs.clone().remove_axis(Axis(0))
+        }).collect();
+        let arrays_view: Vec<_> = arrays.iter().map(|a| a.view()).collect();
+        TchPyGymEnvObs::<S, T> {
+            obs: stack(Axis(0), arrays_view.as_slice()).unwrap(),
+            phantom: PhantomData
         }
     }
 }
