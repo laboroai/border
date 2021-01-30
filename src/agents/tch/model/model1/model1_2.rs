@@ -1,13 +1,13 @@
 use std::{path::Path, error::Error, fmt, fmt::{Formatter, Debug}};
 use log::{info, trace};
-use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
+use tch::{Tensor, nn, nn::Module, nn::OptimizerConfig};
 use crate::agents::tch::model::{ModelBase, Model1};
 
 pub struct Model1_2 {
     var_store: nn::VarStore,
     network_fn: fn(&nn::Path, usize, usize) -> nn::Sequential,
     network: nn::Sequential,
-    device: Device,
+    // device: Device,
     opt: nn::Optimizer<nn::Adam>,
     head_mean: nn::Linear,
     head_lstd: nn::Linear,
@@ -19,7 +19,7 @@ pub struct Model1_2 {
 
 // TODO: implement this
 impl Debug for Model1_2 {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result { Ok(()) }
+    fn fmt(&self, _f: &mut Formatter<'_>) -> fmt::Result { Ok(()) }
 }
 
 impl Clone for Model1_2 {
@@ -44,7 +44,7 @@ impl Model1_2 {
         Self {
             network,
             network_fn,
-            device: p.device(),
+            // device: p.device(),
             var_store: vs,
             in_dim,
             hidden_dim,
