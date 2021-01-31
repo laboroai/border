@@ -29,8 +29,7 @@ struct RandomPolicy {}
 
 impl Policy<Env> for RandomPolicy {
     fn sample(&mut self, _: &Obs) -> Act {
-        let v = fastrand::u32(..=1);
-        Act::new((0..N_PROCS).map(|_| fastrand::i32(..=1)).collect())
+        Act::new((0..N_PROCS).map(|_| fastrand::u32(..=1) as i32).collect())
     }
 }
 
@@ -46,7 +45,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let obs = env.reset(None).unwrap();
     let obs_prev = RefCell::new(Some(obs));
 
-    for i in 0..5 {
+    for i in 0..200 {
         let step = util::sample(&env, &mut policy, &obs_prev);
     }
 

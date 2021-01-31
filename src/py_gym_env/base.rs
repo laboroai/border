@@ -145,7 +145,7 @@ impl<O, A, F> Env for PyGymEnv<O, A, F> where
     }
 
     fn step(&self, a: &A) -> Step<Self> {
-        trace!("PyGymEnv.step()");        
+        trace!("PyGymEnv::step()");
         trace!("a     : {:?}", &a);
 
         pyo3::Python::with_gil(|py| {

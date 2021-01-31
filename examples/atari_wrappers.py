@@ -290,7 +290,7 @@ class SubprocVecEnv(VecEnv):
         # returns observations as a stacked ndarray. Here, the code
         # is modified to return a python list of objects.
         # return np.stack(obs), np.stack(rews), np.stack(dones), infos
-        return obs, np.stack(rews), np.stack(dones), infos
+        return list(obs), np.stack(rews), np.stack(dones), infos
 
     def reset(self, mask=None):
         """ `mask` is `None` or `List[float]`.
@@ -299,8 +299,8 @@ class SubprocVecEnv(VecEnv):
             for remote in self.remotes:
                 remote.send(('reset', None))
         else:
-            for mask, remote in self.remotes:
-                if mask == 1.0:
+            for mask_i, remote in zip(mask, self.remotes):
+                if mask_i == 1.0:
                     remote.send(('reset', None))
                 else:
                     remote.send(('none', None)) # do nothing
@@ -309,7 +309,6 @@ class SubprocVecEnv(VecEnv):
         # is modified to return a python list of objects.
         # return np.stack([remote.recv() for remote in self.remotes])
         obs = [remote.recv() for remote in self.remotes]
-        # print(obs[0].shape)
         return obs
 
     def close(self):

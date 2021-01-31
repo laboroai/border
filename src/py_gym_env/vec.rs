@@ -14,6 +14,7 @@ pub struct PyVecGymEnv<O, A, F> {
     env: PyObject,
     n_procs: usize,
     obs_filters: Vec<F>,
+    continuous_action: bool,
     phantom: PhantomData<(O, A, F)>,
 }
 
@@ -55,6 +56,7 @@ impl<O, A, F> PyVecGymEnv<O, A, F> where
                 env: env.into(),
                 n_procs,
                 obs_filters,
+                continuous_action,
                 phantom: PhantomData,
             })
         })
@@ -91,27 +93,54 @@ impl<O, A, F> Env for PyVecGymEnv<O, A, F> where
                         .map(|(f, o)| f.reset(o.into()))
                         .collect();
                     Ok(F::stack(filtered))
-                    // Ok(self.obs_filters[0].reset(obs))
                 })
             },
             Some(v) => {
-                unimplemented!();
-                // debug_assert_eq!(is_done.len(), self.n_procs);
-                // pyo3::Python::with_gil(|py| {
-                //     let obs = self.env.call_method1(py, "reset", is_done)?;
-                //    Ok(self.obs_filters[0].reset(obs))
-                // })
+                pyo3::Python::with_gil(|py| {
+                    let obs = self.env.call_method1(py, "reset", (v.clone(),)).unwrap();
+                    let obs: Py<PyList> = obs.extract(py).unwrap();
+                    let filtered = self.obs_filters.iter()
+                        .zip(obs.as_ref(py).iter())
+                        .map(|(f, o)| {
+                            if o.get_type().name().unwrap() == "NoneType" {
+                                O::zero(1)
+                            }
+                            else {
+                                debug_assert_eq!(o.get_type().name().unwrap(), "ndarray");
+                                f.reset(o.into())
+                            }
+                        }).collect();
+                    Ok(F::stack(filtered))
+                })
             }
         }
     }
     
     fn step(&self, a: &A) -> Step<Self> {
+        trace!("PyVecGymEnv::step()");
         trace!("{:?}", &a);
+
         pyo3::Python::with_gil(|py| {
-            let a_py = a.clone().into();
+            // Does not support render
+
+            // Process continuous or discrete action
+            let a_py = {
+                let a_py = a.clone().into();
+                if self.continuous_action {
+                    // TODO: check if action is a vector of some object.
+                    // Rust vector is converted into a python list by pyo3.
+                    unimplemented!();
+                }
+                else {
+                    a_py
+                }
+            };
+
+            // Apply vectorized action
             let ret = self.env.call_method(py, "step", (a_py,), None).unwrap();
             let step: &PyTuple = ret.extract(py).unwrap();
 
+            // Observation
             let obs = step.get_item(0).to_object(py);
             let obs: Py<PyList> = obs.extract(py).unwrap();
             let filtered = self.obs_filters.iter()
@@ -120,12 +149,11 @@ impl<O, A, F> Env for PyVecGymEnv<O, A, F> where
                 .collect();
             let obs = F::stack(filtered);
 
-            unimplemented!();
-
-            // let reward: f32 = step.get_item(1).extract().unwrap();
-            // let is_done: bool = step.get_item(2).extract().unwrap();
-            let reward = Vec::<f32>::new();
-            let is_done = Vec::<f32>::new();
+            // Reward and is_done
+            let reward = step.get_item(1).to_object(py);
+            let reward: Vec<f32> = reward.extract(py).unwrap();
+            let is_done = step.get_item(2).to_object(py);
+            let is_done: Vec<f32> = is_done.extract(py).unwrap();
 
             Step::<Self>::new(obs, a.clone(), reward, is_done, PyGymInfo{})
         })
