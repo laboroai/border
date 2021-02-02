@@ -94,22 +94,22 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
 
     pub fn push(&mut self, obs: &O::Item, act: &A::Item, reward: &Tensor, next_obs: &O::Item,
                 not_done: &Tensor) {
+        trace!("ReplayBuffer::push()");
+
         let i = (self.i % self.capacity) as i64;
         self.obs.push(i, obs);
         self.next_obs.push(i, next_obs);
         self.actions.push(i, act);
-        self.rewards.get(i as _).copy_(reward);
+        self.rewards.get(i as _).copy_(&reward.unsqueeze(-1));
 
-        // println!("{:?}", not_done.size());
         if !self.nonzero_reward_as_done {
-            self.not_dones.get(i as _).copy_(&not_done);
+            self.not_dones.get(i as _).copy_(&not_done.unsqueeze(-1));
         }
         else {
             let zero_reward = zero_reward(reward);
-            self.not_dones.get(i as _).copy_(&(zero_reward * not_done));
+            self.not_dones.get(i as _).copy_(&(zero_reward * not_done).unsqueeze(-1));
         }
-        // println!("{:?}", not_done.size());
-        // panic!();
+
         self.i += 1;
         if self.len < self.capacity {
             self.len += 1;

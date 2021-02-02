@@ -93,6 +93,8 @@ impl<E, M, O, A> DQN<E, M, O, A> where
     }
 
     fn push_transition(&mut self, step: Step<E>) {
+        trace!("DQN::push_transition()");
+
         let next_obs = step.obs;
         let obs = self.prev_obs.replace(None).unwrap();
         let reward = Tensor::of_slice(&step.reward[..]);
@@ -108,7 +110,7 @@ impl<E, M, O, A> DQN<E, M, O, A> where
     }
 
     fn update_critic(&mut self, batch: TchBatch<E, O, A>) {
-        trace!("Start dqn.update_critic()");
+        trace!("DQN::update_critic()");
 
         let obs = batch.obs;
         let a = batch.actions;
@@ -139,6 +141,7 @@ impl<E, M, O, A> DQN<E, M, O, A> where
     }
 
     fn soft_update(&mut self) {
+        trace!("DQN::soft_update()");
         track(&mut self.qnet_tgt, &mut self.qnet, self.tau);
     }
 }

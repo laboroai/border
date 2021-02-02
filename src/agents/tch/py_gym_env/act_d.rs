@@ -78,7 +78,7 @@ impl<F: TchPyGymDiscreteActFilter> TchBuffer for TchPyGymEnvDiscreteActBuffer<F>
 
     fn push(&mut self, index: i64, item: &TchPyGymEnvDiscreteAct<F>) {
         let act = Tensor::try_from(item.act.clone()).unwrap();
-        trace!("TchPyGymDiscreteActBuffer.push(): {:?}", act);
+        trace!("TchPyGymDiscreteActBuffer::push(): {:?}", act);
         self.act.get(index).copy_(&act);
     }
 
@@ -88,7 +88,7 @@ impl<F: TchPyGymDiscreteActFilter> TchBuffer for TchPyGymEnvDiscreteActBuffer<F>
     fn batch(&self, batch_indexes: &Tensor) -> Tensor {
         let batch = self.act.index_select(0, &batch_indexes);
         let batch = batch.flatten(0, 1).unsqueeze(-1);
-        debug_assert!(batch.size().as_slice() == [batch_indexes.size()[0], self.n_procs]);
+        debug_assert_eq!(batch.size().as_slice(), [batch_indexes.size()[0] * self.n_procs, 1]);
         batch
     }
 }

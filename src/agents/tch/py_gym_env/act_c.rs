@@ -75,6 +75,7 @@ impl<S: Shape, F: TchPyGymActFilter> From<Tensor> for TchPyGymEnvContinuousAct<S
 
 pub struct TchPyGymEnvContinuousActBuffer<S: Shape, F: TchPyGymActFilter> {
     act: Tensor,
+    n_procs: i64,
     phantom: PhantomData<(S, F)>
 }
 
@@ -89,6 +90,7 @@ impl<S: Shape, F: TchPyGymActFilter> TchBuffer for TchPyGymEnvContinuousActBuffe
             S::shape().iter().map(|v| *v as i64).collect::<Vec<_>>().as_slice());
         Self {
             act: Tensor::zeros(&shape, tch::kind::FLOAT_CPU),
+            n_procs,
             phantom: PhantomData,
         }
     }
@@ -104,6 +106,8 @@ impl<S: Shape, F: TchPyGymActFilter> TchBuffer for TchPyGymEnvContinuousActBuffe
     /// `batch_indexes.len()` times `n_procs`.
     fn batch(&self, batch_indexes: &Tensor) -> Tensor {
         let batch = self.act.index_select(0, &batch_indexes);
-        batch.flatten(0, 1)
+        let batch = batch.flatten(0, 1);
+        debug_assert_eq!(batch.size().as_slice()[0], batch_indexes.size()[0] * self.n_procs);
+        batch
     }
 }
