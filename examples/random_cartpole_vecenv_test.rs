@@ -45,8 +45,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let obs = env.reset(None).unwrap();
     let obs_prev = RefCell::new(Some(obs));
 
-    for i in 0..200 {
-        let step = util::sample(&env, &mut policy, &obs_prev);
+    for _ in 0..200 {
+        let _step = util::sample(&env, &mut policy, &obs_prev);
     }
 
     env.close();
