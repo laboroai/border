@@ -1,11 +1,16 @@
 use std::error::Error;
-use lrr::core::{Policy, util};
 use ndarray::Array;
-use lrr::py_gym_env::PyGymEnv;
-use lrr::agents::tch::Shape;
-use lrr::agents::tch::py_gym_env::{TchPyGymEnvObs, TchPyGymEnvContinuousAct};
-use lrr::agents::tch::py_gym_env::act_c::RawFilter;
-use lrr::agents::tch::py_gym_env::obs::TchPyGymEnvObsRawFilter;
+use lrr::{
+    core::{Policy, util},
+    py_gym_env::{PyGymEnv, PyGymEnvObs, PyGymEnvObsRawFilter},
+    agents::tch::{
+        Shape,
+        py_gym_env::{
+            TchPyGymEnvContinuousAct,
+            act_c::RawFilter
+        }
+    }
+};
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -25,11 +30,11 @@ impl Shape for ActShape {
     }
 }
 
-type O = TchPyGymEnvObs<ObsShape, f32>;
+type O = PyGymEnvObs<ObsShape, f32>;
 // type O = TchPyGymEnvObs<ObsShape, f64>; // Results in a runtime error in conversion of
 // numpy array in lunarlander-cont-v2 environemnt beecause of type mismatch.
 type A = TchPyGymEnvContinuousAct<ActShape, RawFilter>;
-type E = PyGymEnv<O, A, TchPyGymEnvObsRawFilter<ObsShape, f32>>;
+type E = PyGymEnv<O, A, PyGymEnvObsRawFilter<ObsShape, f32>>;
 
 struct RandomPolicy {}
 
@@ -45,7 +50,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     tch::manual_seed(42);
     fastrand::seed(42);
 
-    let obs_filter = TchPyGymEnvObsRawFilter::new();
+    let obs_filter = PyGymEnvObsRawFilter::new();
     let mut env = E::new("LunarLanderContinuous-v2", obs_filter, true)?;
     env.set_render(true);
     let mut policy = RandomPolicy{};

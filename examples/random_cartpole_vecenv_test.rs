@@ -1,11 +1,12 @@
 use std::error::Error;
 use std::cell::RefCell;
-use lrr::core::{Policy, util, Env as EnvTrait};
-use lrr::py_gym_env::PyVecGymEnv;
-use lrr::agents::tch::Shape;
-use lrr::agents::tch::py_gym_env::obs::{TchPyGymEnvObs, TchPyGymEnvObsRawFilter};
-use lrr::agents::tch::py_gym_env::act_d::{
-    TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActRawFilter
+use lrr::{
+    core::{Policy, util, Env as EnvTrait},
+    py_gym_env::{PyVecGymEnv, PyGymEnvObs, PyGymEnvObsRawFilter},
+    agents::tch::{
+        Shape,
+        py_gym_env::act_d::{TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActRawFilter}
+    }
 };
 
 const N_PROCS: usize = 4;
@@ -19,9 +20,9 @@ impl Shape for ObsShape {
     }
 }
 
-type ObsFilter = TchPyGymEnvObsRawFilter<ObsShape, f64>;
+type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
 type ActFilter = TchPyGymEnvDiscreteActRawFilter;
-type Obs = TchPyGymEnvObs<ObsShape, f64>;
+type Obs = PyGymEnvObs<ObsShape, f64>;
 type Act = TchPyGymEnvDiscreteAct<ActFilter>;
 type Env = PyVecGymEnv<Obs, Act, ObsFilter>;
 

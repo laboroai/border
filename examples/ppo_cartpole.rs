@@ -1,15 +1,20 @@
 use std::error::Error;
-use lrr::core::{Trainer, Agent, util};
-use lrr::py_gym_env::PyGymEnv;
-use lrr::agents::OptInterval;
-use lrr::agents::tch::{Shape, PPODiscrete, ReplayBuffer};
-use lrr::agents::tch::py_gym_env::obs::{
-    TchPyGymEnvObs, TchPyGymEnvObsRawFilter, TchPyGymEnvObsBuffer
+use lrr::{
+    core::{Trainer, Agent, util},
+    py_gym_env::{PyGymEnv, PyGymEnvObs, PyGymEnvObsRawFilter},
+    agents::{OptInterval,
+        tch::{
+            Shape, PPODiscrete, ReplayBuffer,
+            model::StateValueAndDiscreteActProb,
+            py_gym_env::{
+                obs::TchPyGymEnvObsBuffer,
+                act_d::{TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActRawFilter,
+                    TchPyGymEnvDiscreteActBuffer
+                }
+            }
+        }
+    }
 };
-use lrr::agents::tch::py_gym_env::act_d::{
-    TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActRawFilter, TchPyGymEnvDiscreteActBuffer
-};
-use lrr::agents::tch::model::StateValueAndDiscreteActProb;
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -20,9 +25,9 @@ impl Shape for ObsShape {
     }
 }
 
-type ObsFilter = TchPyGymEnvObsRawFilter<ObsShape, f64>;
+type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
 type ActFilter = TchPyGymEnvDiscreteActRawFilter;
-type Obs = TchPyGymEnvObs<ObsShape, f64>;
+type Obs = PyGymEnvObs<ObsShape, f64>;
 type Act = TchPyGymEnvDiscreteAct<ActFilter>;
 type Env = PyGymEnv<Obs, Act, ObsFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
@@ -40,7 +45,7 @@ fn create_agent() -> impl Agent<Env> {
 }
 
 fn create_env() -> Env {
-    let obs_filter = TchPyGymEnvObsRawFilter::new();
+    let obs_filter = PyGymEnvObsRawFilter::new();
     Env::new("CartPole-v0", obs_filter, false).unwrap()
 }
 

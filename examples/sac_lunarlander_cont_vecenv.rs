@@ -1,15 +1,21 @@
 use std::error::Error;
 use tch::nn;
-use lrr::core::{Trainer, Agent, util};
-use lrr::py_gym_env::PyVecGymEnv;
-use lrr::agents::OptInterval;
-use lrr::agents::tch::{SAC, ReplayBuffer, Shape};
-use lrr::agents::tch::model::{Model1_2, Model2_1};
-use lrr::agents::tch::py_gym_env::obs::{
-    TchPyGymEnvObs, TchPyGymEnvObsBuffer, TchPyGymEnvObsRawFilter
-};
-use lrr::agents::tch::py_gym_env::act_c::{
-    TchPyGymEnvContinuousAct, TchPyGymEnvContinuousActBuffer, RawFilter
+use lrr::{
+    core::{Trainer, Agent, util},
+    py_gym_env::{PyVecGymEnv, PyGymEnvObs, PyGymEnvObsRawFilter},
+    agents::{
+        OptInterval,
+        tch::{
+            SAC, ReplayBuffer, Shape,
+            model::{Model1_2, Model2_1},
+            py_gym_env::{
+                obs::TchPyGymEnvObsBuffer,
+                act_c::{
+                    TchPyGymEnvContinuousAct, TchPyGymEnvContinuousActBuffer, RawFilter
+                }
+            }
+        }
+    }
 };
 
 const N_PROCS: usize = 4;
@@ -73,9 +79,9 @@ fn create_critic() -> Model2_1 {
         Model2_1::new(DIM_OBS + DIM_ACT, 1, LR_CRITIC, network_fn)
 }
 
-type ObsFilter = TchPyGymEnvObsRawFilter<ObsShape, f32>;
+type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f32>;
 type ActFilter = RawFilter;
-type Obs = TchPyGymEnvObs<ObsShape, f32>;
+type Obs = PyGymEnvObs<ObsShape, f32>;
 type Act = TchPyGymEnvContinuousAct<ActShape, ActFilter>;
 type Env = PyVecGymEnv<Obs, Act, ObsFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f32>;

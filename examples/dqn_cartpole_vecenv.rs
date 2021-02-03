@@ -1,17 +1,18 @@
 use std::error::Error;
 use tch::nn;
-use lrr::core::{Trainer, Agent, util};
-use lrr::agents::OptInterval;
-use lrr::py_gym_env::PyVecGymEnv;
-use lrr::agents::tch::{Shape, ReplayBuffer};
-use lrr::agents::tch::dqn::DQN;
-use lrr::agents::tch::model::Model1_1;
-use lrr::agents::tch::py_gym_env::obs::{
-    TchPyGymEnvObs, TchPyGymEnvObsRawFilter, TchPyGymEnvObsBuffer
-};
-use lrr::agents::tch::py_gym_env::act_d::{
-    TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActRawFilter, TchPyGymEnvDiscreteActBuffer
-};
+use lrr::{agents::{
+        OptInterval,
+        tch::{
+            Shape, ReplayBuffer, dqn::DQN, model::Model1_1,
+            py_gym_env::{
+                obs::TchPyGymEnvObsBuffer,
+                act_d::{
+                    TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActRawFilter,
+                    TchPyGymEnvDiscreteActBuffer
+                }
+            }
+        }
+    }, core::{Agent, Trainer, trainer, util}, py_gym_env::{PyVecGymEnv, PyGymEnvObs, PyGymEnvObsRawFilter}};
 
 const N_PROCS: usize = 4;
 const DIM_OBS: usize = 4;
@@ -38,9 +39,9 @@ impl Shape for ObsShape {
     }
 }
 
-type ObsFilter = TchPyGymEnvObsRawFilter<ObsShape, f64>;
+type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
 type ActFilter = TchPyGymEnvDiscreteActRawFilter;
-type Obs = TchPyGymEnvObs<ObsShape, f64>;
+type Obs = PyGymEnvObs<ObsShape, f64>;
 type Act = TchPyGymEnvDiscreteAct<ActFilter>;
 type Env = PyVecGymEnv<Obs, Act, ObsFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
@@ -60,7 +61,6 @@ fn create_agent() -> impl Agent<Env> {
     let agent: DQN<Env, _, _, _> = DQN::new(
         qnet,
         replay_buffer)
-        // .opt_interval(OptInterval::Steps(12))
         .opt_interval(OPT_INTERVAL)
         .n_updates_per_opt(N_UPDATES_PER_OPT)
         .min_transitions_warmup(N_TRANSITIONS_WARMUP)

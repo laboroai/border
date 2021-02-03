@@ -1,15 +1,21 @@
 use std::error::Error;
 use tch::nn;
-use lrr::core::{Agent, Trainer, util};
-use lrr::py_gym_env::PyGymEnv;
-use lrr::agents::OptInterval;
-use lrr::agents::tch::{DDPG, ReplayBuffer, Shape};
-use lrr::agents::tch::model::{Model1_1, Model2_1};
-use lrr::agents::tch::py_gym_env::obs::{
-    TchPyGymEnvObs, TchPyGymEnvObsBuffer, TchPyGymEnvObsRawFilter
-};
-use lrr::agents::tch::py_gym_env::act_c::{
-    TchPyGymEnvContinuousAct, TchPyGymEnvContinuousActBuffer, RawFilter
+use lrr::{
+    core::{Agent, Trainer, util},
+    py_gym_env::{PyGymEnv, PyGymEnvObs, PyGymEnvObsRawFilter},
+    agents::{
+        OptInterval,
+        tch::{
+            DDPG, ReplayBuffer, Shape,
+            model::{Model1_1, Model2_1},
+            py_gym_env::{
+                obs::TchPyGymEnvObsBuffer,
+                act_c::{
+                    TchPyGymEnvContinuousAct, TchPyGymEnvContinuousActBuffer, RawFilter
+                }
+            }
+        }
+    }
 };
 
 #[derive(Debug, Clone)]
@@ -57,9 +63,9 @@ fn create_critic() -> Model2_1 {
         Model2_1::new(4, 1, 3e-4, network_fn)
 }
 
-type ObsFilter = TchPyGymEnvObsRawFilter<ObsShape, f64>;
+type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
 type ActFilter = RawFilter;
-type Obs = TchPyGymEnvObs<ObsShape, f64>;
+type Obs = PyGymEnvObs<ObsShape, f64>;
 type Act = TchPyGymEnvContinuousAct<ActShape, ActFilter>;
 type Env = PyGymEnv<Obs, Act, ObsFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
@@ -83,7 +89,7 @@ fn create_agent() -> impl Agent<Env> {
 }
 
 fn create_env() -> Env {
-    let obs_filter = TchPyGymEnvObsRawFilter::new();
+    let obs_filter = ObsFilter::new();
     Env::new("Pendulum-v0", obs_filter, true)
         .unwrap()
         .max_steps(Some(200))
