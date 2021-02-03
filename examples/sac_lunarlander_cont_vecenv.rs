@@ -47,8 +47,9 @@ impl Shape for ActShape {
         &[DIM_ACT]
     }
 
+    // In vectorized environment, the first axis should be considered as the number of processes.
     fn squeeze_first_dim() -> bool {
-        true
+        false
     }
 }
 

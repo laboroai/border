@@ -193,7 +193,7 @@ def make_env(env_id, img_dir, seed, rank):
         env.seed(seed + rank)
         if img_dir is not None:
             env = ImageSaver(env, img_dir, rank)
-        if env_id != "CartPole-v0": # Tweak for *_cartpole_vecenv*.rs
+        if env_id not in ("CartPole-v0", "LunarLanderContinuous-v2"): # Tweak for *_cartpole_vecenv*.rs
             env = wrap_deepmind(env)
             env = WrapPyTorch(env)
         return env
