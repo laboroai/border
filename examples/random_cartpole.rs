@@ -1,8 +1,7 @@
 use std::error::Error;
 use lrr::core::{Policy, util};
-use lrr::py_gym_env::PyGymEnv;
+use lrr::py_gym_env::{PyGymEnv, PyGymEnvObs, PyGymEnvObsRawFilter};
 use lrr::agents::tch::Shape;
-use lrr::agents::tch::py_gym_env::obs::{TchPyGymEnvObs, TchPyGymEnvObsRawFilter};
 use lrr::agents::tch::py_gym_env::act_d::{
     TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActRawFilter
 };
@@ -16,9 +15,9 @@ impl Shape for ObsShape {
     }
 }
 
-type ObsFilter = TchPyGymEnvObsRawFilter<ObsShape, f64>;
+type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
 type ActFilter = TchPyGymEnvDiscreteActRawFilter;
-type Obs = TchPyGymEnvObs<ObsShape, f64>;
+type Obs = PyGymEnvObs<ObsShape, f64>;
 type Act = TchPyGymEnvDiscreteAct<ActFilter>;
 type Env = PyGymEnv<Obs, Act, ObsFilter>;
 
