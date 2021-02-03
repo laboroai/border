@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::fmt::Debug;
 use log::trace;
 use pyo3::{PyObject, IntoPy};
-use ndarray::{Array1, ArrayD, IxDyn};
+use ndarray::{Axis, Array1, ArrayD, IxDyn};
 use numpy::PyArrayDyn;
 use tch::Tensor;
 use crate::core::Act;
@@ -45,18 +45,25 @@ impl<S: Shape, F: TchPyGymActFilter> Into<PyObject> for TchPyGymEnvContinuousAct
         let act = (&self.act).clone();
         let act = {
             if S::squeeze_first_dim() {
-                debug_assert!(self.act.shape()[0] == 1);
-                act.remove_axis(ndarray::Axis(0))
+                debug_assert_eq!(self.act.shape()[0], 1);
+                let act = act.remove_axis(ndarray::Axis(0));
+                let act = F::filter(act);
+                pyo3::Python::with_gil(|py| {
+                    let act = PyArrayDyn::<f32>::from_array(py, &act);
+                    act.into_py(py)
+                })        
             }
             else {
-                act
+                // Consider the first axis as processes in vectorized environments
+                pyo3::Python::with_gil(|py| {
+                    act.axis_iter(Axis(0))
+                        .map(|act| F::filter(act.to_owned()))
+                        .map(|act| PyArrayDyn::<f32>::from_array(py, &act))
+                        .collect::<Vec<_>>().into_py(py)
+                })
             }
         };
-        let act = F::filter(act);
-        pyo3::Python::with_gil(|py| {
-            let act = PyArrayDyn::<f32>::from_array(py, &act);
-            act.into_py(py)
-        })
+        act
     }
 }
 
