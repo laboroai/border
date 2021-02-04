@@ -45,6 +45,14 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
         &self.agent
     }
 
+    pub fn get_env(&self) -> &E {
+        &self.env
+    }
+
+    pub fn get_env_eval(&self) -> &E {
+        &self.env_eval
+    }
+
     pub fn train(&mut self) {
         let obs = self.env.reset(None).unwrap();
         self.agent.push_obs(&obs);

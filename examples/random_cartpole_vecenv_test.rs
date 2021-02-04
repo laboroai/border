@@ -2,11 +2,12 @@ use std::error::Error;
 use std::cell::RefCell;
 use lrr::{
     core::{Policy, util, Env as EnvTrait},
-    py_gym_env::{PyVecGymEnv, PyGymEnvObs, PyGymEnvObsRawFilter},
-    agents::tch::{
-        Shape,
-        py_gym_env::act_d::{TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActRawFilter}
-    }
+    py_gym_env::{
+        PyVecGymEnv,
+        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
+        act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter}
+    },
+    agents::tch::Shape,
 };
 
 const N_PROCS: usize = 4;
@@ -21,9 +22,9 @@ impl Shape for ObsShape {
 }
 
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
-type ActFilter = TchPyGymEnvDiscreteActRawFilter;
+type ActFilter = PyGymEnvDiscreteActRawFilter;
 type Obs = PyGymEnvObs<ObsShape, f64>;
-type Act = TchPyGymEnvDiscreteAct<ActFilter>;
+type Act = PyGymEnvDiscreteAct<ActFilter>;
 type Env = PyVecGymEnv<Obs, Act, ObsFilter>;
 
 struct RandomPolicy {}

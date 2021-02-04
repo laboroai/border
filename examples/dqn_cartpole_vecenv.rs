@@ -1,18 +1,23 @@
 use std::error::Error;
 use tch::nn;
-use lrr::{agents::{
+use lrr::{
+    core::{Agent, Trainer, trainer, util},
+    py_gym_env::{
+        PyVecGymEnv,
+        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
+        act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter}
+    },
+    agents::{
         OptInterval,
         tch::{
             Shape, ReplayBuffer, dqn::DQN, model::Model1_1,
             py_gym_env::{
                 obs::TchPyGymEnvObsBuffer,
-                act_d::{
-                    TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActRawFilter,
-                    TchPyGymEnvDiscreteActBuffer
-                }
+                act_d::TchPyGymEnvDiscreteActBuffer
             }
         }
-    }, core::{Agent, Trainer, trainer, util}, py_gym_env::{PyVecGymEnv, PyGymEnvObs, PyGymEnvObsRawFilter}};
+    }
+};
 
 const N_PROCS: usize = 4;
 const DIM_OBS: usize = 4;
@@ -40,9 +45,9 @@ impl Shape for ObsShape {
 }
 
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
-type ActFilter = TchPyGymEnvDiscreteActRawFilter;
+type ActFilter = PyGymEnvDiscreteActRawFilter;
 type Obs = PyGymEnvObs<ObsShape, f64>;
-type Act = TchPyGymEnvDiscreteAct<ActFilter>;
+type Act = PyGymEnvDiscreteAct<ActFilter>;
 type Env = PyVecGymEnv<Obs, Act, ObsFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer<ActFilter>;
@@ -91,6 +96,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         .n_episodes_per_eval(N_EPISODES_PER_EVAL);
     trainer.train();
     trainer.get_agent().save("./examples/model/dqn_cartpole_vecenv")?;
+
+    trainer.get_env().close();
+    trainer.get_env_eval().close();
 
     Ok(())
 }

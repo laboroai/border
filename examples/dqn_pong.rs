@@ -1,21 +1,24 @@
 use std::error::Error;
-use lrr::core::{Trainer, Agent, util};
-use lrr::py_gym_env::PyGymEnv;
-use lrr::agents::OptInterval;
-use lrr::agents::tch::{DQN, ReplayBuffer};
-use lrr::agents::tch::py_gym_env::{
-    TchPyGymEnvObs, TchPyGymEnvObsBuffer,
-    TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActBuffer
-};
-use lrr::agents::tch::py_gym_env::pong::{
-    PongObsShape, PongObsFilter, PongNet, PongActFilter
+use lrr::{
+    core::{Trainer, Agent, util},
+    py_gym_env::{PyGymEnv, obs::PyGymEnvObs, act_d::PyGymEnvDiscreteAct},
+    agents::{
+        OptInterval,
+        tch::{
+            DQN, ReplayBuffer,
+            py_gym_env::{
+                TchPyGymEnvObsBuffer, TchPyGymEnvDiscreteActBuffer,
+                pong::{PongObsShape, PongObsFilter, PongNet, PongActFilter}
+            }
+        }
+    }
 };
 
 type ObsShape = PongObsShape;
 type ObsFilter = PongObsFilter;
 type ActFilter = PongActFilter;
-type Obs = TchPyGymEnvObs<ObsShape, u8>;
-type Act = TchPyGymEnvDiscreteAct<ActFilter>;
+type Obs = PyGymEnvObs<ObsShape, u8>;
+type Act = PyGymEnvDiscreteAct<ActFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer<ActFilter>;
 type Env = PyGymEnv<Obs, Act, ObsFilter>;

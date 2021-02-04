@@ -1,10 +1,10 @@
 use std::error::Error;
 use lrr::core::{Policy, util};
-use lrr::py_gym_env::{PyGymEnv, PyGymEnvObs, PyGymEnvObsRawFilter};
-use lrr::agents::tch::Shape;
-use lrr::agents::tch::py_gym_env::act_d::{
-    TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActRawFilter
+use lrr::py_gym_env::{
+    PyGymEnv, PyGymEnvObs, PyGymEnvObsRawFilter,
+    act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter}
 };
+use lrr::agents::tch::Shape;
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -16,9 +16,9 @@ impl Shape for ObsShape {
 }
 
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
-type ActFilter = TchPyGymEnvDiscreteActRawFilter;
+type ActFilter = PyGymEnvDiscreteActRawFilter;
 type Obs = PyGymEnvObs<ObsShape, f64>;
-type Act = TchPyGymEnvDiscreteAct<ActFilter>;
+type Act = PyGymEnvDiscreteAct<ActFilter>;
 type Env = PyGymEnv<Obs, Act, ObsFilter>;
 
 struct RandomPolicy {}

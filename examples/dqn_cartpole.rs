@@ -1,11 +1,18 @@
 use std::error::Error;
 use lrr::core::{Trainer, Agent, util};
-use lrr::py_gym_env::{PyGymEnv, PyGymEnvObs, PyGymEnvObsRawFilter};
-use lrr::agents::OptInterval;
-use lrr::agents::tch::{Shape, DQN, QNetwork, ReplayBuffer};
-use lrr::agents::tch::py_gym_env::obs::TchPyGymEnvObsBuffer;
-use lrr::agents::tch::py_gym_env::act_d::{
-    TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActRawFilter, TchPyGymEnvDiscreteActBuffer
+use lrr::py_gym_env::{
+    PyGymEnv, PyGymEnvObs, PyGymEnvObsRawFilter,
+    act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter}
+};
+use lrr::agents::{
+    OptInterval,
+    tch::{
+        Shape, DQN, QNetwork, ReplayBuffer,
+        py_gym_env::{
+            obs::TchPyGymEnvObsBuffer,
+            act_d::TchPyGymEnvDiscreteActBuffer
+        }
+    }
 };
 
 #[derive(Debug, Clone)]
@@ -18,9 +25,9 @@ impl Shape for ObsShape {
 }
 
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
-type ActFilter = TchPyGymEnvDiscreteActRawFilter;
+type ActFilter = PyGymEnvDiscreteActRawFilter;
 type Obs = PyGymEnvObs<ObsShape, f64>;
-type Act = TchPyGymEnvDiscreteAct<ActFilter>;
+type Act = PyGymEnvDiscreteAct<ActFilter>;
 type Env = PyGymEnv<Obs, Act, ObsFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer<ActFilter>;

@@ -7,15 +7,15 @@ use ndarray::{s, ArrayD, Axis};
 use pyo3::PyObject;
 use numpy::PyArrayDyn;
 use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
-use crate::py_gym_env::{ObsFilter, PyGymEnvObs};
-use crate::agents::tch::Shape;
-use crate::agents::tch::model::{ModelBase, Model1};
-use crate::agents::tch::py_gym_env::act_d::TchPyGymDiscreteActFilter;
+use crate::{
+    py_gym_env::{ObsFilter, PyGymEnvObs, act_d::PyGymDiscreteActFilter},
+    agents::tch::{Shape, model::{ModelBase, Model1}}
+};
 
 #[derive(Clone, Debug)]
 pub struct PongActFilter {}
 
-impl TchPyGymDiscreteActFilter for PongActFilter {
+impl PyGymDiscreteActFilter for PongActFilter {
     /// Add 2 to action.
     ///
     /// In Pong environment, 2 and 3 are up and down actions.

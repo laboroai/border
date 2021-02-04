@@ -4,7 +4,6 @@ pub mod act_c;
 pub mod util;
 pub mod pong;
 pub use obs::TchPyGymEnvObsBuffer;
-pub use act_d::{TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActBuffer,
-                TchPyGymDiscreteActFilter, TchPyGymEnvDiscreteActRawFilter};
+pub use act_d::TchPyGymEnvDiscreteActBuffer;
 pub use act_c::{TchPyGymEnvContinuousAct, TchPyGymEnvContinuousActBuffer,
                 TchPyGymActFilter, RawFilter};

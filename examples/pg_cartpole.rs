@@ -2,16 +2,20 @@ use std::error::Error;
 use tch::nn;
 use lrr::{
     core::{Trainer, Agent, util},
-    py_gym_env::{PyGymEnv, PyGymEnvObs, PyGymEnvObsRawFilter},
-    agents::{OptInterval,
+    py_gym_env::{
+        PyGymEnv,
+        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
+        act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter}
+    },
+    agents::{
+        OptInterval,
         tch::{
             {Shape, ReplayBuffer},
             pg::discrete::PGDiscrete,
             model::Model1_1,
             py_gym_env::{
                 obs::TchPyGymEnvObsBuffer,
-                act_d::{TchPyGymEnvDiscreteAct, TchPyGymEnvDiscreteActRawFilter,
-                    TchPyGymEnvDiscreteActBuffer}
+                act_d::TchPyGymEnvDiscreteActBuffer
             }
         }
     }
@@ -37,9 +41,9 @@ fn create_actor() -> Model1_1 {
 }
 
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
-type ActFilter = TchPyGymEnvDiscreteActRawFilter;
+type ActFilter = PyGymEnvDiscreteActRawFilter;
 type Obs = PyGymEnvObs<ObsShape, f64>;
-type Act = TchPyGymEnvDiscreteAct<ActFilter>;
+type Act = PyGymEnvDiscreteAct<ActFilter>;
 type Env = PyGymEnv<Obs, Act, ObsFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer<ActFilter>;
