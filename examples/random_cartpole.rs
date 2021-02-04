@@ -1,7 +1,8 @@
 use std::error::Error;
 use lrr::core::{Policy, util};
 use lrr::py_gym_env::{
-    PyGymEnv, PyGymEnvObs, PyGymEnvObsRawFilter,
+    PyGymEnv, 
+    obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
     act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter}
 };
 use lrr::agents::tch::Shape;

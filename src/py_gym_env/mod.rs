@@ -5,6 +5,6 @@ pub mod base;
 pub mod vec;
 pub mod obs;
 pub mod act_d;
+pub mod act_c;
 pub use base::{PyGymInfo, PyGymEnv, ObsFilter};
 pub use vec::PyVecGymEnv;
-pub use obs::{PyGymEnvObs, PyGymEnvObsRawFilter};

@@ -2,7 +2,11 @@ use std::error::Error;
 use tch::nn;
 use lrr::{
     core::{Trainer, Agent, util},
-    py_gym_env::{PyGymEnv, PyGymEnvObs, PyGymEnvObsRawFilter},
+    py_gym_env::{
+        PyGymEnv,
+        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
+        act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter}
+    },
     agents::{
         OptInterval,
         tch::{
@@ -10,9 +14,7 @@ use lrr::{
             model::{Model1_1, Model2_1},
             py_gym_env::{
                 obs::TchPyGymEnvObsBuffer,
-                act_c::{
-                    TchPyGymEnvContinuousAct, TchPyGymEnvContinuousActBuffer, RawFilter
-                }
+                act_c::TchPyGymEnvContinuousActBuffer,
             }
         }
     }
@@ -62,9 +64,9 @@ fn create_critic() -> Model2_1 {
 }
 
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f32>;
-type ActFilter = RawFilter;
+type ActFilter = PyGymEnvContinuousActRawFilter;
 type Obs = PyGymEnvObs<ObsShape, f32>;
-type Act = TchPyGymEnvContinuousAct<ActShape, ActFilter>;
+type Act = PyGymEnvContinuousAct<ActShape, ActFilter>;
 type Env = PyGymEnv<Obs, Act, ObsFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f32>;
 type ActBuffer = TchPyGymEnvContinuousActBuffer<ActShape, ActFilter>;

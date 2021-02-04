@@ -3,7 +3,11 @@ use tch::nn;
 use ndarray::ArrayD;
 use lrr::{
     core::{Trainer, Agent, util},
-    py_gym_env::{PyGymEnv, PyGymEnvObs, PyGymEnvObsRawFilter},
+    py_gym_env::{
+        PyGymEnv,
+        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
+        act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActFilter}
+    },
     agents::{
         OptInterval,
         tch::{
@@ -11,10 +15,7 @@ use lrr::{
             model::{Model1_2, Model2_1},
             py_gym_env::{
                 obs::TchPyGymEnvObsBuffer,
-                act_c::{
-                    TchPyGymEnvContinuousAct, TchPyGymEnvContinuousActBuffer,
-                    TchPyGymActFilter
-                }
+                act_c::TchPyGymEnvContinuousActBuffer,
             }
         }
     }
@@ -45,7 +46,7 @@ impl Shape for ActShape {
 #[derive(Clone, Debug)]
 struct ActFilter {}
 
-impl TchPyGymActFilter for ActFilter {
+impl PyGymEnvContinuousActFilter for ActFilter {
     fn filter(act: ArrayD<f32>) -> ArrayD<f32> {
         2f32 * act
     }
@@ -73,7 +74,7 @@ fn create_critic() -> Model2_1 {
 
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
 type Obs = PyGymEnvObs<ObsShape, f64>;
-type Act = TchPyGymEnvContinuousAct<ActShape, ActFilter>;
+type Act = PyGymEnvContinuousAct<ActShape, ActFilter>;
 type Env = PyGymEnv<Obs, Act, ObsFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
 type ActBuffer = TchPyGymEnvContinuousActBuffer<ActShape, ActFilter>;

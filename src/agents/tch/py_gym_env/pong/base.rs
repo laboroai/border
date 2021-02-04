@@ -8,7 +8,7 @@ use pyo3::PyObject;
 use numpy::PyArrayDyn;
 use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
 use crate::{
-    py_gym_env::{ObsFilter, PyGymEnvObs, act_d::PyGymDiscreteActFilter},
+    py_gym_env::{ObsFilter, obs::PyGymEnvObs, act_d::PyGymDiscreteActFilter},
     agents::tch::{Shape, model::{ModelBase, Model1}}
 };
 

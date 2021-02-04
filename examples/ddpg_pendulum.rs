@@ -1,8 +1,13 @@
+// TODO: set action scale 2.0, as sac_pendulum
 use std::error::Error;
 use tch::nn;
 use lrr::{
     core::{Agent, Trainer, util},
-    py_gym_env::{PyGymEnv, PyGymEnvObs, PyGymEnvObsRawFilter},
+    py_gym_env::{
+        PyGymEnv, 
+        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
+        act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter}
+    },
     agents::{
         OptInterval,
         tch::{
@@ -10,9 +15,7 @@ use lrr::{
             model::{Model1_1, Model2_1},
             py_gym_env::{
                 obs::TchPyGymEnvObsBuffer,
-                act_c::{
-                    TchPyGymEnvContinuousAct, TchPyGymEnvContinuousActBuffer, RawFilter
-                }
+                act_c::TchPyGymEnvContinuousActBuffer,
             }
         }
     }
@@ -40,8 +43,6 @@ impl Shape for ActShape {
     }
 }
 
-// TODO: set action scale 2.0, as sac_pendulum
-
 fn create_actor() -> Model1_1 {
     let network_fn = |p: &nn::Path, in_dim, out_dim| nn::seq()
         .add(nn::linear(p / "al1", in_dim as _, 64, Default::default()))
@@ -64,9 +65,9 @@ fn create_critic() -> Model2_1 {
 }
 
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
-type ActFilter = RawFilter;
+type ActFilter = PyGymEnvContinuousActRawFilter;
 type Obs = PyGymEnvObs<ObsShape, f64>;
-type Act = TchPyGymEnvContinuousAct<ActShape, ActFilter>;
+type Act = PyGymEnvContinuousAct<ActShape, ActFilter>;
 type Env = PyGymEnv<Obs, Act, ObsFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
 type ActBuffer = TchPyGymEnvContinuousActBuffer<ActShape, ActFilter>;

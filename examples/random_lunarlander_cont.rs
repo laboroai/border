@@ -2,14 +2,12 @@ use std::error::Error;
 use ndarray::Array;
 use lrr::{
     core::{Policy, util},
-    py_gym_env::{PyGymEnv, PyGymEnvObs, PyGymEnvObsRawFilter},
-    agents::tch::{
-        Shape,
-        py_gym_env::{
-            TchPyGymEnvContinuousAct,
-            act_c::RawFilter
-        }
-    }
+    py_gym_env::{
+        PyGymEnv,
+        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
+        act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter}
+    },
+    agents::tch::Shape,
 };
 
 #[derive(Debug, Clone)]
@@ -33,7 +31,7 @@ impl Shape for ActShape {
 type O = PyGymEnvObs<ObsShape, f32>;
 // type O = TchPyGymEnvObs<ObsShape, f64>; // Results in a runtime error in conversion of
 // numpy array in lunarlander-cont-v2 environemnt beecause of type mismatch.
-type A = TchPyGymEnvContinuousAct<ActShape, RawFilter>;
+type A = PyGymEnvContinuousAct<ActShape, PyGymEnvContinuousActRawFilter>;
 type E = PyGymEnv<O, A, PyGymEnvObsRawFilter<ObsShape, f32>>;
 
 struct RandomPolicy {}
