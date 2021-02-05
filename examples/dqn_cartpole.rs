@@ -1,7 +1,8 @@
 use std::error::Error;
 use lrr::core::{Trainer, Agent, util};
 use lrr::py_gym_env::{
-    PyGymEnv, PyGymEnvObs, PyGymEnvObsRawFilter,
+    PyGymEnv,
+    obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
     act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter}
 };
 use lrr::agents::{
@@ -27,10 +28,10 @@ impl Shape for ObsShape {
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
 type ActFilter = PyGymEnvDiscreteActRawFilter;
 type Obs = PyGymEnvObs<ObsShape, f64>;
-type Act = PyGymEnvDiscreteAct<ActFilter>;
-type Env = PyGymEnv<Obs, Act, ObsFilter>;
+type Act = PyGymEnvDiscreteAct;
+type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
-type ActBuffer = TchPyGymEnvDiscreteActBuffer<ActFilter>;
+type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 
 fn create_agent() -> impl Agent<Env> {
     let qnet = QNetwork::new(4, 2, 0.001);
@@ -49,7 +50,8 @@ fn create_agent() -> impl Agent<Env> {
 
 fn create_env() -> Env {
     let obs_filter = ObsFilter::new();
-    Env::new("CartPole-v0", obs_filter, false).unwrap()
+    let act_filter = ActFilter::new();
+    Env::new("CartPole-v0", obs_filter, act_filter).unwrap()
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -75,7 +77,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     env.set_render(true);
     agent.load("./examples/model/dqn_cartpole")?;
     agent.eval();
-    util::eval(&env, &mut agent, 5, None);
+    util::eval(&mut env, &mut agent, 5, None);
 
     Ok(())
 }
