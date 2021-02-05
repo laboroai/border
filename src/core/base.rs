@@ -43,11 +43,11 @@ pub trait Env {
     type Act: Act;
     type Info: Info;
 
-    fn step(&self, a: &Self::Act) -> Step<Self> where Self: Sized;
+    fn step(&mut self, a: &Self::Act) -> Step<Self> where Self: Sized;
 
     /// Reset the i-th environment if `is_done[i]==1.0`.
     /// Thei-th return value should be ignored if `is_done[i]==0.0`.
-    fn reset(&self, is_done: Option<&Vec<f32>>) -> Result<Self::Obs, Box<dyn Error>>;
+    fn reset(&mut self, is_done: Option<&Vec<f32>>) -> Result<Self::Obs, Box<dyn Error>>;
 }
 
 /// Represents a policy. on an environment. It is based on a mapping from an observation

@@ -1,11 +1,11 @@
-use std::marker::PhantomData;
+// use std::marker::PhantomData;
 use std::convert::TryFrom;
 use log::trace;
 use tch::Tensor;
 use crate::agents::tch::TchBuffer;
-use crate::py_gym_env::act_d::{PyGymEnvDiscreteAct, PyGymDiscreteActFilter};
+use crate::py_gym_env::act_d::PyGymEnvDiscreteAct; //, PyGymDiscreteActFilter};
 
-impl<F: PyGymDiscreteActFilter> From<Tensor> for PyGymEnvDiscreteAct<F> {
+impl From<Tensor> for PyGymEnvDiscreteAct {
     /// Assumes `t` is a scalar or 1-dimensional vector,
     /// containing discrete actions. The number of elements is
     /// equal to the number of environments in the vectorized environment.
@@ -13,30 +13,27 @@ impl<F: PyGymDiscreteActFilter> From<Tensor> for PyGymEnvDiscreteAct<F> {
         trace!("Tensor from TchPyGymEnvDiscreteAct: {:?}", t);
         Self {
             act: t.into(),
-            phantom: PhantomData
         }
     }
 }
 
-pub struct TchPyGymEnvDiscreteActBuffer<F: PyGymDiscreteActFilter> {
+pub struct TchPyGymEnvDiscreteActBuffer {
     act: Tensor,
     n_procs: i64,
-    phantom: PhantomData<F>,
 }
 
-impl<F: PyGymDiscreteActFilter> TchBuffer for TchPyGymEnvDiscreteActBuffer<F> {
-    type Item = PyGymEnvDiscreteAct<F>;
+impl TchBuffer for TchPyGymEnvDiscreteActBuffer {
+    type Item = PyGymEnvDiscreteAct;
     type SubBatch = Tensor;
 
     fn new(capacity: usize, n_procs: usize) -> Self {
         Self {
             act: Tensor::zeros(&[capacity as _, n_procs as _], tch::kind::INT64_CPU),
             n_procs: n_procs as _,
-            phantom: PhantomData
         }
     }
 
-    fn push(&mut self, index: i64, item: &PyGymEnvDiscreteAct<F>) {
+    fn push(&mut self, index: i64, item: &PyGymEnvDiscreteAct) {
         let act = Tensor::try_from(item.act.clone()).unwrap();
         trace!("TchPyGymDiscreteActBuffer::push(): {:?}", act);
         self.act.get(index).copy_(&act);

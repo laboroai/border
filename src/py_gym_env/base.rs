@@ -12,14 +12,19 @@ pub struct PyGymInfo {}
 
 impl Info for PyGymInfo {}
 
+// pub enum PyGymEnvType {
+//     NONVEC,
+//     VEC
+// }
 
-/// Convert PyObject to Env::Obs.
-///
-/// The methods in this trait are called inside PyGymEnv.
-pub trait ObsFilter<O: Obs> {
-    fn filt(&self, obs: PyObject) -> O;
+/// Convert PyObject to PyGymEnv::Obs.
+pub trait PyGymEnvObsFilter<O: Obs> {
+    fn filt(&mut self, obs: PyObject) -> O;
 
-    fn reset(&self, obs: PyObject) -> O {
+    /// Called when resetting the environment.
+    ///
+    /// This method is useful for stateful filters.
+    fn reset(&mut self, obs: PyObject) -> O {
         self.filt(obs)
     }
 
@@ -29,30 +34,43 @@ pub trait ObsFilter<O: Obs> {
     fn stack(filtered: Vec<O>) -> O;
 }
 
+/// Convert PyGymEnv::Act to PyObject.
+pub trait PyGymEnvActFilter<A: Act> {
+    fn filt(&mut self, act: A) -> PyObject;
+
+    /// Called when resetting the environment.
+    ///
+    /// This method is useful for stateful filters.
+    fn reset(&mut self, _is_done: &Option<&Vec<f32>>) {}
+}
+
 /// Adapted from [tch-rs RL example](https://github.com/LaurentMazare/tch-rs/tree/master/examples/reinforcement-learning).
 /// It represents non-vectorized environment (`n_procs`=1).
 #[derive(Debug, Clone)]
-pub struct PyGymEnv<O, A, F> where
+pub struct PyGymEnv<O, A, OF, AF> where
     O: Obs,
-    F: ObsFilter<O>
+    A: Act,
+    OF: PyGymEnvObsFilter<O>,
+    AF: PyGymEnvActFilter<A>
 {
     render: bool,
     env: PyObject,
     action_space: i64,
     observation_space: Vec<usize>,
-    continuous_action: bool,
     count_steps: RefCell<usize>,
     max_steps: Option<usize>,
-    obs_filter: F,
-    phantom: PhantomData<(O, A, F)>,
+    obs_filter: OF,
+    act_filter: AF,
+    phantom: PhantomData<(O, A)>,
 }
 
-impl<O, A, F> PyGymEnv<O, A, F> where
+impl<O, A, OF, AF> PyGymEnv<O, A, OF, AF> where
     O: Obs,
-    A: Act + Into<PyObject>,
-    F: ObsFilter<O>,
+    A: Act,
+    OF: PyGymEnvObsFilter<O>,
+    AF: PyGymEnvActFilter<A>
 {
-        pub fn new(name: &str, obs_filter: F, continuous_action: bool) -> PyResult<Self> {
+    pub fn new(name: &str, obs_filter: OF, act_filter: AF) -> PyResult<Self> {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
@@ -66,6 +84,9 @@ impl<O, A, F> PyGymEnv<O, A, F> where
         let gym = py.import("gym")?;
         let env = gym.call("make", (name,), None)?;
         let _ = env.call_method("seed", (42,), None)?;
+
+        // TODO: consider removing action_space and observation_space.
+        // Act/obs types are specified by type parameters.
         let action_space = env.getattr("action_space")?;
         let action_space = if let Ok(val) = action_space.getattr("n") {
             val.extract()?
@@ -75,15 +96,17 @@ impl<O, A, F> PyGymEnv<O, A, F> where
         };
         let observation_space = env.getattr("observation_space")?;
         let observation_space = observation_space.getattr("shape")?.extract()?;
+
         Ok(PyGymEnv {
             render: false,
             env: env.into(),
             action_space,
             observation_space,
-            continuous_action,
+            // TODO: consider remove RefCell, raw value instead
             count_steps: RefCell::new(0),
             max_steps: None,
             obs_filter,
+            act_filter,
             phantom: PhantomData,
         })
     }
@@ -109,10 +132,11 @@ fn pylist_to_act(py: &Python, a: PyObject) -> PyObject {
     }
 }
 
-impl<O, A, F> Env for PyGymEnv<O, A, F> where
+impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
     O: Obs,
-    A: Act + Into<PyObject> + Debug,
-    F: ObsFilter<O>,
+    A: Act + Debug,
+    OF: PyGymEnvObsFilter<O>,
+    AF: PyGymEnvActFilter<A>
 {
     type Obs = O;
     type Act = A;
@@ -120,8 +144,12 @@ impl<O, A, F> Env for PyGymEnv<O, A, F> where
 
     /// Resets the environment, returning the observation tensor.
     /// In this environment, the length of `is_done` is assumed to be 1.
-    fn reset(&self, is_done: Option<&Vec<f32>>) -> Result<O, Box<dyn Error>>  {
+    fn reset(&mut self, is_done: Option<&Vec<f32>>) -> Result<O, Box<dyn Error>>  {
         trace!("PyGymEnv::reset()");
+
+        // Reset action filter, effective for stateful filter
+        self.act_filter.reset(&is_done);
+
         match is_done {
             None => {
                 pyo3::Python::with_gil(|py| {
@@ -144,25 +172,17 @@ impl<O, A, F> Env for PyGymEnv<O, A, F> where
         }
     }
 
-    fn step(&self, a: &A) -> Step<Self> {
+    fn step(&mut self, a: &A) -> Step<Self> {
         trace!("PyGymEnv::step()");
-        trace!("a     : {:?}", &a);
 
         pyo3::Python::with_gil(|py| {
             if self.render {
                 let _ = self.env.call_method0(py, "render");
             }
 
-            // Process action for continuous or discrete
-            let a_py = {
-                let a_py = a.clone().into();
-                if !self.continuous_action { pylist_to_act(&py, a_py) }
-                else { a_py }
-            };
-
+            let a_py = self.act_filter.filt(a.clone());
             let ret = self.env.call_method(py, "step", (a_py,), None).unwrap();
             let step: &PyTuple = ret.extract(py).unwrap();
-
             let obs = step.get_item(0).to_owned();
             let obs = self.obs_filter.filt(obs.to_object(py));
             let reward: Vec<f32> = vec![step.get_item(1).extract().unwrap()];

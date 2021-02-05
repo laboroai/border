@@ -62,7 +62,7 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
         loop {
             // For resetted environments, elements in obs_prev are updated with env.reset().
             // See `sample()` in `util.rs`.
-            let step = sample(&self.env, &mut self.agent, &self.obs_prev);
+            let step = sample(&mut self.env, &mut self.agent, &self.obs_prev);
             // agent.observe() internally creates transisions, i.e., (o_t, a_t, o_t+1, r_t+1).
             let is_optimized = self.agent.observe(step);
             // For resetted environments, previous observation are updated.
@@ -73,7 +73,7 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
                 self.count_opts += 1;
                 if self.count_opts % self.n_opts_per_eval == 0 {
                     self.agent.eval();
-                    eval(&self.env_eval, &mut self.agent, self.n_episodes_per_eval, Some(self.count_opts));
+                    eval(&mut self.env_eval, &mut self.agent, self.n_episodes_per_eval, Some(self.count_opts));
                     self.agent.train();
                 }
             }

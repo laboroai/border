@@ -7,7 +7,7 @@ use ndarray::{ArrayD, Axis, IxDyn, stack};
 use numpy::Element;
 use crate::core::Obs;
 use crate::agents::tch::Shape;
-use crate::py_gym_env::ObsFilter;
+use crate::py_gym_env::PyGymEnvObsFilter;
 use crate::agents::tch::py_gym_env::util::pyobj_to_arrayd;
 
 fn any(is_done: &[f32]) -> bool {
@@ -29,11 +29,11 @@ impl <S, T>PyGymEnvObsRawFilter<S, T> where
     }
 }
 
-impl<S, T> ObsFilter<PyGymEnvObs<S, T>> for PyGymEnvObsRawFilter<S, T> where
+impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for PyGymEnvObsRawFilter<S, T> where
     S: Shape,
     T: Element + Debug + num_traits::identities::Zero + AsPrimitive<f32>,
 {
-    fn filt(&self, obs: PyObject) -> PyGymEnvObs<S, T> {
+    fn filt(&mut self, obs: PyObject) -> PyGymEnvObs<S, T> {
         PyGymEnvObs {
             obs: pyobj_to_arrayd::<S, T>(obs),
             phantom: PhantomData,

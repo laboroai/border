@@ -5,7 +5,7 @@ use crate::{core::{Obs, Step, Env, Policy}};
 
 /// The agent take an action and apply it to the environment.
 /// Then return [crate::core::base::Step] object.
-pub fn sample<E: Env, P: Policy<E>>(env: &E, policy: &mut P, obs_prev: &RefCell<Option<E::Obs>>) -> Step<E> {
+pub fn sample<E: Env, P: Policy<E>>(env: &mut E, policy: &mut P, obs_prev: &RefCell<Option<E::Obs>>) -> Step<E> {
     let obs = obs_prev.replace(None)
         .expect("Observation buffer is not initialized.");
     let a = policy.sample(&obs);
@@ -20,7 +20,7 @@ pub fn sample<E: Env, P: Policy<E>>(env: &E, policy: &mut P, obs_prev: &RefCell<
 }
 
 /// This method assumes that `n_proc`=1.
-pub fn eval<E: Env, P: Policy<E>>(env: &E, policy: &mut P, n_episodes_per_eval: usize, count_opts: Option<usize>) {
+pub fn eval<E: Env, P: Policy<E>>(env: &mut E, policy: &mut P, n_episodes_per_eval: usize, count_opts: Option<usize>) {
     // TODO: check the maximum number of steps of the environment for evaluation.
     // If it is infinite, the number of evaluation steps should be given in place of
     // n_episodes_per_eval.

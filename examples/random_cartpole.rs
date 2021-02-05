@@ -19,8 +19,8 @@ impl Shape for ObsShape {
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
 type ActFilter = PyGymEnvDiscreteActRawFilter;
 type Obs = PyGymEnvObs<ObsShape, f64>;
-type Act = PyGymEnvDiscreteAct<ActFilter>;
-type Env = PyGymEnv<Obs, Act, ObsFilter>;
+type Act = PyGymEnvDiscreteAct;
+type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 
 struct RandomPolicy {}
 
@@ -37,10 +37,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     fastrand::seed(42);
 
     let obs_filter = ObsFilter::new();
-    let mut env = Env::new("CartPole-v0", obs_filter, false)?;
+    let act_filter = ActFilter::new();
+    let mut env = Env::new("CartPole-v0", obs_filter, act_filter)?;
     env.set_render(true);
     let mut policy = RandomPolicy{};
-    util::eval(&env, &mut policy, 5, None);
+    util::eval(&mut env, &mut policy, 5, None);
 
     Ok(())
 }

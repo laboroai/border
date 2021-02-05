@@ -8,8 +8,14 @@ use pyo3::PyObject;
 use numpy::PyArrayDyn;
 use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
 use crate::{
-    py_gym_env::{ObsFilter, obs::PyGymEnvObs, act_d::PyGymDiscreteActFilter},
-    agents::tch::{Shape, model::{ModelBase, Model1}}
+    py_gym_env::{
+        PyGymEnvObsFilter,
+        obs::PyGymEnvObs,
+        act_d::PyGymDiscreteActFilter
+    },
+    agents::tch::{
+        Shape, model::{ModelBase, Model1}
+    }
 };
 
 #[derive(Clone, Debug)]
@@ -50,8 +56,8 @@ impl PongObsFilter {
 
 type PongObs = PyGymEnvObs<PongObsShape, u8>;
 
-impl ObsFilter<PongObs> for PongObsFilter {
-    fn filt(&self, obs: PyObject) -> PongObs {
+impl PyGymEnvObsFilter<PongObs> for PongObsFilter {
+    fn filt(&mut self, obs: PyObject) -> PongObs {
         let obs = pyo3::Python::with_gil(|py| {
             let obs: &PyArrayDyn<u8> = obs.extract(py).unwrap();
             debug_assert!(obs.shape() == [210, 160, 3]);
