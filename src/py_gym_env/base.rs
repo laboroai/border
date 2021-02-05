@@ -1,21 +1,15 @@
 #![allow(clippy::float_cmp)]
-use std::borrow::Borrow;
 use std::{fmt::Debug, error::Error};
 use std::marker::PhantomData;
 use std::cell::RefCell;
 use log::{trace};
 use pyo3::{PyObject, PyResult, Python, ToPyObject};
-use pyo3::types::{PyTuple, IntoPyDict, PyList};
+use pyo3::types::{PyTuple, IntoPyDict};
 use crate::core::{Obs, Act, Info, Step, Env};
 
 pub struct PyGymInfo {}
 
 impl Info for PyGymInfo {}
-
-// pub enum PyGymEnvType {
-//     NONVEC,
-//     VEC
-// }
 
 /// Convert PyObject to PyGymEnv::Obs.
 pub trait PyGymEnvObsFilter<O: Obs> {
@@ -119,17 +113,6 @@ impl<O, A, OF, AF> PyGymEnv<O, A, OF, AF> where
         self.max_steps = v;
         self
     }    
-}
-
-fn pylist_to_act(py: &Python, a: PyObject) -> PyObject {
-    let a_py_type = a.as_ref(*py).borrow().get_type().name().unwrap();
-    if a_py_type == "list" {
-        let l: &PyList = a.extract(*py).unwrap();
-        l.get_item(0).into()
-    }
-    else {
-        a
-    }
 }
 
 impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
