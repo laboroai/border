@@ -28,18 +28,20 @@ impl Shape for ActShape {
     }
 }
 
-type O = PyGymEnvObs<ObsShape, f32>;
+type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f32>;
+type ActFilter = PyGymEnvContinuousActRawFilter; //<ActShape>;
+type Obs = PyGymEnvObs<ObsShape, f32>;
 // type O = TchPyGymEnvObs<ObsShape, f64>; // Results in a runtime error in conversion of
 // numpy array in lunarlander-cont-v2 environemnt beecause of type mismatch.
-type A = PyGymEnvContinuousAct<ActShape, PyGymEnvContinuousActRawFilter>;
-type E = PyGymEnv<O, A, PyGymEnvObsRawFilter<ObsShape, f32>>;
+type Act = PyGymEnvContinuousAct<ActShape>;
+type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 
 struct RandomPolicy {}
 
-impl Policy<E> for RandomPolicy {
-    fn sample(&mut self, _: &O) -> A {
+impl Policy<Env> for RandomPolicy {
+    fn sample(&mut self, _: &Obs) -> Act {
         // A::new(Array::from(vec![2.0 * fastrand::f32() - 1.0, 2.0 * fastrand::f32() - 1.0]).into_dyn())
-        A::new(Array::from(vec![0.0, 0.0]).into_dyn())
+        Act::new(Array::from(vec![0.0, 0.0]).into_dyn())
     }
 }
 
@@ -48,11 +50,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     tch::manual_seed(42);
     fastrand::seed(42);
 
-    let obs_filter = PyGymEnvObsRawFilter::new();
-    let mut env = E::new("LunarLanderContinuous-v2", obs_filter, true)?;
+    let obs_filter = ObsFilter::new();
+    let act_filter = ActFilter::new();
+    let mut env = Env::new("LunarLanderContinuous-v2", obs_filter, act_filter)?;
     env.set_render(true);
     let mut policy = RandomPolicy{};
-    util::eval(&env, &mut policy, 5, None);
+    util::eval(&mut env, &mut policy, 5, None);
 
     Ok(())
 }

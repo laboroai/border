@@ -65,10 +65,10 @@ fn create_critic() -> Model2_1 {
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f32>;
 type ActFilter = PyGymEnvContinuousActRawFilter;
 type Obs = PyGymEnvObs<ObsShape, f32>;
-type Act = PyGymEnvContinuousAct<ActShape, ActFilter>;
-type Env = PyGymEnv<Obs, Act, ObsFilter>;
+type Act = PyGymEnvContinuousAct<ActShape>;
+type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f32>;
-type ActBuffer = TchPyGymEnvContinuousActBuffer<ActShape, ActFilter>;
+type ActBuffer = TchPyGymEnvContinuousActBuffer<ActShape>;
 
 fn create_agent() -> impl Agent<Env> {
     let actor = create_actor();
@@ -90,7 +90,8 @@ fn create_agent() -> impl Agent<Env> {
 
 fn create_env() -> Env {
     let obs_filter = ObsFilter::new();
-    Env::new("LunarLanderContinuous-v2", obs_filter, true)
+    let act_filter = ActFilter::new();
+    Env::new("LunarLanderContinuous-v2", obs_filter, act_filter)
         .unwrap()
         .max_steps(Some(1000))
 }
@@ -118,7 +119,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     env.set_render(true);
     agent.load("./examples/model/sac_lunarlander_cont")?;
     agent.eval();
-    util::eval(&env, &mut agent, 5, None);
+    util::eval(&mut env, &mut agent, 5, None);
 
     Ok(())
 }

@@ -2,10 +2,13 @@ use std::marker::PhantomData;
 use log::trace;
 use ndarray::{Array1, IxDyn};
 use tch::Tensor;
-use crate::agents::tch::{Shape, TchBuffer, util::try_from, util::concat_slices};
-use crate::py_gym_env::act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActFilter};
 
-impl<S: Shape, F: PyGymEnvContinuousActFilter> From<Tensor> for PyGymEnvContinuousAct<S, F> {
+use crate::{
+    agents::tch::{Shape, TchBuffer, util::try_from, util::concat_slices},
+    py_gym_env::act_c::PyGymEnvContinuousAct
+};
+
+impl<S: Shape> From<Tensor> for PyGymEnvContinuousAct<S> {
     /// The first dimension is the number of environments.
     fn from(t: Tensor) -> Self {
         trace!("TchPyGymEnvContinuousAct from Tensor: {:?}", t);
@@ -18,14 +21,14 @@ impl<S: Shape, F: PyGymEnvContinuousActFilter> From<Tensor> for PyGymEnvContinuo
     }
 }
 
-pub struct TchPyGymEnvContinuousActBuffer<S: Shape, F: PyGymEnvContinuousActFilter> {
+pub struct TchPyGymEnvContinuousActBuffer<S: Shape> {
     act: Tensor,
     n_procs: i64,
-    phantom: PhantomData<(S, F)>
+    phantom: PhantomData<S>
 }
 
-impl<S: Shape, F: PyGymEnvContinuousActFilter> TchBuffer for TchPyGymEnvContinuousActBuffer<S, F> {
-    type Item = PyGymEnvContinuousAct<S, F>;
+impl<S: Shape> TchBuffer for TchPyGymEnvContinuousActBuffer<S> {
+    type Item = PyGymEnvContinuousAct<S>;
     type SubBatch = Tensor;
 
     fn new(capacity: usize, n_procs: usize) -> Self {

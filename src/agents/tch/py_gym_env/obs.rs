@@ -3,8 +3,11 @@ use std::marker::PhantomData;
 use log::trace;
 use numpy::Element;
 use tch::Tensor;
-use crate::agents::tch::{Shape, TchBuffer, util::try_from, util::concat_slices};
-use crate::py_gym_env::obs::PyGymEnvObs;
+
+use crate::{
+    agents::tch::{Shape, TchBuffer, util::try_from, util::concat_slices},
+    py_gym_env::obs::PyGymEnvObs
+};
 
 impl<S, T> From<PyGymEnvObs<S, T>> for Tensor where
     S: Shape,
