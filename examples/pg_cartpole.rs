@@ -43,10 +43,10 @@ fn create_actor() -> Model1_1 {
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
 type ActFilter = PyGymEnvDiscreteActRawFilter;
 type Obs = PyGymEnvObs<ObsShape, f64>;
-type Act = PyGymEnvDiscreteAct<ActFilter>;
-type Env = PyGymEnv<Obs, Act, ObsFilter>;
+type Act = PyGymEnvDiscreteAct;
+type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
-type ActBuffer = TchPyGymEnvDiscreteActBuffer<ActFilter>;
+type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 
 fn create_agent() -> impl Agent<Env> {
     let actor = create_actor();
@@ -62,7 +62,8 @@ fn create_agent() -> impl Agent<Env> {
 
 fn create_env() -> Env {
     let obs_filter = ObsFilter::new();
-    Env::new("CartPole-v0", obs_filter, false).unwrap()
+    let act_filter = ActFilter::new();
+    Env::new("CartPole-v0", obs_filter, act_filter).unwrap()
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -88,7 +89,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     env.set_render(true);
     agent.load("./examples/model/pg_cartpole")?;
     agent.eval();
-    util::eval(&env, &mut agent, 5, None);
+    util::eval(&mut env, &mut agent, 5, None);
 
     Ok(())
 }
