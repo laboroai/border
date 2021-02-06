@@ -2,7 +2,11 @@ use std::error::Error;
 use tch::nn;
 use lrr::{
     core::{Trainer, Agent, util},
-    py_gym_env::{PyVecGymEnv, PyGymEnvObs, PyGymEnvObsRawFilter},
+    py_gym_env::{
+        PyVecGymEnv,
+        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
+        act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter}
+    },
     agents::{
         OptInterval,
         tch::{
@@ -10,9 +14,7 @@ use lrr::{
             model::{Model1_2, Model2_1},
             py_gym_env::{
                 obs::TchPyGymEnvObsBuffer,
-                act_c::{
-                    TchPyGymEnvContinuousAct, TchPyGymEnvContinuousActBuffer, RawFilter
-                }
+                act_c::TchPyGymEnvContinuousActBuffer,
             }
         }
     }
@@ -80,12 +82,12 @@ fn create_critic() -> Model2_1 {
 }
 
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f32>;
-type ActFilter = RawFilter;
+type ActFilter = PyGymEnvContinuousActRawFilter;
 type Obs = PyGymEnvObs<ObsShape, f32>;
-type Act = TchPyGymEnvContinuousAct<ActShape, ActFilter>;
-type Env = PyVecGymEnv<Obs, Act, ObsFilter>;
+type Act = PyGymEnvContinuousAct<ActShape>;
+type Env = PyVecGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f32>;
-type ActBuffer = TchPyGymEnvContinuousActBuffer<ActShape, ActFilter>;
+type ActBuffer = TchPyGymEnvContinuousActBuffer<ActShape>;
 
 fn create_agent() -> impl Agent<Env> {
     let actor = create_actor();
@@ -107,7 +109,8 @@ fn create_agent() -> impl Agent<Env> {
 
 fn create_env(n_procs: usize) -> Env {
     let obs_filters: Vec<_> = (0..n_procs).map(|_| ObsFilter::new()).collect();
-    Env::new("LunarLanderContinuous-v2", obs_filters, true).unwrap()
+    let act_filter = ActFilter { vectorized: true };
+    Env::new("LunarLanderContinuous-v2", obs_filters, act_filter).unwrap()
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -115,7 +118,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     tch::manual_seed(42);
 
     let env = create_env(N_PROCS);
-    let env_eval = create_env(N_PROCS);
+    let env_eval = create_env(1);
     let agent = create_agent();
     let mut trainer = Trainer::new(
         env,

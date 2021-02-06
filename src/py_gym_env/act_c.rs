@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::default::Default;
 use std::marker::PhantomData;
 use pyo3::{PyObject, IntoPy};
 use ndarray::{Axis, ArrayD};
@@ -34,11 +35,13 @@ pub trait PyGymEnvContinuousActFilter: Clone + Debug {
 }
 
 #[derive(Clone, Debug)]
-pub struct PyGymEnvContinuousActRawFilter {}
+pub struct PyGymEnvContinuousActRawFilter {
+    pub vectorized: bool
+}
 
-impl PyGymEnvContinuousActRawFilter {
-    pub fn new() -> Self {
-        Self {}
+impl Default for PyGymEnvContinuousActRawFilter {
+    fn default() -> Self {
+        Self { vectorized: false }
     }
 }
 
@@ -49,6 +52,7 @@ impl<S: Shape> PyGymEnvActFilter<PyGymEnvContinuousAct<S>> for PyGymEnvContinuou
         let act = {
             if S::squeeze_first_dim() {
                 debug_assert_eq!(act.shape()[0], 1);
+                debug_assert_eq!(&act.shape()[1..], S::shape());
                 let act = act.remove_axis(ndarray::Axis(0));
                 pyo3::Python::with_gil(|py| {
                     let act = PyArrayDyn::<f32>::from_array(py, &act);
