@@ -27,7 +27,7 @@ const LR_ACTOR: f64 = 3e-4;
 const LR_CRITIC: f64 = 3e-4;
 const N_HIDDEN: i64 = 64;
 const DISCOUNT_FACTOR: f64 = 0.99;
-const BATCH_SIZE: usize = 32;
+const BATCH_SIZE: usize = 128;
 const N_TRANSITIONS_WARMUP: usize = 250;
 const N_UPDATES_PER_OPT: usize = 1;
 const TAU: f64 = 0.005;
@@ -35,7 +35,7 @@ const ALPHA: f64 = 0.5;
 const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
 const MAX_OPTS: usize = 200_000;
 const N_OPTS_PER_EVAL: usize = 10_000;
-const REPLAY_BUFFER_CAPACITY: usize = 25_000;
+const REPLAY_BUFFER_CAPACITY: usize = 100_000;
 const N_EPISODES_PER_EVAL: usize = 5;
 
 #[derive(Debug, Clone)]
