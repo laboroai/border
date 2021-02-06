@@ -1,32 +1,51 @@
 use std::fmt::Debug;
+use std::default::Default;
 use std::cell::RefCell;
 use std::{path::Path, error::Error};
 use log::{info, trace};
 use num_traits::cast::AsPrimitive;
 use ndarray::{s, ArrayD, Axis};
-use pyo3::PyObject;
+use pyo3::{PyObject, IntoPy};
 use numpy::PyArrayDyn;
 use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
+
 use crate::{
-    py_gym_env::{
-        PyGymEnvObsFilter,
-        obs::PyGymEnvObs,
-        act_d::PyGymDiscreteActFilter
-    },
     agents::tch::{
         Shape, model::{ModelBase, Model1}
+    },
+    py_gym_env::{
+        PyGymEnvActFilter, PyGymEnvObsFilter,
+        obs::PyGymEnvObs,
+        act_d::PyGymEnvDiscreteAct,
     }
 };
 
 #[derive(Clone, Debug)]
-pub struct PongActFilter {}
+pub struct PongActFilter {
+    vectorized: bool
+}
 
-impl PyGymDiscreteActFilter for PongActFilter {
+impl Default for PongActFilter {
+    fn default() -> Self {
+        Self { vectorized: false }
+    }
+}
+
+impl PyGymEnvActFilter<PyGymEnvDiscreteAct> for PongActFilter {
     /// Add 2 to action.
     ///
     /// In Pong environment, 2 and 3 are up and down actions.
-    fn filt(act: Vec<i32>) -> Vec<i32> {
-        act.iter().map(|v| v + 2).collect()
+    fn filt(&mut self, act: PyGymEnvDiscreteAct) -> PyObject {
+        if self.vectorized {
+            pyo3::Python::with_gil(|py| {
+                act.act.iter().map(|v| v + 2).collect::<Vec<_>>().into_py(py)
+            })
+        }
+        else {
+            pyo3::Python::with_gil(|py| {
+                (act.act[0] + 2).into_py(py)
+            })
+        }
     }
 }
 
@@ -34,8 +53,6 @@ impl PyGymDiscreteActFilter for PongActFilter {
 pub struct PongObsShape;
 
 /// Shape of image observation of Pong.
-///
-/// It is after preprovessing by TchPyGymEnvObsPongFilter.
 impl Shape for PongObsShape {
     fn shape() -> &'static [usize] {
         &[80, 80]

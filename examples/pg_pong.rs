@@ -22,10 +22,10 @@ type ObsShape = PongObsShape;
 type ObsFilter = PongObsFilter;
 type ActFilter = PongActFilter;
 type Obs = PyGymEnvObs<ObsShape, u8>;
-type Act = PyGymEnvDiscreteAct<ActFilter>;
+type Act = PyGymEnvDiscreteAct;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8>;
-type ActBuffer = TchPyGymEnvDiscreteActBuffer<ActFilter>;
-type Env = PyGymEnv<Obs, Act, ObsFilter>;
+type ActBuffer = TchPyGymEnvDiscreteActBuffer;
+type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 
 fn create_actor() -> Model1_1 {
     let network_fn = |p: &nn::Path, in_dim, out_dim| nn::seq()
@@ -50,7 +50,8 @@ fn create_agent() -> impl Agent<Env> {
 
 fn create_env() -> Env {
     let obs_filter = ObsFilter::new();
-    Env::new("Pong-v0", obs_filter, false).unwrap()
+    let act_filter = ActFilter::default();
+    Env::new("Pong-v0", obs_filter, act_filter).unwrap()
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -73,7 +74,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     env.set_render(true);
     agent.load("./examples/model/pg_pong")?;
     agent.eval();
-    util::eval(&env, &mut agent, 5, None);
+    util::eval(&mut env, &mut agent, 5, None);
 
     Ok(())
 }
