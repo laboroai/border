@@ -47,10 +47,10 @@ impl Shape for ObsShape {
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
 type ActFilter = PyGymEnvDiscreteActRawFilter;
 type Obs = PyGymEnvObs<ObsShape, f64>;
-type Act = PyGymEnvDiscreteAct<ActFilter>;
-type Env = PyVecGymEnv<Obs, Act, ObsFilter>;
+type Act = PyGymEnvDiscreteAct;
+type Env = PyVecGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
-type ActBuffer = TchPyGymEnvDiscreteActBuffer<ActFilter>;
+type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 
 fn create_qnet() -> Model1_1 {
     let network_fn = |p: &nn::Path, in_dim, out_dim| nn::seq()
@@ -75,17 +75,18 @@ fn create_agent() -> impl Agent<Env> {
     agent
 }
 
-fn create_env() -> Env {
-    let obs_filters: Vec<_> = (0..N_PROCS).map(|_| ObsFilter::new()).collect();
-    Env::new("CartPole-v0", obs_filters, false).unwrap()
+fn create_env(n_procs: usize) -> Env {
+    let obs_filters: Vec<_> = (0..n_procs).map(|_| ObsFilter::new()).collect();
+    let act_filter = ActFilter { vectorized: true };
+    Env::new("CartPole-v0", obs_filters, act_filter).unwrap()
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     tch::manual_seed(42);
 
-    let env = create_env();
-    let env_eval = create_env();
+    let env = create_env(N_PROCS);
+    let env_eval = create_env(1);
     let agent = create_agent();
     let mut trainer = Trainer::new(
         env,
