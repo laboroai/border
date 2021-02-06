@@ -14,7 +14,7 @@ use crate::{
 pub struct PyVecGymEnv<O, A, OF, AF> {
     env: PyObject,
     n_procs: usize,
-    obs_filters: Vec<OF>,
+    obs_filter: OF,
     act_filter: AF,
     phantom: PhantomData<(O, A)>,
 }
@@ -27,9 +27,7 @@ impl<O, A, OF, AF> PyVecGymEnv<O, A, OF, AF> where
     OF: PyGymEnvObsFilter<O>,
     AF: PyGymEnvActFilter<A>,
 {
-    pub fn new(name: &str, obs_filters: Vec<OF>, act_filter: AF) -> PyResult<Self> {
-        let n_procs = obs_filters.len();
-
+    pub fn new(name: &str, n_procs: usize, obs_filter: OF, act_filter: AF) -> PyResult<Self> {
         pyo3::Python::with_gil(|py| {
             // sys.argv is used by pyglet library, which is responsible for rendering.
             // Depending on the environment, however, sys.argv can be empty.
@@ -57,7 +55,7 @@ impl<O, A, OF, AF> PyVecGymEnv<O, A, OF, AF> where
             Ok(PyVecGymEnv {
                 env: env.into(),
                 n_procs,
-                obs_filters,
+                obs_filter,
                 act_filter,
                 phantom: PhantomData,
             })
@@ -87,38 +85,51 @@ impl<O, A, OF, AF> Env for PyVecGymEnv<O, A, OF, AF> where
     /// If `is_done` is `Vec<f32>`, environments with `is_done[i] == 1.0` are resetted.
     fn reset(&mut self, is_done: Option<&Vec<f32>>) -> Result<O, Box<dyn Error>>  {
         trace!("PyVecGymEnv::reset()");
-        match is_done {
-            None => {
-                pyo3::Python::with_gil(|py| {
-                    let obs = self.env.call_method0(py, "reset").unwrap();
-                    let obs: Py<PyList> = obs.extract(py).unwrap();
-                    let filtered = self.obs_filters.iter_mut()
-                        .zip(obs.as_ref(py).iter())
-                        .map(|(f, o)| f.reset(o.into()))
-                        .collect();
-                    Ok(OF::stack(filtered))
-                })
-            },
-            Some(v) => {
-                pyo3::Python::with_gil(|py| {
-                    let obs = self.env.call_method1(py, "reset", (v.clone(),)).unwrap();
-                    let obs: Py<PyList> = obs.extract(py).unwrap();
-                    let filtered = self.obs_filters.iter_mut()
-                        .zip(obs.as_ref(py).iter())
-                        .map(|(f, o)| {
-                            if o.get_type().name().unwrap() == "NoneType" {
-                                O::zero(1)
-                            }
-                            else {
-                                debug_assert_eq!(o.get_type().name().unwrap(), "ndarray");
-                                f.reset(o.into())
-                            }
-                        }).collect();
-                    Ok(OF::stack(filtered))
-                })
-            }
-        }
+
+        pyo3::Python::with_gil(|py| {
+            let obs = match is_done {
+                None => self.env.call_method0(py, "reset").unwrap(),
+                Some(v) => self.env.call_method1(py, "reset", (v.clone(),)).unwrap()
+            };
+            Ok(self.obs_filter.reset(obs))
+        })
     }
+
+        //         }
+        //     )
+        // })
+        // match is_done {
+        //     None => {
+        //         pyo3::Python::with_gil(|py| {
+        //             let obs = self.env.call_method0(py, "reset").unwrap();
+        //             let obs: Py<PyList> = obs.extract(py).unwrap();
+        //             let filtered = self.obs_filters.iter_mut()
+        //                 .zip(obs.as_ref(py).iter())
+        //                 .map(|(f, o)| f.reset(o.into()))
+        //                 .collect();
+        //             Ok(OF::stack(filtered))
+        //         })
+        //     },
+        //     Some(v) => {
+        //         pyo3::Python::with_gil(|py| {
+        //             let obs = self.env.call_method1(py, "reset", (v.clone(),)).unwrap();
+        //             let obs: Py<PyList> = obs.extract(py).unwrap();
+        //             let filtered = self.obs_filters.iter_mut()
+        //                 .zip(obs.as_ref(py).iter())
+        //                 .map(|(f, o)| {
+        //                     if o.get_type().name().unwrap() == "NoneType" {
+        //                         O::zero(1)
+        //                     }
+        //                     else {
+        //                         debug_assert_eq!(o.get_type().name().unwrap(), "ndarray");
+        //                         f.reset(o.into())
+        //                     }
+        //                 }).collect();
+        //             Ok(OF::stack(filtered))
+        //         })
+        //     }
+        // }
+    // }
     
     fn step(&mut self, a: &A) -> Step<Self> {
         trace!("PyVecGymEnv::step()");
@@ -131,12 +142,12 @@ impl<O, A, OF, AF> Env for PyVecGymEnv<O, A, OF, AF> where
             let ret = self.env.call_method(py, "step", (a_py,), None).unwrap();
             let step: &PyTuple = ret.extract(py).unwrap();
             let obs = step.get_item(0).to_object(py);
-            let obs: Py<PyList> = obs.extract(py).unwrap();
-            let filtered = self.obs_filters.iter_mut()
-                .zip(obs.as_ref(py).iter())
-                .map(|(f, o)| f.reset(o.into()))
-                .collect();
-            let obs = OF::stack(filtered);
+            // let obs: Py<PyList> = obs.extract(py).unwrap();
+            let obs = self.obs_filter.filt(obs); //iter_mut()
+            //     .zip(obs.as_ref(py).iter())
+            //     .map(|(f, o)| f.reset(o.into()))
+            //     .collect();
+            // let obs = OF::stack(filtered);
 
             // Reward and is_done
             let reward = step.get_item(1).to_object(py);

@@ -13,6 +13,7 @@ impl Info for PyGymInfo {}
 
 /// Convert PyObject to PyGymEnv::Obs.
 pub trait PyGymEnvObsFilter<O: Obs> {
+    /// Convert PyObject into observation with filtering.
     fn filt(&mut self, obs: PyObject) -> O;
 
     /// Called when resetting the environment.
@@ -30,7 +31,7 @@ pub trait PyGymEnvObsFilter<O: Obs> {
 
 /// Convert PyGymEnv::Act to PyObject.
 ///
-/// This trait support vectorized environments.
+/// This trait should support vectorized environments.
 pub trait PyGymEnvActFilter<A: Act> {
     /// Filter action and convert it to PyObject.
     ///

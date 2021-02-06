@@ -108,9 +108,9 @@ fn create_agent() -> impl Agent<Env> {
 }
 
 fn create_env(n_procs: usize) -> Env {
-    let obs_filters: Vec<_> = (0..n_procs).map(|_| ObsFilter::new()).collect();
+    let obs_filter = ObsFilter { vectorized: true, ..ObsFilter::default() };
     let act_filter = ActFilter { vectorized: true };
-    Env::new("LunarLanderContinuous-v2", obs_filters, act_filter).unwrap()
+    Env::new("LunarLanderContinuous-v2", n_procs, obs_filter, act_filter).unwrap()
 }
 
 fn main() -> Result<(), Box<dyn Error>> {

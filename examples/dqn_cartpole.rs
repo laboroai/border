@@ -49,8 +49,8 @@ fn create_agent() -> impl Agent<Env> {
 }
 
 fn create_env() -> Env {
-    let obs_filter = ObsFilter::new();
-    let act_filter = ActFilter::new();
+    let obs_filter = ObsFilter::default(); //::new();
+    let act_filter = ActFilter::default();
     Env::new("CartPole-v0", obs_filter, act_filter).unwrap()
 }
 
