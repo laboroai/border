@@ -131,6 +131,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     trainer.train();
     trainer.get_agent().save("./examples/model/sac_lunarlander_cont")?;
 
+    trainer.get_env().close();
+    trainer.get_env_eval().close();
     // let mut env = create_env();
     // let mut agent = create_agent();
     // env.set_render(true);
