@@ -46,8 +46,15 @@ impl PyGymEnvDiscreteActRawFilter {
 // TODO: support vecenv
 impl PyGymEnvActFilter<PyGymEnvDiscreteAct> for PyGymEnvDiscreteActRawFilter {
     fn filt(&mut self, act: PyGymEnvDiscreteAct) -> PyObject {
-        pyo3::Python::with_gil(|py| {
-            act.act[0].into_py(py)
-        })
+        if act.act.len() == 1 {
+            pyo3::Python::with_gil(|py| {
+                act.act[0].into_py(py)
+            })
+        }
+        else {
+            pyo3::Python::with_gil(|py| {
+                act.act.into_py(py)
+            })
+        }
     }
 }

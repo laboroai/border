@@ -29,12 +29,20 @@ pub trait PyGymEnvObsFilter<O: Obs> {
 }
 
 /// Convert PyGymEnv::Act to PyObject.
+///
+/// This trait support vectorized environments.
 pub trait PyGymEnvActFilter<A: Act> {
+    /// Filter action and convert it to PyObject.
+    ///
+    /// For vectorized environments, `act` should have actions for all environments in
+    /// the vectorized environment. The return values will be a `PyList` object, each
+    /// element is an action of the corresponding environment.
     fn filt(&mut self, act: A) -> PyObject;
 
     /// Called when resetting the environment.
     ///
     /// This method is useful for stateful filters.
+    /// This method support vectorized environment
     fn reset(&mut self, _is_done: &Option<&Vec<f32>>) {}
 }
 

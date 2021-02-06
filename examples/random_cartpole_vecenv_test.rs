@@ -24,8 +24,8 @@ impl Shape for ObsShape {
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
 type ActFilter = PyGymEnvDiscreteActRawFilter;
 type Obs = PyGymEnvObs<ObsShape, f64>;
-type Act = PyGymEnvDiscreteAct<ActFilter>;
-type Env = PyVecGymEnv<Obs, Act, ObsFilter>;
+type Act = PyGymEnvDiscreteAct;
+type Env = PyVecGymEnv<Obs, Act, ObsFilter, ActFilter>;
 
 struct RandomPolicy {}
 
@@ -35,20 +35,24 @@ impl Policy<Env> for RandomPolicy {
     }
 }
 
+fn create_env() -> Env {
+    let obs_filters: Vec<_> = (0..N_PROCS).map(|_| ObsFilter::new()).collect();
+    let act_filter = ActFilter::new();
+    Env::new("CartPole-v0", obs_filters, act_filter).unwrap()
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     tch::manual_seed(42);
     fastrand::seed(42);
 
-    let obs_filters: Vec<_> = (0..N_PROCS).map(|_| ObsFilter::new()).collect();
-    let env = Env::new("CartPole-v0", obs_filters, false)?;
     let mut policy = RandomPolicy{};
-
+    let mut env = create_env();
     let obs = env.reset(None).unwrap();
     let obs_prev = RefCell::new(Some(obs));
 
     for _ in 0..200 {
-        let _step = util::sample(&env, &mut policy, &obs_prev);
+        let _step = util::sample(&mut env, &mut policy, &obs_prev);
     }
 
     env.close();
