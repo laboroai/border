@@ -117,10 +117,6 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
     }
 
     pub fn random_batch(&self, batch_size: usize) -> Option<TchBatch<E, O, A>> {
-        if self.len < 3 {
-            return None;
-        }
-
         let batch_size = batch_size.min(self.len - 1);
         let batch_indexes = Tensor::randint((self.len - 2) as _, &[batch_size as _], INT64_CPU);
 
