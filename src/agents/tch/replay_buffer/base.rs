@@ -65,6 +65,13 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
     A: TchBuffer<Item = E::Act> {
 
     pub fn new(capacity: usize, n_procs: usize) -> Self {
+        if capacity % n_procs != 0 {
+            // TODO: Rusty error handling
+            panic!("capacity % n_procs must be 0");
+        }
+
+        let capacity = capacity / n_procs;
+
         Self {
             obs: O::new(capacity, n_procs),
             next_obs: O::new(capacity, n_procs),
@@ -118,6 +125,13 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
 
     pub fn random_batch(&self, batch_size: usize) -> Option<TchBatch<E, O, A>> {
         let batch_size = batch_size.min(self.len - 1);
+
+        if batch_size % self.n_procs != 0 {
+            // TODO: Rusty error handling
+            panic!("batch_size % n_procs must be 0.");
+        }
+
+        let batch_size = batch_size / self.n_procs;
         let batch_indexes = Tensor::randint((self.len - 2) as _, &[batch_size as _], INT64_CPU);
 
         let obs = self.obs.batch(&batch_indexes);
