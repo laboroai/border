@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::default::Default;
 use pyo3::{PyObject, IntoPy};
 use crate::core::Act;
 use crate::py_gym_env::PyGymEnvActFilter;
@@ -35,25 +36,29 @@ pub trait PyGymDiscreteActFilter: Clone + Debug {
 }
 
 #[derive(Clone, Debug)]
-pub struct PyGymEnvDiscreteActRawFilter {}
+pub struct PyGymEnvDiscreteActRawFilter {
+    pub vectorized: bool
+}
 
-impl PyGymEnvDiscreteActRawFilter {
-    pub fn new() -> Self {
-        Self {}
+impl Default for PyGymEnvDiscreteActRawFilter {
+    fn default() -> Self {
+        Self { vectorized: false }
     }
 }
+
+impl PyGymEnvDiscreteActRawFilter {}
 
 // TODO: support vecenv
 impl PyGymEnvActFilter<PyGymEnvDiscreteAct> for PyGymEnvDiscreteActRawFilter {
     fn filt(&mut self, act: PyGymEnvDiscreteAct) -> PyObject {
-        if act.act.len() == 1 {
+        if self.vectorized {
             pyo3::Python::with_gil(|py| {
-                act.act[0].into_py(py)
+                act.act.into_py(py)
             })
         }
         else {
             pyo3::Python::with_gil(|py| {
-                act.act.into_py(py)
+                act.act[0].into_py(py)
             })
         }
     }
