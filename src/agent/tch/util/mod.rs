@@ -2,7 +2,7 @@ use log::trace;
 use ndarray::ArrayD;
 use tch::{Tensor, TchError};
 
-use crate::agents::tch::model::ModelBase;
+use crate::agent::tch::model::ModelBase;
 
 pub fn track<M: ModelBase>(dest: &mut M, src: &mut M, tau: f64) {
     let src = &mut src.get_var_store();

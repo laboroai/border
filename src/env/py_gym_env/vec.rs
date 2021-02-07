@@ -2,12 +2,14 @@
 use std::{fmt::Debug, error::Error};
 use std::marker::PhantomData;
 use log::{trace};
-use pyo3::{Py, PyObject, PyResult, ToPyObject};
-use pyo3::types::{PyList, IntoPyDict, PyTuple};
+use pyo3::{
+    PyObject, PyResult, ToPyObject,
+    types::{IntoPyDict, PyTuple}
+};
 
 use crate::{
     core::{Obs, Act, Step, Env},
-    py_gym_env::{PyGymInfo, PyGymEnvObsFilter, PyGymEnvActFilter}
+    env::py_gym_env::{PyGymInfo, PyGymEnvObsFilter, PyGymEnvActFilter}
 };
 
 #[derive(Debug, Clone)]

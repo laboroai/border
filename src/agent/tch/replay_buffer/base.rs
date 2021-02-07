@@ -1,7 +1,8 @@
 use log::trace;
 use std::marker::PhantomData;
 use tch::{Tensor, kind::{FLOAT_CPU, INT64_CPU}};
-use crate::core::{Env};
+
+use crate::core::Env;
 
 /// Return binary tensor, one where reward is not zero.
 ///

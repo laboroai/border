@@ -7,7 +7,6 @@ pub mod sac;
 pub mod ddpg;
 pub mod pg;
 pub mod model;
-pub mod py_gym_env;
 pub use base::Shape;
 use ppo::ppo_discrete;
 pub use replay_buffer::{ReplayBuffer, TchBuffer, TchBatch};

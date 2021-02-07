@@ -6,9 +6,13 @@ use num_traits::cast::AsPrimitive;
 use pyo3::{Py, PyObject, types::PyList};
 use ndarray::{ArrayD, Axis, IxDyn, stack};
 use numpy::{Element, PyArrayDyn};
-use crate::core::Obs;
-use crate::agents::tch::Shape;
-use crate::py_gym_env::PyGymEnvObsFilter;
+
+use crate::{
+    core::Obs,
+    env::py_gym_env::PyGymEnvObsFilter,
+    agent::tch::Shape
+};
+
 // use crate::agents::tch::py_gym_env::util::pyobj_to_arrayd;
 
 fn any(is_done: &[f32]) -> bool {

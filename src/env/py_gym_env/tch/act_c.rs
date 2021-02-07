@@ -4,8 +4,8 @@ use ndarray::{Array1, IxDyn};
 use tch::Tensor;
 
 use crate::{
-    agents::tch::{Shape, TchBuffer, util::try_from, util::concat_slices},
-    py_gym_env::act_c::PyGymEnvContinuousAct
+    agent::tch::{Shape, TchBuffer, util::{try_from, concat_slices}},
+    env::py_gym_env::act_c::PyGymEnvContinuousAct
 };
 
 impl<S: Shape> From<Tensor> for PyGymEnvContinuousAct<S> {

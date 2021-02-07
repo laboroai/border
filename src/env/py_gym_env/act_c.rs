@@ -4,8 +4,11 @@ use std::marker::PhantomData;
 use pyo3::{PyObject, IntoPy};
 use ndarray::{Axis, ArrayD};
 use numpy::PyArrayDyn;
-use crate::core::Act;
-use crate::agents::tch::Shape;
+
+use crate::{
+    core::Act,
+    agent::tch::Shape
+};
 
 use super::PyGymEnvActFilter;
 

@@ -2,20 +2,20 @@ use std::error::Error;
 use tch::nn;
 use lrr::{
     core::{Trainer, Agent, util},
-    py_gym_env::{
+    env::py_gym_env::{
         PyGymEnv,
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-        act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter}
+        act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter},
+        tch::{
+            obs::TchPyGymEnvObsBuffer,
+            act_c::TchPyGymEnvContinuousActBuffer
+        }
     },
-    agents::{
+    agent::{
         OptInterval,
         tch::{
             SAC, ReplayBuffer, Shape,
             model::{Model1_2, Model2_1},
-            py_gym_env::{
-                obs::TchPyGymEnvObsBuffer,
-                act_c::TchPyGymEnvContinuousActBuffer
-            }
         }
     }
 };

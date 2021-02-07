@@ -1,10 +1,17 @@
 use log::trace;
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{Kind::Float, Tensor};
-use crate::core::{Policy, Agent, Step, Env};
-use crate::agents::{OptInterval, OptIntervalCounter};
-use crate::agents::tch::{ReplayBuffer, TchBuffer, TchBatch};
-use crate::agents::tch::model::Model1;
+
+use crate::{
+    core::{Policy, Agent, Step, Env},
+    agent::{
+        OptInterval, OptIntervalCounter,
+        tch::{
+            ReplayBuffer, TchBuffer, TchBatch,
+            model::Model1
+        }
+    }
+};
 
 pub struct PGDiscrete<E, M, O, A> where
     E: Env,

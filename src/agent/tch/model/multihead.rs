@@ -1,7 +1,8 @@
 use std::{path::Path, error::Error};
 use log::{info, trace};
 use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
-use crate::agents::tch::model::{ModelBase, Model1};
+
+use crate::agent::tch::model::{ModelBase, Model1};
 
 #[derive(Debug)]
 pub struct StateValueAndDiscreteActProb {

@@ -1,11 +1,18 @@
 use log::trace;
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{no_grad, Tensor};
-use crate::{core::{Policy, Agent, Step, Env}};
-use crate::agents::{OptInterval, OptIntervalCounter};
-use crate::agents::tch::{ReplayBuffer, TchBuffer, TchBatch};
-use crate::agents::tch::model::{Model1, Model2};
-use crate::agents::tch::util::track;
+
+use crate::{
+    core::{Policy, Agent, Step, Env},
+    agent::{
+        OptInterval, OptIntervalCounter,
+        tch::{
+            ReplayBuffer, TchBuffer, TchBatch,
+            model::{Model1, Model2},
+            util::track
+        }
+    }
+};
 
 type ActionValue = Tensor;
 

@@ -1,21 +1,22 @@
 use std::error::Error;
-use lrr::core::{Trainer, Agent, util};
-use lrr::py_gym_env::{
-    PyGymEnv,
-    obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-    act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter}
-};
-use lrr::agents::{
-    OptInterval,
-    tch::{
-        Shape, DQN, QNetwork, ReplayBuffer,
-        py_gym_env::{
+
+use lrr::{
+    core::{Trainer, Agent, util},
+    env::py_gym_env::{
+        PyGymEnv,
+        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
+        act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
+        tch::{
             obs::TchPyGymEnvObsBuffer,
             act_d::TchPyGymEnvDiscreteActBuffer
         }
+    },
+    agent::{
+        OptInterval,
+        tch::{Shape, DQN, QNetwork, ReplayBuffer}
     }
 };
-
+    
 #[derive(Debug, Clone)]
 struct ObsShape {}
 

@@ -10,10 +10,10 @@ use numpy::PyArrayDyn;
 use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
 
 use crate::{
-    agents::tch::{
+    agent::tch::{
         Shape, model::{ModelBase, Model1}
     },
-    py_gym_env::{
+    env::py_gym_env::{
         PyGymEnvActFilter, PyGymEnvObsFilter,
         obs::PyGymEnvObs,
         act_d::PyGymEnvDiscreteAct,

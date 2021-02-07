@@ -1,8 +1,11 @@
 use std::fmt::Debug;
 use std::default::Default;
 use pyo3::{PyObject, IntoPy};
-use crate::core::Act;
-use crate::py_gym_env::PyGymEnvActFilter;
+
+use crate::{
+    core::Act,
+    env::py_gym_env::PyGymEnvActFilter
+};
 
 /// Represents action.
 #[derive(Clone, Debug)]

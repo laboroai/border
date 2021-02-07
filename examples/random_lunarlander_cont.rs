@@ -1,13 +1,14 @@
 use std::error::Error;
 use ndarray::Array;
+
 use lrr::{
     core::{Policy, util},
-    py_gym_env::{
+    env::py_gym_env::{
         PyGymEnv,
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
         act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter}
     },
-    agents::tch::Shape,
+    agent::tch::Shape,
 };
 
 #[derive(Debug, Clone)]
@@ -40,7 +41,6 @@ struct RandomPolicy {}
 
 impl Policy<Env> for RandomPolicy {
     fn sample(&mut self, _: &Obs) -> Act {
-        // A::new(Array::from(vec![2.0 * fastrand::f32() - 1.0, 2.0 * fastrand::f32() - 1.0]).into_dyn())
         Act::new(Array::from(vec![0.0, 0.0]).into_dyn())
     }
 }
@@ -50,8 +50,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     tch::manual_seed(42);
     fastrand::seed(42);
 
-    let obs_filter = ObsFilter::new();
-    let act_filter = ActFilter::new();
+    let obs_filter = ObsFilter::default(); //new();
+    let act_filter = ActFilter::default(); //new();
     let mut env = Env::new("LunarLanderContinuous-v2", obs_filter, act_filter)?;
     env.set_render(true);
     let mut policy = RandomPolicy{};

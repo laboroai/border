@@ -2,8 +2,11 @@
 use std::convert::TryFrom;
 use log::trace;
 use tch::Tensor;
-use crate::agents::tch::TchBuffer;
-use crate::py_gym_env::act_d::PyGymEnvDiscreteAct; //, PyGymDiscreteActFilter};
+
+use crate::{
+    agent::tch::TchBuffer,
+    env::py_gym_env::act_d::PyGymEnvDiscreteAct
+};
 
 impl From<Tensor> for PyGymEnvDiscreteAct {
     /// Assumes `t` is a scalar or 1-dimensional vector,

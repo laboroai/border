@@ -1,11 +1,14 @@
 use std::error::Error;
-use lrr::core::{Policy, util};
-use lrr::py_gym_env::{
-    PyGymEnv, 
-    obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-    act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter}
+
+use lrr::{
+    core::{Policy, util},
+    env::py_gym_env::{
+        PyGymEnv, 
+        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
+        act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter}
+    },
+    agent::tch::Shape
 };
-use lrr::agents::tch::Shape;
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -36,8 +39,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     tch::manual_seed(42);
     fastrand::seed(42);
 
-    let obs_filter = ObsFilter::new();
-    let act_filter = ActFilter::new();
+    let obs_filter = ObsFilter::default(); //new();
+    let act_filter = ActFilter::default(); //new();
     let mut env = Env::new("CartPole-v0", obs_filter, act_filter)?;
     env.set_render(true);
     let mut policy = RandomPolicy{};

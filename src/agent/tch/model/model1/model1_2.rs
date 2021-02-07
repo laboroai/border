@@ -1,7 +1,8 @@
 use std::{path::Path, error::Error, fmt, fmt::{Formatter, Debug}};
 use log::{info, trace};
 use tch::{Tensor, nn, nn::Module, nn::OptimizerConfig};
-use crate::agents::tch::model::{ModelBase, Model1};
+
+use crate::agent::tch::model::{ModelBase, Model1};
 
 pub struct Model1_2 {
     var_store: nn::VarStore,

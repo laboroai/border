@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+// TODO: consider moving it under src/env/py_gym_env
 pub trait Shape: Clone + Debug {
     fn shape() -> &'static [usize];
 
