@@ -34,7 +34,7 @@ const TAU: f64 = 0.005;
 const ALPHA: f64 = 0.5;
 const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
 const MAX_OPTS: usize = 200_000;
-const N_OPTS_PER_EVAL: usize = 10_000;
+const EVAL_INTERVAL: usize = 10_000;
 const REPLAY_BUFFER_CAPACITY: usize = 100_000;
 const N_EPISODES_PER_EVAL: usize = 5;
 
@@ -125,7 +125,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         env_eval,
         agent)
         .max_opts(MAX_OPTS)
-        .n_opts_per_eval(N_OPTS_PER_EVAL)
+        .eval_interval(EVAL_INTERVAL)
         .n_episodes_per_eval(N_EPISODES_PER_EVAL);
 
     trainer.train();

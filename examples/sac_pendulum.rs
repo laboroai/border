@@ -116,7 +116,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         env_eval,
         agent)
         .max_opts(200_000)
-        .n_opts_per_eval(10_000)
+        .eval_interval(10_000)
         .n_episodes_per_eval(5);
 
     trainer.train();

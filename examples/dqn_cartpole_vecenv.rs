@@ -31,7 +31,7 @@ const N_UPDATES_PER_OPT: usize = 1;
 const TAU: f64 = 0.005;
 const OPT_INTERVAL: OptInterval = OptInterval::Steps(12);
 const MAX_OPTS: usize = 1000;
-const N_OPTS_PER_EVAL: usize = 50;
+const EVAL_INTERVAL: usize = 50;
 const REPLAY_BUFFER_CAPACITY: usize = 2500;
 const N_EPISODES_PER_EVAL: usize = 5;
 
@@ -93,7 +93,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         env_eval,
         agent)
         .max_opts(MAX_OPTS)
-        .n_opts_per_eval(N_OPTS_PER_EVAL)
+        .eval_interval(EVAL_INTERVAL)
         .n_episodes_per_eval(N_EPISODES_PER_EVAL);
     trainer.train();
     trainer.get_agent().save("./examples/model/dqn_cartpole_vecenv")?;

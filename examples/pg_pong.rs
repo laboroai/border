@@ -63,7 +63,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let agent = create_agent();
     let mut trainer = Trainer::new(env, env_eval, agent)
         .max_opts(50000)
-        .n_opts_per_eval(50)
+        .eval_interval(50)
         .n_episodes_per_eval(5);
 
     trainer.train();
