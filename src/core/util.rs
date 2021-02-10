@@ -1,7 +1,6 @@
 #![allow(clippy::float_cmp)]
 use std::cell::RefCell;
-use log::info;
-use crate::{core::{Obs, Step, Env, Policy}};
+use crate::core::{Obs, Step, Env, Policy};
 
 /// The agent take an action and apply it to the environment.
 /// Then return [crate::core::base::Step] object.
@@ -20,7 +19,7 @@ pub fn sample<E: Env, P: Policy<E>>(env: &mut E, policy: &mut P, obs_prev: &RefC
 }
 
 /// This method assumes that `n_proc`=1.
-pub fn eval<E: Env, P: Policy<E>>(env: &mut E, policy: &mut P, n_episodes_per_eval: usize, count_opts: Option<usize>) {
+pub fn eval<E: Env, P: Policy<E>>(env: &mut E, policy: &mut P, n_episodes_per_eval: usize) -> Vec<f32> {
     // TODO: check the maximum number of steps of the environment for evaluation.
     // If it is infinite, the number of evaluation steps should be given in place of
     // n_episodes_per_eval.
@@ -38,14 +37,15 @@ pub fn eval<E: Env, P: Policy<E>>(env: &mut E, policy: &mut P, n_episodes_per_ev
         rs.push(r_sum);
     }
 
-    let mean: f32 = rs.iter().sum::<f32>() / n_episodes_per_eval as f32;
-    let min = rs.iter().fold(f32::NAN, |m, v| v.min(m));
-    let max = rs.iter().fold(f32::NAN, |m, v| v.max(m));
-    if let Some(c) = count_opts {
-        info!("Opt step {}, Eval (mean, min, max) of r_sum: {}, {}, {}",
-            c, mean, min, max);
-    }
-    else {
-        info!("Eval (mean, min, max) of r_sum: {}, {}, {}", mean, min, max);
-    }
+    rs
+    // let mean: f32 = rs.iter().sum::<f32>() / n_episodes_per_eval as f32;
+    // let min = rs.iter().fold(f32::NAN, |m, v| v.min(m));
+    // let max = rs.iter().fold(f32::NAN, |m, v| v.max(m));
+    // if let Some(c) = count_opts {
+    //     info!("Opt step {}, Eval (mean, min, max) of r_sum: {}, {}, {}",
+    //         c, mean, min, max);
+    // }
+    // else {
+    //     info!("Eval (mean, min, max) of r_sum: {}, {}, {}", mean, min, max);
+    // }
 }

@@ -78,7 +78,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     env.set_render(true);
     agent.load("./examples/model/dqn_cartpole")?;
     agent.eval();
-    util::eval(&mut env, &mut agent, 5, None);
+    util::eval(&mut env, &mut agent, 5);
 
     Ok(())
 }

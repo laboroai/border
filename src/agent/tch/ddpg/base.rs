@@ -3,7 +3,10 @@ use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{no_grad, Tensor};
 
 use crate::{
-    core::{Policy, Agent, Step, Env},
+    core::{
+        Policy, Agent, Step, Env,
+        record::{Record, RecordValue}
+    },
     agent::{
         OptInterval, OptIntervalCounter,
         tch::{
@@ -147,7 +150,7 @@ impl<E, Q, P, O, A> DDPG<E, Q, P, O, A> where
         let _ = self.prev_obs.replace(Some(next_obs));
     }
 
-    fn update_critic(&mut self, batch: &TchBatch<E, O, A>) {
+    fn update_critic(&mut self, batch: &TchBatch<E, O, A>) -> f32 {
         trace!("DDPG.update_critic()");
 
         let loss = {
@@ -189,9 +192,11 @@ impl<E, Q, P, O, A> DDPG<E, Q, P, O, A> where
         };
 
         self.critic.backward_step(&loss);
+
+        f32::from(loss)
     }
 
-    fn update_actor(&mut self, batch: &TchBatch<E, O, A>) {
+    fn update_actor(&mut self, batch: &TchBatch<E, O, A>) -> f32 {
         trace!("DDPG.update_actor()");
 
         let loss = {
@@ -212,6 +217,8 @@ impl<E, Q, P, O, A> DDPG<E, Q, P, O, A> where
         };
 
         self.actor.backward_step(&loss);
+
+        f32::from(loss)
     }
 
     fn soft_update(&mut self) {
@@ -266,37 +273,47 @@ impl<E, Q, P, O, A> Agent<E> for DDPG<E, Q, P, O, A> where
         self.prev_obs.replace(Some(obs.clone()));
     }
 
-    fn observe(&mut self, step: Step<E>) -> bool {
-        trace!("DDPG.observe()");
+    /// Update model parameters.
+    ///
+    /// When the return value is `Some(Record)`, it includes:
+    /// * `loss_critic`: Loss of critic
+    /// * `loss_actor`: Loss of actor
+    fn observe(&mut self, step: Step<E>) -> Option<Record> {
+        trace!("DDPG::observe()");
 
         // Check if doing optimization
         let do_optimize = self.opt_interval_counter.do_optimize(&step.is_done)
             && self.replay_buffer.len() + 1 >= self.min_transitions_warmup;
     
-        // let is_done_any = step.is_done.iter().fold(0, |x, v| x + *v as i32) > 0;
-        // if is_done_any {
-        //     self.action_noise.update();
-        // }
-
         // Push transition to the replay buffer
         self.push_transition(step);
         trace!("Push transition");
 
         // Do optimization
         if do_optimize {
+            let mut loss_critic = 0f64;
+            let mut loss_actor = 0f64;
+
             for _ in 0..self.n_updates_per_opt {
                 let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
                 trace!("Sample random batch");
 
-                self.update_critic(&batch);
-                self.update_actor(&batch);
+                loss_critic += self.update_critic(&batch) as f64;
+                loss_actor += self.update_actor(&batch) as f64;
                 self.soft_update();
                 trace!("Update models");
             };
-            true
+
+            loss_critic /= self.n_updates_per_opt as f64;
+            loss_actor /= self.n_updates_per_opt as f64;
+
+            Some(Record::from_slice(&[
+                ("loss_critic", RecordValue::Scalar(loss_critic)),
+                ("loss_actor", RecordValue::Scalar(loss_actor))
+            ]))
         }
         else {
-            false
+            None
         }
     }
 

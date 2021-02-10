@@ -1,5 +1,12 @@
 use std::cell::RefCell;
-use crate::core::{Env, Agent, util::{sample, eval}};
+use chrono::Local;
+use log::info;
+
+use crate::core::{
+    Env, Agent,
+    util::{sample, eval},
+    record::{TrainRecorder, RecordValue}
+};
 
 pub struct Trainer<E: Env, A: Agent<E>> {
     env: E,
@@ -10,6 +17,7 @@ pub struct Trainer<E: Env, A: Agent<E>> {
     eval_interval: usize,
     n_episodes_per_eval: usize,
     count_opts: usize,
+    count_steps: usize
 }
 
 impl<E: Env, A: Agent<E>> Trainer<E, A> {
@@ -23,6 +31,7 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
             eval_interval: 0,
             n_episodes_per_eval: 0,
             count_opts: 0,
+            count_steps: 0,
         }
     }
 
@@ -53,7 +62,14 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
         &self.env_eval
     }
 
-    pub fn train(&mut self) {
+    fn stats_eval_reward(rs: &Vec<f32>) -> (f32, f32, f32) {
+        let mean: f32 = rs.iter().sum::<f32>() / (rs.len() as f32);
+        let min = rs.iter().fold(f32::NAN, |m, v| v.min(m));
+        let max = rs.iter().fold(f32::NAN, |m, v| v.max(m));
+        return (mean, min, max);
+    }
+
+    pub fn train<T: TrainRecorder>(&mut self, recorder: &mut T) {
         let obs = self.env.reset(None).unwrap();
         self.agent.push_obs(&obs);
         self.obs_prev.replace(Some(obs));
@@ -63,20 +79,38 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
             // For resetted environments, elements in obs_prev are updated with env.reset().
             // See `sample()` in `util.rs`.
             let step = sample(&mut self.env, &mut self.agent, &self.obs_prev);
+            self.count_steps += 1;
+
             // agent.observe() internally creates transisions, i.e., (o_t, a_t, o_t+1, r_t+1).
-            let is_optimized = self.agent.observe(step);
+            let option_record = self.agent.observe(step);
+
             // For resetted environments, previous observation are updated.
             // This is required to make transisions consistend.
             self.agent.push_obs(&self.obs_prev.borrow().as_ref().unwrap());
 
-            if is_optimized {
+            if let Some(mut record) = option_record {
+                use RecordValue::{Scalar, DateTime};
+
                 self.count_opts += 1;
+                record.insert("n_steps", Scalar(self.count_steps as _));
+                record.insert("n_opts", Scalar(self.count_opts as _));
+                record.insert("datetime", DateTime(Local::now()));
+
                 if self.count_opts % self.eval_interval == 0 {
                     self.agent.eval();
-                    eval(&mut self.env_eval, &mut self.agent, self.n_episodes_per_eval, Some(self.count_opts));
+
+                    let rewards = eval(&mut self.env_eval, &mut self.agent, self.n_episodes_per_eval);
+                    let (mean, min, max) = Self::stats_eval_reward(&rewards);
+                    info!("Opt step {}, Eval (mean, min, max) of r_sum: {}, {}, {}",
+                        self.count_opts, mean, min, max);
+                    record.insert("mean_cum_eval_reward", Scalar(mean as f64));
+        
                     self.agent.train();
                 }
+
+                recorder.write(record);
             }
+
             if self.count_opts >= self.max_opts {
                 break;
             }

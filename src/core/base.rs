@@ -1,4 +1,5 @@
 use std::{fmt::Debug, path::Path, error::Error};
+use crate::core::record::Record;
 
 /// Represents an observation of the environment.
 pub trait Obs: Clone + Debug {
@@ -71,9 +72,9 @@ pub trait Agent<E: Env>: Policy<E> {
     /// Observe a [crate::core::base::Step] object.
     /// The agent is expected to do training its policy based on the observation.
     ///
-    /// Return `true` if training of the agent is finished.
-    /// TODO: Check the description. 
-    fn observe(&mut self, step: Step<E>) -> bool;
+    /// If an optimization step was performed, it returns `Some(crate::core::record::Record)`,
+    /// otherwise `None`.
+    fn observe(&mut self, step: Step<E>) -> Option<Record>;
 
     /// Push observation to the agent.
     /// This method is used when resetting the environment.

@@ -3,7 +3,10 @@ use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{Kind::Float, Tensor};
 
 use crate::{
-    core::{Policy, Agent, Step, Env},
+    core::{
+        Policy, Agent, Step, Env,
+        record::{Record, RecordValue}
+    },
     agent::{
         OptInterval, OptIntervalCounter,
         tch::{
@@ -89,7 +92,7 @@ impl<E, M, O, A> PPODiscrete<E, M, O, A> where
         let _ = self.prev_obs.replace(Some(next_obs));
     }
 
-    fn update_model(&mut self, batch: TchBatch<E, O, A>) {
+    fn update_model(&mut self, batch: TchBatch<E, O, A>) -> (f32, f32) {
         trace!("PPODiscrete::update_qnet()");
 
         // adapted from ppo.rs in tch-rs RL example
@@ -116,9 +119,13 @@ impl<E, M, O, A> PPODiscrete<E, M, O, A> where
         let advantages = batch.returns.unwrap() - critic;
         let value_loss = (&advantages * &advantages).mean(tch::Kind::Float);
         let action_loss = (-advantages.detach() * action_log_probs).mean(tch::Kind::Float);
+        let v_loss = f32::from(&value_loss);
+        let a_loss = f32::from(&action_loss);
         let loss = value_loss * 0.5 + action_loss - dist_entropy * 0.01;
 
         self.model.backward_step(&loss);
+
+        (v_loss, a_loss)
     }
 }
 
@@ -167,7 +174,12 @@ impl <E, M, O, A> Agent<E> for PPODiscrete<E, M, O, A> where
         self.prev_obs.replace(Some(obs.clone()));
     }
 
-    fn observe(&mut self, step: Step<E>) -> bool {
+    /// Update model parameters.
+    ///
+    /// When the return value is `Some(Record)`, it includes:
+    /// * `loss_critic`: Loss of critic
+    /// * `loss_actor`: Loss of actor
+    fn observe(&mut self, step: Step<E>) -> Option<Record> {
         trace!("PPODiscrete.observe()");
 
         // Check if doing optimization
@@ -181,6 +193,8 @@ impl <E, M, O, A> Agent<E> for PPODiscrete<E, M, O, A> where
         // Do optimization
         if do_optimize {
             // Store returns in the replay buffer
+            let mut loss_critic = 0f64;
+            let mut loss_actor = 0f64;
 
             let (estimated_return, _)
                 = self.model.forward(&self.prev_obs.borrow().to_owned().unwrap().into());
@@ -189,15 +203,25 @@ impl <E, M, O, A> Agent<E> for PPODiscrete<E, M, O, A> where
             // Update model parameters
             for _ in 0..self.n_updates_per_opt {
                 let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
-                self.update_model(batch);
+                let (c, a) = self.update_model(batch);
+                loss_critic += c as f64;
+                loss_actor += a as f64;
             };
 
             // Clear replay buffer
             self.replay_buffer.clear();
 
-            return true;
+            loss_critic /= self.n_updates_per_opt as f64;
+            loss_actor /= self.n_updates_per_opt as f64;
+
+            Some(Record::from_slice(&[
+                ("loss_critic", RecordValue::Scalar(loss_critic)),
+                ("loss_actor", RecordValue::Scalar(loss_actor))
+            ]))
         }
-        false
+        else {
+            None
+        }
     }
 
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>> {

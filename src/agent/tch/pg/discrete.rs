@@ -3,7 +3,10 @@ use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{Kind::Float, Tensor};
 
 use crate::{
-    core::{Policy, Agent, Step, Env},
+    core::{
+        Policy, Agent, Step, Env,
+        record::{Record, RecordValue}
+    },
     agent::{
         OptInterval, OptIntervalCounter,
         tch::{
@@ -89,7 +92,7 @@ impl<E, M, O, A> PGDiscrete<E, M, O, A> where
         let _ = self.prev_obs.replace(Some(next_obs));
     }
 
-    fn update_model(&mut self, batch: TchBatch<E, O, A>) {
+    fn update_model(&mut self, batch: TchBatch<E, O, A>) -> f32 {
         trace!("PGDiscrete::update_qnet()");
 
         // adapted from ppo.rs in tch-rs RL example
@@ -110,6 +113,8 @@ impl<E, M, O, A> PGDiscrete<E, M, O, A> where
         };
 
         self.model.backward_step(&loss);
+
+        f32::from(loss)
     }
 }
 
@@ -158,7 +163,11 @@ impl <E, M, O, A> Agent<E> for PGDiscrete<E, M, O, A> where
         self.prev_obs.replace(Some(obs.clone()));
     }
 
-    fn observe(&mut self, step: Step<E>) -> bool {
+    /// Update model parameters.
+    ///
+    /// When the return value is `Some(Record)`, it includes:
+    /// * `loss`: Loss for poligy gradient
+    fn observe(&mut self, step: Step<E>) -> Option<Record> {
         trace!("PGDiscrete.observe()");
 
         // Check if doing optimization
@@ -171,6 +180,8 @@ impl <E, M, O, A> Agent<E> for PGDiscrete<E, M, O, A> where
 
         // Do optimization
         if do_optimize {
+            let mut loss = 0f64;
+
             // Store returns in the replay buffer
             // let (estimated_return, _)
             //     = self.model.forward(&self.prev_obs.borrow().to_owned().unwrap().into());
@@ -181,15 +192,21 @@ impl <E, M, O, A> Agent<E> for PGDiscrete<E, M, O, A> where
             // Update model parameters
             for _ in 0..self.n_updates_per_opt {
                 let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
-                self.update_model(batch);
+                loss += self.update_model(batch) as f64;
             };
 
             // Clear replay buffer
             self.replay_buffer.clear();
 
-            return true;
+            loss /= self.n_updates_per_opt as f64;
+
+            Some(Record::from_slice(&[
+                ("loss", RecordValue::Scalar(loss)),
+            ]))
         }
-        false
+        else {
+            None
+        }
     }
 
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>> {

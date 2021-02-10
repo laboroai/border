@@ -44,7 +44,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut env = Env::new("CartPole-v0", obs_filter, act_filter)?;
     env.set_render(true);
     let mut policy = RandomPolicy{};
-    util::eval(&mut env, &mut policy, 5, None);
+    util::eval(&mut env, &mut policy, 5);
 
     Ok(())
 }

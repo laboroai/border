@@ -3,7 +3,10 @@ use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{no_grad, Kind::Float, Tensor};
 
 use crate::{
-    core::{Policy, Agent, Step, Env},
+    core::{
+        Policy, Agent, Step, Env,
+        record::{Record, RecordValue}
+    },
     agent::{
         OptInterval, OptIntervalCounter,
         tch::{
@@ -115,7 +118,7 @@ impl<E, M, O, A> DQN<E, M, O, A> where
         let _ = self.prev_obs.replace(Some(next_obs));
     }
 
-    fn update_critic(&mut self, batch: TchBatch<E, O, A>) {
+    fn update_critic(&mut self, batch: TchBatch<E, O, A>) -> f32 {
         trace!("DQN::update_critic()");
 
         let obs = batch.obs;
@@ -144,6 +147,8 @@ impl<E, M, O, A> DQN<E, M, O, A> where
             pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0)
         };
         self.qnet.backward_step(&loss);
+
+        f32::from(loss)
     }
 
     fn soft_update(&mut self) {
@@ -197,8 +202,12 @@ impl<E, M, O, A> Agent<E> for DQN<E, M, O, A> where
         self.prev_obs.replace(Some(obs.clone()));
     }
 
-    fn observe(&mut self, step: Step<E>) -> bool {
-        trace!("DQN.observe()");
+    /// Update model parameters.
+    ///
+    /// When the return value is `Some(Record)`, it includes:
+    /// * `loss_critic`: Loss of critic
+    fn observe(&mut self, step: Step<E>) -> Option<Record> {
+        trace!("DQN::observe()");
 
         // Check if doing optimization
         let do_optimize = self.opt_interval_counter.do_optimize(&step.is_done)
@@ -210,18 +219,25 @@ impl<E, M, O, A> Agent<E> for DQN<E, M, O, A> where
 
         // Do optimization
         if do_optimize {
+            let mut loss_critic = 0f64;
+
             for _ in 0..self.n_updates_per_opt {
                 let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
                 trace!("Sample random batch");
 
-                self.update_critic(batch);
+                loss_critic += self.update_critic(batch) as f64;
                 self.soft_update();
                 trace!("Update model");
             };
-            true
+
+            loss_critic /= self.n_updates_per_opt as f64;
+
+            Some(Record::from_slice(&[
+                ("loss_critic", RecordValue::Scalar(loss_critic)),
+            ]))
         }
         else {
-            false
+            None
         }
     }
 
