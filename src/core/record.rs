@@ -29,7 +29,7 @@ impl Record {
         self.0.iter()
     }
 
-    pub fn get(&self, k: &String) -> Option<&RecordValue> {
+    pub fn get(&self, k: &str) -> Option<&RecordValue> {
         self.0.get(k)
     }
 }
