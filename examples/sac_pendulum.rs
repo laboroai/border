@@ -1,22 +1,23 @@
 use std::error::Error;
 use tch::nn;
-use ndarray::ArrayD;
+use pyo3::PyObject;
+
 use lrr::{
-    core::{Trainer, Agent, util},
-    py_gym_env::{
-        PyGymEnv,
+    core::{Trainer, Agent, util::eval, record::NullTrainRecorder},
+    env::py_gym_env::{
+        PyGymEnv, PyGymEnvActFilter,
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-        act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActFilter}
+        act_c::{PyGymEnvContinuousAct, to_pyobj},
+        tch::{
+            obs::TchPyGymEnvObsBuffer,
+            act_c::TchPyGymEnvContinuousActBuffer
+        }
     },
-    agents::{
+    agent::{
         OptInterval,
         tch::{
             SAC, ReplayBuffer, Shape,
             model::{Model1_2, Model2_1},
-            py_gym_env::{
-                obs::TchPyGymEnvObsBuffer,
-                act_c::TchPyGymEnvContinuousActBuffer,
-            }
         }
     }
 };
@@ -43,15 +44,6 @@ impl Shape for ActShape {
     }
 }
 
-#[derive(Clone, Debug)]
-struct ActFilter {}
-
-impl PyGymEnvContinuousActFilter for ActFilter {
-    fn filter(act: ArrayD<f32>) -> ArrayD<f32> {
-        2f32 * act
-    }
-}
-
 fn create_actor() -> Model1_2 {
     let network_fn = |p: &nn::Path, in_dim, hidden_dim| nn::seq()
         .add(nn::linear(p / "al1", in_dim as _, 64, Default::default()))
@@ -74,10 +66,20 @@ fn create_critic() -> Model2_1 {
 
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
 type Obs = PyGymEnvObs<ObsShape, f64>;
-type Act = PyGymEnvContinuousAct<ActShape, ActFilter>;
-type Env = PyGymEnv<Obs, Act, ObsFilter>;
+type Act = PyGymEnvContinuousAct<ActShape>;
+type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
-type ActBuffer = TchPyGymEnvContinuousActBuffer<ActShape, ActFilter>;
+type ActBuffer = TchPyGymEnvContinuousActBuffer<ActShape>;
+
+// Custom act filter
+#[derive(Clone, Debug)]
+struct ActFilter {}
+
+impl PyGymEnvActFilter<Act> for ActFilter {
+    fn filt(&mut self, act: Act) -> PyObject {
+        to_pyobj::<ActShape>(2f32 * act.act)
+    }
+}
 
 fn create_agent() -> impl Agent<Env> {
     let actor = create_actor();
@@ -98,8 +100,9 @@ fn create_agent() -> impl Agent<Env> {
 }
 
 fn create_env() -> Env {
-    let obs_filter = ObsFilter::new();
-    Env::new("Pendulum-v0", obs_filter, true)
+    let obs_filter = ObsFilter::default(); //new();
+    let act_filter = ActFilter {}; //new();
+    Env::new("Pendulum-v0", obs_filter, act_filter)
         .unwrap()
         .max_steps(Some(200))
 }
@@ -118,8 +121,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         .max_opts(200_000)
         .eval_interval(10_000)
         .n_episodes_per_eval(5);
+    let mut recorder = NullTrainRecorder {};
 
-    trainer.train();
+    trainer.train(&mut recorder);
     trainer.get_agent().save("./examples/model/sac_pendulum")?;
 
     let mut env = create_env();
@@ -127,7 +131,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     env.set_render(true);
     agent.load("./examples/model/sac_pendulum")?;
     agent.eval();
-    util::eval(&env, &mut agent, 5, None);
+    eval(&mut env, &mut agent, 5);
 
     Ok(())
 }

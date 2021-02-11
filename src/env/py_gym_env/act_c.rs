@@ -15,7 +15,7 @@ use super::PyGymEnvActFilter;
 /// Represents action.
 #[derive(Clone, Debug)]
 pub struct PyGymEnvContinuousAct<S: Shape> {
-    pub(crate) act: ArrayD<f32>,
+    pub act: ArrayD<f32>,
     pub(crate) phantom: PhantomData<S>
 }
 
@@ -30,12 +30,12 @@ impl<S: Shape> PyGymEnvContinuousAct<S> {
 
 impl<S: Shape> Act for PyGymEnvContinuousAct<S> {}
 
-/// Filtering action before applied to the environment.
-pub trait PyGymEnvContinuousActFilter: Clone + Debug {
-    fn filter(act: ArrayD<f32>) -> ArrayD<f32> {
-        act
-    }
-}
+// /// Filtering action before applied to the environment.
+// pub trait PyGymEnvContinuousActFilter: Clone + Debug {
+//     fn filter(act: ArrayD<f32>) -> ArrayD<f32> {
+//         act
+//     }
+// }
 
 #[derive(Clone, Debug)]
 pub struct PyGymEnvContinuousActRawFilter {
@@ -48,10 +48,15 @@ impl Default for PyGymEnvContinuousActRawFilter {
     }
 }
 
-/// TODO: check action representation in the vectorized environment.
+/// Convert [crate::env::py_gym_env::act_c::PyGymEnvContinuousAct] to `PyObject`.
+/// No processing will be applied to the action.
+///
+/// TODO: explain action representation for the vectorized environment.
 impl<S: Shape> PyGymEnvActFilter<PyGymEnvContinuousAct<S>> for PyGymEnvContinuousActRawFilter {
     fn filt(&mut self, act: PyGymEnvContinuousAct<S>) -> PyObject {
         let act = act.act;
+
+        // TODO: replace the following code with to_pyobj()
         let act = {
             if S::squeeze_first_dim() {
                 debug_assert_eq!(act.shape()[0], 1);
@@ -63,7 +68,7 @@ impl<S: Shape> PyGymEnvActFilter<PyGymEnvContinuousAct<S>> for PyGymEnvContinuou
                 })        
             }
             else {
-                // Consider the first axis as processes in vectorized environments
+                // Interpret the first axis as processes in vectorized environments
                 pyo3::Python::with_gil(|py| {
                     act.axis_iter(Axis(0))
                         .map(|act| PyArrayDyn::<f32>::from_array(py, &act))
@@ -72,5 +77,28 @@ impl<S: Shape> PyGymEnvActFilter<PyGymEnvContinuousAct<S>> for PyGymEnvContinuou
             }
         };
         act
+    }
+}
+
+/// Convert `PyGymEnvContinuousAct` to `PyObject`.
+///
+/// TODO: explain how to handle the first dimension for vectorized environment.
+pub fn to_pyobj<S: Shape>(act: ArrayD<f32>) -> PyObject {
+    if S::squeeze_first_dim() {
+        debug_assert_eq!(act.shape()[0], 1);
+        debug_assert_eq!(&act.shape()[1..], S::shape());
+        let act = act.remove_axis(ndarray::Axis(0));
+        pyo3::Python::with_gil(|py| {
+            let act = PyArrayDyn::<f32>::from_array(py, &act);
+            act.into_py(py)
+        })        
+    }
+    else {
+        // Interpret the first axis as processes in vectorized environments
+        pyo3::Python::with_gil(|py| {
+            act.axis_iter(Axis(0))
+                .map(|act| PyArrayDyn::<f32>::from_array(py, &act))
+                .collect::<Vec<_>>().into_py(py)
+        })
     }
 }

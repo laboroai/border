@@ -7,6 +7,7 @@ pub enum RecordValue {
     DateTime(DateTime<Local>)
 }
 
+#[derive(Debug)]
 pub struct Record (HashMap<String, RecordValue>);
 
 impl Record {
@@ -30,9 +31,7 @@ pub trait TrainRecorder {
 
 pub struct NullTrainRecorder {}
 
-impl NullTrainRecorder {
-    pub fn new() -> Self { Self {} }
-}
+impl NullTrainRecorder {}
 
 impl TrainRecorder for NullTrainRecorder {
     fn write(&mut self, _record: Record) {}

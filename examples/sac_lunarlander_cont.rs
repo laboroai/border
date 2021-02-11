@@ -1,7 +1,8 @@
 use std::error::Error;
 use tch::nn;
+
 use lrr::{
-    core::{Trainer, Agent, util},
+    core::{Agent, Trainer, record::NullTrainRecorder, util},
     env::py_gym_env::{
         PyGymEnv,
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
@@ -110,8 +111,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         .max_opts(200_000)
         .eval_interval(10_000)
         .n_episodes_per_eval(5);
+    let mut recorder = NullTrainRecorder {};
 
-    trainer.train();
+    trainer.train(&mut recorder);
     trainer.get_agent().save("./examples/model/sac_lunarlander_cont")?;
 
     let mut env = create_env();
@@ -119,7 +121,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     env.set_render(true);
     agent.load("./examples/model/sac_lunarlander_cont")?;
     agent.eval();
-    util::eval(&mut env, &mut agent, 5, None);
+    util::eval(&mut env, &mut agent, 5);
 
     Ok(())
 }
