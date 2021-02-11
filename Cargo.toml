@@ -24,3 +24,6 @@ chrono = "0.4"
 # [[example]]
 # name = "test1"
 # required-features = ["python"]
+
+[dev-dependencies]
+clap = "2.33.3"

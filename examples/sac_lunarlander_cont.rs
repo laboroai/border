@@ -1,4 +1,5 @@
 use std::error::Error;
+use clap::{Arg, App};
 use tch::nn;
 
 use lrr::{
@@ -98,23 +99,34 @@ fn create_env() -> Env {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    let matches = App::new("sac_lunarlander_cont")
+    .version("0.1.0")
+    .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
+    .arg(Arg::with_name("skip training")
+        .long("skip_training")
+        .takes_value(false)
+        .help("Skip training"))
+    .get_matches();
+
     env_logger::init();
     tch::manual_seed(42);
 
-    let env = create_env();
-    let env_eval = create_env();
-    let agent = create_agent();
-    let mut trainer = Trainer::new(
-        env,
-        env_eval,
-        agent)
-        .max_opts(200_000)
-        .eval_interval(10_000)
-        .n_episodes_per_eval(5);
-    let mut recorder = NullTrainRecorder {};
-
-    trainer.train(&mut recorder);
-    trainer.get_agent().save("./examples/model/sac_lunarlander_cont")?;
+    if !matches.is_present("skip training") {
+        let env = create_env();
+        let env_eval = create_env();
+        let agent = create_agent();
+        let mut trainer = Trainer::new(
+            env,
+            env_eval,
+            agent)
+            .max_opts(200_000)
+            .eval_interval(10_000)
+            .n_episodes_per_eval(5);
+        let mut recorder = NullTrainRecorder {};
+    
+        trainer.train(&mut recorder);
+        trainer.get_agent().save("./examples/model/sac_lunarlander_cont")?;    
+    }
 
     let mut env = create_env();
     let mut agent = create_agent();

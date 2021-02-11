@@ -82,3 +82,14 @@ TODO: organize examples in `example/` directory, env-first
 * [ndarray](https://crates.io/crates/ndarray)
 * [pyo3](https://crates.io/crates/pyo3)
 * [rust-numpy](https://crates.io/crates/numpy)
+
+## Development
+
+* [The Cargo Book](https://doc.rust-lang.org/cargo/index.html#the-cargo-book)
+  * [Publishing on crates.io](https://doc.rust-lang.org/cargo/reference/publishing.html)
+    * [The version field](https://doc.rust-lang.org/cargo/reference/manifest.html#the-version-field)
+  * [Specifying Dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html)
+    * [Development dependencies](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#development-dependencies)
+* [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/about.html)
+* [Rust Cookbook](https://rust-lang-nursery.github.io/rust-cookbook/intro.html)
+  * [Argument Parsing](https://rust-lang-nursery.github.io/rust-cookbook/cli/arguments.html)
