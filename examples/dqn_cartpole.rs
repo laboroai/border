@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use lrr::{
-    core::{Trainer, Agent, util, record::NullTrainRecorder},
+    core::{Trainer, Agent, util, record::TensorboardTrainRecorder},
     env::py_gym_env::{
         PyGymEnv,
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
@@ -69,7 +69,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .max_opts(1000)
         .eval_interval(50)
         .n_episodes_per_eval(5);
-    let mut recorder = NullTrainRecorder {};
+    let mut recorder = TensorboardTrainRecorder::new("./examples/model/dqn_cartpole");
 
     trainer.train(&mut recorder);
     trainer.get_agent().save("./examples/model/dqn_cartpole")?;

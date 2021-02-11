@@ -318,7 +318,8 @@ impl<E, Q, P, O, A> Agent<E> for DDPG<E, Q, P, O, A> where
     }
 
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>> {
-        fs::create_dir(&path)?;
+        // TODO: consider to rename the path if it already exists
+        fs::create_dir_all(&path)?;
         self.critic.save(&path.as_ref().join("critic.pt").as_path())?;
         self.critic_tgt.save(&path.as_ref().join("critic_tgt.pt").as_path())?;
         self.actor.save(&path.as_ref().join("actor.pt").as_path())?;

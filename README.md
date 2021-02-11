@@ -82,6 +82,7 @@ TODO: organize examples in `example/` directory, env-first
 * [ndarray](https://crates.io/crates/ndarray)
 * [pyo3](https://crates.io/crates/pyo3)
 * [rust-numpy](https://crates.io/crates/numpy)
+* [tensorboard-rs](https://crates.io/crates/tensorboard-rs)
 
 ## Development
 

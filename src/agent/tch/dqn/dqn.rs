@@ -242,7 +242,8 @@ impl<E, M, O, A> Agent<E> for DQN<E, M, O, A> where
     }
 
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>> {
-        fs::create_dir(&path)?;
+        // TODO: consider to rename the path if it already exists
+        fs::create_dir_all(&path)?;
         self.qnet.save(&path.as_ref().join("qnet.pt").as_path())?;
         self.qnet_tgt.save(&path.as_ref().join("qnet_tgt.pt").as_path())?;
         Ok(())

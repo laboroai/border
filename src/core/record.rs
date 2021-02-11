@@ -1,9 +1,10 @@
-use std::{collections::HashMap, convert::Into};
+use std::{collections::{HashMap, hash_map::Iter}, convert::Into, path::Path};
 use chrono::prelude::{DateTime, Local};
+use tensorboard_rs::summary_writer::SummaryWriter;
 
 #[derive(Debug, Clone)]
 pub enum RecordValue {
-    Scalar(f64),
+    Scalar(f64), // TODO: use f32 instead of f64
     DateTime(DateTime<Local>)
 }
 
@@ -23,6 +24,14 @@ impl Record {
     pub fn insert(&mut self, k: impl Into<String>, v: RecordValue) {
         self.0.insert(k.into(), v);
     }
+
+    pub fn iter(&self) -> Iter<'_, String, RecordValue> {
+        self.0.iter()
+    }
+
+    pub fn get(&self, k: &String) -> Option<&RecordValue> {
+        self.0.get(k)
+    }
 }
 
 pub trait TrainRecorder {
@@ -35,4 +44,40 @@ impl NullTrainRecorder {}
 
 impl TrainRecorder for NullTrainRecorder {
     fn write(&mut self, _record: Record) {}
+}
+
+pub struct TensorboardTrainRecorder {
+    writer: SummaryWriter,
+    step_key: String,
+}
+
+impl TensorboardTrainRecorder {
+    pub fn new<P: AsRef<Path>>(logdir: P) -> Self {
+        Self {
+            writer: SummaryWriter::new(logdir),
+            step_key: "n_opts".to_string()
+        }
+    }
+}
+
+impl TrainRecorder for TensorboardTrainRecorder {
+    fn write(&mut self, record: Record) {
+        // TODO: handle error
+        let step = match record.get(&self.step_key).unwrap() {
+            RecordValue::Scalar(v) => { *v as usize },
+            _ => { panic!() }
+        };
+
+        for (k, v) in record.iter() {
+            if *k != self.step_key {
+                match v {
+                    RecordValue::Scalar(v) => {
+                        self.writer.add_scalar(k, *v as f32, step)
+                    },
+                    RecordValue::DateTime(_) => {}, // discard value
+                    // _ => { unimplemented!() }
+                };                
+            }
+        }
+    }
 }

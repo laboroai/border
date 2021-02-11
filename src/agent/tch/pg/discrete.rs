@@ -210,7 +210,8 @@ impl <E, M, O, A> Agent<E> for PGDiscrete<E, M, O, A> where
     }
 
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>> {
-        fs::create_dir(&path)?;
+        // TODO: consider to rename the path if it already exists
+        fs::create_dir_all(&path)?;
         self.model.save(&path.as_ref().join("model.pt").as_path())?;
         Ok(())
     }
