@@ -4,11 +4,11 @@ use std::marker::PhantomData;
 use log::trace;
 use num_traits::cast::AsPrimitive;
 use pyo3::{Py, PyObject, types::PyList};
-use ndarray::{ArrayD, Axis, IxDyn, stack};
+use ndarray::{ArrayD, Axis, IxDyn, stack, Ix1};
 use numpy::{Element, PyArrayDyn};
 
 use crate::{
-    core::Obs,
+    core::{Obs, record::{Record, RecordValue}},
     env::py_gym_env::PyGymEnvObsFilter,
     agent::tch::Shape
 };
@@ -118,50 +118,39 @@ impl<S, T> Default for PyGymEnvObsRawFilter<S, T> where
     }
 }
 
-// impl <S, T>PyGymEnvObsRawFilter<S, T> where
-//     S: Shape,
-//     T: Element,
-// {
-//     pub fn new(vectorized: bool) -> Self {
-//         Self {
-//             vectorized,
-//             phantom: PhantomData,
-//         }
-//     }
-// }
-
 impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for PyGymEnvObsRawFilter<S, T> where
     S: Shape,
     T: Element + Debug + num_traits::identities::Zero + AsPrimitive<f32>,
 {
-    fn filt(&mut self, obs: PyObject) -> PyGymEnvObs<S, T> {
+    fn filt(&mut self, obs: PyObject) -> (PyGymEnvObs<S, T>, Record) {
         if self.vectorized {
-            pyo3::Python::with_gil(|py| {
-                debug_assert_eq!(obs.as_ref(py).get_type().name().unwrap(), "list");
-                let obs: Py<PyList> = obs.extract(py).unwrap();
-                let filtered = obs.as_ref(py).iter()
-                    .map(|o| {
-                        if o.get_type().name().unwrap() == "NoneType" {
-                            ArrayD::zeros(IxDyn(S::shape()))
-                        }
-                        else {
-                            debug_assert_eq!(o.get_type().name().unwrap(), "ndarray");
-                            let obs: &PyArrayDyn<T> = o.extract().unwrap();
-                            let obs = obs.to_owned_array();
-                            let obs = obs.mapv(|elem| elem.as_());
-                            debug_assert_eq!(obs.shape(), S::shape());
-                            obs
-                        }
-                    }).collect::<Vec<_>>();
-                let arrays_view: Vec<_> = filtered.iter().map(|a| a.view()).collect();
-                PyGymEnvObs::<S, T> {
-                    obs: stack(Axis(0), arrays_view.as_slice()).unwrap(),
-                    phantom: PhantomData
-                }
-            })
+            unimplemented!();
+            // pyo3::Python::with_gil(|py| {
+            //     debug_assert_eq!(obs.as_ref(py).get_type().name().unwrap(), "list");
+            //     let obs: Py<PyList> = obs.extract(py).unwrap();
+            //     let filtered = obs.as_ref(py).iter()
+            //         .map(|o| {
+            //             if o.get_type().name().unwrap() == "NoneType" {
+            //                 ArrayD::zeros(IxDyn(S::shape()))
+            //             }
+            //             else {
+            //                 debug_assert_eq!(o.get_type().name().unwrap(), "ndarray");
+            //                 let obs: &PyArrayDyn<T> = o.extract().unwrap();
+            //                 let obs = obs.to_owned_array();
+            //                 let obs = obs.mapv(|elem| elem.as_());
+            //                 debug_assert_eq!(obs.shape(), S::shape());
+            //                 obs
+            //             }
+            //         }).collect::<Vec<_>>();
+            //     let arrays_view: Vec<_> = filtered.iter().map(|a| a.view()).collect();
+            //     PyGymEnvObs::<S, T> {
+            //         obs: stack(Axis(0), arrays_view.as_slice()).unwrap(),
+            //         phantom: PhantomData
+            //     }
+            // })
         }
         else {
-            pyo3::Python::with_gil(|py| {
+            let obs = pyo3::Python::with_gil(|py| {
                 if obs.as_ref(py).get_type().name().unwrap() == "NoneType" {
                     PyGymEnvObs::<S, T>::zero(1)
                 }
@@ -171,7 +160,12 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for PyGymEnvObsRawFilter<S, T> w
                         phantom: PhantomData,
                     }
                 }
-            })
+            });
+            let record = Record::from_slice(&[
+                ("obs", RecordValue::Array1(
+                    obs.obs.clone().into_dimensionality::<Ix1>().unwrap()))
+            ]);
+            (obs, record)
         }
     }
 

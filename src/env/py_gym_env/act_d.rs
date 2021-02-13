@@ -1,9 +1,10 @@
 use std::fmt::Debug;
 use std::default::Default;
+use ndarray::Array1;
 use pyo3::{PyObject, IntoPy};
 
 use crate::{
-    core::Act,
+    core::{Act, record::{Record, RecordValue}},
     env::py_gym_env::PyGymEnvActFilter
 };
 
@@ -23,20 +24,17 @@ impl PyGymEnvDiscreteAct {
 
 impl Act for PyGymEnvDiscreteAct {}
 
-// impl<F: PyGymDiscreteActFilter> Into<PyObject> for PyGymEnvDiscreteAct<F> {
-//     fn into(self) -> PyObject {
-//         pyo3::Python::with_gil(|py| {
-//             F::filt(self.act).into_py(py)
-//         })
+// /// Filter action before applied to the environment.
+// ///
+// /// [`Record`] in the return value has `act`, which is a discrete action.
+// pub trait PyGymDiscreteActFilter: Clone + Debug {
+//     fn filt(act: Vec<i32>) -> (Vec<i32>, Record) {
+//         let act_f32: Array1<f32> = act.iter().map(|v| *v as f32).collect();
+//         (act, Record::from_slice(&[
+//             ("act", RecordValue::Array1(act_f32.into()))
+//         ]))
 //     }
 // }
-
-/// Filter action before applied to the environment.
-pub trait PyGymDiscreteActFilter: Clone + Debug {
-    fn filt(act: Vec<i32>) -> Vec<i32> {
-        act
-    }
-}
 
 #[derive(Clone, Debug)]
 pub struct PyGymEnvDiscreteActRawFilter {
@@ -53,16 +51,25 @@ impl PyGymEnvDiscreteActRawFilter {}
 
 // TODO: support vecenv
 impl PyGymEnvActFilter<PyGymEnvDiscreteAct> for PyGymEnvDiscreteActRawFilter {
-    fn filt(&mut self, act: PyGymEnvDiscreteAct) -> PyObject {
-        if self.vectorized {
-            pyo3::Python::with_gil(|py| {
-                act.act.into_py(py)
-            })
+    fn filt(&mut self, act: PyGymEnvDiscreteAct) -> (PyObject, Record) {
+        let record = Record::from_slice(&[
+            ("act", RecordValue::Array1(
+                act.act.iter().map(|v| *v as f32).collect::<Vec<_>>().into()
+            ))
+        ]);
+
+        let act = if self.vectorized {
+            // TODO: Consider how to make Record object for vectorized environemnt
+            unimplemented!();
+            // pyo3::Python::with_gil(|py| {
+            //     act.act.into_py(py)
+            // })
         }
         else {
             pyo3::Python::with_gil(|py| {
                 act.act[0].into_py(py)
             })
-        }
+        };
+        (act, record)
     }
 }

@@ -8,7 +8,7 @@ use pyo3::{
 };
 
 use crate::{
-    core::{Obs, Act, Step, Env},
+    core::{Obs, Act, Step, Env, record::Record},
     env::py_gym_env::{PyGymInfo, PyGymEnvObsFilter, PyGymEnvActFilter}
 };
 
@@ -43,16 +43,6 @@ impl<O, A, OF, AF> PyVecGymEnv<O, A, OF, AF> where
             let _ = path.call_method("append", ("examples",), None)?;
             let gym = py.import("atari_wrappers")?;
             let env = gym.call("make", (name, Option::<&str>::None, n_procs), None)?;
-
-            // let action_space = env.getattr("action_space")?;
-            // let action_space = if let Ok(val) = action_space.getattr("n") {
-            //     val.extract()?
-            // } else {
-            //     let action_space: Vec<i64> = action_space.getattr("shape")?.extract()?;
-            //     action_space[0]
-            // };
-            // let observation_space = env.getattr("observation_space")?;
-            // let observation_space = observation_space.getattr("shape")?.extract()?;
 
             Ok(PyVecGymEnv {
                 env: env.into(),
@@ -97,43 +87,7 @@ impl<O, A, OF, AF> Env for PyVecGymEnv<O, A, OF, AF> where
         })
     }
 
-        //         }
-        //     )
-        // })
-        // match is_done {
-        //     None => {
-        //         pyo3::Python::with_gil(|py| {
-        //             let obs = self.env.call_method0(py, "reset").unwrap();
-        //             let obs: Py<PyList> = obs.extract(py).unwrap();
-        //             let filtered = self.obs_filters.iter_mut()
-        //                 .zip(obs.as_ref(py).iter())
-        //                 .map(|(f, o)| f.reset(o.into()))
-        //                 .collect();
-        //             Ok(OF::stack(filtered))
-        //         })
-        //     },
-        //     Some(v) => {
-        //         pyo3::Python::with_gil(|py| {
-        //             let obs = self.env.call_method1(py, "reset", (v.clone(),)).unwrap();
-        //             let obs: Py<PyList> = obs.extract(py).unwrap();
-        //             let filtered = self.obs_filters.iter_mut()
-        //                 .zip(obs.as_ref(py).iter())
-        //                 .map(|(f, o)| {
-        //                     if o.get_type().name().unwrap() == "NoneType" {
-        //                         O::zero(1)
-        //                     }
-        //                     else {
-        //                         debug_assert_eq!(o.get_type().name().unwrap(), "ndarray");
-        //                         f.reset(o.into())
-        //                     }
-        //                 }).collect();
-        //             Ok(OF::stack(filtered))
-        //         })
-        //     }
-        // }
-    // }
-    
-    fn step(&mut self, a: &A) -> Step<Self> {
+    fn step(&mut self, a: &A) -> (Step<Self>, Record) {
         trace!("PyVecGymEnv::step()");
         trace!("{:?}", &a);
 
@@ -158,6 +112,8 @@ impl<O, A, OF, AF> Env for PyVecGymEnv<O, A, OF, AF> where
             let is_done: Vec<f32> = is_done.extract(py).unwrap();
 
             Step::<Self>::new(obs, a.clone(), reward, is_done, PyGymInfo{})
-        })
+        });
+
+        unimplemented!();
     }
 }

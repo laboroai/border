@@ -2,11 +2,11 @@ use std::fmt::Debug;
 use std::default::Default;
 use std::marker::PhantomData;
 use pyo3::{PyObject, IntoPy};
-use ndarray::{Axis, ArrayD};
+use ndarray::{Axis, ArrayD, Ix1};
 use numpy::PyArrayDyn;
 
 use crate::{
-    core::Act,
+    core::{Act, record::{Record, RecordValue}},
     agent::tch::Shape
 };
 
@@ -30,13 +30,6 @@ impl<S: Shape> PyGymEnvContinuousAct<S> {
 
 impl<S: Shape> Act for PyGymEnvContinuousAct<S> {}
 
-// /// Filtering action before applied to the environment.
-// pub trait PyGymEnvContinuousActFilter: Clone + Debug {
-//     fn filter(act: ArrayD<f32>) -> ArrayD<f32> {
-//         act
-//     }
-// }
-
 #[derive(Clone, Debug)]
 pub struct PyGymEnvContinuousActRawFilter {
     pub vectorized: bool
@@ -53,8 +46,13 @@ impl Default for PyGymEnvContinuousActRawFilter {
 ///
 /// TODO: explain action representation for the vectorized environment.
 impl<S: Shape> PyGymEnvActFilter<PyGymEnvContinuousAct<S>> for PyGymEnvContinuousActRawFilter {
-    fn filt(&mut self, act: PyGymEnvContinuousAct<S>) -> PyObject {
+    fn filt(&mut self, act: PyGymEnvContinuousAct<S>) -> (PyObject, Record) {
         let act = act.act;
+        let record = Record::from_slice(&[
+            ("act", RecordValue::Array1(
+                act.clone().into_dimensionality::<Ix1>().unwrap()
+            ))
+        ]);
 
         // TODO: replace the following code with to_pyobj()
         let act = {
@@ -76,7 +74,7 @@ impl<S: Shape> PyGymEnvActFilter<PyGymEnvContinuousAct<S>> for PyGymEnvContinuou
                 })
             }
         };
-        act
+        (act, record)
     }
 }
 

@@ -19,6 +19,7 @@
   * Prioritized experience replay
   * Parameter noise
 * GPU support
+* Define types for recording training/evaluation
 * Add more examples
   * PyBullet gym
   * Atari

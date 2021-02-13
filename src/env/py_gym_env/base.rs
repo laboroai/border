@@ -6,7 +6,7 @@ use log::{trace};
 use pyo3::{PyObject, PyResult, Python, ToPyObject};
 use pyo3::types::{PyTuple, IntoPyDict};
 
-use crate::core::{Obs, Act, Info, Step, Env};
+use crate::core::{Act, Env, Info, Obs, Step, record::Record};
 
 pub struct PyGymInfo {}
 
@@ -15,13 +15,14 @@ impl Info for PyGymInfo {}
 /// Convert PyObject to PyGymEnv::Obs.
 pub trait PyGymEnvObsFilter<O: Obs> {
     /// Convert PyObject into observation with filtering.
-    fn filt(&mut self, obs: PyObject) -> O;
+    fn filt(&mut self, obs: PyObject) -> (O, Record);
 
     /// Called when resetting the environment.
     ///
     /// This method is useful for stateful filters.
     fn reset(&mut self, obs: PyObject) -> O {
-        self.filt(obs)
+        let (obs, _) = self.filt(obs);
+        obs
     }
 
     /// Stack filtered observations into an observation.
@@ -39,7 +40,7 @@ pub trait PyGymEnvActFilter<A: Act> {
     /// For vectorized environments, `act` should have actions for all environments in
     /// the vectorized environment. The return values will be a `PyList` object, each
     /// element is an action of the corresponding environment.
-    fn filt(&mut self, act: A) -> PyObject;
+    fn filt(&mut self, act: A) -> (PyObject, Record);
 
     /// Called when resetting the environment.
     ///
@@ -165,7 +166,7 @@ impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
         }
     }
 
-    fn step(&mut self, a: &A) -> Step<Self> {
+    fn step(&mut self, a: &A) -> (Step<Self>, Record) {
         trace!("PyGymEnv::step()");
 
         pyo3::Python::with_gil(|py| {
@@ -173,11 +174,11 @@ impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
                 let _ = self.env.call_method0(py, "render");
             }
 
-            let a_py = self.act_filter.filt(a.clone());
+            let (a_py, record_a) = self.act_filter.filt(a.clone());
             let ret = self.env.call_method(py, "step", (a_py,), None).unwrap();
             let step: &PyTuple = ret.extract(py).unwrap();
             let obs = step.get_item(0).to_owned();
-            let obs = self.obs_filter.filt(obs.to_object(py));
+            let (obs, record_o) = self.obs_filter.filt(obs.to_object(py));
             let reward: Vec<f32> = vec![step.get_item(1).extract().unwrap()];
             let mut is_done: Vec<f32> = vec![
                 if step.get_item(2).extract().unwrap() {1.0} else {0.0}
@@ -191,7 +192,10 @@ impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
                 }
             };
 
-            Step::<Self>::new(obs, a.clone(), reward, is_done, PyGymInfo{})
+            (
+                Step::<Self>::new(obs, a.clone(), reward, is_done, PyGymInfo{}),
+                record_o.merge(record_a)
+            )
         })
     }
 }

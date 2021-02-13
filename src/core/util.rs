@@ -6,7 +6,7 @@ use crate::core::{Obs, Step, Env, Policy};
 /// Then return [crate::core::base::Step] object.
 pub fn sample<E: Env, P: Policy<E>>(env: &mut E, policy: &mut P, obs_prev: &RefCell<Option<E::Obs>>) -> Step<E> {
     let obs = obs_prev.replace(None)
-        .expect("Observation buffer is not initialized.");
+        .expect("The buffer of the previous observations is not initialized.");
     let a = policy.sample(&obs);
     let step = env.step(&a);
 
@@ -38,14 +38,4 @@ pub fn eval<E: Env, P: Policy<E>>(env: &mut E, policy: &mut P, n_episodes_per_ev
     }
 
     rs
-    // let mean: f32 = rs.iter().sum::<f32>() / n_episodes_per_eval as f32;
-    // let min = rs.iter().fold(f32::NAN, |m, v| v.min(m));
-    // let max = rs.iter().fold(f32::NAN, |m, v| v.max(m));
-    // if let Some(c) = count_opts {
-    //     info!("Opt step {}, Eval (mean, min, max) of r_sum: {}, {}, {}",
-    //         c, mean, min, max);
-    // }
-    // else {
-    //     info!("Eval (mean, min, max) of r_sum: {}, {}, {}", mean, min, max);
-    // }
 }

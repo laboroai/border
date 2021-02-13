@@ -10,6 +10,7 @@ use numpy::PyArrayDyn;
 use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
 
 use crate::{
+    core::record::{Record},
     agent::tch::{
         Shape, model::{ModelBase, Model1}
     },
@@ -35,8 +36,8 @@ impl PyGymEnvActFilter<PyGymEnvDiscreteAct> for PongActFilter {
     /// Add 2 to action.
     ///
     /// In Pong environment, 2 and 3 are up and down actions.
-    fn filt(&mut self, act: PyGymEnvDiscreteAct) -> PyObject {
-        if self.vectorized {
+    fn filt(&mut self, act: PyGymEnvDiscreteAct) -> (PyObject, Record) {
+        let act = if self.vectorized {
             pyo3::Python::with_gil(|py| {
                 act.act.iter().map(|v| v + 2).collect::<Vec<_>>().into_py(py)
             })
@@ -45,7 +46,8 @@ impl PyGymEnvActFilter<PyGymEnvDiscreteAct> for PongActFilter {
             pyo3::Python::with_gil(|py| {
                 (act.act[0] + 2).into_py(py)
             })
-        }
+        };
+        (act, Record::empty())
     }
 }
 
@@ -74,7 +76,7 @@ impl PongObsFilter {
 type PongObs = PyGymEnvObs<PongObsShape, u8>;
 
 impl PyGymEnvObsFilter<PongObs> for PongObsFilter {
-    fn filt(&mut self, obs: PyObject) -> PongObs {
+    fn filt(&mut self, obs: PyObject) -> (PongObs, Record) {
         let obs = pyo3::Python::with_gil(|py| {
             let obs: &PyArrayDyn<u8> = obs.extract(py).unwrap();
             debug_assert!(obs.shape() == [210, 160, 3]);
@@ -94,7 +96,8 @@ impl PyGymEnvObsFilter<PongObs> for PongObsFilter {
         };
         let obs_prev = self.obs_prev.replace(obs);
         let obs = self.obs_prev.borrow().clone() - obs_prev;
-        PongObs::new(obs)
+
+        (PongObs::new(obs), Record::empty())
     }
 
     fn stack(_filtered: Vec<PongObs>) -> PongObs {

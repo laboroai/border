@@ -44,7 +44,7 @@ pub trait Env {
     type Act: Act;
     type Info: Info;
 
-    fn step(&mut self, a: &Self::Act) -> Step<Self> where Self: Sized;
+    fn step(&mut self, a: &Self::Act) -> (Step<Self>, Record) where Self: Sized;
 
     /// Reset the i-th environment if `is_done[i]==1.0`.
     /// Thei-th return value should be ignored if `is_done[i]==0.0`.
