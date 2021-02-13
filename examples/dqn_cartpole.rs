@@ -19,7 +19,7 @@ use lrr::{
         tch::{Shape, DQN, QNetwork, ReplayBuffer}
     }
 };
-    
+
 #[derive(Debug, Clone)]
 struct ObsShape {}
 
