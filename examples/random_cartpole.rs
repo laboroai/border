@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use lrr::{
-    core::{Policy, util},
+    core::{Policy, util, record::BufferedRecorder},
     env::py_gym_env::{
         PyGymEnv, 
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
@@ -41,10 +41,16 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let obs_filter = ObsFilter::default(); //new();
     let act_filter = ActFilter::default(); //new();
+    let mut recorder = BufferedRecorder::new();
     let mut env = Env::new("CartPole-v0", obs_filter, act_filter)?;
     env.set_render(true);
     let mut policy = RandomPolicy{};
-    util::eval(&mut env, &mut policy, 5);
+
+    util::eval_with_recorder(&mut env, &mut policy, 5, &mut recorder);
+
+    println!("{:?}", recorder.get("reward").unwrap());
+    println!("{:?}", recorder.get("episode").unwrap());
+    println!("{:?}", recorder.get("step").unwrap());
 
     Ok(())
 }

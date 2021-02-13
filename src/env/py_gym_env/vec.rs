@@ -94,16 +94,11 @@ impl<O, A, OF, AF> Env for PyVecGymEnv<O, A, OF, AF> where
         pyo3::Python::with_gil(|py| {
             // Does not support render
 
-            let a_py = self.act_filter.filt(a.clone());
+            let (a_py, record_a) = self.act_filter.filt(a.clone());
             let ret = self.env.call_method(py, "step", (a_py,), None).unwrap();
             let step: &PyTuple = ret.extract(py).unwrap();
             let obs = step.get_item(0).to_object(py);
-            // let obs: Py<PyList> = obs.extract(py).unwrap();
-            let obs = self.obs_filter.filt(obs); //iter_mut()
-            //     .zip(obs.as_ref(py).iter())
-            //     .map(|(f, o)| f.reset(o.into()))
-            //     .collect();
-            // let obs = OF::stack(filtered);
+            let (obs, record_o) = self.obs_filter.filt(obs);
 
             // Reward and is_done
             let reward = step.get_item(1).to_object(py);
@@ -111,9 +106,10 @@ impl<O, A, OF, AF> Env for PyVecGymEnv<O, A, OF, AF> where
             let is_done = step.get_item(2).to_object(py);
             let is_done: Vec<f32> = is_done.extract(py).unwrap();
 
-            Step::<Self>::new(obs, a.clone(), reward, is_done, PyGymInfo{})
-        });
+            let step = Step::<Self>::new(obs, a.clone(), reward, is_done, PyGymInfo{});
+            let record = record_o.merge(record_a);
 
-        unimplemented!();
+            (step, record)
+        })
     }
 }

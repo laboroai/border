@@ -1,7 +1,10 @@
 use std::error::Error;
 
 use lrr::{
-    core::{Trainer, Agent, util, record::TensorboardRecorder},
+    core::{
+        Trainer, Agent, util,
+        record::{TensorboardRecorder, BufferedRecorder}
+    },
     env::py_gym_env::{
         PyGymEnv,
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
@@ -76,10 +79,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut env = create_env();
     let mut agent = create_agent();
+    let mut recorder = BufferedRecorder::new();
     env.set_render(true);
     agent.load("./examples/model/dqn_cartpole")?;
     agent.eval();
-    util::eval(&mut env, &mut agent, 5);
+    util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);
+
+    println!("{:?}", recoder.get("reward").unwrap());
+    println!("{:?}", recoder.get("episode").unwrap());
+    println!("{:?}", recoder.get("step").unwrap());
 
     Ok(())
 }

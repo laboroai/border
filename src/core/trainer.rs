@@ -78,7 +78,7 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
         loop {
             // For resetted environments, elements in obs_prev are updated with env.reset().
             // See `sample()` in `util.rs`.
-            let step = sample(&mut self.env, &mut self.agent, &self.obs_prev);
+            let (step, _) = sample(&mut self.env, &mut self.agent, &self.obs_prev);
             self.count_steps += 1;
 
             // agent.observe() internally creates transisions, i.e., (o_t, a_t, o_t+1, r_t+1).

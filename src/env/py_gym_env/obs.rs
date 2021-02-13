@@ -1,10 +1,10 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, iter::FromIterator};
 use std::default::Default;
 use std::marker::PhantomData;
 use log::trace;
 use num_traits::cast::AsPrimitive;
 use pyo3::{Py, PyObject, types::PyList};
-use ndarray::{ArrayD, Axis, IxDyn, stack, Ix1};
+use ndarray::{Array, ArrayD, Axis, IxDyn, stack, Ix1};
 use numpy::{Element, PyArrayDyn};
 
 use crate::{
@@ -122,6 +122,14 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for PyGymEnvObsRawFilter<S, T> w
     S: Shape,
     T: Element + Debug + num_traits::identities::Zero + AsPrimitive<f32>,
 {
+    /// Convert `PyObject` to [ndarray::ArrayD].
+    ///
+    /// No filter is applied after conversion.
+    /// [Record] in the returned value has `obs`, which is a flattened array of
+    /// observation.
+    ///
+    /// TODO: support multidimensional arrays as records.
+    /// TODO: support vectorized observation and document aout it.
     fn filt(&mut self, obs: PyObject) -> (PyGymEnvObs<S, T>, Record) {
         if self.vectorized {
             unimplemented!();
@@ -161,10 +169,8 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for PyGymEnvObsRawFilter<S, T> w
                     }
                 }
             });
-            let record = Record::from_slice(&[
-                ("obs", RecordValue::Array1(
-                    obs.obs.clone().into_dimensionality::<Ix1>().unwrap()))
-            ]);
+            let array1 = Array::from_iter(obs.obs.iter().cloned());
+            let record = Record::from_slice(&[("obs", RecordValue::Array1(array1))]);
             (obs, record)
         }
     }

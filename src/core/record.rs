@@ -132,6 +132,12 @@ impl BufferedRecorder {
     pub fn new() -> Self { Self(HashMap::new()) }
 }
 
+impl BufferedRecorder {
+    pub fn get(&self, k: &str) -> Option<&Vec<RecordValue>> {
+        self.0.get(k)
+    }
+}
+
 impl Recorder for BufferedRecorder {
     fn write(&mut self, record: Record) {
         if self.0.is_empty() {
