@@ -5,7 +5,7 @@ use log::info;
 use crate::core::{
     Env, Agent,
     util::{sample, eval},
-    record::{TrainRecorder, RecordValue}
+    record::{Recorder, RecordValue}
 };
 
 pub struct Trainer<E: Env, A: Agent<E>> {
@@ -69,7 +69,7 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
         return (mean, min, max);
     }
 
-    pub fn train<T: TrainRecorder>(&mut self, recorder: &mut T) {
+    pub fn train<T: Recorder>(&mut self, recorder: &mut T) {
         let obs = self.env.reset(None).unwrap();
         self.agent.push_obs(&obs);
         self.obs_prev.replace(Some(obs));
