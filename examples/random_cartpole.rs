@@ -1,4 +1,5 @@
 use std::{convert::TryFrom, fs::File, iter::FromIterator};
+use csv::WriterBuilder;
 use serde::Serialize;
 use anyhow::Result;
 use ndarray::Array1;
@@ -24,10 +25,10 @@ impl Shape for ObsShape {
 
 #[derive(Debug, Serialize)]
 struct CartpoleRecord {
-    reward: f32,
-    step: usize,
     episode: usize,
-    obs: Array1<f64>,
+    step: usize,
+    reward: f32,
+    obs: Vec<f64>,
 }
 
 impl TryFrom<&Record> for CartpoleRecord {
@@ -35,10 +36,10 @@ impl TryFrom<&Record> for CartpoleRecord {
 
     fn try_from(record: &Record) -> Result<Self> {
         Ok(Self {
-            reward: record.get_scalar("reward")?,
-            step: record.get_scalar("step")? as _,
             episode: record.get_scalar("episode")? as _,
-            obs: Array1::from_iter(
+            step: record.get_scalar("step")? as _,
+            reward: record.get_scalar("reward")?,
+            obs: Vec::from_iter(
                 record.get_array1("obs")?.iter().map(|v| *v as f64)
             )
         })
@@ -75,8 +76,9 @@ fn main() -> Result<()> {
 
     util::eval_with_recorder(&mut env, &mut policy, 5, &mut recorder);
 
-    // let mut wtr = csv::Writer::from_writer(io::stdout());
-    let mut wtr = csv::Writer::from_writer(File::create("examples/model/random_cartpole_eval.csv")?);
+    // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
+    let mut wtr = csv::WriterBuilder::new().has_headers(false)
+        .from_writer(File::create("examples/model/random_cartpole_eval.csv")?);
     for record in recorder.iter() {
         wtr.serialize(CartpoleRecord::try_from(record)?)?;
     }

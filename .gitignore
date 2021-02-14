@@ -15,3 +15,5 @@ Cargo.lock
 /target
 
 examples/__pycache__
+
+.DS_Store
