@@ -23,6 +23,21 @@ impl Shape for ObsShape {
     }
 }
 
+type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
+type ActFilter = PyGymEnvDiscreteActRawFilter;
+type Obs = PyGymEnvObs<ObsShape, f64>;
+type Act = PyGymEnvDiscreteAct;
+type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+
+struct RandomPolicy {}
+
+impl Policy<Env> for RandomPolicy {
+    fn sample(&mut self, _: &Obs) -> Act {
+        let v = fastrand::u32(..=1);
+        Act::new(vec![v as i32])
+    }
+}
+
 #[derive(Debug, Serialize)]
 struct CartpoleRecord {
     episode: usize,
@@ -43,21 +58,6 @@ impl TryFrom<&Record> for CartpoleRecord {
                 record.get_array1("obs")?.iter().map(|v| *v as f64)
             )
         })
-    }
-}
-
-type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
-type ActFilter = PyGymEnvDiscreteActRawFilter;
-type Obs = PyGymEnvObs<ObsShape, f64>;
-type Act = PyGymEnvDiscreteAct;
-type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
-
-struct RandomPolicy {}
-
-impl Policy<Env> for RandomPolicy {
-    fn sample(&mut self, _: &Obs) -> Act {
-        let v = fastrand::u32(..=1);
-        Act::new(vec![v as i32])
     }
 }
 
