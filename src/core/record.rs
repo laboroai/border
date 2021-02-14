@@ -14,7 +14,7 @@ use crate::error::LrrError;
 /// Represents possible types of values in a [`Record`].
 pub enum RecordValue {
     /// Represents a scalar, e.g., optimization steps and loss value.
-    Scalar(f64), // TODO: use f32 instead of f64
+    Scalar(f32),
 
     /// Represents a datetime.
     DateTime(DateTime<Local>),

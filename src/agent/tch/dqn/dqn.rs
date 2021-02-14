@@ -219,18 +219,18 @@ impl<E, M, O, A> Agent<E> for DQN<E, M, O, A> where
 
         // Do optimization
         if do_optimize {
-            let mut loss_critic = 0f64;
+            let mut loss_critic = 0f32;
 
             for _ in 0..self.n_updates_per_opt {
                 let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
                 trace!("Sample random batch");
 
-                loss_critic += self.update_critic(batch) as f64;
+                loss_critic += self.update_critic(batch);
                 self.soft_update();
                 trace!("Update model");
             };
 
-            loss_critic /= self.n_updates_per_opt as f64;
+            loss_critic /= self.n_updates_per_opt as f32;
 
             Some(Record::from_slice(&[
                 ("loss_critic", RecordValue::Scalar(loss_critic)),

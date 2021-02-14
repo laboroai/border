@@ -1,9 +1,8 @@
-use std::{io, convert::TryFrom};
+use std::{convert::TryFrom, fs::File};
 use serde::Serialize;
 use anyhow::Result;
 
 use lrr::{
-    error::LrrError,
     core::{Policy, util, record::{Record, BufferedRecorder}},
     env::py_gym_env::{
         PyGymEnv, 
@@ -25,8 +24,8 @@ impl Shape for ObsShape {
 #[derive(Debug, Serialize)]
 struct CartpoleRecord {
     reward: f32,
-    // step: usize,
-    // episode: usize,
+    step: usize,
+    episode: usize,
 }
 
 impl TryFrom<&Record> for CartpoleRecord {
@@ -34,7 +33,9 @@ impl TryFrom<&Record> for CartpoleRecord {
 
     fn try_from(record: &Record) -> Result<Self> {
         Ok(Self {
-            reward: record.get_scalar("reward")?
+            reward: record.get_scalar("reward")?,
+            step: record.get_scalar("step")? as _,
+            episode: record.get_scalar("episode")? as _,
         })
     }
 }
@@ -54,25 +55,25 @@ impl Policy<Env> for RandomPolicy {
     }
 }
 
-// fn main() -> Result<(), Box<dyn Error>> {
 fn main() -> Result<()> {
     env_logger::init();
     tch::manual_seed(42);
     fastrand::seed(42);
 
-    let obs_filter = ObsFilter::default(); //new();
-    let act_filter = ActFilter::default(); //new();
+    let obs_filter = ObsFilter::default();
+    let act_filter = ActFilter::default();
     let mut recorder = BufferedRecorder::new();
-    // let mut env = Env::new("CartPole-v0", obs_filter, act_filter)?;
+    // TODO: Define appropriate error for failing to construct environment
     let mut env = Env::new("CartPole-v0", obs_filter, act_filter).unwrap();
     env.set_render(true);
     let mut policy = RandomPolicy{};
 
     util::eval_with_recorder(&mut env, &mut policy, 5, &mut recorder);
 
-    let mut wtr = csv::Writer::from_writer(io::stdout());
+    // let mut wtr = csv::Writer::from_writer(io::stdout());
+    let mut wtr = csv::Writer::from_writer(File::create("examples/model/random_cartpole_eval.csv")?);
     for record in recorder.iter() {
-        wtr.serialize(CartpoleRecord::try_from(record)?);
+        wtr.serialize(CartpoleRecord::try_from(record)?)?;
     }
 
     Ok(())

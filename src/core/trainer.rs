@@ -103,7 +103,7 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
                     let (mean, min, max) = Self::stats_eval_reward(&rewards);
                     info!("Opt step {}, Eval (mean, min, max) of r_sum: {}, {}, {}",
                         self.count_opts, mean, min, max);
-                    record.insert("mean_cum_eval_reward", Scalar(mean as f64));
+                    record.insert("mean_cum_eval_reward", Scalar(mean));
         
                     self.agent.train();
                 }

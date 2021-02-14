@@ -180,7 +180,7 @@ impl <E, M, O, A> Agent<E> for PGDiscrete<E, M, O, A> where
 
         // Do optimization
         if do_optimize {
-            let mut loss = 0f64;
+            let mut loss = 0f32;
 
             // Store returns in the replay buffer
             // let (estimated_return, _)
@@ -192,13 +192,13 @@ impl <E, M, O, A> Agent<E> for PGDiscrete<E, M, O, A> where
             // Update model parameters
             for _ in 0..self.n_updates_per_opt {
                 let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
-                loss += self.update_model(batch) as f64;
+                loss += self.update_model(batch) as f32;
             };
 
             // Clear replay buffer
             self.replay_buffer.clear();
 
-            loss /= self.n_updates_per_opt as f64;
+            loss /= self.n_updates_per_opt as f32;
 
             Some(Record::from_slice(&[
                 ("loss", RecordValue::Scalar(loss)),

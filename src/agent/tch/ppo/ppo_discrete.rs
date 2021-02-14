@@ -193,8 +193,8 @@ impl <E, M, O, A> Agent<E> for PPODiscrete<E, M, O, A> where
         // Do optimization
         if do_optimize {
             // Store returns in the replay buffer
-            let mut loss_critic = 0f64;
-            let mut loss_actor = 0f64;
+            let mut loss_critic = 0f32;
+            let mut loss_actor = 0f32;
 
             let (estimated_return, _)
                 = self.model.forward(&self.prev_obs.borrow().to_owned().unwrap().into());
@@ -204,15 +204,15 @@ impl <E, M, O, A> Agent<E> for PPODiscrete<E, M, O, A> where
             for _ in 0..self.n_updates_per_opt {
                 let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
                 let (c, a) = self.update_model(batch);
-                loss_critic += c as f64;
-                loss_actor += a as f64;
+                loss_critic += c;
+                loss_actor += a;
             };
 
             // Clear replay buffer
             self.replay_buffer.clear();
 
-            loss_critic /= self.n_updates_per_opt as f64;
-            loss_actor /= self.n_updates_per_opt as f64;
+            loss_critic /= self.n_updates_per_opt as f32;
+            loss_actor /= self.n_updates_per_opt as f32;
 
             Some(Record::from_slice(&[
                 ("loss_critic", RecordValue::Scalar(loss_critic)),

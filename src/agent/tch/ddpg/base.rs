@@ -291,21 +291,21 @@ impl<E, Q, P, O, A> Agent<E> for DDPG<E, Q, P, O, A> where
 
         // Do optimization
         if do_optimize {
-            let mut loss_critic = 0f64;
-            let mut loss_actor = 0f64;
+            let mut loss_critic = 0f32;
+            let mut loss_actor = 0f32;
 
             for _ in 0..self.n_updates_per_opt {
                 let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
                 trace!("Sample random batch");
 
-                loss_critic += self.update_critic(&batch) as f64;
-                loss_actor += self.update_actor(&batch) as f64;
+                loss_critic += self.update_critic(&batch);
+                loss_actor += self.update_actor(&batch);
                 self.soft_update();
                 trace!("Update models");
             };
 
-            loss_critic /= self.n_updates_per_opt as f64;
-            loss_actor /= self.n_updates_per_opt as f64;
+            loss_critic /= self.n_updates_per_opt as f32;
+            loss_actor /= self.n_updates_per_opt as f32;
 
             Some(Record::from_slice(&[
                 ("loss_critic", RecordValue::Scalar(loss_critic)),
