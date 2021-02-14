@@ -80,6 +80,19 @@ impl Record {
             Err(LrrError::RecordKeyError(k.to_string()))
         }
     }
+
+    /// Get Array1 value.
+    pub fn get_array1(&self, k: &str) -> Result<Array1<f32>, LrrError> {
+        if let Some(v) = self.0.get(k) {
+            match v {
+                RecordValue::Array1(v) => Ok(v.clone()),
+                _ => Err(LrrError::RecordValueTypeError("Array1".to_string()))
+            }
+        }
+        else {
+            Err(LrrError::RecordKeyError(k.to_string()))
+        }
+    }
 }
 
 /// Process records provided with [`Recorder::write`]

@@ -1,6 +1,7 @@
-use std::{convert::TryFrom, fs::File};
+use std::{convert::TryFrom, fs::File, iter::FromIterator};
 use serde::Serialize;
 use anyhow::Result;
+use ndarray::Array1;
 
 use lrr::{
     core::{Policy, util, record::{Record, BufferedRecorder}},
@@ -26,6 +27,7 @@ struct CartpoleRecord {
     reward: f32,
     step: usize,
     episode: usize,
+    obs: Array1<f64>,
 }
 
 impl TryFrom<&Record> for CartpoleRecord {
@@ -36,6 +38,9 @@ impl TryFrom<&Record> for CartpoleRecord {
             reward: record.get_scalar("reward")?,
             step: record.get_scalar("step")? as _,
             episode: record.get_scalar("episode")? as _,
+            obs: Array1::from_iter(
+                record.get_array1("obs")?.iter().map(|v| *v as f64)
+            )
         })
     }
 }
