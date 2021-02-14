@@ -8,6 +8,8 @@ use chrono::prelude::{DateTime, Local};
 use ndarray::Array1;
 use tensorboard_rs::summary_writer::SummaryWriter;
 
+use crate::error::LrrError;
+
 #[derive(Debug, Clone)]
 /// Represents possible types of values in a [`Record`].
 pub enum RecordValue {
@@ -64,6 +66,19 @@ impl Record {
     /// Merge records.
     pub fn merge(self, record: Record) -> Self {
         Record(self.0.into_iter().chain(record.0).collect())
+    }
+
+    /// Get scalar value.
+    pub fn get_scalar(&self, k: &str) -> Result<f32, LrrError> {
+        if let Some(v) = self.0.get(k) {
+            match v {
+                RecordValue::Scalar(v) => Ok(*v as _),
+                _ => Err(LrrError::RecordValueTypeError("Scalar".to_string()))
+            }
+        }
+        else {
+            Err(LrrError::RecordKeyError(k.to_string()))
+        }
     }
 }
 
@@ -128,30 +143,18 @@ impl Recorder for TensorboardRecorder {
 
 /// Buffered recorder.
 ///
-/// This struct will be used for recording sequences of observation and action
-/// during evaluation runs and used with [`crate::core::util::eval_with_recorder`].
+/// This is used for recording sequences of observation and action
+/// during evaluation runs in [`crate::core::util::eval_with_recorder`].
 #[derive(Default)]
-pub struct BufferedRecorder (HashMap<String, Vec<RecordValue>>);
+pub struct BufferedRecorder (Vec<Record>);
 
 impl BufferedRecorder {
     /// Construct the recorder.
-    pub fn new() -> Self { Self(HashMap::new()) }
-}
+    pub fn new() -> Self { Self(Vec::default()) }
 
-impl BufferedRecorder {
-    /// Get a reference to the vector of [`RecordValue`].
-    ///
-    /// If the given key is not exist in buffers, returns `None`.
-    pub fn get(&self, k: &str) -> Option<&Vec<RecordValue>> {
-        self.0.get(k)
-    }
-
-    /// Keys in the buffer.
-    ///
-    /// TODO: Consider returns an iterator of `String`s.
-    /// Type `Keys` relates to the current implementation of the struct.
-    pub fn keys(&self) -> Keys<String, Vec<RecordValue>> {
-        self.0.keys()
+    /// Returns an iterator over the records.
+    pub fn iter(&self) -> std::slice::Iter<Record> {
+        self.0.iter()
     }
 }
 
@@ -160,19 +163,53 @@ impl Recorder for BufferedRecorder {
     ///
     /// TODO: Consider if it is worth making the method public.
     fn write(&mut self, record: Record) {
-        if self.0.is_empty() {
-            record.into_iter_in_record()
-            .for_each(|(k, v)| { self.0.insert(k, vec![v]); });
-        }
-        else {
-            record.into_iter_in_record().for_each(|(k, value)| {
-                if let Some(vec) = self.0.get_mut(&k) {
-                    vec.push(value);
-                }
-                else {
-                    panic!();
-                }
-            });
-        };
+        self.0.push(record);
     }
 }
+
+// #[derive(Default)]
+// pub struct BufferedRecorder (HashMap<String, Vec<RecordValue>>);
+
+// impl BufferedRecorder {
+//     /// Construct the recorder.
+//     pub fn new() -> Self { Self(HashMap::new()) }
+// }
+
+// impl BufferedRecorder {
+//     /// Get a reference to the vector of [`RecordValue`].
+//     ///
+//     /// If the given key is not exist in buffers, returns `None`.
+//     pub fn get(&self, k: &str) -> Option<&Vec<RecordValue>> {
+//         self.0.get(k)
+//     }
+
+//     /// Keys in the buffer.
+//     ///
+//     /// TODO: Consider returns an iterator of `String`s.
+//     /// Type `Keys` relates to the current implementation of the struct.
+//     pub fn keys(&self) -> Keys<String, Vec<RecordValue>> {
+//         self.0.keys()
+//     }
+// }
+
+// impl Recorder for BufferedRecorder {
+//     /// Write a [`Record`] to the buffer.
+//     ///
+//     /// TODO: Consider if it is worth making the method public.
+//     fn write(&mut self, record: Record) {
+//         if self.0.is_empty() {
+//             record.into_iter_in_record()
+//             .for_each(|(k, v)| { self.0.insert(k, vec![v]); });
+//         }
+//         else {
+//             record.into_iter_in_record().for_each(|(k, value)| {
+//                 if let Some(vec) = self.0.get_mut(&k) {
+//                     vec.push(value);
+//                 }
+//                 else {
+//                     panic!();
+//                 }
+//             });
+//         };
+//     }
+// }

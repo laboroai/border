@@ -1,7 +1,7 @@
 [package]
 name = "lrr"
 version = "0.1.0"
-authors = ["taku-y <taku.yoshioka.4096@gmail.com>"]
+authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -18,6 +18,7 @@ rayon = "1.1"
 num-traits = "0.2.14"
 chrono = "0.4"
 tensorboard-rs = "0.2.4"
+thiserror = "1.0"
 
 # [features]
 # python = ["pyo3"]
@@ -28,3 +29,6 @@ tensorboard-rs = "0.2.4"
 
 [dev-dependencies]
 clap = "2.33.3"
+csv = "1.1.5"
+serde = { version = "1.0.117", features = ["derive"] }
+anyhow = "1.0.38"
