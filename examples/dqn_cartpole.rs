@@ -85,9 +85,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     agent.eval();
     util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);
 
-    println!("{:?}", recoder.get("reward").unwrap());
-    println!("{:?}", recoder.get("episode").unwrap());
-    println!("{:?}", recoder.get("step").unwrap());
+    println!("{:?}", recorder.get("reward").unwrap());
+    println!("{:?}", recorder.get("episode").unwrap());
+    println!("{:?}", recorder.get("step").unwrap());
 
     Ok(())
 }

@@ -73,7 +73,7 @@ pub trait Recorder {
     fn write(&mut self, record: Record);
 }
 
-/// Ignore records. This struct is used just for debugging.
+/// A recorder that ignores any record. This struct is used just for debugging.
 pub struct NullRecorder {}
 
 impl NullRecorder {}
@@ -126,19 +126,39 @@ impl Recorder for TensorboardRecorder {
     }
 }
 
+/// Buffered recorder.
+///
+/// This struct will be used for recording sequences of observation and action
+/// during evaluation runs and used with [`crate::core::util::eval_with_recorder`].
+#[derive(Default)]
 pub struct BufferedRecorder (HashMap<String, Vec<RecordValue>>);
 
 impl BufferedRecorder {
+    /// Construct the recorder.
     pub fn new() -> Self { Self(HashMap::new()) }
 }
 
 impl BufferedRecorder {
+    /// Get a reference to the vector of [`RecordValue`].
+    ///
+    /// If the given key is not exist in buffers, returns `None`.
     pub fn get(&self, k: &str) -> Option<&Vec<RecordValue>> {
         self.0.get(k)
+    }
+
+    /// Keys in the buffer.
+    ///
+    /// TODO: Consider returns an iterator of `String`s.
+    /// Type `Keys` relates to the current implementation of the struct.
+    pub fn keys(&self) -> Keys<String, Vec<RecordValue>> {
+        self.0.keys()
     }
 }
 
 impl Recorder for BufferedRecorder {
+    /// Write a [`Record`] to the buffer.
+    ///
+    /// TODO: Consider if it is worth making the method public.
     fn write(&mut self, record: Record) {
         if self.0.is_empty() {
             record.into_iter_in_record()
