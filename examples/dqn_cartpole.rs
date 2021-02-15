@@ -1,9 +1,12 @@
-use std::error::Error;
+use std::{convert::TryFrom, fs::File, iter::FromIterator};
+use serde::Serialize;
+use anyhow::Result;
+use csv::WriterBuilder;
 
 use lrr::{
     core::{
         Trainer, Agent, util,
-        record::{TensorboardRecorder, BufferedRecorder}
+        record::{TensorboardRecorder, BufferedRecorder, Record}
     },
     env::py_gym_env::{
         PyGymEnv,
@@ -58,7 +61,30 @@ fn create_env() -> Env {
     Env::new("CartPole-v0", obs_filter, act_filter).unwrap()
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+#[derive(Debug, Serialize)]
+struct CartpoleRecord {
+    episode: usize,
+    step: usize,
+    reward: f32,
+    obs: Vec<f64>,
+}
+
+impl TryFrom<&Record> for CartpoleRecord {
+    type Error = anyhow::Error;
+
+    fn try_from(record: &Record) -> Result<Self> {
+        Ok(Self {
+            episode: record.get_scalar("episode")? as _,
+            step: record.get_scalar("step")? as _,
+            reward: record.get_scalar("reward")?,
+            obs: Vec::from_iter(
+                record.get_array1("obs")?.iter().map(|v| *v as f64)
+            )
+        })
+    }
+}
+
+fn main() -> Result<()> {
     env_logger::init();
     tch::manual_seed(42);
 
@@ -75,19 +101,23 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut recorder = TensorboardRecorder::new("./examples/model/dqn_cartpole");
 
     trainer.train(&mut recorder);
-    trainer.get_agent().save("./examples/model/dqn_cartpole")?;
+    trainer.get_agent().save("./examples/model/dqn_cartpole").unwrap(); // TODO: define appropriate error
 
     let mut env = create_env();
     let mut agent = create_agent();
     let mut recorder = BufferedRecorder::new();
     env.set_render(true);
-    agent.load("./examples/model/dqn_cartpole")?;
+    agent.load("./examples/model/dqn_cartpole").unwrap(); // TODO: define appropriate error
     agent.eval();
+
     util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);
 
-    println!("{:?}", recorder.get("reward").unwrap());
-    println!("{:?}", recorder.get("episode").unwrap());
-    println!("{:?}", recorder.get("step").unwrap());
+    // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
+    let mut wtr = csv::WriterBuilder::new().has_headers(false)
+        .from_writer(File::create("examples/model/dqn_cartpole_eval.csv")?);
+    for record in recorder.iter() {
+        wtr.serialize(CartpoleRecord::try_from(record)?)?;
+    }
 
     Ok(())
 }

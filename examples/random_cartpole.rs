@@ -1,8 +1,7 @@
 use std::{convert::TryFrom, fs::File, iter::FromIterator};
-use csv::WriterBuilder;
 use serde::Serialize;
 use anyhow::Result;
-use ndarray::Array1;
+use csv::WriterBuilder;
 
 use lrr::{
     core::{Policy, util, record::{Record, BufferedRecorder}},
