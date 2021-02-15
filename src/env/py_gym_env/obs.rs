@@ -169,7 +169,7 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for PyGymEnvObsRawFilter<S, T> w
                     }
                 }
             });
-            let array1 = Array::from_iter(obs.obs.iter().cloned());
+            let array1: Vec<f32> = obs.obs.iter().cloned().collect();
             let record = Record::from_slice(&[("obs", RecordValue::Array1(array1))]);
             (obs, record)
         }

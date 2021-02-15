@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::default::Default;
 use std::marker::PhantomData;
 use pyo3::{PyObject, IntoPy};
-use ndarray::{Axis, ArrayD, Ix1};
+use ndarray::{Axis, ArrayD};
 use numpy::PyArrayDyn;
 
 use crate::{
@@ -49,9 +49,8 @@ impl<S: Shape> PyGymEnvActFilter<PyGymEnvContinuousAct<S>> for PyGymEnvContinuou
     fn filt(&mut self, act: PyGymEnvContinuousAct<S>) -> (PyObject, Record) {
         let act = act.act;
         let record = Record::from_slice(&[
-            ("act", RecordValue::Array1(
-                act.clone().into_dimensionality::<Ix1>().unwrap()
-            ))
+            ("act", RecordValue::Array1(act.iter().cloned().collect())
+            )
         ]);
 
         // TODO: replace the following code with to_pyobj()

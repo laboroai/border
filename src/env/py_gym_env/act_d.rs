@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 use std::default::Default;
-use ndarray::Array1;
 use pyo3::{PyObject, IntoPy};
 
 use crate::{
@@ -54,7 +53,7 @@ impl PyGymEnvActFilter<PyGymEnvDiscreteAct> for PyGymEnvDiscreteActRawFilter {
     fn filt(&mut self, act: PyGymEnvDiscreteAct) -> (PyObject, Record) {
         let record = Record::from_slice(&[
             ("act", RecordValue::Array1(
-                act.act.iter().map(|v| *v as f32).collect::<Vec<_>>().into()
+                act.act.iter().map(|v| *v as f32).collect::<Vec<_>>()
             ))
         ]);
 

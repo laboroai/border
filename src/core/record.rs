@@ -5,7 +5,6 @@ use std::{
     convert::Into, path::Path, iter::IntoIterator
 };
 use chrono::prelude::{DateTime, Local};
-use ndarray::Array1;
 use tensorboard_rs::summary_writer::SummaryWriter;
 
 use crate::error::LrrError;
@@ -20,7 +19,7 @@ pub enum RecordValue {
     DateTime(DateTime<Local>),
 
     /// A 1-dimensional array
-    Array1(Array1<f32>),
+    Array1(Vec<f32>),
 }
 
 #[derive(Debug)]
@@ -82,7 +81,7 @@ impl Record {
     }
 
     /// Get Array1 value.
-    pub fn get_array1(&self, k: &str) -> Result<Array1<f32>, LrrError> {
+    pub fn get_array1(&self, k: &str) -> Result<Vec<f32>, LrrError> {
         if let Some(v) = self.0.get(k) {
             match v {
                 RecordValue::Array1(v) => Ok(v.clone()),
