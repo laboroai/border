@@ -99,10 +99,6 @@ impl PyGymEnvObsFilter<PongObs> for PongObsFilter {
 
         (PongObs::new(obs), Record::empty())
     }
-
-    fn stack(_filtered: Vec<PongObs>) -> PongObs {
-        unimplemented!();
-    }
 }
 
 /// Action value function.

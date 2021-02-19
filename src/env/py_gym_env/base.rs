@@ -24,11 +24,6 @@ pub trait PyGymEnvObsFilter<O: Obs> {
         let (obs, _) = self.filt(obs);
         obs
     }
-
-    /// Stack filtered observations into an observation.
-    ///
-    /// This method is used in vectorized environments.
-    fn stack(filtered: Vec<O>) -> O;
 }
 
 /// Convert PyGymEnv::Act to PyObject.

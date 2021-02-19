@@ -101,6 +101,9 @@ impl<S, T> Obs for PyGymEnvObs<S, T> where
     }
 }
 
+/// An observation filter without any postprocessing.
+///
+/// The filter works with [super::PyGymEnv] or [super::PyVecGymEnv].
 pub struct PyGymEnvObsRawFilter<S, T> {
     pub vectorized: bool,
     pub phantom: PhantomData<(S, T)>
@@ -125,14 +128,17 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for PyGymEnvObsRawFilter<S, T> w
     /// Convert `PyObject` to [ndarray::ArrayD].
     ///
     /// No filter is applied after conversion.
-    /// [Record] in the returned value has `obs`, which is a flattened array of
-    /// observation.
+    /// The shape of the observation is `S` in [crate::env::py_gym_env::PyGymEnv].
     ///
-    /// TODO: support multidimensional arrays as records.
-    /// TODO: support vectorized observation and document aout it.
+    /// For [crate::env::py_gym_env::PyVecGymEnv], which is a vectorized environments,
+    /// the shape becomes `[n_procs, S]`, where `n_procs` is the number of processes
+    /// of the vectorized environment.
+    ///
+    /// [Record] in the returned value has `obs`, which is a flattened array of
+    /// observation, for either of single and vectorized environments.
     fn filt(&mut self, obs: PyObject) -> (PyGymEnvObs<S, T>, Record) {
         if self.vectorized {
-            pyo3::Python::with_gil(|py| {
+            let obs = pyo3::Python::with_gil(|py| {
                 debug_assert_eq!(obs.as_ref(py).get_type().name().unwrap(), "list");
                 let obs: Py<PyList> = obs.extract(py).unwrap();
                 let filtered = obs.as_ref(py).iter()
@@ -150,14 +156,14 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for PyGymEnvObsRawFilter<S, T> w
                         }
                     }).collect::<Vec<_>>();
                 let arrays_view: Vec<_> = filtered.iter().map(|a| a.view()).collect();
-                let obs = PyGymEnvObs::<S, T> {
+                PyGymEnvObs::<S, T> {
                     obs: stack(Axis(0), arrays_view.as_slice()).unwrap(),
                     phantom: PhantomData
-                };
-                let record = Record::from_slice(
-                    &[("obs", RecordValue::Array1(Vec::<_>::from_iter(obs.obs.iter().cloned())))]);
-                (obs, record)
-            })
+                }
+            });
+            let record = Record::from_slice(
+                &[("obs", RecordValue::Array1(Vec::<_>::from_iter(obs.obs.iter().cloned())))]);
+            (obs, record)
         }
         else {
             let obs = pyo3::Python::with_gil(|py| {
@@ -174,19 +180,6 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for PyGymEnvObsRawFilter<S, T> w
             let array1: Vec<f32> = obs.obs.iter().cloned().collect();
             let record = Record::from_slice(&[("obs", RecordValue::Array1(array1))]);
             (obs, record)
-        }
-    }
-
-    /// Stack filtered observation objects in the given vector.
-    fn stack(filtered: Vec<PyGymEnvObs<S, T>>) -> PyGymEnvObs<S, T> {
-        let arrays: Vec<_> = filtered.iter().map(|o| {
-            debug_assert_eq!(&o.obs.shape()[1..], S::shape());
-            o.obs.clone().remove_axis(Axis(0))
-        }).collect();
-        let arrays_view: Vec<_> = arrays.iter().map(|a| a.view()).collect();
-        PyGymEnvObs::<S, T> {
-            obs: stack(Axis(0), arrays_view.as_slice()).unwrap(),
-            phantom: PhantomData
         }
     }
 }
