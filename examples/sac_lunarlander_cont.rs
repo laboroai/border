@@ -1,9 +1,16 @@
-use std::error::Error;
+use std::{convert::TryFrom, fs::File, iter::FromIterator};
 use clap::{Arg, App};
+use serde::Serialize;
+use anyhow::Result;
+use csv::WriterBuilder;
 use tch::nn;
 
 use lrr::{
-    core::{Agent, Trainer, record::NullTrainRecorder, util},
+    core::{
+        Agent, Trainer,
+        record::{BufferedRecorder, Record, RecordValue, TensorboardRecorder},
+        util::eval_with_recorder,
+    },
     env::py_gym_env::{
         PyGymEnv,
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
@@ -98,7 +105,30 @@ fn create_env() -> Env {
         .max_steps(Some(1000))
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+#[derive(Debug, Serialize)]
+struct LunarlanderRecord {
+    episode: usize,
+    step: usize,
+    reward: f32,
+    obs: Vec<f32>,
+    act: Vec<f32>,
+}
+
+impl TryFrom<&Record> for LunarlanderRecord {
+    type Error = anyhow::Error;
+
+    fn try_from(record: &Record) -> Result<Self> {
+        Ok(Self {
+            episode: record.get_scalar("episode")? as _,
+            step: record.get_scalar("step")? as _,
+            reward: record.get_scalar("reward")?,
+            obs: Vec::from_iter(record.get_array1("obs")?.iter().cloned()),
+            act: Vec::from_iter(record.get_array1("act")?.iter().cloned()),
+        })
+    }
+}
+
+fn main() -> Result<()> {
     let matches = App::new("sac_lunarlander_cont")
     .version("0.1.0")
     .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
@@ -122,18 +152,27 @@ fn main() -> Result<(), Box<dyn Error>> {
             .max_opts(200_000)
             .eval_interval(10_000)
             .n_episodes_per_eval(5);
-        let mut recorder = NullTrainRecorder {};
+        let mut recorder = TensorboardRecorder::new("./examples/model/sac_lunarlander_cont");
     
         trainer.train(&mut recorder);
-        trainer.get_agent().save("./examples/model/sac_lunarlander_cont")?;    
+        trainer.get_agent().save("./examples/model/sac_lunarlander_cont").unwrap();    
     }
 
     let mut env = create_env();
     let mut agent = create_agent();
+    let mut recorder = BufferedRecorder::new();
     env.set_render(true);
-    agent.load("./examples/model/sac_lunarlander_cont")?;
+    agent.load("./examples/model/sac_lunarlander_cont").unwrap();
     agent.eval();
-    util::eval(&mut env, &mut agent, 5);
+
+    eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);
+
+    // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
+    let mut wtr = csv::WriterBuilder::new().has_headers(false)
+        .from_writer(File::create("examples/model/sac_lunarlander_eval.csv")?);
+    for record in recorder.iter() {
+        wtr.serialize(LunarlanderRecord::try_from(record)?)?;
+    }
 
     Ok(())
 }
