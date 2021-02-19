@@ -132,30 +132,32 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for PyGymEnvObsRawFilter<S, T> w
     /// TODO: support vectorized observation and document aout it.
     fn filt(&mut self, obs: PyObject) -> (PyGymEnvObs<S, T>, Record) {
         if self.vectorized {
-            unimplemented!();
-            // pyo3::Python::with_gil(|py| {
-            //     debug_assert_eq!(obs.as_ref(py).get_type().name().unwrap(), "list");
-            //     let obs: Py<PyList> = obs.extract(py).unwrap();
-            //     let filtered = obs.as_ref(py).iter()
-            //         .map(|o| {
-            //             if o.get_type().name().unwrap() == "NoneType" {
-            //                 ArrayD::zeros(IxDyn(S::shape()))
-            //             }
-            //             else {
-            //                 debug_assert_eq!(o.get_type().name().unwrap(), "ndarray");
-            //                 let obs: &PyArrayDyn<T> = o.extract().unwrap();
-            //                 let obs = obs.to_owned_array();
-            //                 let obs = obs.mapv(|elem| elem.as_());
-            //                 debug_assert_eq!(obs.shape(), S::shape());
-            //                 obs
-            //             }
-            //         }).collect::<Vec<_>>();
-            //     let arrays_view: Vec<_> = filtered.iter().map(|a| a.view()).collect();
-            //     PyGymEnvObs::<S, T> {
-            //         obs: stack(Axis(0), arrays_view.as_slice()).unwrap(),
-            //         phantom: PhantomData
-            //     }
-            // })
+            pyo3::Python::with_gil(|py| {
+                debug_assert_eq!(obs.as_ref(py).get_type().name().unwrap(), "list");
+                let obs: Py<PyList> = obs.extract(py).unwrap();
+                let filtered = obs.as_ref(py).iter()
+                    .map(|o| {
+                        if o.get_type().name().unwrap() == "NoneType" {
+                            ArrayD::zeros(IxDyn(S::shape()))
+                        }
+                        else {
+                            debug_assert_eq!(o.get_type().name().unwrap(), "ndarray");
+                            let obs: &PyArrayDyn<T> = o.extract().unwrap();
+                            let obs = obs.to_owned_array();
+                            let obs = obs.mapv(|elem| elem.as_());
+                            debug_assert_eq!(obs.shape(), S::shape());
+                            obs
+                        }
+                    }).collect::<Vec<_>>();
+                let arrays_view: Vec<_> = filtered.iter().map(|a| a.view()).collect();
+                let obs = PyGymEnvObs::<S, T> {
+                    obs: stack(Axis(0), arrays_view.as_slice()).unwrap(),
+                    phantom: PhantomData
+                };
+                let record = Record::from_slice(
+                    &[("obs", RecordValue::Array1(Vec::<_>::from_iter(obs.obs.iter().cloned())))]);
+                (obs, record)
+            })
         }
         else {
             let obs = pyo3::Python::with_gil(|py| {
