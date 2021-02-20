@@ -8,20 +8,25 @@ use pyo3::types::{PyTuple, IntoPyDict};
 
 use crate::core::{Act, Env, Info, Obs, Step, record::Record};
 
+/// Information given at every step of the interaction with the environment.
+///
+/// Currently, it is empty and used to match the type signature.
 pub struct PyGymInfo {}
 
 impl Info for PyGymInfo {}
 
-// TODO: consider moving it under src/env/py_gym_env
+/// Shape of observation or action.
 pub trait Shape: Clone + Debug {
+    /// Returns the shape of Shape of observation or action.
+    ///
+    /// This trait is used for conversion of PyObject in [`super::obs::pyobj_to_arrayd`] and
     fn shape() -> &'static [usize];
 
-    /// Return true if you would like to squeeze the first dimension of the array
+    /// Returns `true` if you would like to squeeze the first dimension of the array
     /// before conversion into an numpy array in Python. The first dimension may
-    /// correspond to process indices for vectorized environments. However, this
-    /// dimension is not compatible with PyGymEnv (non-vectorized environment).
+    /// correspond to process indices for vectorized environments.
     /// This method is used in
-    /// [here][crate::agents::tch::py_gym_env::act_c::TchPyGymEnvContinuousAct#impl-Into<Py<PyAny>>].
+    /// [`super::act_c::to_pyobj`] and [`super::act_c::PyGymEnvContinuousActRawFilter::filt`].
     fn squeeze_first_dim() -> bool {
         false
     }
@@ -85,6 +90,9 @@ impl<O, A, OF, AF> PyGymEnv<O, A, OF, AF> where
     OF: PyGymEnvObsFilter<O>,
     AF: PyGymEnvActFilter<A>
 {
+    /// Constructs an environment.
+    ///
+    /// `name` is the name of the environment, which is implemented in OpenAI gym.
     pub fn new(name: &str, obs_filter: OF, act_filter: AF) -> PyResult<Self> {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -126,10 +134,14 @@ impl<O, A, OF, AF> PyGymEnv<O, A, OF, AF> where
         })
     }
 
+    /// Set rendering mode.
+    ///
+    /// If `true`, it renders the state at every step.
     pub fn set_render(&mut self, render: bool) {
         self.render = render;
     }
 
+    /// Set the maximum number of steps in the environment.
     pub fn max_steps(mut self, v: Option<usize>) -> Self {
         self.max_steps = v;
         self
@@ -176,6 +188,10 @@ impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
         }
     }
 
+    /// Runs a step of the environment's dynamics.
+    ///
+    /// It returns [`Step`] and [`Record`] objects.
+    /// The [`Record`] is composed of [`Record`]s constructed in [`ObsFilter`] and [`ActFilter`].
     fn step(&mut self, a: &A) -> (Step<Self>, Record) {
         trace!("PyGymEnv::step()");
 
