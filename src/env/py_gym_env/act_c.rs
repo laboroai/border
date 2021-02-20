@@ -7,7 +7,7 @@ use numpy::PyArrayDyn;
 
 use crate::{
     core::{Act, record::{Record, RecordValue}},
-    agent::tch::Shape
+    env::py_gym_env::Shape,
 };
 
 use super::PyGymEnvActFilter;

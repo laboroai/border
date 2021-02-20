@@ -1,22 +1,31 @@
 // TODO: set action scale 2.0, as sac_pendulum
-use std::error::Error;
+use std::{convert::TryFrom, fs::File, iter::FromIterator};
+use serde::Serialize;
+use anyhow::Result;
+use csv::WriterBuilder;
 use tch::nn;
+use pyo3::PyObject;
+
 use lrr::{
-    core::{Agent, Trainer, util},
-    py_gym_env::{
-        PyGymEnv, 
-        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-        act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter}
+    core::{
+        Agent, Trainer,
+        record::{BufferedRecorder, Record, RecordValue, TensorboardRecorder},
+        util::eval_with_recorder
     },
-    agents::{
+    env::py_gym_env::{
+        Shape, PyGymEnv, PyGymEnvActFilter,
+        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
+        act_c::{PyGymEnvContinuousAct, to_pyobj},
+        tch::{
+            obs::TchPyGymEnvObsBuffer,
+            act_c::TchPyGymEnvContinuousActBuffer
+        }
+    },
+    agent::{
         OptInterval,
         tch::{
-            DDPG, ReplayBuffer, Shape,
+            DDPG, ReplayBuffer,
             model::{Model1_1, Model2_1},
-            py_gym_env::{
-                obs::TchPyGymEnvObsBuffer,
-                act_c::TchPyGymEnvContinuousActBuffer,
-            }
         }
     }
 };
@@ -65,12 +74,26 @@ fn create_critic() -> Model2_1 {
 }
 
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
-type ActFilter = PyGymEnvContinuousActRawFilter;
 type Obs = PyGymEnvObs<ObsShape, f64>;
-type Act = PyGymEnvContinuousAct<ActShape, ActFilter>;
-type Env = PyGymEnv<Obs, Act, ObsFilter>;
+type Act = PyGymEnvContinuousAct<ActShape>;
+type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
-type ActBuffer = TchPyGymEnvContinuousActBuffer<ActShape, ActFilter>;
+type ActBuffer = TchPyGymEnvContinuousActBuffer<ActShape>;
+
+// Custom act filter
+#[derive(Clone, Debug)]
+struct ActFilter {}
+
+impl PyGymEnvActFilter<Act> for ActFilter {
+    fn filt(&mut self, act: Act) -> (PyObject, Record) {
+        let act_filt = 2f32 * &act.act;
+        let record = Record::from_slice(&[
+            ("act_org", RecordValue::Array1(Vec::from_iter(act.act.iter().cloned()))),
+            ("act_filt", RecordValue::Array1(Vec::from_iter(act_filt.iter().cloned())))
+        ]);
+        (to_pyobj::<ActShape>(act_filt), record)
+    }
+}
 
 fn create_agent() -> impl Agent<Env> {
     let actor = create_actor();
@@ -90,13 +113,39 @@ fn create_agent() -> impl Agent<Env> {
 }
 
 fn create_env() -> Env {
-    let obs_filter = ObsFilter::new();
-    Env::new("Pendulum-v0", obs_filter, true)
+    let obs_filter = ObsFilter::default();
+    let act_filter = ActFilter {};
+    Env::new("Pendulum-v0", obs_filter, act_filter)
         .unwrap()
         .max_steps(Some(200))
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+#[derive(Debug, Serialize)]
+struct PendulumRecord {
+    episode: usize,
+    step: usize,
+    reward: f32,
+    obs: Vec<f32>,
+    act_org: Vec<f32>,
+    act_filt: Vec<f32>,
+}
+
+impl TryFrom<&Record> for PendulumRecord {
+    type Error = anyhow::Error;
+
+    fn try_from(record: &Record) -> Result<Self> {
+        Ok(Self {
+            episode: record.get_scalar("episode")? as _,
+            step: record.get_scalar("step")? as _,
+            reward: record.get_scalar("reward")?,
+            obs: Vec::from_iter(record.get_array1("obs")?.iter().cloned()),
+            act_org: Vec::from_iter(record.get_array1("act_org")?.iter().cloned()),
+            act_filt: Vec::from_iter(record.get_array1("act_filt")?.iter().cloned()),
+        })
+    }
+}
+
+fn main() -> Result<()> {
     env_logger::init();
     tch::manual_seed(42);
 
@@ -110,16 +159,26 @@ fn main() -> Result<(), Box<dyn Error>> {
         .max_opts(200_000)
         .eval_interval(10_000)
         .n_episodes_per_eval(5);
+    let mut recorder = TensorboardRecorder::new("./examples/model/ddpg_pendulum");
 
-    trainer.train();
-    trainer.get_agent().save("./examples/model/ddpg_pendulum")?;
+    trainer.train(&mut recorder);
+    trainer.get_agent().save("./examples/model/ddpg_pendulum").unwrap();
 
     let mut env = create_env();
     let mut agent = create_agent();
+    let mut recorder = BufferedRecorder::new();
     env.set_render(true);
-    agent.load("./examples/model/ddpg_pendulum")?;
+    agent.load("./examples/model/ddpg_pendulum").unwrap();
     agent.eval();
-    util::eval(&env, &mut agent, 5, None);
+
+    eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);
+
+    // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
+    let mut wtr = csv::WriterBuilder::new().has_headers(false)
+        .from_writer(File::create("examples/model/ddpg_pendulum_eval.csv")?);
+    for record in recorder.iter() {
+        wtr.serialize(PendulumRecord::try_from(record)?)?;
+    }
 
     Ok(())
 }

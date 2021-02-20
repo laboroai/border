@@ -1,4 +1,3 @@
-pub mod base;
 pub mod util;
 pub mod replay_buffer;
 pub mod dqn;
@@ -7,7 +6,6 @@ pub mod sac;
 pub mod ddpg;
 pub mod pg;
 pub mod model;
-pub use base::Shape;
 use ppo::ppo_discrete;
 pub use replay_buffer::{ReplayBuffer, TchBuffer, TchBatch};
 pub use dqn::{DQN, QNetwork};

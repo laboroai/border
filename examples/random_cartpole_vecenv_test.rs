@@ -1,13 +1,18 @@
-use std::error::Error;
-use std::cell::RefCell;
+use std::{cell::RefCell, convert::TryFrom, fs::File, iter::FromIterator};
+use serde::Serialize;
+use anyhow::Result;
+use csv::WriterBuilder;
+
 use lrr::{
-    core::{Policy, util, Env as EnvTrait},
-    py_gym_env::{
-        PyVecGymEnv,
+    core::{
+        Policy, util, Env as EnvTrait,
+        record::{Record, BufferedRecorder}
+    },
+    env::py_gym_env::{
+        Shape, PyVecGymEnv,
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter}
     },
-    agents::tch::Shape,
 };
 
 const N_PROCS: usize = 4;
@@ -36,12 +41,12 @@ impl Policy<Env> for RandomPolicy {
 }
 
 fn create_env() -> Env {
-    let obs_filters: Vec<_> = (0..N_PROCS).map(|_| ObsFilter::new()).collect();
-    let act_filter = ActFilter { vectorized: true };
-    Env::new("CartPole-v0", obs_filters, act_filter).unwrap()
+    let obs_filter = ObsFilter::vectorized();
+    let act_filter = ActFilter::vectorized();
+    Env::new("CartPole-v0", N_PROCS, obs_filters, act_filter).unwrap()
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
     env_logger::init();
     tch::manual_seed(42);
     fastrand::seed(42);

@@ -1,3 +1,4 @@
+//! Vectorized environment using multiprocess module in Python.
 #![allow(unused_variables, unreachable_code)]
 use std::{fmt::Debug, error::Error};
 use std::marker::PhantomData;
@@ -12,6 +13,8 @@ use crate::{
     env::py_gym_env::{PyGymInfo, PyGymEnvObsFilter, PyGymEnvActFilter}
 };
 
+/// Vectorized environment using multiprocess module in Python.
+/// The code is adapted from RL examples in [`tch-rs`].
 #[derive(Debug, Clone)]
 pub struct PyVecGymEnv<O, A, OF, AF> {
     env: PyObject,
@@ -21,14 +24,17 @@ pub struct PyVecGymEnv<O, A, OF, AF> {
     phantom: PhantomData<(O, A)>,
 }
 
-/// Vectorized version of the gym environment.
-/// Adapted from tch-rs RL example.
 impl<O, A, OF, AF> PyVecGymEnv<O, A, OF, AF> where 
     O: Obs,
     A: Act,
     OF: PyGymEnvObsFilter<O>,
     AF: PyGymEnvActFilter<A>,
 {
+    /// Constructs a vectorized environment.
+    ///
+    /// This function invl
+    ///
+    /// * `name` - Name of a gym environment.
     pub fn new(name: &str, n_procs: usize, obs_filter: OF, act_filter: AF) -> PyResult<Self> {
         pyo3::Python::with_gil(|py| {
             // sys.argv is used by pyglet library, which is responsible for rendering.

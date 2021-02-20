@@ -9,7 +9,7 @@ use lrr::{
         record::{TensorboardRecorder, BufferedRecorder, Record}
     },
     env::py_gym_env::{
-        PyGymEnv,
+        Shape, PyGymEnv,
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
         tch::{
@@ -19,7 +19,7 @@ use lrr::{
     },
     agent::{
         OptInterval,
-        tch::{Shape, DQN, QNetwork, ReplayBuffer}
+        tch::{DQN, QNetwork, ReplayBuffer}
     }
 };
 

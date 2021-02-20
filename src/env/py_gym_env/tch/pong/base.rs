@@ -12,10 +12,10 @@ use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
 use crate::{
     core::record::{Record},
     agent::tch::{
-        Shape, model::{ModelBase, Model1}
+        model::{ModelBase, Model1}
     },
     env::py_gym_env::{
-        PyGymEnvActFilter, PyGymEnvObsFilter,
+        Shape, PyGymEnvActFilter, PyGymEnvObsFilter,
         obs::PyGymEnvObs,
         act_d::PyGymEnvDiscreteAct,
     }

@@ -12,7 +12,7 @@ use lrr::{
         util::eval_with_recorder,
     },
     env::py_gym_env::{
-        PyGymEnv,
+        Shape, PyGymEnv,
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
         act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter},
         tch::{
@@ -23,7 +23,7 @@ use lrr::{
     agent::{
         OptInterval,
         tch::{
-            SAC, ReplayBuffer, Shape,
+            SAC, ReplayBuffer,
             model::{Model1_2, Model2_1},
         }
     }

@@ -23,21 +23,15 @@ impl PyGymEnvDiscreteAct {
 
 impl Act for PyGymEnvDiscreteAct {}
 
-// /// Filter action before applied to the environment.
-// ///
-// /// [`Record`] in the return value has `act`, which is a discrete action.
-// pub trait PyGymDiscreteActFilter: Clone + Debug {
-//     fn filt(act: Vec<i32>) -> (Vec<i32>, Record) {
-//         let act_f32: Array1<f32> = act.iter().map(|v| *v as f32).collect();
-//         (act, Record::from_slice(&[
-//             ("act", RecordValue::Array1(act_f32.into()))
-//         ]))
-//     }
-// }
-
 #[derive(Clone, Debug)]
 pub struct PyGymEnvDiscreteActRawFilter {
     pub vectorized: bool
+}
+
+impl PyGymEnvDiscreteActRawFilter {
+    pub fn vectorized() -> Self {
+        Self { vectorized: true }
+    }
 }
 
 impl Default for PyGymEnvDiscreteActRawFilter {
@@ -58,11 +52,9 @@ impl PyGymEnvActFilter<PyGymEnvDiscreteAct> for PyGymEnvDiscreteActRawFilter {
         ]);
 
         let act = if self.vectorized {
-            // TODO: Consider how to make Record object for vectorized environemnt
-            unimplemented!();
-            // pyo3::Python::with_gil(|py| {
-            //     act.act.into_py(py)
-            // })
+            pyo3::Python::with_gil(|py| {
+                act.act.into_py(py)
+            })
         }
         else {
             pyo3::Python::with_gil(|py| {

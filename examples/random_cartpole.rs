@@ -6,11 +6,10 @@ use csv::WriterBuilder;
 use lrr::{
     core::{Policy, util, record::{Record, BufferedRecorder}},
     env::py_gym_env::{
-        PyGymEnv, 
+        Shape, PyGymEnv,
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter}
     },
-    agent::tch::Shape
 };
 
 #[derive(Debug, Clone)]

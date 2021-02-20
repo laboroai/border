@@ -5,8 +5,8 @@ use numpy::Element;
 use tch::Tensor;
 
 use crate::{
-    agent::tch::{Shape, TchBuffer, util::{try_from, concat_slices}},
-    env::py_gym_env::obs::PyGymEnvObs
+    agent::tch::{TchBuffer, util::{try_from, concat_slices}},
+    env::py_gym_env::{Shape, obs::PyGymEnvObs},
 };
 
 impl<S, T> From<PyGymEnvObs<S, T>> for Tensor where

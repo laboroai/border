@@ -9,8 +9,7 @@ use numpy::{Element, PyArrayDyn};
 
 use crate::{
     core::{Obs, record::{Record, RecordValue}},
-    env::py_gym_env::PyGymEnvObsFilter,
-    agent::tch::Shape
+    env::py_gym_env::{Shape, PyGymEnvObsFilter},
 };
 
 // use crate::agents::tch::py_gym_env::util::pyobj_to_arrayd;
@@ -107,6 +106,15 @@ impl<S, T> Obs for PyGymEnvObs<S, T> where
 pub struct PyGymEnvObsRawFilter<S, T> {
     pub vectorized: bool,
     pub phantom: PhantomData<(S, T)>
+}
+
+impl<S, T> PyGymEnvObsRawFilter<S, T> {
+    pub fn vectorized() -> Self {
+        Self {
+            vectorized: true,
+            phantom: PhantomData,
+        }
+    }
 }
 
 impl<S, T> Default for PyGymEnvObsRawFilter<S, T> where
