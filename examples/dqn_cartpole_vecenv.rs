@@ -1,20 +1,28 @@
-use std::error::Error;
+use std::{convert::TryFrom, fs::File, iter::FromIterator};
+use serde::Serialize;
+use anyhow::Result;
+use csv::WriterBuilder;
 use tch::nn;
+
 use lrr::{
-    core::{Agent, Trainer, trainer, util},
-    py_gym_env::{
-        PyVecGymEnv,
-        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-        act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter}
+    core::{
+        Trainer, Agent, util,
+        record::{TensorboardRecorder, BufferedRecorder, Record}
     },
-    agents::{
+    env::py_gym_env::{
+        Shape, PyVecGymEnv,
+        act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
+        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
+        tch::{
+            obs::TchPyGymEnvObsBuffer,
+            act_d::TchPyGymEnvDiscreteActBuffer,
+        }
+    },
+    agent::{
         OptInterval,
         tch::{
-            Shape, ReplayBuffer, dqn::DQN, model::Model1_1,
-            py_gym_env::{
-                obs::TchPyGymEnvObsBuffer,
-                act_d::TchPyGymEnvDiscreteActBuffer
-            }
+            DQN, ReplayBuffer,
+            model::Model1_1,
         }
     }
 };
@@ -76,12 +84,12 @@ fn create_agent() -> impl Agent<Env> {
 }
 
 fn create_env(n_procs: usize) -> Env {
-    let obs_filter = ObsFilter { vectorized: true, ..ObsFilter::default() };
-    let act_filter = ActFilter { vectorized: true };
+    let obs_filter = ObsFilter::vectorized();
+    let act_filter = ActFilter::vectorized();
     Env::new("CartPole-v0", n_procs, obs_filter, act_filter).unwrap()
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
     env_logger::init();
     tch::manual_seed(42);
 
@@ -95,8 +103,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         .max_opts(MAX_OPTS)
         .eval_interval(EVAL_INTERVAL)
         .n_episodes_per_eval(N_EPISODES_PER_EVAL);
-    trainer.train();
-    trainer.get_agent().save("./examples/model/dqn_cartpole_vecenv")?;
+    let mut recorder = TensorboardRecorder::new("./examples/model/dqn_cartpole_vecenv");
+
+    trainer.train(&mut recorder);
+    trainer.get_agent().save("./examples/model/dqn_cartpole_vecenv").unwrap();
 
     trainer.get_env().close();
     trainer.get_env_eval().close();
