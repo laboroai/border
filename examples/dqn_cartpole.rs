@@ -23,12 +23,26 @@ use lrr::{
     }
 };
 
+const DIM_OBS: usize = 4;
+const DIM_ACT: usize = 2;
+const LR_QNET: f64 = 0.001;
+const DISCOUNT_FACTOR: f64 = 0.99;
+const BATCH_SIZE: usize = 64;
+const N_TRANSITIONS_WARMUP: usize = 100;
+const N_UPDATES_PER_OPT: usize = 1;
+const TAU: f64 = 0.005;
+const OPT_INTERVAL: OptInterval = OptInterval::Steps(50);
+const MAX_OPTS: usize = 1000;
+const EVAL_INTERVAL: usize = 50;
+const REPLAY_BUFFER_CAPACITY: usize = 10000;
+const N_EPISODES_PER_EVAL: usize = 5;
+
 #[derive(Debug, Clone)]
 struct ObsShape {}
 
 impl Shape for ObsShape {
     fn shape() -> &'static [usize] {
-        &[4]
+        &[DIM_OBS]
     }
 }
 
@@ -41,17 +55,17 @@ type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 
 fn create_agent() -> impl Agent<Env> {
-    let qnet = QNetwork::new(4, 2, 0.001);
-    let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(10000, 1);
+    let qnet = QNetwork::new(DIM_OBS, DIM_ACT, LR_QNET);
+    let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
     let agent: DQN<Env, _, _, _> = DQN::new(
         qnet,
         replay_buffer)
-        .opt_interval(OptInterval::Steps(50))
-        .n_updates_per_opt(1)
-        .min_transitions_warmup(100)
-        .batch_size(64)
-        .discount_factor(0.99)
-        .tau(0.005);
+        .opt_interval(OPT_INTERVAL)
+        .n_updates_per_opt(N_UPDATES_PER_OPT)
+        .min_transitions_warmup(N_TRANSITIONS_WARMUP)
+        .batch_size(BATCH_SIZE)
+        .discount_factor(DISCOUNT_FACTOR)
+        .tau(TAU);
     agent
 }
 
@@ -95,9 +109,9 @@ fn main() -> Result<()> {
         env,
         env_eval,
         agent)
-        .max_opts(1000)
-        .eval_interval(50)
-        .n_episodes_per_eval(5);
+        .max_opts(MAX_OPTS)
+        .eval_interval(EVAL_INTERVAL)
+        .n_episodes_per_eval(N_EPISODES_PER_EVAL);
     let mut recorder = TensorboardRecorder::new("./examples/model/dqn_cartpole");
 
     trainer.train(&mut recorder);

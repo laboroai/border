@@ -43,7 +43,7 @@ impl Policy<Env> for RandomPolicy {
 fn create_env() -> Env {
     let obs_filter = ObsFilter::vectorized();
     let act_filter = ActFilter::vectorized();
-    Env::new("CartPole-v0", N_PROCS, obs_filters, act_filter).unwrap()
+    Env::new("CartPole-v0", N_PROCS, obs_filter, act_filter).unwrap()
 }
 
 fn main() -> Result<()> {
