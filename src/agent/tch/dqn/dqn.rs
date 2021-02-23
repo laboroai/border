@@ -1,3 +1,4 @@
+//! DQN agent implemented with tch-rs.
 use log::trace;
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{no_grad, Kind::Float, Tensor};
@@ -16,6 +17,7 @@ use crate::{
     }
 };
 
+/// DQN agent implemented with tch-rs.
 pub struct DQN<E, M, O, A> where
     E: Env,
     M: Model1 + Clone,

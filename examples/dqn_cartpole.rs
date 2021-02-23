@@ -2,6 +2,7 @@ use std::{convert::TryFrom, fs::File, iter::FromIterator};
 use serde::Serialize;
 use anyhow::Result;
 use csv::WriterBuilder;
+use tch::nn;
 
 use lrr::{
     core::{
@@ -19,7 +20,7 @@ use lrr::{
     },
     agent::{
         OptInterval,
-        tch::{DQN, QNetwork, ReplayBuffer}
+        tch::{DQN, ReplayBuffer, model::Model1_1}
     }
 };
 
@@ -54,8 +55,16 @@ type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 
+fn create_critic() -> Model1_1 {
+    let network_fn = |p: &nn::Path, in_dim, out_dim| nn::seq()
+        .add(nn::linear(p / "cl1", in_dim as _, 256, Default::default()))
+        .add_fn(|xs| xs.relu())
+        .add(nn::linear(p / "cl2", 256, out_dim as _, Default::default()));
+    Model1_1::new(DIM_OBS, DIM_ACT, LR_QNET, network_fn)
+}
+
 fn create_agent() -> impl Agent<Env> {
-    let qnet = QNetwork::new(DIM_OBS, DIM_ACT, LR_QNET);
+    let qnet = create_critic();
     let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
     let agent: DQN<Env, _, _, _> = DQN::new(
         qnet,
