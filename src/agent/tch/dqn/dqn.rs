@@ -26,18 +26,18 @@ pub struct DQN<E, M, O, A> where
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
-    opt_interval_counter: OptIntervalCounter,
-    n_updates_per_opt: usize,
-    min_transitions_warmup: usize,
-    batch_size: usize,
-    qnet: M,
-    qnet_tgt: M,
-    train: bool,
-    phantom: PhantomData<E>,
-    prev_obs: RefCell<Option<E::Obs>>,
-    replay_buffer: ReplayBuffer<E, O, A>,
-    discount_factor: f64,
-    tau: f64,
+    pub(crate) opt_interval_counter: OptIntervalCounter,
+    pub(crate) n_updates_per_opt: usize,
+    pub(crate) min_transitions_warmup: usize,
+    pub(crate) batch_size: usize,
+    pub(crate) qnet: M,
+    pub(crate) qnet_tgt: M,
+    pub(crate) train: bool,
+    pub(crate) phantom: PhantomData<E>,
+    pub(crate) prev_obs: RefCell<Option<E::Obs>>,
+    pub(crate) replay_buffer: ReplayBuffer<E, O, A>,
+    pub(crate) discount_factor: f64,
+    pub(crate) tau: f64,
 }
 
 impl<E, M, O, A> DQN<E, M, O, A> where 
@@ -66,41 +66,6 @@ impl<E, M, O, A> DQN<E, M, O, A> where
             prev_obs: RefCell::new(None),
             phantom: PhantomData,
         }
-    }
-
-    // pub fn opt_interval(mut self, v: OptInterval) -> Self {
-    //     self.opt_interval = v;
-    //     self
-    // }
-
-    pub fn opt_interval(mut self, v: OptInterval) -> Self {
-        self.opt_interval_counter = v.counter();
-        self
-    }
-
-    pub fn n_updates_per_opt(mut self, v: usize) -> Self {
-        self.n_updates_per_opt = v;
-        self
-    }
-
-    pub fn min_transitions_warmup(mut self, v: usize) -> Self {
-        self.min_transitions_warmup = v;
-        self
-    }
-
-    pub fn batch_size(mut self, v: usize) -> Self {
-        self.batch_size = v;
-        self
-    }
-
-    pub fn discount_factor(mut self, v: f64) -> Self {
-        self.discount_factor = v;
-        self
-    }
-
-    pub fn tau(mut self, v: f64) -> Self {
-        self.tau = v;
-        self
     }
 
     fn push_transition(&mut self, step: Step<E>) {

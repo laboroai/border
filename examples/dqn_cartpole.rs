@@ -20,7 +20,7 @@ use lrr::{
     },
     agent::{
         OptInterval,
-        tch::{DQN, ReplayBuffer, model::Model1_1}
+        tch::{DQN, DQNBuilder, ReplayBuffer, model::Model1_1}
     }
 };
 
@@ -66,15 +66,14 @@ fn create_critic() -> Model1_1 {
 fn create_agent() -> impl Agent<Env> {
     let qnet = create_critic();
     let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
-    let agent: DQN<Env, _, _, _> = DQN::new(
-        qnet,
-        replay_buffer)
+    let agent: DQN<Env, _, _, _> = DQNBuilder::new()
         .opt_interval(OPT_INTERVAL)
         .n_updates_per_opt(N_UPDATES_PER_OPT)
         .min_transitions_warmup(N_TRANSITIONS_WARMUP)
         .batch_size(BATCH_SIZE)
         .discount_factor(DISCOUNT_FACTOR)
-        .tau(TAU);
+        .tau(TAU)
+        .build(qnet, replay_buffer);
     agent
 }
 
@@ -136,7 +135,7 @@ fn main() -> Result<()> {
     util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);
 
     // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
-    let mut wtr = csv::WriterBuilder::new().has_headers(false)
+    let mut wtr = WriterBuilder::new().has_headers(false)
         .from_writer(File::create("examples/model/dqn_cartpole_eval.csv")?);
     for record in recorder.iter() {
         wtr.serialize(CartpoleRecord::try_from(record)?)?;

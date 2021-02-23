@@ -8,7 +8,7 @@ pub mod pg;
 pub mod model;
 use ppo::ppo_discrete;
 pub use replay_buffer::{ReplayBuffer, TchBuffer, TchBatch};
-pub use dqn::DQN;
+pub use dqn::{DQN, DQNBuilder};
 pub use ppo_discrete::PPODiscrete;
 pub use sac::SAC;
 pub use ddpg::DDPG;
