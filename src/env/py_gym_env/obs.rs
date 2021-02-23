@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use log::trace;
 use num_traits::cast::AsPrimitive;
 use pyo3::{Py, PyObject, types::PyList};
-use ndarray::{Array, ArrayD, Axis, IxDyn, stack, Ix1};
+use ndarray::{ArrayD, Axis, IxDyn, stack};
 use numpy::{Element, PyArrayDyn};
 
 use crate::{
