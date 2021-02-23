@@ -1,3 +1,4 @@
+//! Continuous action for [`super::PyGymEnv`] and [`super::PyVecGymEnv`].
 use std::fmt::Debug;
 use std::default::Default;
 use std::marker::PhantomData;

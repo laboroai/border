@@ -64,8 +64,8 @@ pub trait PyGymEnvActFilter<A: Act> {
     fn reset(&mut self, _is_done: &Option<&Vec<f32>>) {}
 }
 
-/// Adapted from [tch-rs RL example](https://github.com/LaurentMazare/tch-rs/tree/master/examples/reinforcement-learning).
-/// It represents non-vectorized environment (`n_procs`=1).
+/// Represents an environment in [OpenAI gym](https://github.com/openai/gym).
+/// The code is adapted from [tch-rs RL example](https://github.com/LaurentMazare/tch-rs/tree/master/examples/reinforcement-learning).
 #[derive(Debug, Clone)]
 pub struct PyGymEnv<O, A, OF, AF> where
     O: Obs,

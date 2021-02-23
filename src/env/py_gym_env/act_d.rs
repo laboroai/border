@@ -1,3 +1,4 @@
+//! Discrete action for [`super::PyGymEnv`] and [`super::PyVecGymEnv`].
 use std::fmt::Debug;
 use std::default::Default;
 use pyo3::{PyObject, IntoPy};
@@ -23,12 +24,17 @@ impl PyGymEnvDiscreteAct {
 
 impl Act for PyGymEnvDiscreteAct {}
 
+/// Raw filter for discrete actions.
+///
+/// No processing is applied to actions.
 #[derive(Clone, Debug)]
 pub struct PyGymEnvDiscreteActRawFilter {
+    /// `true` for filters on vectorized environments.
     pub vectorized: bool
 }
 
 impl PyGymEnvDiscreteActRawFilter {
+    /// Returns `true` for filters working with vectorized environments.
     pub fn vectorized() -> Self {
         Self { vectorized: true }
     }

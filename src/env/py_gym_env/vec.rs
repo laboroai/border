@@ -13,8 +13,8 @@ use crate::{
     env::py_gym_env::{PyGymInfo, PyGymEnvObsFilter, PyGymEnvActFilter}
 };
 
-/// Vectorized environment using multiprocess module in Python.
-/// The code is adapted from RL examples in [`tch-rs`].
+/// A vectorized environment using multiprocess module in Python.
+/// The code is adapted from [tch-rs RL example](https://github.com/LaurentMazare/tch-rs/tree/master/examples/reinforcement-learning).
 #[derive(Debug, Clone)]
 pub struct PyVecGymEnv<O, A, OF, AF> {
     env: PyObject,
@@ -35,7 +35,9 @@ impl<O, A, OF, AF> PyVecGymEnv<O, A, OF, AF> where
     /// This function invl
     ///
     /// * `name` - Name of a gym environment.
-    pub fn new(name: &str, n_procs: usize, obs_filter: OF, act_filter: AF) -> PyResult<Self> {
+    /// * `atari_wrapper` - If `true`, `wrap_deepmind()` is applied to the environment.
+    ///   See `atari_wrapper.py`.
+    pub fn new(name: &str, n_procs: usize, obs_filter: OF, act_filter: AF, atari_wrapper: bool) -> PyResult<Self> {
         pyo3::Python::with_gil(|py| {
             // sys.argv is used by pyglet library, which is responsible for rendering.
             // Depending on the environment, however, sys.argv can be empty.
@@ -48,7 +50,7 @@ impl<O, A, OF, AF> PyVecGymEnv<O, A, OF, AF> where
             let path = sys.get("path")?;
             let _ = path.call_method("append", ("examples",), None)?;
             let gym = py.import("atari_wrappers")?;
-            let env = gym.call("make", (name, Option::<&str>::None, n_procs), None)?;
+            let env = gym.call("make", (name, Option::<&str>::None, atari_wrapper, n_procs), None)?;
 
             Ok(PyVecGymEnv {
                 env: env.into(),
@@ -60,6 +62,9 @@ impl<O, A, OF, AF> PyVecGymEnv<O, A, OF, AF> where
         })
     }
 
+    /// Close all subprocesses.
+    ///
+    /// TODO: Consider implementing the method in `Drop` trait.
     pub fn close(&self) {
         pyo3::Python::with_gil(|py| {
             let _ = self.env.call_method0(py, "close");

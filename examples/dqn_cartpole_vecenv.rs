@@ -86,7 +86,7 @@ fn create_agent() -> impl Agent<Env> {
 fn create_env(n_procs: usize) -> Env {
     let obs_filter = ObsFilter::vectorized();
     let act_filter = ActFilter::vectorized();
-    Env::new("CartPole-v0", n_procs, obs_filter, act_filter).unwrap()
+    Env::new("CartPole-v0", n_procs, obs_filter, act_filter, false).unwrap()
 }
 
 fn main() -> Result<()> {

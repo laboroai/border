@@ -1,3 +1,4 @@
+//! Observation for [`super::PyGymEnv`] and [`super::PyVecGymEnv`].
 use std::{fmt::Debug, iter::FromIterator};
 use std::default::Default;
 use std::marker::PhantomData;
@@ -11,8 +12,6 @@ use crate::{
     core::{Obs, record::{Record, RecordValue}},
     env::py_gym_env::{Shape, PyGymEnvObsFilter},
 };
-
-// use crate::agents::tch::py_gym_env::util::pyobj_to_arrayd;
 
 fn any(is_done: &[f32]) -> bool {
     is_done.iter().fold(0, |x, v| x + *v as i32) > 0
