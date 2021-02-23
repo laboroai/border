@@ -4,11 +4,13 @@ use tch::{Tensor, nn, nn::Module, nn::OptimizerConfig};
 
 use crate::agent::tch::model::{ModelBase, Model1};
 
+/// A network with a single input tensor and double output tensors.
+///
+/// This network model is used as an actor in [crate::agent::tch::sac::SAC].
 pub struct Model1_2 {
     var_store: nn::VarStore,
     network_fn: fn(&nn::Path, usize, usize) -> nn::Sequential,
     network: nn::Sequential,
-    // device: Device,
     opt: nn::Optimizer<nn::Adam>,
     head_mean: nn::Linear,
     head_lstd: nn::Linear,
@@ -25,17 +27,19 @@ impl Debug for Model1_2 {
 
 impl Clone for Model1_2 {
     fn clone(&self) -> Self {
+        let device = self.var_store.device();
         let mut new = Self::new(self.in_dim, self.hidden_dim, self.out_dim,
-                                self.learning_rate, self.network_fn);
+                                self.learning_rate, self.network_fn, device);
         new.var_store.copy(&self.var_store).unwrap();
         new
     }
 }
 
 impl Model1_2 {
+    /// Constructs a network.
     pub fn new(in_dim: usize, hidden_dim: usize, out_dim: usize, learning_rate: f64,
-        network_fn: fn(&nn::Path, usize, usize) -> nn::Sequential) -> Self {
-        let vs = nn::VarStore::new(tch::Device::Cpu);
+        network_fn: fn(&nn::Path, usize, usize) -> nn::Sequential, device: tch::Device) -> Self {
+        let vs = nn::VarStore::new(device);
         let p = &vs.root();
         let network = network_fn(p, in_dim, hidden_dim);
         let head_mean = nn::linear(p / "ml", hidden_dim as _, out_dim as _, Default::default());
@@ -45,7 +49,6 @@ impl Model1_2 {
         Self {
             network,
             network_fn,
-            // device: p.device(),
             var_store: vs,
             in_dim,
             hidden_dim,
@@ -89,10 +92,9 @@ impl Model1 for Model1_2 {
     type Output = (Tensor, Tensor);
 
     fn forward(&self, xs: &Tensor) -> Self::Output {
-        trace!("Model1_2.forward()");
-        trace!("xs.size() = {:?}", xs.size());
-        let xs = self.network.forward(xs);
-        trace!("network.forward(xs).size() = {:?}", xs.size());
+        let device = self.var_store.device();
+        let xs = xs.to_device(device);
+        let xs = self.network.forward(&xs);
         (xs.apply(&self.head_mean), xs.apply(&self.head_lstd).exp())
     }
 }

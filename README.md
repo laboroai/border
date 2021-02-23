@@ -2,9 +2,8 @@
 
 * Image observation
 * Logging
-  * Loss (learning curve)
   * TD-error
-* Composition of action noise
+* Composition of exploration strategy
 * Vectorized environment
 * Documentation
   * Default values of training/algorithm parameters
@@ -19,7 +18,7 @@
   * Prioritized experience replay
   * Parameter noise
 * GPU support
-* Define types for recording training/evaluation
+  * Benchmarking
 * Add more examples
   * PyBullet gym
   * Atari

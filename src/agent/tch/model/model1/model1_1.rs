@@ -1,9 +1,11 @@
+//! A network with a single input tensor and a single output tensor.
 use std::{path::Path, error::Error, fmt, fmt::{Formatter, Debug}};
 use log::{info, trace};
 use tch::{Tensor, nn, nn::Module, nn::OptimizerConfig};
 
 use crate::agent::tch::model::{ModelBase, Model1};
 
+/// A network with a single input tensor and a single output tensor.
 pub struct Model1_1 {
     var_store: nn::VarStore,
     network_fn: fn(&nn::Path, usize, usize) -> nn::Sequential,
@@ -22,23 +24,28 @@ impl Debug for Model1_1 {
 
 impl Clone for Model1_1 {
     fn clone(&self) -> Self {
-        let mut new = Self::new(self.in_dim, self.out_dim, self.learning_rate, self.network_fn);
+        let device = self.var_store.device();
+        let mut new = Self::new(
+            self.in_dim, self.out_dim, self.learning_rate, self.network_fn, device
+        );
         new.var_store.copy(&self.var_store).unwrap();
         new
     }
 }
 
 impl Model1_1 {
+    /// Constructs a network with a single input tensor and a single output tensor.
     pub fn new(in_dim: usize, out_dim: usize, learning_rate: f64,
-        network_fn: fn(&nn::Path, usize, usize) -> nn::Sequential) -> Self {
-        let vs = nn::VarStore::new(tch::Device::Cpu);
+        network_fn: fn(&nn::Path, usize, usize) -> nn::Sequential,
+        device: tch::Device) -> Self {
+        // let vs = nn::VarStore::new(tch::Device::Cpu);
+        let vs = nn::VarStore::new(device);
         let p = &vs.root();
         let network = network_fn(p, in_dim, out_dim);
         let opt = nn::Adam::default().build(&vs, learning_rate).unwrap();
         Self {
             network,
             network_fn,
-            // device: p.device(),
             var_store: vs,
             in_dim,
             out_dim,
@@ -79,6 +86,8 @@ impl Model1 for Model1_1 {
     type Output = Tensor;
 
     fn forward(&self, xs: &Tensor) -> Tensor {
-        self.network.forward(xs)
+        let device = self.var_store.device();
+        let xs = xs.to_device(device);
+        self.network.forward(&xs)
     }
 }

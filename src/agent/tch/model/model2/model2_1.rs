@@ -8,21 +8,21 @@ pub struct Model2_1 {
     var_store: nn::VarStore,
     network_fn: fn(&nn::Path, usize, usize) -> nn::Sequential,
     network: nn::Sequential,
-    // device: Device,
     opt: nn::Optimizer<nn::Adam>,
     in_dim: usize,
     out_dim: usize,
     learning_rate: f64
 }
 
-// TODO: implement this
+/// TODO: implement debug print.
 impl Debug for Model2_1 {
     fn fmt(&self, _f: &mut Formatter<'_>) -> fmt::Result { Ok(()) }
 }
 
 impl Clone for Model2_1 {
     fn clone(&self) -> Self {
-        let mut new = Self::new(self.in_dim, self.out_dim, self.learning_rate, self.network_fn);
+        let device = self.var_store.device();
+        let mut new = Self::new(self.in_dim, self.out_dim, self.learning_rate, self.network_fn, device);
         new.var_store.copy(&self.var_store).unwrap();
         new
     }
@@ -30,8 +30,8 @@ impl Clone for Model2_1 {
 
 impl Model2_1 {
     pub fn new(in_dim: usize, out_dim: usize, learning_rate: f64,
-        network_fn: fn(&nn::Path, usize, usize) -> nn::Sequential) -> Self {
-        let vs = nn::VarStore::new(tch::Device::Cpu);
+        network_fn: fn(&nn::Path, usize, usize) -> nn::Sequential, device: tch::Device) -> Self {
+        let vs = nn::VarStore::new(device);
         let p = &vs.root();
         let network = network_fn(p, in_dim, out_dim);
         let opt = nn::Adam::default().build(&vs, learning_rate).unwrap();
@@ -80,7 +80,10 @@ impl Model2 for Model2_1 {
     type Output = Tensor;
 
     fn forward(&self, x1s: &Tensor, x2s: &Tensor) -> Tensor {
-        let xs = Tensor::cat(&[x1s, x2s], -1);
+        let device = self.var_store.device();
+        let x1s = x1s.to_device(device);
+        let x2s = x2s.to_device(device);
+        let xs = Tensor::cat(&[&x1s, &x2s], -1);
         self.network.forward(&xs)
     }
 }

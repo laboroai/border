@@ -55,16 +55,17 @@ type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 
-fn create_critic() -> Model1_1 {
+fn create_critic(device: tch::Device) -> Model1_1 {
     let network_fn = |p: &nn::Path, in_dim, out_dim| nn::seq()
         .add(nn::linear(p / "cl1", in_dim as _, 256, Default::default()))
         .add_fn(|xs| xs.relu())
         .add(nn::linear(p / "cl2", 256, out_dim as _, Default::default()));
-    Model1_1::new(DIM_OBS, DIM_ACT, LR_QNET, network_fn)
+    Model1_1::new(DIM_OBS, DIM_ACT, LR_QNET, network_fn, device)
 }
 
 fn create_agent() -> impl Agent<Env> {
-    let qnet = create_critic();
+    let device = tch::Device::cuda_if_available();
+    let qnet = create_critic(device);
     let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
     let agent: DQN<Env, _, _, _> = DQNBuilder::new()
         .opt_interval(OPT_INTERVAL)

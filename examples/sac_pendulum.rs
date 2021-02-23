@@ -67,24 +67,24 @@ impl Shape for ActShape {
     }
 }
 
-fn create_actor() -> Model1_2 {
+fn create_actor(device: tch::Device) -> Model1_2 {
     let network_fn = |p: &nn::Path, in_dim, hidden_dim| nn::seq()
         .add(nn::linear(p / "al1", in_dim as _, 64, Default::default()))
         .add_fn(|xs| xs.relu())
         .add(nn::linear(p / "al2", 64, 64, Default::default()))
         .add_fn(|xs| xs.relu())
         .add(nn::linear(p / "al3", 64, hidden_dim as _, Default::default()));
-    Model1_2::new(DIM_OBS, 64, DIM_ACT, LR_ACTOR, network_fn)
+    Model1_2::new(DIM_OBS, 64, DIM_ACT, LR_ACTOR, network_fn, device)
 }
 
-fn create_critic() -> Model2_1 {
+fn create_critic(device: tch::Device) -> Model2_1 {
     let network_fn = |p: &nn::Path, in_dim, out_dim| nn::seq()
         .add(nn::linear(p / "cl1", in_dim as _, 64, Default::default()))
         .add_fn(|xs| xs.relu())
         .add(nn::linear(p / "cl2", 64, 64, Default::default()))
         .add_fn(|xs| xs.relu())
         .add(nn::linear(p / "cl3", 64, out_dim as _, Default::default()));
-        Model2_1::new(DIM_OBS + DIM_ACT, 1, LR_CRITIC, network_fn)
+        Model2_1::new(DIM_OBS + DIM_ACT, 1, LR_CRITIC, network_fn, device)
 }
 
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
@@ -110,8 +110,9 @@ impl PyGymEnvActFilter<Act> for ActFilter {
 }
 
 fn create_agent() -> impl Agent<Env> {
-    let actor = create_actor();
-    let critic = create_critic();
+    let device = tch::Device::cuda_if_available();
+    let actor = create_actor(device);
+    let critic = create_critic(device);
     let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
     let agent: SAC<Env, _, _, _, _> = SAC::new(
         critic,
