@@ -1,7 +1,6 @@
 use std::{convert::TryFrom, fs::File, iter::FromIterator};
 use serde::Serialize;
 use anyhow::Result;
-use csv::WriterBuilder;
 use tch::nn;
 use pyo3::PyObject;
 
@@ -29,12 +28,29 @@ use lrr::{
     }
 };
 
+const DIM_OBS: usize = 3;
+const DIM_ACT: usize = 1;
+const LR_ACTOR: f64 = 3e-4;
+const LR_CRITIC: f64 = 3e-4;
+const DISCOUNT_FACTOR: f64 = 0.99;
+const BATCH_SIZE: usize = 128;
+const N_TRANSITIONS_WARMUP: usize = 1000;
+const N_UPDATES_PER_OPT: usize = 1;
+const TAU: f64 = 0.001;
+const ALPHA: f64 = 1.0;
+const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
+const MAX_OPTS: usize = 200_000;
+const EVAL_INTERVAL: usize = 10_000;
+const REPLAY_BUFFER_CAPACITY: usize = 100_000;
+const N_EPISODES_PER_EVAL: usize = 5;
+const MAX_STEPS_IN_EPISODE: usize = 200;
+
 #[derive(Debug, Clone)]
 struct ObsShape {}
 
 impl Shape for ObsShape {
     fn shape() -> &'static [usize] {
-        &[3]
+        &[DIM_OBS]
     }
 }
 
@@ -43,7 +59,7 @@ struct ActShape {}
 
 impl Shape for ActShape {
     fn shape() -> &'static [usize] {
-        &[1]
+        &[DIM_ACT]
     }
 
     fn squeeze_first_dim() -> bool {
@@ -58,7 +74,7 @@ fn create_actor() -> Model1_2 {
         .add(nn::linear(p / "al2", 64, 64, Default::default()))
         .add_fn(|xs| xs.relu())
         .add(nn::linear(p / "al3", 64, hidden_dim as _, Default::default()));
-    Model1_2::new(3, 64, 1, 3e-4, network_fn)
+    Model1_2::new(DIM_OBS, 64, DIM_ACT, LR_ACTOR, network_fn)
 }
 
 fn create_critic() -> Model2_1 {
@@ -68,7 +84,7 @@ fn create_critic() -> Model2_1 {
         .add(nn::linear(p / "cl2", 64, 64, Default::default()))
         .add_fn(|xs| xs.relu())
         .add(nn::linear(p / "cl3", 64, out_dim as _, Default::default()));
-        Model2_1::new(4, 1, 3e-4, network_fn)
+        Model2_1::new(DIM_OBS + DIM_ACT, 1, LR_CRITIC, network_fn)
 }
 
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
@@ -96,18 +112,18 @@ impl PyGymEnvActFilter<Act> for ActFilter {
 fn create_agent() -> impl Agent<Env> {
     let actor = create_actor();
     let critic = create_critic();
-    let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(100_000, 1);
+    let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
     let agent: SAC<Env, _, _, _, _> = SAC::new(
         critic,
         actor,
         replay_buffer)
-        .opt_interval(OptInterval::Steps(1))
-        .n_updates_per_opt(1)
-        .min_transitions_warmup(1000)
-        .batch_size(128)
-        .discount_factor(0.99)
-        .tau(0.001)
-        .alpha(1.0);
+        .opt_interval(OPT_INTERVAL)
+        .n_updates_per_opt(N_UPDATES_PER_OPT)
+        .min_transitions_warmup(N_TRANSITIONS_WARMUP)
+        .batch_size(BATCH_SIZE)
+        .discount_factor(DISCOUNT_FACTOR)
+        .tau(TAU)
+        .alpha(ALPHA);
     agent
 }
 
@@ -116,7 +132,7 @@ fn create_env() -> Env {
     let act_filter = ActFilter {}; //new();
     Env::new("Pendulum-v0", obs_filter, act_filter)
         .unwrap()
-        .max_steps(Some(200))
+        .max_steps(Some(MAX_STEPS_IN_EPISODE))
 }
 
 #[derive(Debug, Serialize)]
@@ -140,8 +156,6 @@ impl TryFrom<&Record> for PendulumRecord {
             obs: Vec::from_iter(record.get_array1("obs")?.iter().cloned()),
             act_org: Vec::from_iter(record.get_array1("act_org")?.iter().cloned()),
             act_filt: Vec::from_iter(record.get_array1("act_filt")?.iter().cloned()),
-            //     .collect() //map(|v| *v as f64)
-            // )
         })
     }
 }
@@ -157,9 +171,9 @@ fn main() -> Result<()> {
         env,
         env_eval,
         agent)
-        .max_opts(200_000)
-        .eval_interval(10_000)
-        .n_episodes_per_eval(5);
+        .max_opts(MAX_OPTS)
+        .eval_interval(EVAL_INTERVAL)
+        .n_episodes_per_eval(N_EPISODES_PER_EVAL);
     let mut recorder = TensorboardRecorder::new("./examples/model/sac_pendulum");
 
     trainer.train(&mut recorder);
