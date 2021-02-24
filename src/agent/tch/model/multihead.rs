@@ -71,4 +71,12 @@ impl Model1 for StateValueAndDiscreteActProb {
         let shared = self.network.forward(xs);
         (shared.apply(&self.critic), shared.apply(&self.actor))
     }
+
+    fn in_dim(&self) -> usize {
+        unimplemented!()       
+    }
+
+    fn out_dim(&self) -> usize {
+        unimplemented!()
+    }
 }

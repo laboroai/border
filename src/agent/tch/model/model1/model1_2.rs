@@ -97,4 +97,12 @@ impl Model1 for Model1_2 {
         let xs = self.network.forward(&xs);
         (xs.apply(&self.head_mean), xs.apply(&self.head_lstd).exp())
     }
+
+    fn in_dim(&self) -> usize {
+        self.in_dim
+    }
+
+    fn out_dim(&self) -> usize {
+        self.out_dim
+    }
 }

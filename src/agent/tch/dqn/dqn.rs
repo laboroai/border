@@ -1,7 +1,7 @@
 //! DQN agent implemented with tch-rs.
 use log::trace;
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
-use tch::{no_grad, Kind::Float, Tensor};
+use tch::{no_grad, Tensor};
 
 use crate::{
     core::{
@@ -9,10 +9,11 @@ use crate::{
         record::{Record, RecordValue}
     },
     agent::{
-        OptInterval, OptIntervalCounter,
+        OptIntervalCounter,
         tch::{
             ReplayBuffer, TchBuffer, TchBatch,
-            model::Model1, util::track
+            model::Model1, util::track,
+            dqn::explorer::DQNExplorer
         }
     }
 };
@@ -26,6 +27,7 @@ pub struct DQN<E, M, O, A> where
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
+    // TODO: Consider making it visible only from dqn.builder module.
     pub(crate) opt_interval_counter: OptIntervalCounter,
     pub(crate) n_updates_per_opt: usize,
     pub(crate) min_transitions_warmup: usize,
@@ -38,9 +40,10 @@ pub struct DQN<E, M, O, A> where
     pub(crate) replay_buffer: ReplayBuffer<E, O, A>,
     pub(crate) discount_factor: f64,
     pub(crate) tau: f64,
+    pub(crate) explorer: Box<dyn DQNExplorer<M>>
 }
 
-impl<E, M, O, A> DQN<E, M, O, A> where 
+impl<E, M, O, A> DQN<E, M, O, A> where
     E: Env,
     M: Model1<Input=Tensor, Output=Tensor> + Clone,
     E::Obs :Into<M::Input>,
@@ -48,26 +51,6 @@ impl<E, M, O, A> DQN<E, M, O, A> where
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(qnet: M, replay_buffer: ReplayBuffer<E, O, A>)
-            -> Self {
-        let qnet_tgt = qnet.clone();
-        DQN {
-            qnet,
-            qnet_tgt,
-            replay_buffer,
-            opt_interval_counter: OptInterval::Steps(1).counter(),
-            n_updates_per_opt: 1,
-            min_transitions_warmup: 1,
-            batch_size: 1,
-            discount_factor: 0.99,
-            tau: 0.005,
-            train: false,
-            prev_obs: RefCell::new(None),
-            phantom: PhantomData,
-        }
-    }
-
     fn push_transition(&mut self, step: Step<E>) {
         trace!("DQN::push_transition()");
 
@@ -124,7 +107,7 @@ impl<E, M, O, A> DQN<E, M, O, A> where
     }
 }
 
-impl<E, M, O, A> Policy<E> for DQN<E, M, O, A> where 
+impl<E, M, O, A> Policy<E> for DQN<E, M, O, A> where
     E: Env,
     M: Model1<Input=Tensor, Output=Tensor> + Clone,
     E::Obs :Into<M::Input>,
@@ -136,8 +119,7 @@ impl<E, M, O, A> Policy<E> for DQN<E, M, O, A> where
         let obs = obs.clone().into();
         let a = self.qnet.forward(&obs);
         let a = if self.train {
-            a.softmax(-1, Float)
-            .multinomial(1, true)
+            self.explorer.action(&self.qnet, &obs)
         } else {
             a.argmax(-1, true)
         };

@@ -178,4 +178,12 @@ impl Model1 for PongNet {
     fn forward(&self, xs: &Tensor) -> Tensor {
         self.network.forward(xs)
     }
+
+    fn in_dim(&self) -> usize {
+        unimplemented!()
+    }
+
+    fn out_dim(&self) -> usize {
+        unimplemented!()
+    }
 }

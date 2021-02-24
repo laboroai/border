@@ -1,6 +1,7 @@
 use std::{convert::TryFrom, fs::File, iter::FromIterator};
 use serde::Serialize;
 use anyhow::Result;
+use clap::{Arg, App};
 use csv::WriterBuilder;
 use tch::nn;
 
@@ -20,7 +21,7 @@ use lrr::{
     },
     agent::{
         OptInterval,
-        tch::{DQN, DQNBuilder, ReplayBuffer, model::Model1_1}
+        tch::{DQN, DQNBuilder, dqn::explorer::Softmax, ReplayBuffer, model::Model1_1}
     }
 };
 
@@ -63,19 +64,25 @@ fn create_critic(device: tch::Device) -> Model1_1 {
     Model1_1::new(DIM_OBS, DIM_ACT, LR_QNET, network_fn, device)
 }
 
-fn create_agent() -> impl Agent<Env> {
+fn create_agent(epsilon_greedy: bool) -> impl Agent<Env> {
     let device = tch::Device::cuda_if_available();
     let qnet = create_critic(device);
     let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
-    let agent: DQN<Env, _, _, _> = DQNBuilder::new()
+    let mut builder = DQNBuilder::new()
         .opt_interval(OPT_INTERVAL)
         .n_updates_per_opt(N_UPDATES_PER_OPT)
         .min_transitions_warmup(N_TRANSITIONS_WARMUP)
         .batch_size(BATCH_SIZE)
         .discount_factor(DISCOUNT_FACTOR)
-        .tau(TAU)
-        .build(qnet, replay_buffer);
-    agent
+        .tau(TAU);
+
+    if epsilon_greedy {
+        builder.explorer(lrr::agent::tch::dqn::EpsilonGreedy::new())
+    }
+    else {
+        builder
+    }
+    .build(qnet, replay_buffer)
 }
 
 fn create_env() -> Env {
@@ -108,26 +115,41 @@ impl TryFrom<&Record> for CartpoleRecord {
 }
 
 fn main() -> Result<()> {
+    let matches = App::new("dqn_cartpole")
+    .version("0.1.0")
+    .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
+    .arg(Arg::with_name("skip training")
+        .long("skip_training")
+        .takes_value(false)
+        .help("Skip training"))
+    .arg(Arg::with_name("egreedy"))
+        .long("epsilon_greedy")
+        .takes_value(false)
+        .help("Epsilon greedy")
+    .get_matches();
+
     env_logger::init();
     tch::manual_seed(42);
 
-    let env = create_env();
-    let env_eval = create_env();
-    let agent = create_agent();
-    let mut trainer = Trainer::new(
-        env,
-        env_eval,
-        agent)
-        .max_opts(MAX_OPTS)
-        .eval_interval(EVAL_INTERVAL)
-        .n_episodes_per_eval(N_EPISODES_PER_EVAL);
-    let mut recorder = TensorboardRecorder::new("./examples/model/dqn_cartpole");
-
-    trainer.train(&mut recorder);
-    trainer.get_agent().save("./examples/model/dqn_cartpole").unwrap(); // TODO: define appropriate error
+    if !matches.is_present("skip training") {
+        let env = create_env();
+        let env_eval = create_env();
+        let agent = create_agent(matches.is_present("egreddy"));
+        let mut trainer = Trainer::new(
+            env,
+            env_eval,
+            agent)
+            .max_opts(MAX_OPTS)
+            .eval_interval(EVAL_INTERVAL)
+            .n_episodes_per_eval(N_EPISODES_PER_EVAL);
+        let mut recorder = TensorboardRecorder::new("./examples/model/dqn_cartpole");
+    
+        trainer.train(&mut recorder);
+        trainer.get_agent().save("./examples/model/dqn_cartpole").unwrap(); // TODO: define appropriate error    
+    }
 
     let mut env = create_env();
-    let mut agent = create_agent();
+    let mut agent = create_agent(matches.is_present("egreddy"));
     let mut recorder = BufferedRecorder::new();
     env.set_render(true);
     agent.load("./examples/model/dqn_cartpole").unwrap(); // TODO: define appropriate error

@@ -10,19 +10,20 @@ use crate::{
         tch::{
             ReplayBuffer, TchBuffer,
             model::Model1,
-            dqn::DQN
+            dqn::{DQN, explorer::{DQNExplorer, Softmax}}
         }
     }
 };
 
 /// DQN builder.
-pub struct DQNBuilder<E, M, O, A> where
+pub struct DQNBuilder<E, M, O, A, Ex> where
     E: Env,
     M: Model1<Input=Tensor, Output=Tensor> + Clone,
     E::Obs :Into<M::Input>,
     E::Act :From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
+    Ex: DQNExplorer<M>
 {
     opt_interval_counter: OptIntervalCounter,
     n_updates_per_opt: usize,
@@ -31,11 +32,12 @@ pub struct DQNBuilder<E, M, O, A> where
     train: bool,
     discount_factor: f64,
     tau: f64,
-    phantom: PhantomData<(E, M, O, A)>,
+    explorer: Ex,
+    phantom: PhantomData<(E, M, O, A, Ex)>,
 }
 
 #[allow(clippy::new_without_default)]
-impl<E, M, O, A> DQNBuilder<E, M, O, A> where
+impl<E, M, O, A> DQNBuilder<E, M, O, A, Softmax<M>> where
     E: Env,
     M: Model1<Input=Tensor, Output=Tensor> + Clone,
     E::Obs :Into<M::Input>,
@@ -53,10 +55,21 @@ impl<E, M, O, A> DQNBuilder<E, M, O, A> where
             discount_factor: 0.99,
             tau: 0.005,
             train: false,
+            explorer: Softmax::new(),
             phantom: PhantomData,
         }
     }
+}
 
+impl<E, M, O, A, Ex> DQNBuilder<E, M, O, A, Ex> where
+    E: Env,
+    M: Model1<Input=Tensor, Output=Tensor> + Clone,
+    E::Obs :Into<M::Input>,
+    E::Act :From<Tensor>,
+    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
+    A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
+    Ex: DQNExplorer<M> + Clone
+{
     /// Set optimization interval.
     pub fn opt_interval(mut self, v: OptInterval) -> Self {
         self.opt_interval_counter = v.counter();
@@ -93,9 +106,25 @@ impl<E, M, O, A> DQNBuilder<E, M, O, A> where
         self
     }
 
+    /// Set explorer.
+    pub fn explorer<Ex2: DQNExplorer<M>>(self, v: Ex2) -> DQNBuilder<E, M, O, A, Ex2> {
+        DQNBuilder {
+            opt_interval_counter: self.opt_interval_counter,
+            n_updates_per_opt: self.n_updates_per_opt,
+            min_transitions_warmup: self.min_transitions_warmup,
+            batch_size: self.batch_size,
+            discount_factor: self.discount_factor,
+            tau: self.tau,
+            train: self.train,
+            explorer: v,
+            phantom: PhantomData,
+        }
+    }
+
     /// Constructs DQN.
     pub fn build(self, qnet: M, replay_buffer: ReplayBuffer<E, O, A>) -> DQN<E, M, O, A> {
         let qnet_tgt = qnet.clone();
+        let explorer = Box::new(self.explorer.clone());
 
         DQN {
             qnet,
@@ -109,6 +138,7 @@ impl<E, M, O, A> DQNBuilder<E, M, O, A> where
             discount_factor: self.discount_factor,
             tau: self.tau,
             train: self.train,
+            explorer,
             phantom: PhantomData,
         }
     }
