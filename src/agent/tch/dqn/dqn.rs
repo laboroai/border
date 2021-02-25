@@ -40,7 +40,7 @@ pub struct DQN<E, M, O, A> where
     pub(crate) replay_buffer: ReplayBuffer<E, O, A>,
     pub(crate) discount_factor: f64,
     pub(crate) tau: f64,
-    pub(crate) explorer: Box<dyn DQNExplorer<M>>
+    pub(crate) explorer: DQNExplorer
 }
 
 impl<E, M, O, A> DQN<E, M, O, A> where
@@ -119,7 +119,10 @@ impl<E, M, O, A> Policy<E> for DQN<E, M, O, A> where
         let obs = obs.clone().into();
         let a = self.qnet.forward(&obs);
         let a = if self.train {
-            self.explorer.action(&self.qnet, &obs)
+            match &mut self.explorer {
+                DQNExplorer::Softmax(softmax) => softmax.action(&self.qnet, &obs),
+                DQNExplorer::EpsilonGreedy(egreedy) => egreedy.action(&self.qnet, &obs),
+            }
         } else {
             a.argmax(-1, true)
         };

@@ -21,7 +21,10 @@ use lrr::{
     },
     agent::{
         OptInterval,
-        tch::{DQN, DQNBuilder, dqn::explorer::Softmax, ReplayBuffer, model::Model1_1}
+        tch::{
+            DQN, DQNBuilder, ReplayBuffer, model::Model1_1,
+            dqn::explorer::{DQNExplorer, Softmax, EpsilonGreedy},
+        }
     }
 };
 
@@ -77,7 +80,7 @@ fn create_agent(epsilon_greedy: bool) -> impl Agent<Env> {
         .tau(TAU);
 
     if epsilon_greedy {
-        builder.explorer(lrr::agent::tch::dqn::EpsilonGreedy::new())
+        builder.explorer(DQNExplorer::EpsilonGreedy(EpsilonGreedy::new()))
     }
     else {
         builder
@@ -122,10 +125,10 @@ fn main() -> Result<()> {
         .long("skip_training")
         .takes_value(false)
         .help("Skip training"))
-    .arg(Arg::with_name("egreedy"))
+    .arg(Arg::with_name("egreedy")
         .long("epsilon_greedy")
         .takes_value(false)
-        .help("Epsilon greedy")
+        .help("Epsilon greedy"))
     .get_matches();
 
     env_logger::init();

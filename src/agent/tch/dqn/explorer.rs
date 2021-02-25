@@ -1,52 +1,40 @@
-use std::marker::PhantomData;
 use tch::Tensor;
 
 use crate::agent::tch::model::Model1;
 
 /// Explorers for DQN.
-pub trait DQNExplorer<M>
+pub enum DQNExplorer
 {
-    /// Takes actions.
-    ///
-    /// The first dimension of `obs` can be the number of processes.
-    fn action(&mut self, qnet: &M, obs: &Tensor) -> Tensor;
+    Softmax(Softmax),
+    EpsilonGreedy(EpsilonGreedy)
 }
 
 /// Softmax explorer for DQN.
-#[derive(Clone)]
-pub struct Softmax<M> {
-    phantom: PhantomData<M>
-}
+pub struct Softmax {}
 
 #[allow(clippy::new_without_default)]
-impl<M> Softmax<M> {
+impl Softmax {
     /// Constructs softmax explorer.
-    pub fn new() -> Self {
-        Self { phantom: PhantomData }
-    }
-}
+    pub fn new() -> Self { Self {} }
 
-impl<M> DQNExplorer<M> for Softmax<M> where
-    M: Model1<Input=Tensor, Output=Tensor>
-{
-    fn action(&mut self, qnet: &M, obs: &Tensor) -> Tensor {
+    pub fn action<M>(&mut self, qnet: &M, obs: &Tensor) -> Tensor where
+        M: Model1<Input=Tensor, Output=Tensor>,
+    {
         let a = qnet.forward(obs);
         a.softmax(-1, tch::Kind::Float).multinomial(1, true)
     }
 }
 
 /// Epsilon-greedy explorer for DQN.
-#[derive(Clone)]
-pub struct EpsilonGreedy<M> {
+pub struct EpsilonGreedy {
     n_opts: usize,
     eps_start: f64,
     eps_final: f64,
     final_step: usize,
-    phantom: PhantomData<M>
 }
 
 #[allow(clippy::new_without_default)]
-impl<M> EpsilonGreedy<M> {
+impl EpsilonGreedy {
     /// Constructs softmax explorer.
     pub fn new() -> Self {
         Self {
@@ -54,15 +42,12 @@ impl<M> EpsilonGreedy<M> {
             eps_start: 1.0,
             eps_final: 0.02,
             final_step: 100_000,
-            phantom: PhantomData
         }
     }
-}
 
-impl<M> DQNExplorer<M> for EpsilonGreedy<M> where
-    M: Model1<Input=Tensor, Output=Tensor>
-{
-    fn action(&mut self, qnet: &M, obs: &Tensor) -> Tensor {
+    pub fn action<M>(&mut self, qnet: &M, obs: &Tensor) -> Tensor where
+        M: Model1<Input=Tensor, Output=Tensor>,
+    {
         let d = (self.eps_start - self.eps_final) / (self.final_step as f64);
         let eps = (self.eps_start - d * self.n_opts as f64).max(self.eps_final);
         let r = fastrand::f64();
