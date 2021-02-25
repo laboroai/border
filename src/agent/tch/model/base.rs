@@ -16,19 +16,11 @@ pub trait Model1: ModelBase {
     type Output;
 
     fn forward(&self, xs: &Self::Input) -> Self::Output;
+
+    fn in_dim(&self) -> usize;
+
+    fn out_dim(&self) -> usize;
 }
-
-// pub trait MultiheadModel {
-//     fn forward(&self, xs: &Tensor) -> (Tensor, Tensor);
-
-//     fn backward_step(&mut self, loss: &Tensor);
-
-//     fn get_var_store(&mut self) -> &mut nn::VarStore;
-
-//     fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>>;
-
-//     fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<(), Box<dyn Error>>;
-// }
 
 pub trait Model2: ModelBase {
     type Input1;

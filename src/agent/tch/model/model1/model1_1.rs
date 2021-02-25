@@ -10,7 +10,6 @@ pub struct Model1_1 {
     var_store: nn::VarStore,
     network_fn: fn(&nn::Path, usize, usize) -> nn::Sequential,
     network: nn::Sequential,
-    // device: Device,
     opt: nn::Optimizer<nn::Adam>,
     in_dim: usize,
     out_dim: usize,
@@ -89,5 +88,13 @@ impl Model1 for Model1_1 {
         let device = self.var_store.device();
         let xs = xs.to_device(device);
         self.network.forward(&xs)
+    }
+
+    fn in_dim(&self) -> usize {
+        self.in_dim
+    }
+
+    fn out_dim(&self) -> usize {
+        self.out_dim
     }
 }

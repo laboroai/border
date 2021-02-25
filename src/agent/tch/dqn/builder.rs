@@ -10,7 +10,7 @@ use crate::{
         tch::{
             ReplayBuffer, TchBuffer,
             model::Model1,
-            dqn::DQN
+            dqn::{DQN, explorer::{DQNExplorer, Softmax}}
         }
     }
 };
@@ -31,6 +31,7 @@ pub struct DQNBuilder<E, M, O, A> where
     train: bool,
     discount_factor: f64,
     tau: f64,
+    explorer: DQNExplorer,
     phantom: PhantomData<(E, M, O, A)>,
 }
 
@@ -53,10 +54,20 @@ impl<E, M, O, A> DQNBuilder<E, M, O, A> where
             discount_factor: 0.99,
             tau: 0.005,
             train: false,
+            explorer: DQNExplorer::Softmax(Softmax::new()),
             phantom: PhantomData,
         }
     }
+}
 
+impl<E, M, O, A> DQNBuilder<E, M, O, A> where
+    E: Env,
+    M: Model1<Input=Tensor, Output=Tensor> + Clone,
+    E::Obs :Into<M::Input>,
+    E::Act :From<Tensor>,
+    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
+    A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
+{
     /// Set optimization interval.
     pub fn opt_interval(mut self, v: OptInterval) -> Self {
         self.opt_interval_counter = v.counter();
@@ -93,6 +104,13 @@ impl<E, M, O, A> DQNBuilder<E, M, O, A> where
         self
     }
 
+    /// Set explorer.
+    pub fn explorer(mut self, v: DQNExplorer) -> DQNBuilder<E, M, O, A> where
+    {
+        self.explorer = v;
+        self
+    }
+
     /// Constructs DQN.
     pub fn build(self, qnet: M, replay_buffer: ReplayBuffer<E, O, A>) -> DQN<E, M, O, A> {
         let qnet_tgt = qnet.clone();
@@ -109,6 +127,7 @@ impl<E, M, O, A> DQNBuilder<E, M, O, A> where
             discount_factor: self.discount_factor,
             tau: self.tau,
             train: self.train,
+            explorer: self.explorer,
             phantom: PhantomData,
         }
     }
