@@ -30,23 +30,23 @@ pub struct SAC<E, Q, P, O, A> where
     O: TchBuffer<Item = E::Obs>,
     A: TchBuffer<Item = E::Act>,
 {
-    qnet: Q,
-    qnet_tgt: Q,
-    pi: P,
-    replay_buffer: ReplayBuffer<E, O, A>,
-    gamma: f64,
-    tau: f64,
-    alpha: f64,
-    epsilon: f64,
-    min_std: f64,
-    max_std: f64,
-    opt_interval_counter: OptIntervalCounter,
-    n_updates_per_opt: usize,
-    min_transitions_warmup: usize,
-    batch_size: usize,
-    train: bool,
-    prev_obs: RefCell<Option<E::Obs>>,
-    phantom: PhantomData<E>
+    pub(in crate::agent::tch::sac) qnet: Q,
+    pub(in crate::agent::tch::sac) qnet_tgt: Q,
+    pub(in crate::agent::tch::sac) pi: P,
+    pub(in crate::agent::tch::sac) replay_buffer: ReplayBuffer<E, O, A>,
+    pub(in crate::agent::tch::sac) gamma: f64,
+    pub(in crate::agent::tch::sac) tau: f64,
+    pub(in crate::agent::tch::sac) alpha: f64,
+    pub(in crate::agent::tch::sac) epsilon: f64,
+    pub(in crate::agent::tch::sac) min_std: f64,
+    pub(in crate::agent::tch::sac) max_std: f64,
+    pub(in crate::agent::tch::sac) opt_interval_counter: OptIntervalCounter,
+    pub(in crate::agent::tch::sac) n_updates_per_opt: usize,
+    pub(in crate::agent::tch::sac) min_transitions_warmup: usize,
+    pub(in crate::agent::tch::sac) batch_size: usize,
+    pub(in crate::agent::tch::sac) train: bool,
+    pub(in crate::agent::tch::sac) prev_obs: RefCell<Option<E::Obs>>,
+    pub(in crate::agent::tch::sac) phantom: PhantomData<E>
 }
 
 impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
@@ -58,64 +58,6 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
     O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
-    pub fn new(qnet: Q, pi: P, replay_buffer: ReplayBuffer<E, O, A>) -> Self {
-        let qnet_tgt = qnet.clone();
-        SAC {
-            qnet,
-            qnet_tgt,
-            pi,
-            replay_buffer,
-            gamma: 0.99,
-            tau: 0.005,
-            alpha: 0.1,
-            epsilon: 1e-4,
-            min_std: 1e-3,
-            max_std: 2.0,
-            opt_interval_counter: OptInterval::Steps(1).counter(),
-            n_updates_per_opt: 1,
-            min_transitions_warmup: 1,
-            batch_size: 1,
-            train: false,
-            prev_obs: RefCell::new(None),
-            phantom: PhantomData,
-        }
-    }
-
-    pub fn opt_interval(mut self, v: OptInterval) -> Self {
-        self.opt_interval_counter = v.counter();
-        self
-    }
-
-    pub fn n_updates_per_opt(mut self, v: usize) -> Self {
-        self.n_updates_per_opt = v;
-        self
-    }
-
-    pub fn min_transitions_warmup(mut self, v: usize) -> Self {
-        self.min_transitions_warmup = v;
-        self
-    }
-
-    pub fn batch_size(mut self, v: usize) -> Self {
-        self.batch_size = v;
-        self
-    }
-
-    pub fn discount_factor(mut self, v: f64) -> Self {
-        self.gamma = v;
-        self
-    }
-
-    pub fn tau(mut self, v: f64) -> Self {
-        self.tau = v;
-        self
-    }
-
-    pub fn alpha(mut self, v: f64) -> Self {
-        self.alpha = v;
-        self
-    }
-
     // Adapted from dqn.rs
     fn push_transition(&mut self, step: Step<E>) {
         let next_obs = step.obs;

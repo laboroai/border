@@ -22,7 +22,7 @@ use lrr::{
     agent::{
         OptInterval,
         tch::{
-            SAC, ReplayBuffer,
+            SACBuilder, ReplayBuffer,
             model::{Model1_2, Model2_1},
         }
     }
@@ -100,18 +100,16 @@ fn create_agent() -> impl Agent<Env> {
     let actor = create_actor(device);
     let critic = create_critic(device);
     let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
-    let agent: SAC<Env, _, _, _, _> = SAC::new(
-        critic,
-        actor,
-        replay_buffer)
+
+    SACBuilder::default()
         .opt_interval(OPT_INTERVAL)
         .n_updates_per_opt(N_UPDATES_PER_OPT)
         .min_transitions_warmup(N_TRANSITIONS_WARMUP)
         .batch_size(BATCH_SIZE)
         .discount_factor(DISCOUNT_FACTOR)
         .tau(TAU)
-        .alpha(ALPHA);
-    agent
+        .alpha(ALPHA)
+        .build(critic, actor, replay_buffer)
 }
 
 fn create_env() -> Env {
