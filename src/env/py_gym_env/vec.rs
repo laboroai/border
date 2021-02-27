@@ -82,12 +82,15 @@ impl<O, A, OF, AF> Env for PyVecGymEnv<O, A, OF, AF> where
     type Act = A;
     type Info = PyGymInfo;
 
-    /// Resets the environment, returning the observation tensor.
+    /// Resets the environment, the obs/act filters and returns the observation tensor.
     ///
     /// If `is_done` is None, all environemnts are resetted.
-    /// If `is_done` is `Vec<f32>`, environments with `is_done[i] == 1.0` are resetted.
+    /// Otherwise, `is_done` is `Vec<f32>` and environments with `is_done[i] == 1.0` are resetted.
     fn reset(&mut self, is_done: Option<&Vec<f32>>) -> Result<O, Box<dyn Error>>  {
         trace!("PyVecGymEnv::reset()");
+
+        // Reset the action filter, required for stateful filters.
+        self.act_filter.reset(&is_done);
 
         pyo3::Python::with_gil(|py| {
             let obs = match is_done {

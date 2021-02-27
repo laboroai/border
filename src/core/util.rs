@@ -4,8 +4,9 @@ use crate::core::{
     Obs, Step, Env, Policy, record::{Record, Recorder, RecordValue}
 };
 
-/// The agent take an action and apply it to the environment.
-/// Then return [crate::core::base::Step] object.
+/// Takes an action based on the policy and apply it to the environment.
+///
+/// It returns [crate::core::base::Step] object.
 pub fn sample<E: Env, P: Policy<E>>(env: &mut E, policy: &mut P,
     obs_prev: &RefCell<Option<E::Obs>>) -> (Step<E>, Record) {
     let obs = obs_prev.replace(None)

@@ -69,6 +69,13 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
         return (mean, min, max);
     }
 
+    /// Train the agent.
+    ///
+    /// In the training loop, the following values are recorded in the `recorder`:
+    /// * `n_steps` - The nunber of steps interacting with the environment.
+    /// * `n_opts` - The number of optimization steps.
+    /// * `datetime` - `Date and time`.
+    /// * `mean_cum_eval_reward` - Cumulative rewards in evaluation runs.
     pub fn train<T: Recorder>(&mut self, recorder: &mut T) {
         let obs = self.env.reset(None).unwrap();
         self.agent.push_obs(&obs);
@@ -77,15 +84,19 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
 
         loop {
             // For resetted environments, elements in obs_prev are updated with env.reset().
+            // After the update, obs_prev will have o_t+1 without reset, or o_0 with reset.
             // See `sample()` in `util.rs`.
             let (step, _) = sample(&mut self.env, &mut self.agent, &self.obs_prev);
             self.count_steps += 1;
 
             // agent.observe() internally creates transisions, i.e., (o_t, a_t, o_t+1, r_t+1).
+            // For o_t, the previous observation stored in the agent is used.
             let option_record = self.agent.observe(step);
 
-            // For resetted environments, previous observation are updated.
-            // This is required to make transisions consistend.
+            // The previous observations in the agent are updated with obs_prev.
+            // These are o_t+1 (without reset) or o_0 (with reset).
+            // In the next iteration of the loop, o_t+1 will be treated as the previous observation
+            // in the next training step executed in agent.observation().
             self.agent.push_obs(&self.obs_prev.borrow().as_ref().unwrap());
 
             if let Some(mut record) = option_record {

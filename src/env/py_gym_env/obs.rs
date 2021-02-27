@@ -81,7 +81,7 @@ impl<S, T> Obs for PyGymEnvObs<S, T> where
     S: Shape,
     T: Element + Debug + num_traits::identities::Zero,
 {
-    fn zero(n_procs: usize) -> Self {
+    fn dummy(n_procs: usize) -> Self {
         let shape = &mut S::shape().to_vec();
         shape.insert(0, n_procs as _);
         trace!("Shape of TchPyGymEnvObs: {:?}", shape);

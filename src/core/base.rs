@@ -3,7 +3,10 @@ use crate::core::record::Record;
 
 /// Represents an observation of the environment.
 pub trait Obs: Clone + Debug {
-    fn zero(n_procs: usize) -> Self;
+    /// Returns a dummy observation.
+    ///
+    /// The observation created with this method is ignored.
+    fn dummy(n_procs: usize) -> Self;
 
     /// Replace elements of observation where `is_done[i] == 1.0`.
     /// This method assumes that `is_done.len() == n_procs`.

@@ -158,14 +158,18 @@ impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
     type Act = A;
     type Info = PyGymInfo;
 
-    /// Resets the environment, returning the observation tensor.
+    /// Resets the environment, the obs/act filters and returns the observation tensor.
+    ///
     /// In this environment, the length of `is_done` is assumed to be 1.
+    ///
+    /// TODO: defines appropriate error for the method and returns it.
     fn reset(&mut self, is_done: Option<&Vec<f32>>) -> Result<O, Box<dyn Error>>  {
         trace!("PyGymEnv::reset()");
 
-        // Reset action filter, effective for stateful filter
+        // Reset the action filter, required for stateful filters.
         self.act_filter.reset(&is_done);
 
+        // Reset the environment
         match is_done {
             None => {
                 pyo3::Python::with_gil(|py| {
@@ -175,7 +179,7 @@ impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
             },
             Some(v) => {
                 if v[0] == 0.0 as f32 {
-                    Ok(O::zero(1))
+                    Ok(O::dummy(1))
                 }
                 else {
                     self.count_steps.replace(0);
