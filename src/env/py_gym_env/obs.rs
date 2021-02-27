@@ -48,9 +48,13 @@ pub fn pyobj_to_arrayd<S, T>(obs: PyObject) -> ArrayD<f32> where
     })
 }
 
-/// Represents observation.
+/// Observation represented by an [ndarray::ArrayD].
 ///
-/// TODO: explaining type parameters S and T.
+/// `S` is the shape of an observation, except for batch and process dimensions.
+/// `T` is the dtype of ndarray in the Python gym environment.
+/// For some reason, the dtype of observations in Python gym environments seems to 
+/// vary, f32 or f64. To get observations in Rust side, the dtype is specified as a
+/// type parameter, instead of checking the dtype of Python array at runtime.
 #[derive(Clone, Debug)]
 pub struct PyGymEnvObs<S, T> where
     S: Shape,
@@ -64,6 +68,7 @@ impl<S, T> PyGymEnvObs<S, T> where
     S: Shape,
     T: Element + Debug,
 {
+    /// Create an empty observation, used in pong module.
     pub fn new(obs: ArrayD<f32>) -> Self {
         Self {
             obs,
