@@ -109,7 +109,7 @@ fn create_agent() -> impl Agent<Env> {
         .discount_factor(DISCOUNT_FACTOR)
         .tau(TAU)
         .alpha(ALPHA)
-        .build(critic, actor, replay_buffer)
+    .build(critic, actor, replay_buffer)
 }
 
 fn create_env() -> Env {
