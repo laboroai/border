@@ -61,7 +61,7 @@ pub struct PyGymEnvObs<S, T> where
     T: Element + Debug,
 {
     pub(crate) obs: ArrayD<f32>,
-    phantom: PhantomData<(S, T)>
+    pub(crate) phantom: PhantomData<(S, T)>
 }
 
 impl<S, T> PyGymEnvObs<S, T> where
