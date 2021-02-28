@@ -22,8 +22,8 @@ use lrr::{
     agent::{
         OptInterval,
         tch::{
-            DQN, DQNBuilder, ReplayBuffer, model::Model1_1,
-            dqn::explorer::{DQNExplorer, Softmax, EpsilonGreedy},
+            DQNBuilder, ReplayBuffer, model::Model1_1,
+            dqn::explorer::{DQNExplorer, EpsilonGreedy},
         }
     }
 };
@@ -71,7 +71,7 @@ fn create_agent(epsilon_greedy: bool) -> impl Agent<Env> {
     let device = tch::Device::cuda_if_available();
     let qnet = create_critic(device);
     let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
-    let mut builder = DQNBuilder::new()
+    let builder = DQNBuilder::new()
         .opt_interval(OPT_INTERVAL)
         .n_updates_per_opt(N_UPDATES_PER_OPT)
         .min_transitions_warmup(N_TRANSITIONS_WARMUP)

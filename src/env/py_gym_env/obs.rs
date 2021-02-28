@@ -153,12 +153,17 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for PyGymEnvObsRawFilter<S, T> w
             let obs = pyo3::Python::with_gil(|py| {
                 debug_assert_eq!(obs.as_ref(py).get_type().name().unwrap(), "list");
                 let obs: Py<PyList> = obs.extract(py).unwrap();
+
+                // Iterate over the list of observations of the environments in the
+                // vectorized environment.
                 let filtered = obs.as_ref(py).iter()
                     .map(|o| {
+                        // `NoneType` means the element will be ignored in the following processes.
+                        // This can appears in partial reset of the vectorized environment.
                         if o.get_type().name().unwrap() == "NoneType" {
-                            // TODO: consider panic!() if the environment returns None
                             ArrayD::zeros(IxDyn(S::shape()))
                         }
+                        // Processes the partial observation in the vectorized environment.
                         else {
                             debug_assert_eq!(o.get_type().name().unwrap(), "ndarray");
                             let obs: &PyArrayDyn<T> = o.extract().unwrap();
