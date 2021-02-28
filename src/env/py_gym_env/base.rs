@@ -170,25 +170,24 @@ impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
         self.act_filter.reset(&is_done);
 
         // Reset the environment
-        match is_done {
-            None => {
-                pyo3::Python::with_gil(|py| {
-                    let obs = self.env.call_method0(py, "reset")?;
-                    Ok(self.obs_filter.reset(obs))
-                })
-            },
-            Some(v) => {
-                if v[0] == 0.0 as f32 {
-                    Ok(O::dummy(1))
-                }
-                else {
-                    self.count_steps.replace(0);
-                    pyo3::Python::with_gil(|py| {
-                        let obs = self.env.call_method0(py, "reset")?;
-                        Ok(self.obs_filter.reset(obs))
-                    })
+        let reset = {
+            match is_done {
+                None => true,
+                Some(v) => {
+                    debug_assert_eq!(v.len(), 1);
+                    !(v[0] == 0.0 as f32)
                 }
             }
+        };
+
+        if !reset {
+            Ok(O::dummy(1))
+        }
+        else {
+            pyo3::Python::with_gil(|py| {
+                let obs = self.env.call_method0(py, "reset")?;
+                Ok(self.obs_filter.reset(obs))
+            })
         }
     }
 

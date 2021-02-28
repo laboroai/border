@@ -156,6 +156,7 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for PyGymEnvObsRawFilter<S, T> w
                 let filtered = obs.as_ref(py).iter()
                     .map(|o| {
                         if o.get_type().name().unwrap() == "NoneType" {
+                            // TODO: consider panic!() if the environment returns None
                             ArrayD::zeros(IxDyn(S::shape()))
                         }
                         else {
@@ -180,7 +181,8 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for PyGymEnvObsRawFilter<S, T> w
         else {
             let obs = pyo3::Python::with_gil(|py| {
                 if obs.as_ref(py).get_type().name().unwrap() == "NoneType" {
-                    PyGymEnvObs::<S, T>::zero(1)
+                    // TODO: consider panic!() if the environment returns None
+                    PyGymEnvObs::<S, T>::dummy(1)
                 }
                 else {
                     PyGymEnvObs {
