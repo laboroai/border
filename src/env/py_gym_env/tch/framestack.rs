@@ -36,27 +36,17 @@ pub fn pyobj_to_arrayd<S, T>(obs: PyObject) -> ArrayD<f32> where
 }
 
 impl<S, T> FrameStackFilter<S, T> where
-    S: Shape
+    S: Shape,
+    T: Element + Debug + num_traits::identities::Zero + AsPrimitive<f32>,
 {
-    // fn new(nprocs: i64, nstack: i64) -> FrameStack {
-    //     FrameStack {
-    //         data: Tensor::zeros(&[nprocs, nstack, 84, 84], FLOAT_CPU),
-    //         nprocs,
-    //         nstack,
-    //     }
-    // }
-
-    // fn update<'a>(&'a mut self, img: &Tensor, masks: Option<&Tensor>) -> &'a Tensor {
-    //     if let Some(masks) = masks {
-    //         self.data *= masks.view([self.nprocs, 1, 1, 1])
-    //     };
-    //     let slice = |i| self.data.narrow(1, i, 1);
-    //     for i in 1..self.nstack {
-    //         slice(i - 1).copy_(&slice(i))
-    //     }
-    //     slice(self.nstack - 1).copy_(img);
-    //     &self.data
-    // }
+    pub fn new(n_procs: i64, n_stack: i64) -> FrameStackFilter<S, T> {
+        FrameStackFilter {
+            buffer: (0..n_procs).map(|_| {ArrayD::<f32>::zeros(S::shape())}).collect(),
+            n_procs,
+            n_stack,
+            phantom: PhantomData,
+        }
+    }
 
     /// Create slice for a dynamic array.
     /// See https://github.com/rust-ndarray/ndarray/issues/501
@@ -89,6 +79,29 @@ impl<S, T> FrameStackFilter<S, T> where
             unimplemented!()
         }
     }
+
+    /// Fill the buffer, invoked when resetting
+    fn fill_buffer(&mut self, i: i64, obs: &ArrayD<f32>) {
+        if let Some(arr) = self.buffer.get_mut(i as usize) {
+            for j in (0..self.n_stack as usize).rev() {
+                let mut dst = arr.slice_mut(Self::s(j).as_ref());
+                dst.assign(&obs);
+            }
+        }
+        else {
+            unimplemented!();
+        }
+    }
+
+    /// Get ndarray from pyobj
+    fn get_ndarray(o: &PyAny) -> ArrayD<f32> {
+        debug_assert_eq!(o.get_type().name().unwrap(), "ndarray");
+        let o: &PyArrayDyn<T> = o.extract().unwrap();
+        let o = o.to_owned_array();
+        let o = o.mapv(|elem| elem.as_());
+        debug_assert_eq!(o.shape(), S::shape());
+        o
+    }
 }
 
 impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for FrameStackFilter<S, T> where
@@ -99,16 +112,18 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for FrameStackFilter<S, T> where
         // Processes the input observation to update `self.buffer`
         pyo3::Python::with_gil(|py| {
             debug_assert_eq!(obs.as_ref(py).get_type().name().unwrap(), "list");
+
             let obs: Py<PyList> = obs.extract(py).unwrap();
+
             for (i, o) in (0..self.n_procs).zip(obs.as_ref(py).iter()) {
-                if o.get_type().name().unwrap() != "NoneType" {
-                    debug_assert_eq!(o.get_type().name().unwrap(), "ndarray");
-                    let o: &PyArrayDyn<T> = o.extract().unwrap();
-                    let o = o.to_owned_array();
-                    let o = o.mapv(|elem| elem.as_());
-                    debug_assert_eq!(o.shape(), S::shape());
-                    self.update_buffer(i, &o);
-                }
+                let o = Self::get_ndarray(o);
+                // debug_assert_eq!(o.get_type().name().unwrap(), "ndarray");
+                // let o: &PyArrayDyn<T> = o.extract().unwrap();
+                // let o = o.to_owned_array();
+                // let o = o.mapv(|elem| elem.as_());
+                // debug_assert_eq!(o.shape(), S::shape());
+
+                self.update_buffer(i, &o);
             }
         });
 
@@ -123,5 +138,27 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for FrameStackFilter<S, T> where
         let record = Record::empty();
 
         (obs, record)
+    }
+
+    fn reset(&mut self, obs: PyObject) -> PyGymEnvObs::<S, T> {
+        pyo3::Python::with_gil(|py| {
+            debug_assert_eq!(obs.as_ref(py).get_type().name().unwrap(), "list");
+
+            let obs: Py<PyList> = obs.extract(py).unwrap();
+
+            for (i, o) in (0..self.n_procs).zip(obs.as_ref(py).iter()) {
+                if o.get_type().name().unwrap() != "NoneType" {
+                    let o = Self::get_ndarray(o);
+                    self.fill_buffer(i, &o);
+                }
+            }
+        });
+
+        // Returned values
+        let array_views: Vec<_> = self.buffer.iter().map(|a| a.view()).collect();
+        PyGymEnvObs::<S, T> {
+            obs: stack(Axis(0), array_views.as_slice()).unwrap(),
+            phantom: PhantomData
+        }
     }
 }
