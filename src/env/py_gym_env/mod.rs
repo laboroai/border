@@ -6,6 +6,7 @@ pub mod vec;
 pub mod obs;
 pub mod act_d;
 pub mod act_c;
+pub mod framestack;
 pub mod tch;
 pub use base::{Shape, PyGymInfo, PyGymEnv, PyGymEnvObsFilter, PyGymEnvActFilter};
 pub use vec::PyVecGymEnv;

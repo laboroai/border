@@ -1,3 +1,4 @@
+//! An observation filter with staking observations (frames).
 use std::{fmt::Debug, iter::FromIterator, default::Default, marker::PhantomData};
 use log::trace;
 use num_traits::cast::AsPrimitive;
@@ -39,7 +40,8 @@ impl<S, T> FrameStackFilter<S, T> where
     S: Shape,
     T: Element + Debug + num_traits::identities::Zero + AsPrimitive<f32>,
 {
-    pub fn new(n_procs: i64, n_stack: i64) -> FrameStackFilter<S, T> {
+    /// Constructs an observation filter for vectorized environments.
+    pub fn vectorized(n_procs: i64, n_stack: i64) -> FrameStackFilter<S, T> {
         FrameStackFilter {
             buffer: (0..n_procs).map(|_| {ArrayD::<f32>::zeros(S::shape())}).collect(),
             n_procs,
@@ -99,7 +101,7 @@ impl<S, T> FrameStackFilter<S, T> where
         let o: &PyArrayDyn<T> = o.extract().unwrap();
         let o = o.to_owned_array();
         let o = o.mapv(|elem| elem.as_());
-        debug_assert_eq!(o.shape(), S::shape());
+        debug_assert_eq!(o.shape()[..], S::shape()[1..]);
         o
     }
 }
@@ -117,12 +119,6 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for FrameStackFilter<S, T> where
 
             for (i, o) in (0..self.n_procs).zip(obs.as_ref(py).iter()) {
                 let o = Self::get_ndarray(o);
-                // debug_assert_eq!(o.get_type().name().unwrap(), "ndarray");
-                // let o: &PyArrayDyn<T> = o.extract().unwrap();
-                // let o = o.to_owned_array();
-                // let o = o.mapv(|elem| elem.as_());
-                // debug_assert_eq!(o.shape(), S::shape());
-
                 self.update_buffer(i, &o);
             }
         });
