@@ -179,7 +179,7 @@ impl Model1 for PongNet {
         self.network.forward(xs)
     }
 
-    fn in_dim(&self) -> usize {
+    fn in_shape(&self) -> &[usize] {
         unimplemented!()
     }
 

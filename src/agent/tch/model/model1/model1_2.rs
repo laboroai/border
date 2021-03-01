@@ -98,8 +98,9 @@ impl Model1 for Model1_2 {
         (xs.apply(&self.head_mean), xs.apply(&self.head_lstd).exp())
     }
 
-    fn in_dim(&self) -> usize {
-        self.in_dim
+    fn in_shape(&self) -> &[usize] {
+        unimplemented!()
+        // self.in_dim
     }
 
     fn out_dim(&self) -> usize {

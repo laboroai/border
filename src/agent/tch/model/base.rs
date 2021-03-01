@@ -17,7 +17,7 @@ pub trait Model1: ModelBase {
 
     fn forward(&self, xs: &Self::Input) -> Self::Output;
 
-    fn in_dim(&self) -> usize;
+    fn in_shape(&self) -> &[usize];
 
     fn out_dim(&self) -> usize;
 }

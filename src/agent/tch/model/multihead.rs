@@ -72,7 +72,7 @@ impl Model1 for StateValueAndDiscreteActProb {
         (shared.apply(&self.critic), shared.apply(&self.actor))
     }
 
-    fn in_dim(&self) -> usize {
+    fn in_shape(&self) -> &[usize] {
         unimplemented!()       
     }
 

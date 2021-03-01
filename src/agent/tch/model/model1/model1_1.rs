@@ -8,10 +8,10 @@ use crate::agent::tch::model::{ModelBase, Model1};
 /// A network with a single input tensor and a single output tensor.
 pub struct Model1_1 {
     var_store: nn::VarStore,
-    network_fn: fn(&nn::Path, usize, usize) -> nn::Sequential,
+    network_fn: fn(&nn::Path, &[usize], usize) -> nn::Sequential,
     network: nn::Sequential,
     opt: nn::Optimizer<nn::Adam>,
-    in_dim: usize,
+    in_shape: Vec<usize>,
     out_dim: usize,
     learning_rate: f64
 }
@@ -25,7 +25,7 @@ impl Clone for Model1_1 {
     fn clone(&self) -> Self {
         let device = self.var_store.device();
         let mut new = Self::new(
-            self.in_dim, self.out_dim, self.learning_rate, self.network_fn, device
+            &self.in_shape[..], self.out_dim, self.learning_rate, self.network_fn, device
         );
         new.var_store.copy(&self.var_store).unwrap();
         new
@@ -34,19 +34,19 @@ impl Clone for Model1_1 {
 
 impl Model1_1 {
     /// Constructs a network with a single input tensor and a single output tensor.
-    pub fn new(in_dim: usize, out_dim: usize, learning_rate: f64,
-        network_fn: fn(&nn::Path, usize, usize) -> nn::Sequential,
+    pub fn new(in_shape: &[usize], out_dim: usize, learning_rate: f64,
+        network_fn: fn(&nn::Path, &[usize], usize) -> nn::Sequential,
         device: tch::Device) -> Self {
         // let vs = nn::VarStore::new(tch::Device::Cpu);
         let vs = nn::VarStore::new(device);
         let p = &vs.root();
-        let network = network_fn(p, in_dim, out_dim);
+        let network = network_fn(p, in_shape, out_dim);
         let opt = nn::Adam::default().build(&vs, learning_rate).unwrap();
         Self {
             network,
             network_fn,
             var_store: vs,
-            in_dim,
+            in_shape: in_shape.into(),
             out_dim,
             opt,
             learning_rate,
@@ -90,8 +90,8 @@ impl Model1 for Model1_1 {
         self.network.forward(&xs)
     }
 
-    fn in_dim(&self) -> usize {
-        self.in_dim
+    fn in_shape(&self) -> &[usize] {
+        self.in_shape.as_slice()
     }
 
     fn out_dim(&self) -> usize {
