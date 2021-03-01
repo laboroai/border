@@ -60,11 +60,11 @@ type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 
 fn create_critic(device: tch::Device) -> Model1_1 {
-    let network_fn = |p: &nn::Path, in_dim, out_dim| nn::seq()
-        .add(nn::linear(p / "cl1", in_dim as _, 256, Default::default()))
+    let network_fn = |p: &nn::Path, in_dim: &[usize], out_dim| nn::seq()
+        .add(nn::linear(p / "cl1", in_dim[0] as _, 256, Default::default()))
         .add_fn(|xs| xs.relu())
         .add(nn::linear(p / "cl2", 256, out_dim as _, Default::default()));
-    Model1_1::new(DIM_OBS, DIM_ACT, LR_QNET, network_fn, device)
+    Model1_1::new(&[DIM_OBS], DIM_ACT, LR_QNET, network_fn, device)
 }
 
 fn create_agent(epsilon_greedy: bool) -> impl Agent<Env> {

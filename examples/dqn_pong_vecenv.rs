@@ -22,7 +22,7 @@ use lrr::{
     agent::{
         OptInterval,
         tch::{
-            DQNBuilder, ReplayBuffer, model::Model1_1,
+            DQNBuilder, ReplayBuffer as ReplayBuffer_, model::Model1_1,
             dqn::explorer::{DQNExplorer, EpsilonGreedy},
         }
     }
@@ -61,6 +61,7 @@ type Act = PyGymEnvDiscreteAct;
 type Env = PyVecGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer;
+type ReplayBuffer = ReplayBuffer_<Env, ObsBuffer, ActBuffer>;
 
 fn stride(s: i64) -> nn::ConvConfig {
     nn::ConvConfig {
@@ -87,7 +88,9 @@ fn create_critic(device: tch::Device) -> Model1_1 {
 fn create_agent() -> impl Agent<Env> {
     let device = tch::Device::cuda_if_available();
     let qnet = create_critic(device);
-    let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
+    // let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, N_PROCS);
+    // let replay_buffer = ReplayBuffer::<Env, _, _>::new(REPLAY_BUFFER_CAPACITY, N_PROCS);
+    let replay_buffer = ReplayBuffer::new(REPLAY_BUFFER_CAPACITY, N_PROCS);
 
     DQNBuilder::new()
         .opt_interval(OPT_INTERVAL)
@@ -121,7 +124,12 @@ fn main() -> Result<()> {
         .max_opts(MAX_OPTS)
         .eval_interval(EVAL_INTERVAL)
         .n_episodes_per_eval(N_EPISODES_PER_EVAL);
-    let mut recorder = TensorboardRecorder::new("./examples/model/dqn_pong");
+    let mut recorder = TensorboardRecorder::new("./examples/model/dqn_pong_vecenv");
+
+    trainer.train(&mut recorder);
+
+    trainer.get_env().close();
+    trainer.get_env_eval().close();
 
     Ok(())
 }
