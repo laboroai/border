@@ -33,15 +33,16 @@ const N_STACK: usize = 4;
 const DIM_OBS: [usize; 4] = [4, 1, 84, 84];
 const DIM_ACT: usize = 6;
 
-const LR_QNET: f64 = 0.001;
+const LR_QNET: f64 = 1e-4;
 const DISCOUNT_FACTOR: f64 = 0.99;
-const BATCH_SIZE: usize = 64;
-const N_TRANSITIONS_WARMUP: usize = 100;
+const BATCH_SIZE: usize = 32;
+const N_TRANSITIONS_WARMUP: usize = 2500;
 const N_UPDATES_PER_OPT: usize = 1;
+const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
+const SOFT_UPDATE_INTERVAL: usize = 1000;
 const TAU: f64 = 0.005;
-const OPT_INTERVAL: OptInterval = OptInterval::Steps(50);
-const MAX_OPTS: usize = 1000;
-const EVAL_INTERVAL: usize = 50;
+const MAX_OPTS: usize = 1_000_000;
+const EVAL_INTERVAL: usize = 100;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
 
@@ -88,8 +89,6 @@ fn create_critic(device: tch::Device) -> Model1_1 {
 fn create_agent() -> impl Agent<Env> {
     let device = tch::Device::cuda_if_available();
     let qnet = create_critic(device);
-    // let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, N_PROCS);
-    // let replay_buffer = ReplayBuffer::<Env, _, _>::new(REPLAY_BUFFER_CAPACITY, N_PROCS);
     let replay_buffer = ReplayBuffer::new(REPLAY_BUFFER_CAPACITY, N_PROCS);
 
     DQNBuilder::new()
@@ -98,6 +97,7 @@ fn create_agent() -> impl Agent<Env> {
         .min_transitions_warmup(N_TRANSITIONS_WARMUP)
         .batch_size(BATCH_SIZE)
         .discount_factor(DISCOUNT_FACTOR)
+        .soft_update_interval(SOFT_UPDATE_INTERVAL)
         .tau(TAU)
         .explorer(DQNExplorer::EpsilonGreedy(EpsilonGreedy::new()))
     .build(qnet, replay_buffer)

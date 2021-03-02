@@ -25,6 +25,7 @@ pub struct DQNBuilder<E, M, O, A> where
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
     opt_interval_counter: OptIntervalCounter,
+    soft_update_interval: usize,
     n_updates_per_opt: usize,
     min_transitions_warmup: usize,
     batch_size: usize,
@@ -48,6 +49,7 @@ impl<E, M, O, A> DQNBuilder<E, M, O, A> where
     pub fn new() -> Self {
         Self {
             opt_interval_counter: OptInterval::Steps(1).counter(),
+            soft_update_interval: 1,
             n_updates_per_opt: 1,
             min_transitions_warmup: 1,
             batch_size: 1,
@@ -71,6 +73,12 @@ impl<E, M, O, A> DQNBuilder<E, M, O, A> where
     /// Set optimization interval.
     pub fn opt_interval(mut self, v: OptInterval) -> Self {
         self.opt_interval_counter = v.counter();
+        self
+    }
+
+    /// Set soft update interval.
+    pub fn soft_update_interval(mut self, v: usize) -> Self {
+        self.soft_update_interval = v;
         self
     }
 
@@ -121,6 +129,8 @@ impl<E, M, O, A> DQNBuilder<E, M, O, A> where
             replay_buffer,
             prev_obs: RefCell::new(None),
             opt_interval_counter: self.opt_interval_counter,
+            soft_update_interval: self.soft_update_interval,
+            soft_update_counter: 0,
             n_updates_per_opt: self.n_updates_per_opt,
             min_transitions_warmup: self.min_transitions_warmup,
             batch_size: self.batch_size,

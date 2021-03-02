@@ -29,6 +29,8 @@ pub struct DQN<E, M, O, A> where
 {
     // TODO: Consider making it visible only from dqn.builder module.
     pub(crate) opt_interval_counter: OptIntervalCounter,
+    pub(crate) soft_update_interval: usize,
+    pub(crate) soft_update_counter: usize,
     pub(crate) n_updates_per_opt: usize,
     pub(crate) min_transitions_warmup: usize,
     pub(crate) batch_size: usize,
@@ -178,9 +180,14 @@ impl<E, M, O, A> Agent<E> for DQN<E, M, O, A> where
                 trace!("Sample random batch");
 
                 loss_critic += self.update_critic(batch);
-                self.soft_update();
-                trace!("Update model");
             };
+
+            self.soft_update_counter += 1;
+            if self.soft_update_counter == self.soft_update_interval {
+                self.soft_update_counter = 0;
+                self.soft_update();
+                trace!("Update target network");
+            }
 
             loss_critic /= self.n_updates_per_opt as f32;
 
