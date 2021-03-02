@@ -40,11 +40,11 @@ const N_TRANSITIONS_WARMUP: usize = 2500;
 const N_UPDATES_PER_OPT: usize = 1;
 const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
 const SOFT_UPDATE_INTERVAL: usize = 1000;
-const TAU: f64 = 0.005;
+const TAU: f64 = 1.0;
 const MAX_OPTS: usize = 1_000_000;
 const EVAL_INTERVAL: usize = 100;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
-const N_EPISODES_PER_EVAL: usize = 5;
+const N_EPISODES_PER_EVAL: usize = 1;
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
