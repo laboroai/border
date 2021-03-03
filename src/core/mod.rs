@@ -7,4 +7,4 @@ pub mod trainer;
 pub mod util;
 pub mod record;
 pub use base::{Obs, Act, Info, Step, Env, Policy, Agent};
-pub use trainer::Trainer;
+pub use trainer::{Trainer, TrainerBuilder};

@@ -8,33 +8,25 @@ use crate::core::{
     record::{Recorder, RecordValue}
 };
 
-pub struct Trainer<E: Env, A: Agent<E>> {
-    env: E,
-    env_eval: E,
-    agent: A,
-    obs_prev: RefCell<Option<E::Obs>>,
+pub struct TrainerBuilder {
     max_opts: usize,
     eval_interval: usize,
     n_episodes_per_eval: usize,
-    count_opts: usize,
-    count_steps: usize
+    eval_threshold: Option<f32>,
 }
 
-impl<E: Env, A: Agent<E>> Trainer<E, A> {
-    pub fn new(env: E, env_eval: E, agent: A) -> Self {
-        Trainer {
-            env,
-            env_eval,
-            agent,
-            obs_prev: RefCell::new(None),
+impl Default for TrainerBuilder {
+    fn default() -> Self {
+        Self {
             max_opts: 0,
             eval_interval: 0,
             n_episodes_per_eval: 0,
-            count_opts: 0,
-            count_steps: 0,
+            eval_threshold: None,
         }
-    }
+    }    
+}
 
+impl TrainerBuilder {
     pub fn max_opts(mut self, v: usize) -> Self {
         self.max_opts = v;
         self
@@ -50,6 +42,44 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
         self
     }
 
+    pub fn eval_threshold(mut self, v: f32) -> Self {
+        self.eval_threshold = Some(v);
+        self
+    }
+
+    pub fn build<E, A>(self, env: E, env_eval: E, agent: A) -> Trainer<E, A> where
+        E: Env,
+        A: Agent<E>
+    {
+        Trainer {
+            env,
+            env_eval,
+            agent,
+            obs_prev: RefCell::new(None),
+            max_opts: self.max_opts,
+            eval_interval: self.eval_interval,
+            n_episodes_per_eval: self.n_episodes_per_eval,
+            eval_threshold: self.eval_threshold,
+            count_opts: 0,
+            count_steps: 0,    
+        }
+    }
+}
+
+pub struct Trainer<E: Env, A: Agent<E>> {
+    env: E,
+    env_eval: E,
+    agent: A,
+    obs_prev: RefCell<Option<E::Obs>>,
+    max_opts: usize,
+    eval_interval: usize,
+    n_episodes_per_eval: usize,
+    eval_threshold: Option<f32>,
+    count_opts: usize,
+    count_steps: usize
+}
+
+impl<E: Env, A: Agent<E>> Trainer<E, A> {
     pub fn get_agent(&self) -> &impl Agent<E> {
         &self.agent
     }
@@ -66,7 +96,8 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
         let mean: f32 = rs.iter().sum::<f32>() / (rs.len() as f32);
         let min = rs.iter().fold(f32::NAN, |m, v| v.min(m));
         let max = rs.iter().fold(f32::NAN, |m, v| v.max(m));
-        return (mean, min, max);
+
+        (mean, min, max)
     }
 
     /// Train the agent.

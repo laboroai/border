@@ -5,12 +5,13 @@ use clap::{Arg, App};
 use csv::WriterBuilder;
 use tch::nn;
 
-use lrr::{
-    core::{
-        Trainer, Agent, util,
-        record::{TensorboardRecorder, BufferedRecorder, Record}
-    },
-    env::py_gym_env::{
+use lrr::{agent::{
+        OptInterval,
+        tch::{
+            DQNBuilder, ReplayBuffer, model::Model1_1,
+            dqn::explorer::{DQNExplorer, EpsilonGreedy},
+        }
+    }, core::{Agent, Trainer, TrainerBuilder, record::{TensorboardRecorder, BufferedRecorder, Record}, util}, env::py_gym_env::{
         Shape, PyGymEnv,
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
@@ -18,15 +19,7 @@ use lrr::{
             obs::TchPyGymEnvObsBuffer,
             act_d::TchPyGymEnvDiscreteActBuffer
         }
-    },
-    agent::{
-        OptInterval,
-        tch::{
-            DQNBuilder, ReplayBuffer, model::Model1_1,
-            dqn::explorer::{DQNExplorer, EpsilonGreedy},
-        }
-    }
-};
+    }};
 
 const DIM_OBS: usize = 4;
 const DIM_ACT: usize = 2;
@@ -138,13 +131,11 @@ fn main() -> Result<()> {
         let env = create_env();
         let env_eval = create_env();
         let agent = create_agent(matches.is_present("egreddy"));
-        let mut trainer = Trainer::new(
-            env,
-            env_eval,
-            agent)
+        let mut trainer = TrainerBuilder::default()
             .max_opts(MAX_OPTS)
             .eval_interval(EVAL_INTERVAL)
-            .n_episodes_per_eval(N_EPISODES_PER_EVAL);
+            .n_episodes_per_eval(N_EPISODES_PER_EVAL)
+            .build(env, env_eval, agent);
         let mut recorder = TensorboardRecorder::new("./examples/model/dqn_cartpole");
     
         trainer.train(&mut recorder);
