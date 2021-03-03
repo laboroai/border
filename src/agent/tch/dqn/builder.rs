@@ -120,7 +120,7 @@ impl<E, M, O, A> DQNBuilder<E, M, O, A> where
     }
 
     /// Constructs DQN.
-    pub fn build(self, qnet: M, replay_buffer: ReplayBuffer<E, O, A>) -> DQN<E, M, O, A> {
+    pub fn build(self, qnet: M, replay_buffer: ReplayBuffer<E, O, A>, device: tch::Device) -> DQN<E, M, O, A> {
         let qnet_tgt = qnet.clone();
 
         DQN {
@@ -138,6 +138,7 @@ impl<E, M, O, A> DQNBuilder<E, M, O, A> where
             tau: self.tau,
             train: self.train,
             explorer: self.explorer,
+            device,
             phantom: PhantomData,
         }
     }

@@ -42,7 +42,8 @@ pub struct DQN<E, M, O, A> where
     pub(crate) replay_buffer: ReplayBuffer<E, O, A>,
     pub(crate) discount_factor: f64,
     pub(crate) tau: f64,
-    pub(crate) explorer: DQNExplorer
+    pub(crate) explorer: DQNExplorer,
+    pub(crate) device: tch::Device,
 }
 
 impl<E, M, O, A> DQN<E, M, O, A> where
@@ -73,11 +74,11 @@ impl<E, M, O, A> DQN<E, M, O, A> where
     fn update_critic(&mut self, batch: TchBatch<E, O, A>) -> f32 {
         trace!("DQN::update_critic()");
 
-        let obs = batch.obs;
-        let a = batch.actions;
-        let r = batch.rewards;
-        let next_obs = batch.next_obs;
-        let not_done = batch.not_dones;
+        let obs = batch.obs.to(self.device);
+        let a = batch.actions.to(self.device);
+        let r = batch.rewards.to(self.device);
+        let next_obs = batch.next_obs.to(self.device);
+        let not_done = batch.not_dones.to(self.device);
         trace!("obs.shape      = {:?}", obs.size());
         trace!("next_obs.shape = {:?}", next_obs.size());
         trace!("a.shape        = {:?}", a.size());

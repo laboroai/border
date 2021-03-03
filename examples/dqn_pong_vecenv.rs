@@ -6,7 +6,7 @@ use tch::nn;
 
 use lrr::{
     core::{
-        Trainer, Agent, util,
+        TrainerBuilder, Agent, util,
         record::{TensorboardRecorder, BufferedRecorder, Record}
     },
     env::py_gym_env::{
@@ -100,7 +100,7 @@ fn create_agent() -> impl Agent<Env> {
         .soft_update_interval(SOFT_UPDATE_INTERVAL)
         .tau(TAU)
         .explorer(DQNExplorer::EpsilonGreedy(EpsilonGreedy::new()))
-    .build(qnet, replay_buffer)
+        .build(qnet, replay_buffer, device)
 }
 
 fn create_env(n_procs: usize) -> Env {
@@ -117,13 +117,12 @@ fn main() -> Result<()> {
     let mut env = create_env(N_PROCS);
     let mut env_eval = create_env(1);
 
-    let mut trainer = Trainer::new(
-        env,
-        env_eval,
-        agent)
+    let mut trainer = TrainerBuilder::default()
         .max_opts(MAX_OPTS)
         .eval_interval(EVAL_INTERVAL)
-        .n_episodes_per_eval(N_EPISODES_PER_EVAL);
+        .n_episodes_per_eval(N_EPISODES_PER_EVAL)
+        .eval_threshold(19.0)
+        .build(env, env_eval, agent);
     let mut recorder = TensorboardRecorder::new("./examples/model/dqn_pong_vecenv");
 
     trainer.train(&mut recorder);

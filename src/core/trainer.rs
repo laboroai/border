@@ -114,6 +114,8 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
         self.agent.train(); // set to training mode
 
         loop {
+            let mut over_eval_threshold = false;
+
             // For resetted environments, elements in obs_prev are updated with env.reset().
             // After the update, obs_prev will have o_t+1 without reset, or o_0 with reset.
             // See `sample()` in `util.rs`.
@@ -148,12 +150,16 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
                     record.insert("mean_cum_eval_reward", Scalar(mean));
         
                     self.agent.train();
+
+                    if let Some(th) = self.eval_threshold {
+                        over_eval_threshold = mean >= th;
+                    }
                 }
 
                 recorder.write(record);
             }
 
-            if self.count_opts >= self.max_opts {
+            if self.count_opts >= self.max_opts || over_eval_threshold {
                 break;
             }
         }
