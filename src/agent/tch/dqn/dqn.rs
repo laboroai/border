@@ -119,17 +119,19 @@ impl<E, M, O, A> Policy<E> for DQN<E, M, O, A> where
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
     fn sample(&mut self, obs: &E::Obs) -> E::Act {
-        let obs = obs.clone().into();
-        let a = self.qnet.forward(&obs);
-        let a = if self.train {
-            match &mut self.explorer {
-                DQNExplorer::Softmax(softmax) => softmax.action(&self.qnet, &obs),
-                DQNExplorer::EpsilonGreedy(egreedy) => egreedy.action(&self.qnet, &obs),
-            }
-        } else {
-            a.argmax(-1, true)
-        };
-        a.into()
+        let obs = obs.clone().into().to(self.device);
+        no_grad(|| {
+            let a = if self.train {
+                match &mut self.explorer {
+                    DQNExplorer::Softmax(softmax) => softmax.action(&self.qnet, &obs),
+                    DQNExplorer::EpsilonGreedy(egreedy) => egreedy.action(&self.qnet, &obs),
+                }
+            } else {
+                let a = self.qnet.forward(&obs);
+                a.argmax(-1, true)
+            };
+            a.into()
+        })
     }
 }
 
