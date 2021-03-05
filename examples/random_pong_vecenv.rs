@@ -61,10 +61,14 @@ fn main() -> Result<()> {
     let obs = env.reset(None).unwrap();
     let obs_prev = RefCell::new(Some(obs));
 
-    for _ in 0..200 {
-        let _step = util::sample(&mut env, &mut policy, &obs_prev);
-    }
+    // for _ in 0..200 {
+    //     let _step = util::sample(&mut env, &mut policy, &obs_prev);
+    // }
 
+    env.close();
+
+    let mut env = create_env(1);
+    util::eval(&mut env, &mut policy, 5);
     env.close();
 
     Ok(())

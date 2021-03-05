@@ -1,5 +1,6 @@
 #![allow(clippy::float_cmp)]
 use std::cell::RefCell;
+use log::info;
 use crate::core::{
     Obs, Step, Env, Policy, record::{Record, Recorder, RecordValue}
 };
@@ -33,14 +34,21 @@ pub fn eval<E: Env, P: Policy<E>>(env: &mut E, policy: &mut P, n_episodes: usize
     let obs = env.reset(None).unwrap();
     let obs_prev = RefCell::new(Some(obs));
 
-    for _ in 0..n_episodes {
+    for i in 0..n_episodes {
         let mut r_sum = 0.0;
+        let mut steps = 0;
         loop {
             let (step, _) = sample(env, policy, &obs_prev);
             r_sum += &step.reward[0];
-            if step.is_done[0] == 1.0 as f32 { break; }
+            if step.is_done[0] == 1.0 as f32 {
+                break;
+            }
+            else {
+                steps += 1;
+            }
         }
         rs.push(r_sum);
+        info!("Episode {:?}, {:?} steps", i, steps);
     }
     rs
 }

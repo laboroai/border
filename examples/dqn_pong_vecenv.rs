@@ -42,7 +42,7 @@ const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
 const SOFT_UPDATE_INTERVAL: usize = 1000;
 const TAU: f64 = 1.0;
 const MAX_OPTS: usize = 1_000_000;
-const EVAL_INTERVAL: usize = 100;
+const EVAL_INTERVAL: usize = 1000;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 1;
 
@@ -126,6 +126,7 @@ fn main() -> Result<()> {
     let mut recorder = TensorboardRecorder::new("./examples/model/dqn_pong_vecenv");
 
     trainer.train(&mut recorder);
+    trainer.get_agent().save("./examples/model/dqn_pong_vecenv").unwrap(); // TODO: define appropriate error
 
     trainer.get_env().close();
     trainer.get_env_eval().close();
