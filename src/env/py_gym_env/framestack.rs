@@ -1,13 +1,25 @@
 //! An observation filter with staking observations (frames).
-use std::{fmt::Debug, iter::FromIterator, default::Default, marker::PhantomData};
-use log::trace;
+
+// use std::{fmt::Debug, iter::FromIterator, default::Default, marker::PhantomData};
+// use log::trace;
+// use num_traits::cast::AsPrimitive;
+// use pyo3::{Py, PyAny, PyObject, types::PyList};
+// use ndarray::{ArrayD, Axis, IxDyn, Slice, SliceInfo, SliceOrIndex, stack};
+// use numpy::{Element, PyArrayDyn};
+
+// use crate::{
+//     core::{Obs, record::{Record, RecordValue}},
+//     env::py_gym_env::{Shape, obs::PyGymEnvObs, PyGymEnvObsFilter},
+// };
+
+use std::{fmt::Debug, marker::PhantomData};
 use num_traits::cast::AsPrimitive;
 use pyo3::{Py, PyAny, PyObject, types::PyList};
-use ndarray::{ArrayD, Axis, IxDyn, Slice, SliceInfo, SliceOrIndex, stack};
+use ndarray::{ArrayD, Axis, IxDyn, SliceInfo, SliceOrIndex, stack};
 use numpy::{Element, PyArrayDyn};
 
 use crate::{
-    core::{Obs, record::{Record, RecordValue}},
+    core::record::Record,
     env::py_gym_env::{Shape, obs::PyGymEnvObs, PyGymEnvObsFilter},
 };
 
@@ -22,6 +34,7 @@ pub struct FrameStackFilter<S, T> {
     buffer: Vec<ArrayD<f32>>,
     n_procs: i64,
     n_stack: i64,
+    vectorized: bool,
     phantom: PhantomData<(S, T)>
 }
 
@@ -40,12 +53,24 @@ impl<S, T> FrameStackFilter<S, T> where
     S: Shape,
     T: Element + Debug + num_traits::identities::Zero + AsPrimitive<f32>,
 {
+    /// Constructs an observation filter for single process environments.
+    pub fn new(n_stack: i64) -> FrameStackFilter<S, T> {
+        FrameStackFilter {
+            buffer: (0..1).map(|_| {ArrayD::<f32>::zeros(S::shape())}).collect(),
+            n_procs: 1,
+            n_stack,
+            vectorized: false,
+            phantom: PhantomData,
+        }
+    }
+
     /// Constructs an observation filter for vectorized environments.
     pub fn vectorized(n_procs: i64, n_stack: i64) -> FrameStackFilter<S, T> {
         FrameStackFilter {
             buffer: (0..n_procs).map(|_| {ArrayD::<f32>::zeros(S::shape())}).collect(),
             n_procs,
             n_stack,
+            vectorized: true, // note: n_procs can be 1 when vectorized is true
             phantom: PhantomData,
         }
     }
@@ -111,50 +136,89 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for FrameStackFilter<S, T> where
     T: Element + Debug + num_traits::identities::Zero + AsPrimitive<f32>,
 {
     fn filt(&mut self, obs: PyObject) -> (PyGymEnvObs<S, T>, Record) {
-        // Processes the input observation to update `self.buffer`
-        pyo3::Python::with_gil(|py| {
-            debug_assert_eq!(obs.as_ref(py).get_type().name().unwrap(), "list");
+        if self.vectorized {
+            // Processes the input observation to update `self.buffer`
+            pyo3::Python::with_gil(|py| {
+                debug_assert_eq!(obs.as_ref(py).get_type().name().unwrap(), "list");
 
-            let obs: Py<PyList> = obs.extract(py).unwrap();
+                let obs: Py<PyList> = obs.extract(py).unwrap();
 
-            for (i, o) in (0..self.n_procs).zip(obs.as_ref(py).iter()) {
-                let o = Self::get_ndarray(o);
-                self.update_buffer(i, &o);
-            }
-        });
+                for (i, o) in (0..self.n_procs).zip(obs.as_ref(py).iter()) {
+                    let o = Self::get_ndarray(o);
+                    self.update_buffer(i, &o);
+                }
+            });
 
-        // Returned values
-        let array_views: Vec<_> = self.buffer.iter().map(|a| a.view()).collect();
-        let obs = PyGymEnvObs::<S, T> {
-            obs: stack(Axis(0), array_views.as_slice()).unwrap(),
-            phantom: PhantomData
-        };
+            // Returned values
+            let array_views: Vec<_> = self.buffer.iter().map(|a| a.view()).collect();
+            let obs = PyGymEnvObs::<S, T> {
+                obs: stack(Axis(0), array_views.as_slice()).unwrap(),
+                phantom: PhantomData
+            };
 
-        // TODO: add contents in the record
-        let record = Record::empty();
+            // TODO: add contents in the record
+            let record = Record::empty();
 
-        (obs, record)
+            (obs, record)
+        }
+        else {
+            // Update the buffer with obs
+            pyo3::Python::with_gil(|py| {
+                debug_assert_eq!(obs.as_ref(py).get_type().name().unwrap(), "ndarray");
+                let o = Self::get_ndarray(obs.as_ref(py));
+                self.fill_buffer(0, &o);
+            });
+
+            // Returns stacked observation in the buffer
+            let obs = PyGymEnvObs::<S, T> {
+                obs: self.buffer[0].clone().insert_axis(Axis(0)),
+                phantom: PhantomData
+            };
+
+            // TODO: add contents in the record
+            let record = Record::empty();
+
+            (obs, record)
+        }
     }
 
     fn reset(&mut self, obs: PyObject) -> PyGymEnvObs::<S, T> {
-        pyo3::Python::with_gil(|py| {
-            debug_assert_eq!(obs.as_ref(py).get_type().name().unwrap(), "list");
-
-            let obs: Py<PyList> = obs.extract(py).unwrap();
-
-            for (i, o) in (0..self.n_procs).zip(obs.as_ref(py).iter()) {
-                if o.get_type().name().unwrap() != "NoneType" {
-                    let o = Self::get_ndarray(o);
-                    self.fill_buffer(i, &o);
+        if self.vectorized {
+            pyo3::Python::with_gil(|py| {
+                debug_assert_eq!(obs.as_ref(py).get_type().name().unwrap(), "list");
+    
+                let obs: Py<PyList> = obs.extract(py).unwrap();
+    
+                for (i, o) in (0..self.n_procs).zip(obs.as_ref(py).iter()) {
+                    if o.get_type().name().unwrap() != "NoneType" {
+                        let o = Self::get_ndarray(o);
+                        self.fill_buffer(i, &o);
+                    }
                 }
+            });
+    
+            // Returned values
+            let array_views: Vec<_> = self.buffer.iter().map(|a| a.view()).collect();
+            PyGymEnvObs::<S, T> {
+                obs: stack(Axis(0), array_views.as_slice()).unwrap(),
+                phantom: PhantomData
             }
-        });
+        }
+        else {
+            // Update the buffer if obs is not None, otherwise do nothing
+            pyo3::Python::with_gil(|py| {
+                if obs.as_ref(py).get_type().name().unwrap() != "NoneType" {
+                    debug_assert_eq!(obs.as_ref(py).get_type().name().unwrap(), "ndarray");
+                    let o = Self::get_ndarray(obs.as_ref(py));
+                    self.fill_buffer(0, &o);
+                }
+            });
 
-        // Returned values
-        let array_views: Vec<_> = self.buffer.iter().map(|a| a.view()).collect();
-        PyGymEnvObs::<S, T> {
-            obs: stack(Axis(0), array_views.as_slice()).unwrap(),
-            phantom: PhantomData
+            // Returns stacked observation in the buffer
+            PyGymEnvObs::<S, T> {
+                obs: self.buffer[0].clone().insert_axis(Axis(0)),
+                phantom: PhantomData
+            }
         }
     }
 }

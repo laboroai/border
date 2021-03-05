@@ -200,6 +200,14 @@ def make_env(env_id, img_dir, atari_wrapper, seed, rank):
 
     return _thunk
 
+def make_env_single_proc(env_id, atari_wrapper):
+    env = gym.make(env_id)
+    if atari_wrapper:
+        env = wrap_deepmind(env)
+        env = WrapPyTorch(env)
+
+    return env
+
 class WrapPyTorch(gym.ObservationWrapper):
     def __init__(self, env=None):
         super(WrapPyTorch, self).__init__(env)

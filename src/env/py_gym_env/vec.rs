@@ -40,7 +40,7 @@ impl<O, A, OF, AF> PyVecGymEnv<O, A, OF, AF> where
     pub fn new(name: &str, n_procs: usize, obs_filter: OF, act_filter: AF, atari_wrapper: bool) -> PyResult<Self> {
         pyo3::Python::with_gil(|py| {
             // sys.argv is used by pyglet library, which is responsible for rendering.
-            // Depending on the environment, however, sys.argv can be empty.
+            // Depending on the python interpreter, however, sys.argv can be empty.
             // For that case, sys argv is set here.
             // See https://github.com/PyO3/pyo3/issues/1241#issuecomment-715952517
             let locals = [("sys", py.import("sys")?)].into_py_dict(py);

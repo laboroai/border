@@ -98,19 +98,22 @@ impl<O, A, OF, AF> PyGymEnv<O, A, OF, AF> where
         let py = gil.python();
 
         // sys.argv is used by pyglet library, which is responsible for rendering.
-        // Depending on the environment, however, sys.argv can be empty.
+        // Depending on the python interpreter, however, sys.argv can be empty.
         // For that case, sys argv is set here.
         // See https://github.com/PyO3/pyo3/issues/1241#issuecomment-715952517
         let locals = [("sys", py.import("sys")?)].into_py_dict(py);
         let _ = py.eval("sys.argv.insert(0, 'PyGymEnv')", None, Some(&locals))?;
 
         let env = if atari_wrapper {
-            unimplemented!()
+            let gym = py.import("atari_wrappers")?;
+            let env = gym.call("make_env_single_proc", (name, atari_wrapper), None)?;
+            env.call_method("seed", (42,), None)?;
+            env
         }
         else {
             let gym = py.import("gym")?;
             let env = gym.call("make", (name,), None)?;
-            let _ = env.call_method("seed", (42,), None)?;
+            env.call_method("seed", (42,), None)?;
             env
         };
 

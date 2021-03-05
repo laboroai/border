@@ -1,3 +1,4 @@
+//! Conversion of continuous actions in [crate::env::py_gym_env::base::PyGymEnv].
 use std::marker::PhantomData;
 use log::trace;
 use ndarray::{Array1, IxDyn};
@@ -21,6 +22,9 @@ impl<S: Shape> From<Tensor> for PyGymEnvContinuousAct<S> {
     }
 }
 
+/// Buffer of continuous action, used in a replay buffer.
+///
+/// Action is represented as a tch tensor.
 pub struct TchPyGymEnvContinuousActBuffer<S: Shape> {
     act: Tensor,
     n_procs: i64,
