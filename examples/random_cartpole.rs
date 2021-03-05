@@ -68,7 +68,7 @@ fn main() -> Result<()> {
     let act_filter = ActFilter::default();
     let mut recorder = BufferedRecorder::new();
     // TODO: Define appropriate error for failing to construct environment
-    let mut env = Env::new("CartPole-v0", obs_filter, act_filter).unwrap();
+    let mut env = Env::new("CartPole-v0", obs_filter, act_filter, false).unwrap();
     env.set_render(true);
     let mut policy = RandomPolicy{};
 

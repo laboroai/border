@@ -78,13 +78,13 @@ fn create_agent(epsilon_greedy: bool) -> impl Agent<Env> {
     else {
         builder
     }
-    .build(qnet, replay_buffer)
+    .build(qnet, replay_buffer, device)
 }
 
 fn create_env() -> Env {
     let obs_filter = ObsFilter::default(); //::new();
     let act_filter = ActFilter::default();
-    Env::new("CartPole-v0", obs_filter, act_filter).unwrap()
+    Env::new("CartPole-v0", obs_filter, act_filter, false).unwrap()
 }
 
 #[derive(Debug, Serialize)]

@@ -93,7 +93,7 @@ impl<O, A, OF, AF> PyGymEnv<O, A, OF, AF> where
     /// Constructs an environment.
     ///
     /// `name` is the name of the environment, which is implemented in OpenAI gym.
-    pub fn new(name: &str, obs_filter: OF, act_filter: AF) -> PyResult<Self> {
+    pub fn new(name: &str, obs_filter: OF, act_filter: AF, atari_wrapper: bool) -> PyResult<Self> {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
@@ -104,9 +104,15 @@ impl<O, A, OF, AF> PyGymEnv<O, A, OF, AF> where
         let locals = [("sys", py.import("sys")?)].into_py_dict(py);
         let _ = py.eval("sys.argv.insert(0, 'PyGymEnv')", None, Some(&locals))?;
 
-        let gym = py.import("gym")?;
-        let env = gym.call("make", (name,), None)?;
-        let _ = env.call_method("seed", (42,), None)?;
+        let env = if atari_wrapper {
+            unimplemented!()
+        }
+        else {
+            let gym = py.import("gym")?;
+            let env = gym.call("make", (name,), None)?;
+            let _ = env.call_method("seed", (42,), None)?;
+            env
+        };
 
         // TODO: consider removing action_space and observation_space.
         // Act/obs types are specified by type parameters.
