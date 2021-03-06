@@ -1,17 +1,4 @@
 //! An observation filter with staking observations (frames).
-
-// use std::{fmt::Debug, iter::FromIterator, default::Default, marker::PhantomData};
-// use log::trace;
-// use num_traits::cast::AsPrimitive;
-// use pyo3::{Py, PyAny, PyObject, types::PyList};
-// use ndarray::{ArrayD, Axis, IxDyn, Slice, SliceInfo, SliceOrIndex, stack};
-// use numpy::{Element, PyArrayDyn};
-
-// use crate::{
-//     core::{Obs, record::{Record, RecordValue}},
-//     env::py_gym_env::{Shape, obs::PyGymEnvObs, PyGymEnvObsFilter},
-// };
-
 use std::{fmt::Debug, marker::PhantomData};
 use num_traits::cast::AsPrimitive;
 use pyo3::{Py, PyAny, PyObject, types::PyList};
