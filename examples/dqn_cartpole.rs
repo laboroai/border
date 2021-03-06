@@ -5,13 +5,12 @@ use clap::{Arg, App};
 use csv::WriterBuilder;
 use tch::nn;
 
-use lrr::{agent::{
-        OptInterval,
-        tch::{
-            DQNBuilder, ReplayBuffer, model::Model1_1,
-            dqn::explorer::{DQNExplorer, EpsilonGreedy},
-        }
-    }, core::{Agent, Trainer, TrainerBuilder, record::{TensorboardRecorder, BufferedRecorder, Record}, util}, env::py_gym_env::{
+use lrr::{
+    core::{
+        Agent, Trainer, TrainerBuilder, util,
+        record::{TensorboardRecorder, BufferedRecorder, Record}
+    },
+    env::py_gym_env::{
         Shape, PyGymEnv,
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
@@ -19,7 +18,15 @@ use lrr::{agent::{
             obs::TchPyGymEnvObsBuffer,
             act_d::TchPyGymEnvDiscreteActBuffer
         }
-    }};
+    },
+    agent::{
+        OptInterval,
+        tch::{
+            DQNBuilder, ReplayBuffer, model::Model1_1,
+            dqn::explorer::{DQNExplorer, EpsilonGreedy},
+        }
+    }
+};
 
 const DIM_OBS: usize = 4;
 const DIM_ACT: usize = 2;
