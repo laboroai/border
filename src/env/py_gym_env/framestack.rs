@@ -153,7 +153,7 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for FrameStackFilter<S, T> where
             pyo3::Python::with_gil(|py| {
                 debug_assert_eq!(obs.as_ref(py).get_type().name().unwrap(), "ndarray");
                 let o = Self::get_ndarray(obs.as_ref(py));
-                self.fill_buffer(0, &o);
+                self.update_buffer(0, &o);
             });
 
             // Returns stacked observation in the buffer
