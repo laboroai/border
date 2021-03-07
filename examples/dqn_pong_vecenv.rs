@@ -1,13 +1,10 @@
-use std::{convert::TryFrom, fs::File, iter::FromIterator, cell::RefCell};
-use serde::Serialize;
 use anyhow::Result;
-use csv::WriterBuilder;
 use tch::nn;
 
 use lrr::{
     core::{
-        TrainerBuilder, Agent, util,
-        record::{TensorboardRecorder, BufferedRecorder, Record}
+        TrainerBuilder, Agent,
+        record::TensorboardRecorder,
     },
     env::py_gym_env::{
         Shape, PyVecGymEnv,
@@ -39,11 +36,11 @@ const BATCH_SIZE: usize = 32;
 const N_TRANSITIONS_WARMUP: usize = 2500;
 const N_UPDATES_PER_OPT: usize = 1;
 const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
-const SOFT_UPDATE_INTERVAL: usize = 1000;
+const SOFT_UPDATE_INTERVAL: usize = 1_000;
 const TAU: f64 = 1.0;
-const MAX_OPTS: usize = 1_000_000;
-const EVAL_INTERVAL: usize = 1000;
-const REPLAY_BUFFER_CAPACITY: usize = 10000;
+const MAX_OPTS: usize = 3_000_000;
+const EVAL_INTERVAL: usize = 10_000;
+const REPLAY_BUFFER_CAPACITY: usize = 10_000;
 const N_EPISODES_PER_EVAL: usize = 1;
 
 #[derive(Debug, Clone)]
@@ -114,14 +111,13 @@ fn main() -> Result<()> {
     tch::manual_seed(42);
 
     let mut agent = create_agent();
-    let mut env = create_env(N_PROCS);
+    let env = create_env(N_PROCS);
     let mut env_eval = create_env(1);
 
     let mut trainer = TrainerBuilder::default()
         .max_opts(MAX_OPTS)
         .eval_interval(EVAL_INTERVAL)
         .n_episodes_per_eval(N_EPISODES_PER_EVAL)
-        .eval_threshold(19.0)
         .build(env, env_eval, agent);
     let mut recorder = TensorboardRecorder::new("./examples/model/dqn_pong_vecenv");
 
@@ -130,6 +126,12 @@ fn main() -> Result<()> {
 
     trainer.get_env().close();
     trainer.get_env_eval().close();
+
+    // agent.load("./examples/model/dqn_pong_vecenv_20210307_ec2").unwrap(); // TODO: define appropriate error
+    // agent.eval();
+    // let reward = lrr::core::util::eval(&mut env_eval, &mut agent, 5);
+    // println!("{:?}", reward);
+    // env_eval.close();
 
     Ok(())
 }
