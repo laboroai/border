@@ -3,10 +3,11 @@ use tch::nn;
 
 use lrr::{
     core::{
-        Agent, util,
+        TrainerBuilder, Agent,
+        record::TensorboardRecorder,
     },
     env::py_gym_env::{
-        Shape, PyGymEnv,
+        Shape, PyGymEnv, PyVecGymEnv,
         obs::PyGymEnvObs,
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
         framestack::FrameStackFilter,
@@ -24,7 +25,7 @@ use lrr::{
     }
 };
 
-// const N_PROCS: usize = 4;
+const N_PROCS: usize = 4;
 const N_STACK: usize = 4;
 const DIM_OBS: [usize; 4] = [4, 1, 84, 84];
 const DIM_ACT: usize = 6;
@@ -35,12 +36,12 @@ const BATCH_SIZE: usize = 32;
 const N_TRANSITIONS_WARMUP: usize = 2500;
 const N_UPDATES_PER_OPT: usize = 1;
 const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
-const SOFT_UPDATE_INTERVAL: usize = 1000;
+const SOFT_UPDATE_INTERVAL: usize = 1_000;
 const TAU: f64 = 1.0;
-const REPLAY_BUFFER_CAPACITY: usize = 1;
-// const MAX_OPTS: usize = 1_000_000;
-// const EVAL_INTERVAL: usize = 1000;
-// const N_EPISODES_PER_EVAL: usize = 1;
+const MAX_OPTS: usize = 3_000_000;
+const EVAL_INTERVAL: usize = 10_000;
+const REPLAY_BUFFER_CAPACITY: usize = 10_000;
+const N_EPISODES_PER_EVAL: usize = 1;
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -56,6 +57,7 @@ type ActFilter = PyGymEnvDiscreteActRawFilter;
 type Obs = PyGymEnvObs<ObsShape, u8>;
 type Act = PyGymEnvDiscreteAct;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+// type Env = PyVecGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 type ReplayBuffer = ReplayBuffer_<Env, ObsBuffer, ActBuffer>;
@@ -103,6 +105,9 @@ fn create_env() -> Env {
     let obs_filter = ObsFilter::new(N_STACK as i64);
     let act_filter = ActFilter::default();
     Env::new("PongNoFrameskip-v4", obs_filter, act_filter, true).unwrap()
+    // let obs_filter = ObsFilter::vectorized(N_PROCS as i64, N_STACK as i64);
+    // let act_filter = ActFilter::vectorized();
+    // Env::new("PongNoFrameskip-v4", n_procs, obs_filter, act_filter, true).unwrap()
 }
 
 fn main() -> Result<()> {
@@ -110,12 +115,29 @@ fn main() -> Result<()> {
     tch::manual_seed(42);
 
     let mut agent = create_agent();
-    let mut env = create_env();
-    env.set_render(true);
-    // agent.load("./examples/model/dqn_cartpole").unwrap(); // TODO: define appropriate error
+    // let env = create_env(N_PROCS);
+    let mut env_eval = create_env();
+
+    // let mut trainer = TrainerBuilder::default()
+    //     .max_opts(MAX_OPTS)
+    //     .eval_interval(EVAL_INTERVAL)
+    //     .n_episodes_per_eval(N_EPISODES_PER_EVAL)
+    //     .build(env, env_eval, agent);
+    // let mut recorder = TensorboardRecorder::new("./examples/model/dqn_pong_vecenv");
+
+    // trainer.train(&mut recorder);
+    // trainer.get_agent().save("./examples/model/dqn_pong_vecenv").unwrap(); // TODO: define appropriate error
+
+    // trainer.get_env().close();
+    // trainer.get_env_eval().close();
+
+    env_eval.set_render(true);
+    env_eval.set_wait_in_render(std::time::Duration::from_millis(10));
+
+    agent.load("./examples/model/dqn_pong_vecenv_20210307_ec2").unwrap(); // TODO: define appropriate error
     agent.eval();
-
-    util::eval(&mut env, &mut agent, 1);
-
+    let reward = lrr::core::util::eval(&mut env_eval, &mut agent, 5);
+    println!("{:?}", reward);
+ 
     Ok(())
 }

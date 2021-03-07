@@ -127,11 +127,5 @@ fn main() -> Result<()> {
     trainer.get_env().close();
     trainer.get_env_eval().close();
 
-    // agent.load("./examples/model/dqn_pong_vecenv_20210307_ec2").unwrap(); // TODO: define appropriate error
-    // agent.eval();
-    // let reward = lrr::core::util::eval(&mut env_eval, &mut agent, 5);
-    // println!("{:?}", reward);
-    // env_eval.close();
-
     Ok(())
 }

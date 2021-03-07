@@ -1,9 +1,9 @@
 #![allow(clippy::float_cmp)]
-use std::{fmt::Debug, error::Error};
+use std::{fmt::Debug, error::Error, time::Duration};
 use std::marker::PhantomData;
 use std::cell::RefCell;
 use log::{trace};
-use pyo3::{PyObject, PyResult, Python, ToPyObject};
+use pyo3::{PyObject, PyResult, Python, ToPyObject, libc::sleep};
 use pyo3::types::{PyTuple, IntoPyDict};
 
 use crate::core::{Act, Env, Info, Obs, Step, record::Record};
@@ -81,6 +81,7 @@ pub struct PyGymEnv<O, A, OF, AF> where
     max_steps: Option<usize>,
     obs_filter: OF,
     act_filter: AF,
+    wait_in_render: Duration,
     phantom: PhantomData<(O, A)>,
 }
 
@@ -139,6 +140,7 @@ impl<O, A, OF, AF> PyGymEnv<O, A, OF, AF> where
             max_steps: None,
             obs_filter,
             act_filter,
+            wait_in_render: Duration::from_millis(0),
             phantom: PhantomData,
         })
     }
@@ -154,7 +156,12 @@ impl<O, A, OF, AF> PyGymEnv<O, A, OF, AF> where
     pub fn max_steps(mut self, v: Option<usize>) -> Self {
         self.max_steps = v;
         self
-    }    
+    }
+
+    /// Set time for sleep in rendering.
+    pub fn set_wait_in_render(&mut self, d: Duration) {
+        self.wait_in_render = d;
+    }
 }
 
 impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
@@ -208,6 +215,7 @@ impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
         pyo3::Python::with_gil(|py| {
             if self.render {
                 let _ = self.env.call_method0(py, "render");
+                std::thread::sleep(self.wait_in_render);
             }
 
             let (a_py, record_a) = self.act_filter.filt(a.clone());
