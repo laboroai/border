@@ -3,7 +3,7 @@ use serde::Serialize;
 use anyhow::Result;
 use csv::WriterBuilder;
 
-use lrr::{
+use border::{
     core::{Policy, util, record::{Record, BufferedRecorder}},
     env::py_gym_env::{
         Shape, PyGymEnv,

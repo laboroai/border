@@ -5,7 +5,7 @@ use clap::{Arg, App};
 use csv::WriterBuilder;
 use tch::nn;
 
-use lrr::{
+use border::{
     core::{
         Agent, Trainer, TrainerBuilder, util,
         record::{TensorboardRecorder, BufferedRecorder, Record}
