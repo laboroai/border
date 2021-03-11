@@ -37,5 +37,8 @@ jobs:
           name: Prepare LD_LIBRARY_PATH (Ubuntu only)
           run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
 
+        - name: Install gym
+          run: pip install gym[atari]
+
         - name: Test
           run: cargo test
