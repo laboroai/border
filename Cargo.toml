@@ -29,9 +29,17 @@ thiserror = "1.0"
 # [features]
 # python = ["pyo3"]
 
+[[example]]
+name = "random_cartpole"
+
+[[example]]
+name = "dqn_cartpole"
+
+[[example]]
+name = "sac_pendulum"
+
 # [[example]]
-# name = "test1"
-# required-features = ["python"]
+# name = "ddpg_pendulum"
 
 [dev-dependencies]
 clap = "2.33.3"

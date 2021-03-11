@@ -94,8 +94,8 @@ impl SACBuilder{
     }
 
     /// Constructs SAC.
-    pub fn build<E, Q, P, O, A>(self, critic: Q, policy: P, replay_buffer: ReplayBuffer<E, O, A>)
-        -> SAC<E, Q, P, O, A> where
+    pub fn build<E, Q, P, O, A>(self, critic: Q, policy: P,
+        replay_buffer: ReplayBuffer<E, O, A>, device: tch::Device) -> SAC<E, Q, P, O, A> where
         E: Env,
         Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
         P: Model1<Output = (ActMean, ActStd)> + Clone,
@@ -122,6 +122,7 @@ impl SACBuilder{
             batch_size: self.batch_size,
             train: self.train,
             prev_obs: RefCell::new(None),
+            device,
             phantom: PhantomData,       
         }
     }

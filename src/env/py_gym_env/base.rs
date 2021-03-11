@@ -233,6 +233,7 @@ impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
             if let Some(max_steps) = self.max_steps {
                 if *self.count_steps.borrow() >= max_steps {
                     is_done[0] = 1.0;
+                    self.count_steps.replace(0);
                 }
             };
 
