@@ -35,7 +35,29 @@ In order to run examples, install python>=3.7 and [gym](https://gym.openai.com).
 
   After training, the trained agent runs for 5 episodes. In the code, the parameters of the trained Q-network (and the target network) are saved in `examples/model/dqn_cartpole` and load them for testing saving/loading trained models.
 
-* SAC agent:
+* SAC agent: the following command trains a SAC agent on [Pendulum-v0](https://gym.openai.com/envs/Pendulum-v0/), which takes continuous action:
+
+  ```bash
+  $ RUST_LOG=info cargo run --example sac_pendulum
+  ```
+
+  The code defines an action filter that doubles the torque in the environment.
+
+* Pong: the following command trains a DQN agent on [PongNoFrameskip-v4](https://gym.openai.com/envs/Pong-v0/):
+
+  ```bash
+  $ PYTHONPATH=$REPO/examples RUST_LOG=info cargo run --example dqn_pong_vecenv
+  ```
+
+  This demonstrates how to use vectorized environments, in which 4 environments are running synchronously (see code). It took about 11 hours for 2M steps on a `g3s.xlarge` instance on EC2. Hyperparameter values, tuned specific to Pong instead of all Atari games, are adapted from the book [Deep Reinforcement Learning Hands-On](https://www.packtpub.com/product/deep-reinforcement-learning-hands-on-second-edition/9781838826994). The learning curve is shown below.
+
+  ![learning_curve](learning_curve.png)
+
+  After the training, you can see how the agent plays:
+
+  ```bash
+  $ PYTHONPATH=$REPO/examples cargo run --example dqn_pong_eval
+  ```
 
 ## Features
 

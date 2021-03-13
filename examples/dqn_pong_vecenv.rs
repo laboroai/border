@@ -1,7 +1,7 @@
 use anyhow::Result;
 use tch::nn;
 
-use lrr::{
+use border::{
     core::{
         TrainerBuilder, Agent,
         record::TensorboardRecorder,

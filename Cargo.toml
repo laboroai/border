@@ -35,8 +35,11 @@ name = "dqn_cartpole"
 [[example]]
 name = "sac_pendulum"
 
-# [[example]]
-# name = "ddpg_pendulum"
+[[example]]
+name = "dqn_pong_vecenv"
+
+[[example]]
+name = "dqn_pong_eval"
 
 [dev-dependencies]
 clap = "2.33.3"
