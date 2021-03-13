@@ -12,13 +12,30 @@ In order to run examples, install python>=3.7 and [gym](https://gym.openai.com).
 
 ## Examples
 
-* Random agent: the following command runs a random agent for 5 episodes in [CartPole-v0](https://gym.openai.com/envs/CartPole-v0/):
+* Random policy: the following command runs a random controller (policy) for 5 episodes in [CartPole-v0](https://gym.openai.com/envs/CartPole-v0/):
 
   ```bash
   $ cargo run --example random_cartpole
   ```
 
-  It generates a csv file in `examples/model`, including the sequences of observation and reward values in the episodes.
+  It renders during the episodes and generates a csv file in `examples/model`, including the sequences of observation and reward values in the episodes.
+
+  ```bash
+  $ head -n3 examples/model/random_cartpole_eval.csv
+  0,0,1.0,-0.012616985477507114,0.19292789697647095,0.04204097390174866,-0.2809212803840637
+  0,1,1.0,-0.008758427575230598,-0.0027677505277097225,0.036422546952962875,0.024719225242733955
+  0,2,1.0,-0.008813782595098019,-0.1983925849199295,0.036916933953762054,0.3286677300930023
+  ```
+
+* DQN agent: the following command trains a DQN agent:
+
+  ```bash
+  $ RUST_LOG=info cargo run --example dqn_cartpole
+  ```
+
+  After training, the trained agent runs for 5 episodes. In the code, the parameters of the trained Q-network (and the target network) are saved in `examples/model/dqn_cartpole` and load them for testing saving/loading trained models.
+
+* SAC agent:
 
 ## Features
 
@@ -32,7 +49,7 @@ In order to run examples, install python>=3.7 and [gym](https://gym.openai.com).
 ## Roadmap
 
 * More tests and documentations
-* Improve performance (https://github.com/taku-y/border/issues/5)
+* Investigate a performance issue (https://github.com/taku-y/border/issues/5)
 * More environments
   * [pybullet-gym](https://github.com/benelot/pybullet-gym), [rogue-gym](https://github.com/kngwyu/rogue-gym), [ViZDoom](https://github.com/mwydmuch/ViZDoom), [gym-minecraft](https://github.com/tambetm/gym-minecraft)
 * More RL algorithms
