@@ -6,7 +6,7 @@ edition = "2018"
 
 description = "Reinforcement learning library"
 repository = "https://github.com/taku-y/border"
-keywords = ["reinforcement learning"]
+keywords = ["reinforcement_learning"]
 categories = ["science"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
