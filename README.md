@@ -6,7 +6,19 @@ Border is a reinforcement learning library in Rust.
 
 Border is currently under development.
 
+## Prerequisites
+
+In order to run examples, install python>=3.7 and [gym](https://gym.openai.com). Gym is the only built-in environment. The library itself works with any kind of environment.
+
 ## Examples
+
+* Random agent: the following command runs a random agent for 5 episodes in [CartPole-v0](https://gym.openai.com/envs/CartPole-v0/):
+
+  ```bash
+  $ cargo run --example random_cartpole
+  ```
+
+  It generates a csv file in `examples/model`, including the sequences of observation and reward values in the episodes.
 
 ## Features
 
@@ -20,6 +32,7 @@ Border is currently under development.
 ## Roadmap
 
 * More tests and documentations
+* Improve performance (https://github.com/taku-y/border/issues/5)
 * More environments
   * [pybullet-gym](https://github.com/benelot/pybullet-gym), [rogue-gym](https://github.com/kngwyu/rogue-gym), [ViZDoom](https://github.com/mwydmuch/ViZDoom), [gym-minecraft](https://github.com/tambetm/gym-minecraft)
 * More RL algorithms
