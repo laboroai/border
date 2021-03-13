@@ -3,7 +3,7 @@ use std::{fmt::Debug, error::Error, time::Duration};
 use std::marker::PhantomData;
 use std::cell::RefCell;
 use log::{trace};
-use pyo3::{PyObject, PyResult, Python, ToPyObject, libc::sleep};
+use pyo3::{PyObject, PyResult, Python, ToPyObject};
 use pyo3::types::{PyTuple, IntoPyDict};
 
 use crate::core::{Act, Env, Info, Obs, Step, record::Record};
