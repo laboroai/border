@@ -6,7 +6,7 @@ use csv::WriterBuilder;
 use tch::nn;
 use pyo3::PyObject;
 
-use lrr::{
+use border::{
     core::{
         Agent, Trainer,
         record::{BufferedRecorder, Record, RecordValue, TensorboardRecorder},
@@ -115,7 +115,7 @@ fn create_agent() -> impl Agent<Env> {
 fn create_env() -> Env {
     let obs_filter = ObsFilter::default();
     let act_filter = ActFilter {};
-    Env::new("Pendulum-v0", obs_filter, act_filter)
+    Env::new("Pendulum-v0", obs_filter, act_filter, false)
         .unwrap()
         .max_steps(Some(200))
 }

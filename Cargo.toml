@@ -10,6 +10,7 @@ keywords = ["reinforcement learning"]
 categories = ["science"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
+autoexamples = false
 
 [dependencies]
 ndarray = { version = "0.14", features = ["serde"] }
@@ -24,6 +25,18 @@ num-traits = "0.2.14"
 chrono = "0.4"
 tensorboard-rs = "0.2.4"
 thiserror = "1.0"
+
+[[example]]
+name = "random_cartpole"
+
+[[example]]
+name = "dqn_cartpole"
+
+[[example]]
+name = "sac_pendulum"
+
+# [[example]]
+# name = "ddpg_pendulum"
 
 [dev-dependencies]
 clap = "2.33.3"

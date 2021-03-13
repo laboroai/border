@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+      name: Test
+      runs-on: ${{ matrix.os }}
+      strategy:
+        matrix:
+          os: [ubuntu-latest, windows-latest, macOS-latest]
+          rust: [stable, nightly]
+          python-version: [3.7]
+      steps:
+        - uses: actions/checkout@v2
+
+        - name: Set up Python ${{ matrix.python-version }}
+          uses: actions/setup-python@v2
+          with:
+            python-version: ${{ matrix.python-version }}
+            architecture: ${{ matrix.platform.python-architecture }}
+
+        - name: Install Rust toolchain
+          uses: actions-rs/toolchain@v1
+          with:
+            toolchain: ${{ matrix.rust }}
+            target: ${{ matrix.platform.rust-target }}
+            profile: minimal
+            default: true
+
+        - if: matrix.platform.os == 'ubuntu-latest'
+          name: Prepare LD_LIBRARY_PATH (Ubuntu only)
+          run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
+
+        - name: Install gym
+          run: pip install gym[atari]
+
+        - name: Test
+          run: cargo test

@@ -8,7 +8,7 @@ use crate::{
         record::{Record, RecordValue},
     },
     agent::{
-        OptInterval, OptIntervalCounter,
+        OptIntervalCounter,
         tch::{
             ReplayBuffer, TchBuffer, TchBatch,
             model::{Model1, Model2},
@@ -46,13 +46,14 @@ pub struct SAC<E, Q, P, O, A> where
     pub(in crate::agent::tch::sac) batch_size: usize,
     pub(in crate::agent::tch::sac) train: bool,
     pub(in crate::agent::tch::sac) prev_obs: RefCell<Option<E::Obs>>,
-    pub(in crate::agent::tch::sac) phantom: PhantomData<E>
+    pub(in crate::agent::tch::sac) phantom: PhantomData<E>,
+    pub(in crate::agent::tch::sac) device: tch::Device,
 }
 
 impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
     E: Env,
     Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
-    P: Model1<Output = (ActMean, ActStd)> + Clone,
+    P: Model1<Input=Tensor, Output = (ActMean, ActStd)> + Clone,
     E::Obs :Into<O::SubBatch>,
     E::Act :From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
@@ -78,7 +79,7 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
         trace!("SAC.action_logp()");
 
         let (mean, lstd) = self.pi.forward(o);
-        let std = lstd.exp().clip(self.min_std, self.max_std); //.minimum(&Tensor::from(self.max_std));
+        let std = lstd.exp().clip(self.min_std, self.max_std);
         let z = Tensor::randn(mean.size().as_slice(), tch::kind::FLOAT_CPU);
         let a = (&std * &z + &mean).tanh();
         let log_p = normal_logp(&z)
@@ -100,16 +101,11 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
         trace!("SAC.update_critic()");
 
         let loss = {
-            let o = &batch.obs;
-            let a = &batch.actions;
-            let next_o = &batch.next_obs;
-            let r = &batch.rewards;
-            let not_done = &batch.not_dones;
-            // trace!("obs.shape      = {:?}", o.size());
-            // trace!("next_obs.shape = {:?}", next_o.size());
-            // trace!("act.shape      = {:?}", a.size());
-            trace!("reward.shape   = {:?}", r.size());
-            trace!("not_done.shape = {:?}", not_done.size());
+            let o = &batch.obs.to(self.device);
+            let a = &batch.actions.to(self.device);
+            let next_o = &batch.next_obs.to(self.device);
+            let r = &batch.rewards.to(self.device);
+            let not_done = &batch.not_dones.to(self.device);
 
             let pred = self.qnet.forward(&o, &a);
             let tgt = {
@@ -148,7 +144,7 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
         trace!("SAC.update_actor()");
 
         let loss = {
-            let o = &batch.obs;
+            let o = &batch.obs.to(self.device);
             let (a, log_p) = self.action_logp(o);
             let qval = self.qnet.forward(o, &a).squeeze();
             let loss = (self.alpha * &log_p - &qval).mean(tch::Kind::Float);
@@ -174,14 +170,14 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
 impl<E, Q, P, O, A> Policy<E> for SAC<E, Q, P, O, A> where
     E: Env,
     Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
-    P: Model1<Output = (ActMean, ActStd)> + Clone,
+    P: Model1<Input=Tensor, Output = (ActMean, ActStd)> + Clone,
     E::Obs :Into<O::SubBatch>,
     E::Act :From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
     fn sample(&mut self, obs: &E::Obs) -> E::Act {
-        let obs = obs.clone().into();
+        let obs = obs.clone().into().to(self.device);
         let (mean, lstd) = self.pi.forward(&obs);
         let std = lstd.exp().minimum(&Tensor::from(self.max_std));
         let act = if self.train {
@@ -197,7 +193,7 @@ impl<E, Q, P, O, A> Policy<E> for SAC<E, Q, P, O, A> where
 impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A> where
     E: Env,
     Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
-    P: Model1<Output = (ActMean, ActStd)> + Clone,
+    P: Model1<Input=Tensor, Output = (ActMean, ActStd)> + Clone,
     E::Obs :Into<O::SubBatch>,
     E::Act :From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
