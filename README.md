@@ -51,7 +51,7 @@ In order to run examples, install python>=3.7 and [gym](https://gym.openai.com).
 
   This demonstrates how to use vectorized environments, in which 4 environments are running synchronously (see code). It took about 11 hours for 2M steps on a `g3s.xlarge` instance on EC2. Hyperparameter values, tuned specific to Pong instead of all Atari games, are adapted from the book [Deep Reinforcement Learning Hands-On](https://www.packtpub.com/product/deep-reinforcement-learning-hands-on-second-edition/9781838826994). The learning curve is shown below.
 
-  ![learning_curve](learning_curve.png)
+  <img src="learning_curve.png" width="256">
 
   After the training, you can see how the agent plays:
 
