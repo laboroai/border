@@ -39,7 +39,7 @@ const N_UPDATES_PER_OPT: usize = 1;
 const TAU: f64 = 0.001;
 const ALPHA: f64 = 1.0;
 const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
-const MAX_OPTS: usize = 2_000;
+const MAX_OPTS: usize = 10;
 const EVAL_INTERVAL: usize = 1_000;
 const REPLAY_BUFFER_CAPACITY: usize = 100_000;
 const N_EPISODES_PER_EVAL: usize = 5;
@@ -159,6 +159,7 @@ impl TryFrom<&Record> for PendulumRecord {
     }
 }
 
+#[test]
 fn main() -> Result<()> {
     env_logger::init();
     tch::manual_seed(42);
@@ -179,7 +180,7 @@ fn main() -> Result<()> {
     let mut env = create_env();
     let mut agent = create_agent();
     let mut recorder = BufferedRecorder::new();
-    env.set_render(true);
+    // env.set_render(true);
     agent.load("./examples/model/sac_pendulum").unwrap();
     agent.eval();
 
