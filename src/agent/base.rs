@@ -18,7 +18,7 @@ pub struct OptIntervalCounter {
 }
 
 impl OptIntervalCounter {
-    pub fn do_optimize(&mut self, is_done: &[f32]) -> bool {
+    pub fn do_optimize(&mut self, is_done: &[i8]) -> bool {
         let is_done_any = is_done.iter().fold(0, |x, v| x + *v as i32) > 0;
         match self.opt_interval {
             OptInterval::Steps(interval) => {

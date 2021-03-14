@@ -13,7 +13,7 @@ use crate::{
     env::py_gym_env::{Shape, PyGymEnvObsFilter},
 };
 
-fn any(is_done: &[f32]) -> bool {
+fn any(is_done: &[i8]) -> bool {
     is_done.iter().fold(0, |x, v| x + *v as i32) > 0
 }
 
@@ -91,10 +91,10 @@ impl<S, T> Obs for PyGymEnvObs<S, T> where
         }
     }
 
-    fn merge(mut self, obs_reset: Self, is_done: &[f32]) -> Self {
+    fn merge(mut self, obs_reset: Self, is_done: &[i8]) -> Self {
         if any(is_done) {
             for (i, is_done_i) in is_done.iter().enumerate() {
-                if *is_done_i != 0.0 as f32 {
+                if *is_done_i != 0 {
                     self.obs.index_axis_mut(Axis(0), i)
                         .assign(&obs_reset.obs.index_axis(Axis(0), i));
                 }

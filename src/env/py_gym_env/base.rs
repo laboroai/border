@@ -61,7 +61,7 @@ pub trait PyGymEnvActFilter<A: Act> {
     ///
     /// This method is useful for stateful filters.
     /// This method support vectorized environment
-    fn reset(&mut self, _is_done: &Option<&Vec<f32>>) {}
+    fn reset(&mut self, _is_done: &Option<&Vec<i8>>) {}
 }
 
 /// Represents an environment in [OpenAI gym](https://github.com/openai/gym).
@@ -179,7 +179,7 @@ impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
     /// In this environment, the length of `is_done` is assumed to be 1.
     ///
     /// TODO: defines appropriate error for the method and returns it.
-    fn reset(&mut self, is_done: Option<&Vec<f32>>) -> Result<O, Box<dyn Error>>  {
+    fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<O, Box<dyn Error>>  {
         trace!("PyGymEnv::reset()");
 
         // Reset the action filter, required for stateful filters.
@@ -190,7 +190,7 @@ impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
             None => true,
             Some(v) => {
                 debug_assert_eq!(v.len(), 1);
-                !(v[0] == 0.0 as f32)
+                !(v[0] == 0)
             }
         };
 
@@ -224,15 +224,15 @@ impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
             let obs = step.get_item(0).to_owned();
             let (obs, record_o) = self.obs_filter.filt(obs.to_object(py));
             let reward: Vec<f32> = vec![step.get_item(1).extract().unwrap()];
-            let mut is_done: Vec<f32> = vec![
-                if step.get_item(2).extract().unwrap() {1.0} else {0.0}
+            let mut is_done: Vec<i8> = vec![
+                if step.get_item(2).extract().unwrap() {1} else {0}
             ];
 
             let c = *self.count_steps.borrow();
             self.count_steps.replace(c + 1);
             if let Some(max_steps) = self.max_steps {
                 if *self.count_steps.borrow() >= max_steps {
-                    is_done[0] = 1.0;
+                    is_done[0] = 1;
                     self.count_steps.replace(0);
                 }
             };

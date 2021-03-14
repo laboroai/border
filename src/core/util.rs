@@ -40,7 +40,7 @@ pub fn eval<E: Env, P: Policy<E>>(env: &mut E, policy: &mut P, n_episodes: usize
         loop {
             let (step, _) = sample(env, policy, &obs_prev);
             r_sum += &step.reward[0];
-            if step.is_done[0] == 1.0 as f32 {
+            if step.is_done[0] == 1 {
                 break;
             }
             else {
@@ -71,7 +71,7 @@ pub fn eval_with_recorder<E, P, R>(env: &mut E, policy: &mut P, n_episodes: usiz
         let mut r_sum = 0.0;
         loop {
             let (step, mut record) = sample(env, policy, &obs_prev);
-            if step.is_done[0] == 1.0 as f32 { break; }
+            if step.is_done[0] == 1 { break; }
             r_sum += &step.reward[0];
 
             record.insert("reward", RecordValue::Scalar(step.reward[0] as _));

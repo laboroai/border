@@ -86,7 +86,7 @@ impl<O, A, OF, AF> Env for PyVecGymEnv<O, A, OF, AF> where
     ///
     /// If `is_done` is None, all environemnts are resetted.
     /// Otherwise, `is_done` is `Vec<f32>` and environments with `is_done[i] == 1.0` are resetted.
-    fn reset(&mut self, is_done: Option<&Vec<f32>>) -> Result<O, Box<dyn Error>>  {
+    fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<O, Box<dyn Error>>  {
         trace!("PyVecGymEnv::reset()");
 
         // Reset the action filter, required for stateful filters.
@@ -119,6 +119,7 @@ impl<O, A, OF, AF> Env for PyVecGymEnv<O, A, OF, AF> where
             let reward: Vec<f32> = reward.extract(py).unwrap();
             let is_done = step.get_item(2).to_object(py);
             let is_done: Vec<f32> = is_done.extract(py).unwrap();
+            let is_done: Vec<i8> = is_done.into_iter().map(|x| x as i8).collect();
 
             let step = Step::<Self>::new(obs, a.clone(), reward, is_done, PyGymInfo{});
             let record = record_o.merge(record_a);
