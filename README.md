@@ -78,6 +78,6 @@ In order to run examples, install python>=3.7 and [gym](https://gym.openai.com).
   * [DDQN](https://arxiv.org/abs/1509.06461), [Dueling network](https://arxiv.org/abs/1511.06581), [PPO](https://arxiv.org/abs/1707.06347), [QRDQN](https://arxiv.org/abs/1710.10044), [IQN](https://arxiv.org/abs/1806.06923), [TD3](https://arxiv.org/abs/1802.09477)
   * [Prioritized experience replay](https://arxiv.org/abs/1511.05952), [parameter noise](https://arxiv.org/abs/1706.01905)
 
-## Licence
+## License
 
 Border is primarily distributed under the terms of both the MIT license and the Apache License (Version 2.0).
