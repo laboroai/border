@@ -46,9 +46,11 @@ impl<O, A, OF, AF> PyVecGymEnv<O, A, OF, AF> where
             let locals = [("sys", py.import("sys")?)].into_py_dict(py);
             let _ = py.eval("sys.argv.insert(0, 'PyGymEnv')", None, Some(&locals))?;
 
+            // TODO: Consider removing addition of pythonpath
             let sys = py.import("sys")?;
             let path = sys.get("path")?;
             let _ = path.call_method("append", ("examples",), None)?;
+
             let gym = py.import("atari_wrappers")?;
             let env = gym.call("make", (name, Option::<&str>::None, atari_wrapper, n_procs), None)?;
 
