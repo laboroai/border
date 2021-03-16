@@ -39,16 +39,12 @@ struct RandomPolicy {}
 
 impl Policy<Env> for RandomPolicy {
     fn sample(&mut self, _: &Obs) -> Act {
-        Act::new(Array::from(vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).into_dyn())
+        Act::new(Array::from(
+            (0..8).map(|_| 2f32 * fastrand::f32() - 1f32).collect::<Vec<_>>())
+            .into_dyn()
+        )
     }
 }
-
-// impl Policy<Env> for RandomPolicy {
-//     fn sample(&mut self, _: &Obs) -> Act {
-//         let v = fastrand::u32(..=1);
-//         Act::new(vec![v as i32])
-//     }
-// }
 
 fn main() -> Result<()> {
     env_logger::init();
