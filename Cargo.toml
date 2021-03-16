@@ -41,6 +41,9 @@ name = "dqn_pong_vecenv"
 [[example]]
 name = "dqn_pong_eval"
 
+[[example]]
+name = "random_ant"
+
 [dev-dependencies]
 clap = "2.33.3"
 csv = "1.1.5"

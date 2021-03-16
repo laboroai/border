@@ -1,12 +1,11 @@
 use std::{convert::TryFrom, fs::File, iter::FromIterator};
 use serde::Serialize;
 use anyhow::Result;
-use csv::WriterBuilder;
 
 use border::{
     core::{Policy, util, record::{Record, BufferedRecorder}},
     env::py_gym_env::{
-        Shape, PyGymEnv,
+        Shape, PyGymEnv, PyGymEnvBuilder,
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter}
     },
@@ -68,7 +67,9 @@ fn main() -> Result<()> {
     let act_filter = ActFilter::default();
     let mut recorder = BufferedRecorder::new();
     // TODO: Define appropriate error for failing to construct environment
-    let mut env = Env::new("CartPole-v0", obs_filter, act_filter, false).unwrap();
+    let mut env = PyGymEnvBuilder::default()
+        .build("CartPole-v0", obs_filter, act_filter).unwrap();
+    // Env::new("CartPole-v0", obs_filter, act_filter, false).unwrap();
     env.set_render(true);
     let mut policy = RandomPolicy{};
 
