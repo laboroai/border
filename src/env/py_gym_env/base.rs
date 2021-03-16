@@ -64,6 +64,102 @@ pub trait PyGymEnvActFilter<A: Act> {
     fn reset(&mut self, _is_done: &Option<&Vec<i8>>) {}
 }
 
+/// Constructs [PyGymEnv].
+pub struct PyGymEnvBuilder<O, A, OF, AF> {
+    max_steps: Option<usize>,
+    atari_wrapper: bool,
+    pybullet: bool,
+    phantom: PhantomData<(O, A, OF, AF)>,
+}
+
+impl<O, A, OF, AF> Default for PyGymEnvBuilder<O, A, OF, AF> {
+    fn default() -> Self {
+        Self {
+            max_steps: None,
+            atari_wrapper: false,
+            pybullet: false,
+            phantom: PhantomData
+        }
+    }
+}
+
+impl<O, A, OF, AF> PyGymEnvBuilder<O, A, OF, AF> where 
+    O: Obs,
+    A: Act,
+    OF: PyGymEnvObsFilter<O>,
+    AF: PyGymEnvActFilter<A>
+{
+    /// Set `True` when using PyBullet environments.
+    pub fn pybullet(mut self, v: bool) -> Self {
+        self.pybullet = v;
+        self
+    }
+
+    /// Set `True` when using Atari wrapper.
+    pub fn atari_wrapper(mut self, v: bool) -> Self {
+        self.atari_wrapper = v;
+        self
+    }
+
+    /// Constructs [PyGymEnv].
+    pub fn build(self, name: &str, obs_filter: OF, act_filter: AF) -> PyResult<PyGymEnv<O, A, OF, AF>> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        // sys.argv is used by pyglet library, which is responsible for rendering.
+        // Depending on the python interpreter, however, sys.argv can be empty.
+        // For that case, sys argv is set here.
+        // See https://github.com/PyO3/pyo3/issues/1241#issuecomment-715952517
+        let locals = [("sys", py.import("sys")?)].into_py_dict(py);
+        let _ = py.eval("sys.argv.insert(0, 'PyGymEnv')", None, Some(&locals))?;
+
+        // import pybullet-gym if it exists
+        if py.import("pybulletgym").is_ok() {}
+
+        let env = if self.atari_wrapper {
+            let gym = py.import("atari_wrappers")?;
+            let env = gym.call("make_env_single_proc", (name, self.atari_wrapper), None)?;
+            env.call_method("seed", (42,), None)?;
+            env
+        }
+        else {
+            let gym = py.import("gym")?;
+            let env = gym.call("make", (name,), None)?;
+            env.call_method("seed", (42,), None)?;
+            env
+        };
+
+        // TODO: consider removing action_space and observation_space.
+        // Act/obs types are specified by type parameters.
+        let action_space = env.getattr("action_space")?;
+        let action_space = if let Ok(val) = action_space.getattr("n") {
+            val.extract()?
+        } else {
+            let action_space: Vec<i64> = action_space.getattr("shape")?.extract()?;
+            action_space[0]
+        };
+        let observation_space = env.getattr("observation_space")?;
+        let observation_space = observation_space.getattr("shape")?.extract()?;
+
+        let _ = env.call_method0("render").unwrap();
+
+        Ok(PyGymEnv {
+            env: env.into(),
+            action_space,
+            observation_space,
+            // TODO: consider remove RefCell, raw value instead
+            obs_filter,
+            act_filter,
+            render: false,
+            count_steps: RefCell::new(0),
+            wait_in_render: Duration::from_millis(0),
+            max_steps: self.max_steps,
+            pybullet: self.pybullet,
+            phantom: PhantomData,
+        })
+    }
+}
+
 /// Represents an environment in [OpenAI gym](https://github.com/openai/gym).
 /// The code is adapted from [tch-rs RL example](https://github.com/LaurentMazare/tch-rs/tree/master/examples/reinforcement-learning).
 #[derive(Debug, Clone)]
@@ -82,6 +178,7 @@ pub struct PyGymEnv<O, A, OF, AF> where
     obs_filter: OF,
     act_filter: AF,
     wait_in_render: Duration,
+    pybullet: bool,
     phantom: PhantomData<(O, A)>,
 }
 
@@ -104,6 +201,9 @@ impl<O, A, OF, AF> PyGymEnv<O, A, OF, AF> where
         // See https://github.com/PyO3/pyo3/issues/1241#issuecomment-715952517
         let locals = [("sys", py.import("sys")?)].into_py_dict(py);
         let _ = py.eval("sys.argv.insert(0, 'PyGymEnv')", None, Some(&locals))?;
+
+        // import pybullet-gym if it exists
+        if py.import("pybulletgym").is_ok() {}
 
         let env = if atari_wrapper {
             let gym = py.import("atari_wrappers")?;
@@ -141,6 +241,7 @@ impl<O, A, OF, AF> PyGymEnv<O, A, OF, AF> where
             obs_filter,
             act_filter,
             wait_in_render: Duration::from_millis(0),
+            pybullet: false,
             phantom: PhantomData,
         })
     }
@@ -150,6 +251,11 @@ impl<O, A, OF, AF> PyGymEnv<O, A, OF, AF> where
     /// If `true`, it renders the state at every step.
     pub fn set_render(&mut self, render: bool) {
         self.render = render;
+        if self.pybullet {
+            pyo3::Python::with_gil(|py| {
+                self.env.call_method0(py, "render").unwrap();
+            });
+        }
     }
 
     /// Set the maximum number of steps in the environment.
@@ -214,7 +320,9 @@ impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
 
         pyo3::Python::with_gil(|py| {
             if self.render {
-                let _ = self.env.call_method0(py, "render");
+                if !self.pybullet {
+                    let _ = self.env.call_method0(py, "render");
+                }
                 std::thread::sleep(self.wait_in_render);
             }
 
