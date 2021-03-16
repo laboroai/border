@@ -69,7 +69,6 @@ fn main() -> Result<()> {
     // TODO: Define appropriate error for failing to construct environment
     let mut env = PyGymEnvBuilder::default()
         .build("CartPole-v0", obs_filter, act_filter).unwrap();
-    // Env::new("CartPole-v0", obs_filter, act_filter, false).unwrap();
     env.set_render(true);
     let mut policy = RandomPolicy{};
 
