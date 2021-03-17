@@ -7,7 +7,7 @@ use tch::nn;
 
 use border::{
     core::{
-        Agent, Trainer, TrainerBuilder, util,
+        Agent, TrainerBuilder, util,
         record::{TensorboardRecorder, BufferedRecorder, Record}
     },
     env::py_gym_env::{
