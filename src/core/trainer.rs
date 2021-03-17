@@ -108,6 +108,9 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
     /// * `datetime` - `Date and time`.
     /// * `mean_cum_eval_reward` - Cumulative rewards in evaluation runs.
     pub fn train<T: Recorder>(&mut self, recorder: &mut T) {
+        let mut count_steps_local = 0;
+        let mut now = std::time::SystemTime::now();
+
         let obs = self.env.reset(None).unwrap();
         self.agent.push_obs(&obs);
         self.obs_prev.replace(Some(obs));
@@ -121,6 +124,7 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
             // See `sample()` in `util.rs`.
             let (step, _) = sample(&mut self.env, &mut self.agent, &self.obs_prev);
             self.count_steps += 1;
+            count_steps_local += 1;
 
             // agent.observe() internally creates transisions, i.e., (o_t, a_t, o_t+1, r_t+1).
             // For o_t, the previous observation stored in the agent is used.
@@ -141,14 +145,45 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
                 record.insert("datetime", DateTime(Local::now()));
 
                 if self.count_opts % self.eval_interval == 0 {
-                    self.agent.eval();
+                    // Show FPS before evaluation
+                    let fps = match now.elapsed() {
+                        Ok(elapsed) => {
+                            Some(count_steps_local as f32 / elapsed.as_millis() as f32 * 1000.0)
+                        },
+                        Err(_) => {
+                            None
+                        }
+                    };
+                    // Reset counter for getting FPS in training
+                    count_steps_local = 0;
 
+                    // The timer is used to measure the elapsed time for evaluation
+                    now = std::time::SystemTime::now();
+
+                    // Evaluation
+                    self.agent.eval();
                     let rewards = eval(&mut self.env_eval, &mut self.agent, self.n_episodes_per_eval);
                     let (mean, min, max) = Self::stats_eval_reward(&rewards);
                     info!("Opt step {}, Eval (mean, min, max) of r_sum: {}, {}, {}",
                         self.count_opts, mean, min, max);
                     record.insert("mean_cum_eval_reward", Scalar(mean));
-        
+
+                    if let Some(fps) = fps {
+                        info!("{} FPS in training", fps);
+                    }
+
+                    match now.elapsed() {
+                        Ok(elapsed) => {
+                            info!("{} sec. in evaluation", elapsed.as_millis() as f32 / 1000.0);
+                        },
+                        Err(_) => {
+                            info!("An error occured when getting time")
+                        }
+                    }
+
+                    // The timer is used to measure the elapsed time for training
+                    now = std::time::SystemTime::now();
+
                     self.agent.train();
 
                     if let Some(th) = self.eval_threshold {
