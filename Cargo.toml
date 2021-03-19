@@ -36,6 +36,9 @@ name = "dqn_cartpole"
 name = "sac_pendulum"
 
 [[example]]
+name = "dqn_pong"
+
+[[example]]
 name = "dqn_pong_vecenv"
 
 [[example]]
