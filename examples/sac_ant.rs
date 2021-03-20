@@ -34,6 +34,7 @@ const N_TRANSITIONS_WARMUP: usize = 1000;
 const N_UPDATES_PER_OPT: usize = 1;
 const TAU: f64 = 0.005;
 const ALPHA: f64 = 1.0;
+const REWARD_SCALE: f32 = 3.0;
 const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
 const MAX_OPTS: usize = 3_000_000;
 const EVAL_INTERVAL: usize = 10_000;
@@ -105,7 +106,8 @@ fn create_agent() -> impl Agent<Env> {
         .discount_factor(DISCOUNT_FACTOR)
         .tau(TAU)
         .alpha(ALPHA)
-    .build(critic, actor, replay_buffer, device)
+        .reward_scale(REWARD_SCALE)
+        .build(critic, actor, replay_buffer, device)
 }
 
 fn create_env() -> Env {

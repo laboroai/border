@@ -30,6 +30,7 @@ pub struct SACBuilder {
     min_transitions_warmup: usize,
     batch_size: usize,
     train: bool,
+    reward_scale: f32
 }
 
 impl Default for SACBuilder {
@@ -46,6 +47,7 @@ impl Default for SACBuilder {
             min_transitions_warmup: 1,
             batch_size: 1,
             train: false,
+            reward_scale: 1.0
         }
     }
 }
@@ -93,6 +95,14 @@ impl SACBuilder{
         self
     }
 
+    /// Reward scale.
+    ///
+    /// It works for obtaining target values, not the values in logs.
+    pub fn reward_scale(mut self, v: f32) -> Self {
+        self.reward_scale = v;
+        self
+    }
+
     /// Constructs SAC.
     pub fn build<E, Q, P, O, A>(self, critic: Q, policy: P,
         replay_buffer: ReplayBuffer<E, O, A>, device: tch::Device) -> SAC<E, Q, P, O, A> where
@@ -121,6 +131,7 @@ impl SACBuilder{
             min_transitions_warmup: self.min_transitions_warmup,
             batch_size: self.batch_size,
             train: self.train,
+            reward_scale: self.reward_scale,
             prev_obs: RefCell::new(None),
             device,
             phantom: PhantomData,       

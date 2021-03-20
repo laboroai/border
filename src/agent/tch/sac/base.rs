@@ -25,6 +25,7 @@ fn normal_logp(x: &Tensor) -> Tensor {
     Tensor::from(-0.5 * (2.0 * std::f32::consts::PI).ln() as f32) - 0.5 * x.pow(2)
 }
 
+/// Soft actor critic agent.
 pub struct SAC<E, Q, P, O, A> where
     E: Env,
     O: TchBuffer<Item = E::Obs>,
@@ -45,6 +46,7 @@ pub struct SAC<E, Q, P, O, A> where
     pub(in crate::agent::tch::sac) min_transitions_warmup: usize,
     pub(in crate::agent::tch::sac) batch_size: usize,
     pub(in crate::agent::tch::sac) train: bool,
+    pub(in crate::agent::tch::sac) reward_scale: f32,
     pub(in crate::agent::tch::sac) prev_obs: RefCell<Option<E::Obs>>,
     pub(in crate::agent::tch::sac) phantom: PhantomData<E>,
     pub(in crate::agent::tch::sac) device: tch::Device,
@@ -76,7 +78,7 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
     }
 
     fn action_logp(&self, o: &P::Input) -> (A::SubBatch, Tensor) {
-        trace!("SAC.action_logp()");
+        trace!("SAC::action_logp()");
 
         let (mean, lstd) = self.pi.forward(o);
         let std = lstd.exp().clip(self.min_std, self.max_std);
@@ -119,7 +121,7 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
                 trace!("         r.size(): {:?}", r.size());
                 trace!("  not_done.size(): {:?}", not_done.size());
                 trace!("    next_q.size(): {:?}", next_q.size());
-                r + not_done * Tensor::from(self.gamma) * next_q
+                self.reward_scale * r + not_done * Tensor::from(self.gamma) * next_q
             };
 
             let pred = pred.squeeze();
