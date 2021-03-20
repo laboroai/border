@@ -189,9 +189,9 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
                     if let Some(th) = self.eval_threshold {
                         over_eval_threshold = mean >= th;
                     }
-                }
 
-                recorder.write(record);
+                    recorder.write(record);
+                }
             }
 
             if self.count_opts >= self.max_opts || over_eval_threshold {
