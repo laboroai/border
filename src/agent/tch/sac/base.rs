@@ -179,7 +179,7 @@ impl<E, Q, P, O, A> Policy<E> for SAC<E, Q, P, O, A> where
     fn sample(&mut self, obs: &E::Obs) -> E::Act {
         let obs = obs.clone().into().to(self.device);
         let (mean, lstd) = self.pi.forward(&obs);
-        let std = lstd.exp().minimum(&Tensor::from(self.max_std).to(self.device));
+        let std = lstd.exp().clip(self.min_std, self.max_std);
         let act = if self.train {
             std * Tensor::randn(&mean.size(), tch::kind::FLOAT_CPU).to(self.device) + mean
         }
