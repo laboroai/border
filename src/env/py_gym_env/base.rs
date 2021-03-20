@@ -294,7 +294,7 @@ impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
             None => true,
             Some(v) => {
                 debug_assert_eq!(v.len(), 1);
-                !(v[0] == 0)
+                v[0] != 0
             }
         };
 
