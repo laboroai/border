@@ -141,8 +141,6 @@ impl<O, A, OF, AF> PyGymEnvBuilder<O, A, OF, AF> where
         let observation_space = env.getattr("observation_space")?;
         let observation_space = observation_space.getattr("shape")?.extract()?;
 
-        let _ = env.call_method0("render").unwrap();
-
         Ok(PyGymEnv {
             env: env.into(),
             action_space,
