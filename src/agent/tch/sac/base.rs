@@ -80,7 +80,7 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
 
         let (mean, lstd) = self.pi.forward(o);
         let std = lstd.exp().clip(self.min_std, self.max_std);
-        let z = Tensor::randn(mean.size().as_slice(), tch::kind::FLOAT_CPU);
+        let z = Tensor::randn(mean.size().as_slice(), tch::kind::FLOAT_CPU).to(self.device);
         let a = (&std * &z + &mean).tanh();
         let log_p = normal_logp(&z)
             - (Tensor::from(1f32) - a.pow(2.0) + Tensor::from(self.epsilon)).log();
@@ -179,9 +179,9 @@ impl<E, Q, P, O, A> Policy<E> for SAC<E, Q, P, O, A> where
     fn sample(&mut self, obs: &E::Obs) -> E::Act {
         let obs = obs.clone().into().to(self.device);
         let (mean, lstd) = self.pi.forward(&obs);
-        let std = lstd.exp().minimum(&Tensor::from(self.max_std));
+        let std = lstd.exp().minimum(&Tensor::from(self.max_std).to(self.device));
         let act = if self.train {
-            std * Tensor::randn(&mean.size(), tch::kind::FLOAT_CPU) + mean
+            std * Tensor::randn(&mean.size(), tch::kind::FLOAT_CPU).to(self.device) + mean
         }
         else {
             mean
