@@ -32,14 +32,14 @@ const DISCOUNT_FACTOR: f64 = 0.99;
 const BATCH_SIZE: usize = 128;
 const N_TRANSITIONS_WARMUP: usize = 1000;
 const N_UPDATES_PER_OPT: usize = 1;
-const TAU: f64 = 0.001;
+const TAU: f64 = 0.005;
 const ALPHA: f64 = 1.0;
 const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
-const MAX_OPTS: usize = 100; // 40_000;
-const EVAL_INTERVAL: usize = 2_000;
-const REPLAY_BUFFER_CAPACITY: usize = 100_000;
+const MAX_OPTS: usize = 3_000_000;
+const EVAL_INTERVAL: usize = 10_000;
+const REPLAY_BUFFER_CAPACITY: usize = 1_000_000;
 const N_EPISODES_PER_EVAL: usize = 5;
-const MAX_STEPS_IN_EPISODE: usize = 200;
+// const MAX_STEPS_IN_EPISODE: usize = 200;
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -65,21 +65,21 @@ impl Shape for ActShape {
 
 fn create_actor(device: tch::Device) -> Model1_2 {
     let network_fn = |p: &nn::Path, in_dim, hidden_dim| nn::seq()
-        .add(nn::linear(p / "al1", in_dim as _, 64, Default::default()))
+        .add(nn::linear(p / "al1", in_dim as _, 256, Default::default()))
         .add_fn(|xs| xs.relu())
-        .add(nn::linear(p / "al2", 64, 64, Default::default()))
+        .add(nn::linear(p / "al2", 256, 256, Default::default()))
         .add_fn(|xs| xs.relu())
-        .add(nn::linear(p / "al3", 64, hidden_dim as _, Default::default()));
-    Model1_2::new(DIM_OBS, 64, DIM_ACT, LR_ACTOR, network_fn, device)
+        .add(nn::linear(p / "al3", 256, hidden_dim as _, Default::default()));
+    Model1_2::new(DIM_OBS, 256, DIM_ACT, LR_ACTOR, network_fn, device)
 }
 
 fn create_critic(device: tch::Device) -> Model2_1 {
     let network_fn = |p: &nn::Path, in_dim, out_dim| nn::seq()
-        .add(nn::linear(p / "cl1", in_dim as _, 64, Default::default()))
+        .add(nn::linear(p / "cl1", in_dim as _, 256, Default::default()))
         .add_fn(|xs| xs.relu())
-        .add(nn::linear(p / "cl2", 64, 64, Default::default()))
+        .add(nn::linear(p / "cl2", 256, 256, Default::default()))
         .add_fn(|xs| xs.relu())
-        .add(nn::linear(p / "cl3", 64, out_dim as _, Default::default()));
+        .add(nn::linear(p / "cl3", 256, out_dim as _, Default::default()));
         Model2_1::new(DIM_OBS + DIM_ACT, 1, LR_CRITIC, network_fn, device)
 }
 
