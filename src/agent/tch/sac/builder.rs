@@ -104,7 +104,7 @@ impl SACBuilder{
     }
 
     /// Constructs SAC.
-    pub fn build<E, Q, P, O, A>(self, critic: Q, policy: P,
+    pub fn build<E, Q, P, O, A>(self, critics: Vec<Q>, policy: P,
         replay_buffer: ReplayBuffer<E, O, A>, device: tch::Device) -> SAC<E, Q, P, O, A> where
         E: Env,
         Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
@@ -114,10 +114,10 @@ impl SACBuilder{
         O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
         A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
     {
-        let critic_tgt = critic.clone();
+        let critics_tgt = critics.iter().map(|c| c.clone()).collect();
         SAC {
-            qnet: critic,
-            qnet_tgt: critic_tgt,
+            qnets: critics,
+            qnets_tgt: critics_tgt,
             pi: policy,
             replay_buffer,
             gamma: self.gamma,

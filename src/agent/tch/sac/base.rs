@@ -31,8 +31,8 @@ pub struct SAC<E, Q, P, O, A> where
     O: TchBuffer<Item = E::Obs>,
     A: TchBuffer<Item = E::Act>,
 {
-    pub(in crate::agent::tch::sac) qnet: Q,
-    pub(in crate::agent::tch::sac) qnet_tgt: Q,
+    pub(in crate::agent::tch::sac) qnets: Vec<Q>,
+    pub(in crate::agent::tch::sac) qnets_tgt: Vec<Q>,
     pub(in crate::agent::tch::sac) pi: P,
     pub(in crate::agent::tch::sac) replay_buffer: ReplayBuffer<E, O, A>,
     pub(in crate::agent::tch::sac) gamma: f64,
@@ -99,64 +99,76 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
         (a, log_p)
     }
 
-    fn update_critic(&mut self, batch: &TchBatch<E, O, A>) -> f32 {
-        trace!("SAC.update_critic()");
+    fn qvals(&self, qnets: &[Q], obs: &Tensor, act: &Tensor) -> Vec<Tensor> {
+        qnets.iter().map(|qnet| qnet.forward(obs, act).squeeze()).collect()
+    }
 
-        let loss = {
+    /// Returns the minimum values of q values over critics
+    fn qvals_min(&self, qnets: &[Q], obs: &Tensor, act: &Tensor) -> Tensor {
+        let qvals = self.qvals(qnets, obs, act);
+        let qvals = Tensor::vstack(&qvals);
+        let qvals_min = qvals.min2(0, false).0;
+
+        debug_assert_eq!(qvals_min.size().as_slice(), [self.batch_size as i64]);
+
+        qvals_min
+    }
+
+    /// Returns the minimum values of q values over critics
+    fn qvals_mean(&self, qnets: &[Q], obs: &Tensor, act: &Tensor) -> Tensor {
+        let qvals = self.qvals(qnets, obs, act);
+        let qvals = Tensor::vstack(&qvals);
+        let qvals_mean = qvals.mean1(&[0], false, tch::Kind::Float);
+
+        debug_assert_eq!(qvals_mean.size().as_slice(), [self.batch_size as i64]);
+
+        qvals_mean
+    }
+    
+    fn update_critic(&mut self, batch: &TchBatch<E, O, A>) -> f32 {
+        trace!("SAC::update_critic()");
+
+        let losses = {
             let o = &batch.obs.to(self.device);
             let a = &batch.actions.to(self.device);
             let next_o = &batch.next_obs.to(self.device);
-            let r = &batch.rewards.to(self.device);
-            let not_done = &batch.not_dones.to(self.device);
+            let r = &batch.rewards.to(self.device).squeeze();
+            let not_done = &batch.not_dones.to(self.device).squeeze();
 
-            let pred = self.qnet.forward(&o, &a);
+            let preds = self.qvals(&self.qnets, &o, &a);
             let tgt = {
                 let next_q = no_grad(|| {
                     let (next_a, next_log_p) = self.action_logp(&next_o);
-                    let next_q = self.qnet_tgt.forward(&next_o, &next_a);
-                    trace!("    next_q.size(): {:?}", next_q.size());
-                    trace!("next_log_p.size(): {:?}", next_log_p.size());
-                    next_q - self.alpha * (next_log_p.unsqueeze(-1))
+                    let next_q = self.qvals_min(&self.qnets_tgt, &next_o, &next_a);
+                    next_q - self.alpha * next_log_p
                 });
-                trace!("         r.size(): {:?}", r.size());
-                trace!("  not_done.size(): {:?}", not_done.size());
-                trace!("    next_q.size(): {:?}", next_q.size());
                 self.reward_scale * r + not_done * Tensor::from(self.gamma) * next_q
             };
 
-            let pred = pred.squeeze();
-            let tgt = tgt.squeeze();
-            debug_assert_eq!(pred.size().as_slice(), [self.batch_size as i64]);
             debug_assert_eq!(tgt.size().as_slice(), [self.batch_size as i64]);
-            trace!("      pred.size(): {:?}", pred.size());
-            trace!("       tgt.size(): {:?}", tgt.size());
 
-            let loss = pred.mse_loss(&tgt, tch::Reduction::Mean);
-            trace!("    critic loss: {:?}", loss);
+            let losses: Vec<_> = preds.iter()
+                .map(|pred| pred.mse_loss(&tgt, tch::Reduction::Mean))
+                .collect();
 
-            loss
+            losses
         };
 
-        self.qnet.backward_step(&loss);
+        for (qnet, loss) in self.qnets.iter_mut().zip(&losses) {
+            qnet.backward_step(&loss);            
+        }
 
-        f32::from(loss)
+        losses.iter().map(f32::from).sum::<f32>() / (self.qnets.len() as f32)
     }
 
     fn update_actor(&mut self, batch: &TchBatch<E, O, A>) -> f32 {
-        trace!("SAC.update_actor()");
+        trace!("SAC::update_actor()");
 
         let loss = {
             let o = &batch.obs.to(self.device);
             let (a, log_p) = self.action_logp(o);
-            let qval = self.qnet.forward(o, &a).squeeze();
-            let loss = (self.alpha * &log_p - &qval).mean(tch::Kind::Float);
-
-            trace!("    a.size(): {:?}", a.size());
-            trace!("log_p.size(): {:?}", log_p.size());
-            trace!(" qval.size(): {:?}", qval.size());
-            trace!("  actor loss: {:?}", loss);
-
-            loss
+            let qval = self.qvals_mean(&self.qnets, o, &a); //.squeeze();
+            (self.alpha * &log_p - &qval).mean(tch::Kind::Float)
         };
 
         self.pi.backward_step(&loss);
@@ -165,7 +177,9 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
     }
 
     fn soft_update(&mut self) {
-        track(&mut self.qnet_tgt, &mut self.qnet, self.tau);
+        for (qnet_tgt, qnet) in self.qnets_tgt.iter_mut().zip(&mut self.qnets) {
+            track(qnet_tgt, qnet, self.tau);
+        }
     }
 }
 
@@ -240,13 +254,12 @@ impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A> where
 
             for _ in 0..self.n_updates_per_opt {
                 let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
-                trace!("Sample random batch");
 
                 loss_critic += self.update_critic(&batch);
                 loss_actor += self.update_actor(&batch);
                 self.soft_update();
-                trace!("Update models");
             };
+
             Some(Record::from_slice(&[
                 ("loss_critic", RecordValue::Scalar(loss_critic)),
                 ("loss_actor", RecordValue::Scalar(loss_actor))
@@ -260,15 +273,19 @@ impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A> where
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
-        self.qnet.save(&path.as_ref().join("qnet.pt").as_path())?;
-        self.qnet_tgt.save(&path.as_ref().join("qnet_tgt.pt").as_path())?;
+        for (i, (qnet, qnet_tgt)) in self.qnets.iter().zip(&self.qnets_tgt).enumerate() {
+            qnet.save(&path.as_ref().join(format!("qnet_{}.pt", i)).as_path())?;
+            qnet_tgt.save(&path.as_ref().join(format!("qnet_tgt_{}.pt", i)).as_path())?;
+        }
         self.pi.save(&path.as_ref().join("pi.pt").as_path())?;
         Ok(())
     }
 
     fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<(), Box<dyn Error>> {
-        self.qnet.load(&path.as_ref().join("qnet.pt").as_path())?;
-        self.qnet_tgt.load(&path.as_ref().join("qnet_tgt.pt").as_path())?;
+        for (i, (qnet, qnet_tgt)) in self.qnets.iter_mut().zip(&mut self.qnets_tgt).enumerate() {
+            qnet.load(&path.as_ref().join(format!("qnet_{}.pt", i)).as_path())?;
+            qnet_tgt.load(&path.as_ref().join(format!("qnet_tgt_{}.pt", i)).as_path())?;
+        }
         self.pi.load(&path.as_ref().join("pi.pt").as_path())?;
         Ok(())
     }

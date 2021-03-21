@@ -38,8 +38,8 @@ const N_UPDATES_PER_OPT: usize = 1;
 const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
 const SOFT_UPDATE_INTERVAL: usize = 1_000;
 const TAU: f64 = 1.0;
-const MAX_OPTS: usize = 10;
-const EVAL_INTERVAL: usize = 5;
+const MAX_OPTS: usize = 5;
+const EVAL_INTERVAL: usize = 2;
 const REPLAY_BUFFER_CAPACITY: usize = 10_000;
 const N_EPISODES_PER_EVAL: usize = 1;
 

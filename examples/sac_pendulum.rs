@@ -112,7 +112,7 @@ impl PyGymEnvActFilter<Act> for ActFilter {
 fn create_agent() -> impl Agent<Env> {
     let device = tch::Device::cuda_if_available();
     let actor = create_actor(device);
-    let critic = create_critic(device);
+    let critics = (0..1).map(|_| create_critic(device)).collect();
     let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
 
     SACBuilder::default()
@@ -123,7 +123,7 @@ fn create_agent() -> impl Agent<Env> {
         .discount_factor(DISCOUNT_FACTOR)
         .tau(TAU)
         .alpha(ALPHA)
-    .build(critic, actor, replay_buffer, device)
+    .build(critics, actor, replay_buffer, device)
 }
 
 fn create_env() -> Env {
