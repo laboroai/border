@@ -39,8 +39,8 @@ pub struct SAC<E, Q, P, O, A> where
     pub(in crate::agent::tch::sac) tau: f64,
     pub(in crate::agent::tch::sac) alpha: f64,
     pub(in crate::agent::tch::sac) epsilon: f64,
-    pub(in crate::agent::tch::sac) min_std: f64,
-    pub(in crate::agent::tch::sac) max_std: f64,
+    pub(in crate::agent::tch::sac) min_lstd: f64,
+    pub(in crate::agent::tch::sac) max_lstd: f64,
     pub(in crate::agent::tch::sac) opt_interval_counter: OptIntervalCounter,
     pub(in crate::agent::tch::sac) n_updates_per_opt: usize,
     pub(in crate::agent::tch::sac) min_transitions_warmup: usize,
@@ -81,7 +81,7 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
         trace!("SAC::action_logp()");
 
         let (mean, lstd) = self.pi.forward(o);
-        let std = lstd.exp().clip(self.min_std, self.max_std);
+        let std = lstd.clip(self.min_lstd, self.max_lstd).exp();
         let z = Tensor::randn(mean.size().as_slice(), tch::kind::FLOAT_CPU).to(self.device);
         let a = (&std * &z + &mean).tanh();
         let log_p = normal_logp(&z)
@@ -181,7 +181,7 @@ impl<E, Q, P, O, A> Policy<E> for SAC<E, Q, P, O, A> where
     fn sample(&mut self, obs: &E::Obs) -> E::Act {
         let obs = obs.clone().into().to(self.device);
         let (mean, lstd) = self.pi.forward(&obs);
-        let std = lstd.exp().clip(self.min_std, self.max_std);
+        let std = lstd.clip(self.min_lstd, self.max_lstd).exp();
         let act = if self.train {
             std * Tensor::randn(&mean.size(), tch::kind::FLOAT_CPU).to(self.device) + mean
         }
