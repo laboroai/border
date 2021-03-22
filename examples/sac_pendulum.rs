@@ -22,7 +22,7 @@ use border::{
     agent::{
         OptInterval,
         tch::{
-            SACBuilder, ReplayBuffer,
+            SACBuilder, ReplayBuffer, sac::EntCoefMode,
             model::{Model1_2, Model2_1},
         }
     }
@@ -122,7 +122,7 @@ fn create_agent() -> impl Agent<Env> {
         .batch_size(BATCH_SIZE)
         .discount_factor(DISCOUNT_FACTOR)
         .tau(TAU)
-        .alpha(ALPHA)
+        .ent_coef_mode(EntCoefMode::Fix(ALPHA))
     .build(critics, actor, replay_buffer, device)
 }
 

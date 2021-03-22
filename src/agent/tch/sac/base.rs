@@ -12,7 +12,8 @@ use crate::{
         tch::{
             ReplayBuffer, TchBuffer, TchBatch,
             model::{Model1, Model2},
-            util::{track, sum_keep1}
+            util::{track, sum_keep1},
+            sac::ent_coef::EntCoef,
         }
     }
 };
@@ -37,7 +38,7 @@ pub struct SAC<E, Q, P, O, A> where
     pub(in crate::agent::tch::sac) replay_buffer: ReplayBuffer<E, O, A>,
     pub(in crate::agent::tch::sac) gamma: f64,
     pub(in crate::agent::tch::sac) tau: f64,
-    pub(in crate::agent::tch::sac) alpha: f64,
+    pub(in crate::agent::tch::sac) ent_coef: EntCoef,
     pub(in crate::agent::tch::sac) epsilon: f64,
     pub(in crate::agent::tch::sac) min_lstd: f64,
     pub(in crate::agent::tch::sac) max_lstd: f64,
@@ -140,7 +141,7 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
                 let next_q = no_grad(|| {
                     let (next_a, next_log_p) = self.action_logp(&next_o);
                     let next_q = self.qvals_min(&self.qnets_tgt, &next_o, &next_a);
-                    next_q - self.alpha * next_log_p
+                    next_q - self.ent_coef.alpha() * next_log_p
                 });
                 self.reward_scale * r + not_done * Tensor::from(self.gamma) * next_q
             };
@@ -167,8 +168,9 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
         let loss = {
             let o = &batch.obs.to(self.device);
             let (a, log_p) = self.action_logp(o);
-            let qval = self.qvals_mean(&self.qnets, o, &a); //.squeeze();
-            (self.alpha * &log_p - &qval).mean(tch::Kind::Float)
+            // let qval = self.qvals_mean(&self.qnets, o, &a);
+            let qval = self.qvals_min(&self.qnets, o, &a);
+            (self.ent_coef.alpha() * &log_p - &qval).mean(tch::Kind::Float)
         };
 
         self.pi.backward_step(&loss);

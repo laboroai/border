@@ -8,7 +8,7 @@ use crate::{
         tch::{
             ReplayBuffer, TchBuffer,
             model::{Model1, Model2},
-            sac::SAC,
+            sac::{SAC, ent_coef::{EntCoef, EntCoefMode}}
         }
     }
 };
@@ -21,7 +21,7 @@ type ActStd = Tensor;
 pub struct SACBuilder {
     gamma: f64,
     tau: f64,
-    alpha: f64,
+    ent_coef_mode: EntCoefMode,
     epsilon: f64,
     min_lstd: f64,
     max_lstd: f64,
@@ -30,7 +30,7 @@ pub struct SACBuilder {
     min_transitions_warmup: usize,
     batch_size: usize,
     train: bool,
-    reward_scale: f32
+    reward_scale: f32,
 }
 
 impl Default for SACBuilder {
@@ -38,7 +38,7 @@ impl Default for SACBuilder {
         Self {
             gamma: 0.99,
             tau: 0.005,
-            alpha: 0.1,
+            ent_coef_mode: EntCoefMode::Fix(1.0),
             epsilon: 1e-4,
             min_lstd: -20.0,
             max_lstd: 2.0,
@@ -66,8 +66,8 @@ impl SACBuilder{
     }
 
     /// SAC-alpha.
-    pub fn alpha(mut self, v: f64) -> Self {
-        self.alpha = v;
+    pub fn ent_coef_mode(mut self, v: EntCoefMode) -> Self {
+        self.ent_coef_mode = v;
         self
     }
     
@@ -114,7 +114,9 @@ impl SACBuilder{
         O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
         A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
     {
-        let critics_tgt = critics.iter().map(|c| c.clone()).collect();
+        // let critics_tgt = critics.iter().map(|c| c.clone()).collect();
+        let critics_tgt = critics.to_vec();
+
         SAC {
             qnets: critics,
             qnets_tgt: critics_tgt,
@@ -122,7 +124,7 @@ impl SACBuilder{
             replay_buffer,
             gamma: self.gamma,
             tau: self.tau,
-            alpha: self.alpha,
+            ent_coef: EntCoef::new(self.ent_coef_mode, device),
             epsilon: self.epsilon,
             min_lstd: self.min_lstd,
             max_lstd: self.max_lstd,
