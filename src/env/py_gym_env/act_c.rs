@@ -13,14 +13,16 @@ use crate::{
 
 use super::PyGymEnvActFilter;
 
-/// Represents action.
+/// Represents an action.
 #[derive(Clone, Debug)]
 pub struct PyGymEnvContinuousAct<S: Shape> {
+    /// Stores an action.
     pub act: ArrayD<f32>,
     pub(crate) phantom: PhantomData<S>
 }
 
 impl<S: Shape> PyGymEnvContinuousAct<S> {
+    /// Constructs an action.
     pub fn new(v: ArrayD<f32>) -> Self {
         Self {
             act: v,
@@ -31,8 +33,10 @@ impl<S: Shape> PyGymEnvContinuousAct<S> {
 
 impl<S: Shape> Act for PyGymEnvContinuousAct<S> {}
 
+/// Action filter that does nothing.
 #[derive(Clone, Debug)]
 pub struct PyGymEnvContinuousActRawFilter {
+    /// `true` indicates that this filter is used in a vectorized environment.
     pub vectorized: bool
 }
 

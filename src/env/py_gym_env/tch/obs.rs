@@ -18,6 +18,7 @@ impl<S, T> From<PyGymEnvObs<S, T>> for Tensor where
     }
 }
 
+/// Buffer of observations used in a replay buffer.
 pub struct TchPyGymEnvObsBuffer<S, T> where
     S: Shape,
     T: Element + Debug,
