@@ -168,6 +168,10 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
         let loss = {
             let o = &batch.obs.to(self.device);
             let (a, log_p) = self.action_logp(o);
+
+            // Update the entropy coefficient
+            self.ent_coef.update(&log_p);
+
             // let qval = self.qvals_mean(&self.qnets, o, &a);
             let qval = self.qvals_min(&self.qnets, o, &a);
             (self.ent_coef.alpha() * &log_p - &qval).mean(tch::Kind::Float)

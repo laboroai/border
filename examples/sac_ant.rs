@@ -18,7 +18,7 @@ use border::{
     agent::{
         OptInterval,
         tch::{
-            SACBuilder, ReplayBuffer,
+            SACBuilder, ReplayBuffer, sac::EntCoefMode,
             model::{Model1_2, Model2_1}
         }
     }
@@ -95,7 +95,7 @@ type ActBuffer = TchPyGymEnvContinuousActBuffer<ActShape>;
 fn create_agent() -> impl Agent<Env> {
     let device = tch::Device::cuda_if_available();
     let actor = create_actor(device);
-    let critics = (0..=N_CRITICS).map(|_| create_critic(device)).collect();
+    let critics = (0..N_CRITICS).map(|_| create_critic(device)).collect();
     let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
 
     SACBuilder::default()
@@ -105,7 +105,7 @@ fn create_agent() -> impl Agent<Env> {
         .batch_size(BATCH_SIZE)
         .discount_factor(DISCOUNT_FACTOR)
         .tau(TAU)
-        .alpha(ALPHA)
+        .ent_coef_mode(EntCoefMode::Fix(ALPHA))
         .reward_scale(REWARD_SCALE)
         .build(critics, actor, replay_buffer, device)
 }
