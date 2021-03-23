@@ -1,9 +1,11 @@
+use std::time::Duration;
 use anyhow::Result;
+use clap::{Arg, App};
 use tch::nn;
 
 use border::{
     core::{
-        Agent, TrainerBuilder,
+        Agent, TrainerBuilder, util,
         record::TensorboardRecorder,
     }, 
     env::py_gym_env::{
@@ -126,18 +128,41 @@ fn main() -> Result<()> {
     tch::manual_seed(42);
     fastrand::seed(42);
 
-    let env = create_env();
-    let env_eval = create_env();
-    let agent = create_agent();
-    let mut trainer = TrainerBuilder::default()
-        .max_opts(MAX_OPTS)
-        .eval_interval(EVAL_INTERVAL)
-        .n_episodes_per_eval(N_EPISODES_PER_EVAL)
-        .build(env, env_eval, agent);
-    let mut recorder = TensorboardRecorder::new("./examples/model/sac_ant");
+    let matches = App::new("dqn_cartpole")
+        .version("0.1.0")
+        .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
+        .arg(Arg::with_name("play")
+            .long("play")
+            .takes_value(true)
+            .help("Play with the trained model of the given path"))
+        .get_matches();
 
-    trainer.train(&mut recorder);
-    trainer.get_agent().save("./examples/model/sac_ant").unwrap();
+    if !matches.is_present("play") {
+        let env = create_env();
+        let env_eval = create_env();
+        let agent = create_agent();
+        let mut trainer = TrainerBuilder::default()
+            .max_opts(MAX_OPTS)
+            .eval_interval(EVAL_INTERVAL)
+            .n_episodes_per_eval(N_EPISODES_PER_EVAL)
+            .build(env, env_eval, agent);
+        let mut recorder = TensorboardRecorder::new("./examples/model/sac_ant");
+    
+        trainer.train(&mut recorder);
+        trainer.get_agent().save("./examples/model/sac_ant").unwrap();    
+    }
+    else {
+        let model_file = matches.value_of("play").unwrap();
+        let mut env = create_env();
+        let mut agent = create_agent();
+
+        env.set_render(true);
+        // env.set_wait_in_render(Duration::from_millis(50));
+        agent.load(model_file).unwrap(); // TODO: define appropriate error
+        agent.eval();
+
+        util::eval(&mut env, &mut agent, 5);
+    }
 
     Ok(())
 }
