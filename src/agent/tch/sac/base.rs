@@ -268,7 +268,9 @@ impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A> where
 
             Some(Record::from_slice(&[
                 ("loss_critic", RecordValue::Scalar(loss_critic)),
-                ("loss_actor", RecordValue::Scalar(loss_actor))
+                ("loss_actor", RecordValue::Scalar(loss_actor)),
+                ("ent_coef", RecordValue::Scalar(
+                    self.ent_coef.alpha().double_value(&[0]) as f32))
             ]))
         }
         else {
