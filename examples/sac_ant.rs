@@ -18,7 +18,7 @@ use border::{
         }
     },
     agent::{
-        OptInterval,
+        OptInterval, CriticLoss,
         tch::{
             SACBuilder, ReplayBuffer, sac::EntCoefMode,
             model::{Model1_2, Model2_1}
@@ -40,6 +40,7 @@ const TAU: f64 = 0.02;
 const TARGET_ENTROPY: f64 = -(DIM_ACT as f64);
 const LR_ENT_COEF: f64 = 3e-4;
 const REWARD_SCALE: f32 = 1.0;
+const CRITIC_LOSS: CriticLoss = CriticLoss::SmoothL1;
 const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
 const MAX_OPTS: usize = 3_000_000;
 const EVAL_INTERVAL: usize = 10_000;
@@ -111,6 +112,7 @@ fn create_agent() -> impl Agent<Env> {
         .tau(TAU)
         .ent_coef_mode(EntCoefMode::Auto(TARGET_ENTROPY, LR_ENT_COEF))
         .reward_scale(REWARD_SCALE)
+        .critic_loss(CRITIC_LOSS)
         .build(critics, actor, replay_buffer, device)
 }
 
