@@ -48,7 +48,7 @@ impl EntCoef {
 
     /// Returns the entropy coefficient.
     pub fn alpha(&self) -> Tensor {
-        self.log_alpha.exp().detach()
+        self.log_alpha.detach().exp()
     }
 
     /// Does an optimization step given a loss.
@@ -59,10 +59,10 @@ impl EntCoef {
     }
 
     /// Update the parameter given an action probability vector.
-    pub fn update(&mut self, log_p: &Tensor) {
+    pub fn update(&mut self, logp: &Tensor) {
         if let Some(target_entropy) = &self.target_entropy {
             let target_entropy = Tensor::from(*target_entropy);
-            let loss = -(&self.log_alpha * (log_p + target_entropy).detach())
+            let loss = -(&self.log_alpha * (logp + target_entropy).detach())
                 .mean(tch::Kind::Float);
             self.backward_step(&loss);
         }

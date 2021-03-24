@@ -4,7 +4,7 @@ use tch::Tensor;
 use crate::{
     core::Env,
     agent::{
-        OptInterval, OptIntervalCounter,
+        OptInterval, OptIntervalCounter, CriticLoss,
         tch::{
             ReplayBuffer, TchBuffer,
             model::{Model1, Model2},
@@ -30,6 +30,7 @@ pub struct SACBuilder {
     min_transitions_warmup: usize,
     batch_size: usize,
     train: bool,
+    critic_loss: CriticLoss,
     reward_scale: f32,
 }
 
@@ -47,6 +48,7 @@ impl Default for SACBuilder {
             min_transitions_warmup: 1,
             batch_size: 1,
             train: false,
+            critic_loss: CriticLoss::MSE,
             reward_scale: 1.0
         }
     }
@@ -103,6 +105,12 @@ impl SACBuilder{
         self
     }
 
+    /// Critic loss.
+    pub fn critic_loss(mut self, v: CriticLoss) -> Self {
+        self.critic_loss = v;
+        self
+    }
+
     /// Constructs SAC.
     pub fn build<E, Q, P, O, A>(self, critics: Vec<Q>, policy: P,
         replay_buffer: ReplayBuffer<E, O, A>, device: tch::Device) -> SAC<E, Q, P, O, A> where
@@ -134,6 +142,7 @@ impl SACBuilder{
             batch_size: self.batch_size,
             train: self.train,
             reward_scale: self.reward_scale,
+            critic_loss: self.critic_loss,
             prev_obs: RefCell::new(None),
             device,
             phantom: PhantomData,       

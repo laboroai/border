@@ -8,11 +8,11 @@ use crate::{
         record::{Record, RecordValue},
     },
     agent::{
-        OptIntervalCounter,
+        OptIntervalCounter, CriticLoss,
         tch::{
             ReplayBuffer, TchBuffer, TchBatch,
             model::{Model1, Model2},
-            util::{track, sum_keep1},
+            util::track,
             sac::ent_coef::EntCoef,
         }
     }
@@ -23,7 +23,8 @@ type ActMean = Tensor;
 type ActStd = Tensor;
 
 fn normal_logp(x: &Tensor) -> Tensor {
-    Tensor::from(-0.5 * (2.0 * std::f32::consts::PI).ln() as f32) - 0.5 * x.pow(2)
+    let tmp: Tensor = Tensor::from(-0.5 * (2.0 * std::f32::consts::PI).ln() as f32) - 0.5 * x.pow(2);
+    tmp.sum1(&[-1], false, tch::Kind::Float)
 }
 
 /// Soft actor critic agent.
@@ -48,6 +49,7 @@ pub struct SAC<E, Q, P, O, A> where
     pub(in crate::agent::tch::sac) batch_size: usize,
     pub(in crate::agent::tch::sac) train: bool,
     pub(in crate::agent::tch::sac) reward_scale: f32,
+    pub(in crate::agent::tch::sac) critic_loss: CriticLoss,
     pub(in crate::agent::tch::sac) prev_obs: RefCell<Option<E::Obs>>,
     pub(in crate::agent::tch::sac) phantom: PhantomData<E>,
     pub(in crate::agent::tch::sac) device: tch::Device,
@@ -86,13 +88,8 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
         let z = Tensor::randn(mean.size().as_slice(), tch::kind::FLOAT_CPU).to(self.device);
         let a = (&std * &z + &mean).tanh();
         let log_p = normal_logp(&z)
-            - (Tensor::from(1f32) - a.pow(2.0) + Tensor::from(self.epsilon)).log();
-        let log_p = sum_keep1(&log_p);
-
-        trace!(" mean.size(): {:?}", mean.size());
-        trace!("  std.size(): {:?}", std.size());
-        trace!("    z.size(): {:?}", z.size());
-        trace!("log_p.size(): {:?}", log_p.size());
+            - (Tensor::from(1f32) - a.pow(2.0) + Tensor::from(self.epsilon))
+            .log().sum1(&[-1], false, tch::Kind::Float);
 
         debug_assert_eq!(a.size().as_slice()[0], self.batch_size as i64);
         debug_assert_eq!(log_p.size().as_slice(), [self.batch_size as i64]);
@@ -115,16 +112,16 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
         qvals_min
     }
 
-    /// Returns the minimum values of q values over critics
-    fn qvals_mean(&self, qnets: &[Q], obs: &Tensor, act: &Tensor) -> Tensor {
-        let qvals = self.qvals(qnets, obs, act);
-        let qvals = Tensor::vstack(&qvals);
-        let qvals_mean = qvals.mean1(&[0], false, tch::Kind::Float);
+    // /// Returns the minimum values of q values over critics
+    // fn qvals_mean(&self, qnets: &[Q], obs: &Tensor, act: &Tensor) -> Tensor {
+    //     let qvals = self.qvals(qnets, obs, act);
+    //     let qvals = Tensor::vstack(&qvals);
+    //     let qvals_mean = qvals.mean1(&[0], false, tch::Kind::Float);
 
-        debug_assert_eq!(qvals_mean.size().as_slice(), [self.batch_size as i64]);
+    //     debug_assert_eq!(qvals_mean.size().as_slice(), [self.batch_size as i64]);
 
-        qvals_mean
-    }
+    //     qvals_mean
+    // }
     
     fn update_critic(&mut self, batch: &TchBatch<E, O, A>) -> f32 {
         trace!("SAC::update_critic()");
@@ -148,9 +145,14 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
 
             debug_assert_eq!(tgt.size().as_slice(), [self.batch_size as i64]);
 
-            let losses: Vec<_> = preds.iter()
-                .map(|pred| pred.mse_loss(&tgt, tch::Reduction::Mean))
-                .collect();
+            let losses: Vec<_> = match self.critic_loss {
+                CriticLoss::MSE => preds.iter()
+                    .map(|pred| pred.mse_loss(&tgt, tch::Reduction::Mean))
+                    .collect(),
+                CriticLoss::SmoothL1 => preds.iter()
+                    .map(|pred| pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0))
+                    .collect()
+                };
 
             losses
         };
@@ -286,6 +288,7 @@ impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A> where
             qnet_tgt.save(&path.as_ref().join(format!("qnet_tgt_{}.pt", i)).as_path())?;
         }
         self.pi.save(&path.as_ref().join("pi.pt").as_path())?;
+        self.ent_coef.save(&path.as_ref().join("ent_coef.pt").as_path())?;
         Ok(())
     }
 
@@ -295,6 +298,7 @@ impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A> where
             qnet_tgt.load(&path.as_ref().join(format!("qnet_tgt_{}.pt", i)).as_path())?;
         }
         self.pi.load(&path.as_ref().join("pi.pt").as_path())?;
+        self.ent_coef.load(&path.as_ref().join("ent_coef.pt").as_path())?;
         Ok(())
     }
 }
