@@ -1,9 +1,15 @@
+//! Utilities used by agents.
+
+/// Interval between optimization steps.
 pub enum OptInterval {
+    /// Optimization interval specified as interaction steps.
     Steps(usize),
+    /// Optimization interval specified as episodes.
     Episodes(usize)
 }
 
 impl OptInterval {
+    /// Constructs the counter for optimization.
     pub fn counter(self) -> OptIntervalCounter {
         OptIntervalCounter {
             opt_interval: self,
@@ -12,12 +18,14 @@ impl OptInterval {
     }
 }
 
+/// The counter for optimization.
 pub struct OptIntervalCounter {
     opt_interval: OptInterval,
     count: usize
 }
 
 impl OptIntervalCounter {
+    /// Returns true if the optimization should be done.
     pub fn do_optimize(&mut self, is_done: &[i8]) -> bool {
         let is_done_any = is_done.iter().fold(0, |x, v| x + *v as i32) > 0;
         match self.opt_interval {
@@ -48,4 +56,12 @@ impl OptIntervalCounter {
             }
         }
     }
+}
+
+/// Critic loss type.
+pub enum CriticLoss {
+    /// Mean squared error.
+    MSE,
+    /// Smooth L1 loss.
+    SmoothL1
 }

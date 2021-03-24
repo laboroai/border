@@ -1,3 +1,4 @@
+//! Agents implemented based on tch-rs.
 pub mod util;
 pub mod replay_buffer;
 pub mod dqn;

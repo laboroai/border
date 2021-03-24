@@ -4,6 +4,6 @@
 //! Currently, agents are implemented with [tch-rs](https://crates.io/crates/tch).
 pub mod base;
 pub mod tch;
-pub use base::{OptInterval, OptIntervalCounter};
+pub use base::{OptInterval, OptIntervalCounter, CriticLoss};
 pub use self::tch::replay_buffer::{ReplayBuffer, TchBuffer};
 pub use self::tch::dqn::DQN;
