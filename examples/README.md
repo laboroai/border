@@ -6,7 +6,7 @@
   $ RUST_LOG=info cargo run --example sac_ant
   ```
 
-  <img src="https://drive.google.com/uc?id=1d9UJCtz31iX2XYo_FaqVx8ZSkRLa8eMI" width="256">
+  <img src="https://drive.google.com/uc?id=1d9UJCtz31iX2XYo_FaqVx8ZSkRLa8eMI" width="512">
 
 * Testing
 
