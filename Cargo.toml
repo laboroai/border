@@ -50,6 +50,9 @@ name = "random_ant"
 [[example]]
 name = "sac_ant"
 
+[[example]]
+name = "dqn_atari"
+
 [dev-dependencies]
 clap = "2.33.3"
 csv = "1.1.5"

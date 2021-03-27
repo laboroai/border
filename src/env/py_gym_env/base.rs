@@ -266,6 +266,14 @@ impl<O, A, OF, AF> PyGymEnv<O, A, OF, AF> where
     pub fn set_wait_in_render(&mut self, d: Duration) {
         self.wait_in_render = d;
     }
+
+    /// Get the number of available actions of atari environments
+    pub fn get_num_actions_atari(&self) -> i64 {
+        pyo3::Python::with_gil(|py| {
+            let act_space = self.env.getattr(py, "action_space").unwrap();
+            act_space.getattr(py, "n").unwrap().extract(py).unwrap()
+        })
+    }
 }
 
 impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where

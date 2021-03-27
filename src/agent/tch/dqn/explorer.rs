@@ -1,3 +1,4 @@
+//! Exploration strategies of DQN.
 use tch::Tensor;
 
 use crate::agent::tch::model::Model1;
@@ -5,7 +6,10 @@ use crate::agent::tch::model::Model1;
 /// Explorers for DQN.
 pub enum DQNExplorer
 {
+    /// Softmax action selection.
     Softmax(Softmax),
+
+    /// Epsilon-greedy action selection.
     EpsilonGreedy(EpsilonGreedy)
 }
 
@@ -17,6 +21,7 @@ impl Softmax {
     /// Constructs softmax explorer.
     pub fn new() -> Self { Self {} }
 
+    /// Takes an action based on the observation and the critic.
     pub fn action<M>(&mut self, qnet: &M, obs: &Tensor) -> Tensor where
         M: Model1<Input=Tensor, Output=Tensor>,
     {
@@ -35,7 +40,7 @@ pub struct EpsilonGreedy {
 
 #[allow(clippy::new_without_default)]
 impl EpsilonGreedy {
-    /// Constructs softmax explorer.
+    /// Constructs epsilon-greedy explorer.
     pub fn new() -> Self {
         Self {
             n_opts: 0,
@@ -45,6 +50,21 @@ impl EpsilonGreedy {
         }
     }
 
+    /// Constructs epsilon-greedy explorer.
+    ///
+    /// TODO: improve interface.
+    pub fn with_final_step(final_step: usize) -> DQNExplorer {
+        DQNExplorer::EpsilonGreedy(
+            Self {
+                n_opts: 0,
+                eps_start: 1.0,
+                eps_final: 0.02,
+                final_step,
+            }
+        )
+    }
+
+    /// Takes an action based on the observation and the critic.
     pub fn action<M>(&mut self, qnet: &M, obs: &Tensor) -> Tensor where
         M: Model1<Input=Tensor, Output=Tensor>,
     {
