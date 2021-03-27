@@ -13,3 +13,5 @@
   ```bash
   $ cargo run --example sac_ane -- --play=$REPO/examples/model/sac_ant
   ```
+
+You can download a [pretrained model](https://drive.google.com/uc?export=download&id=1fdAVJLgFY2v0BDyE-xGt7mxpa8GXa9aX).
