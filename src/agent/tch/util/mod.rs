@@ -5,6 +5,9 @@ use tch::{Tensor, TchError};
 
 use crate::agent::tch::model::ModelBase;
 
+pub mod quantile_loss;
+pub use quantile_loss::quantile_huber_loss;
+
 /// Apply soft update on a model. 
 pub fn track<M: ModelBase>(dest: &mut M, src: &mut M, tau: f64) {
     let src = &mut src.get_var_store();
