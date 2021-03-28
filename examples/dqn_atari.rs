@@ -148,15 +148,16 @@ fn main() -> Result<()> {
         let mut recorder = TensorboardRecorder::new(
             format!("./examples/model/dqn_{}", name)
         );
+        let model_dir = format!("./examples/model/dqn_{}", name);
         trainer.train(&mut recorder);
-        trainer.get_agent().save("./examples/model/dqn_pong").unwrap(); // TODO: define appropriate error
+        trainer.get_agent().save(model_dir).unwrap(); // TODO: define appropriate error
     }
     else {
         let time = matches.value_of("wait").unwrap().parse::<u64>().unwrap();
-        let model_file = matches.value_of("play").unwrap();
+        let model_dir = matches.value_of("play").unwrap();
         env.set_render(true);
         env.set_wait_in_render(Duration::from_millis(time));
-        agent.load(model_file).unwrap(); // TODO: define appropriate error
+        agent.load(model_dir).unwrap(); // TODO: define appropriate error
         agent.eval();
 
         util::eval(&mut env, &mut agent, 5);
