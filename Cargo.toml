@@ -53,6 +53,9 @@ name = "sac_ant"
 [[example]]
 name = "dqn_atari"
 
+[[example]]
+name = "quantile_loss"
+
 [dev-dependencies]
 clap = "2.33.3"
 csv = "1.1.5"
