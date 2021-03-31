@@ -1,3 +1,4 @@
+//! DQN agent.
 #![allow(clippy::clippy::module_inception)]
 pub mod dqn;
 pub mod builder;

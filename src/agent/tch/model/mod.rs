@@ -1,3 +1,4 @@
+//! Interface of neural networks used in RL agents.
 pub mod base;
 pub mod multihead;
 pub mod model1;
