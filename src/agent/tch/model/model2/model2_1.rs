@@ -1,9 +1,11 @@
+//! Neural network with two input tensors and single output tensor.
 use std::{path::Path, error::Error, fmt, fmt::{Formatter, Debug}};
 use log::{info, trace};
 use tch::{Tensor, nn, nn::Module, nn::OptimizerConfig};
 
 use crate::agent::tch::model::{ModelBase, Model2};
 
+/// Neural network with two input tensors and single output tensor.
 pub struct Model2_1 {
     var_store: nn::VarStore,
     network_fn: fn(&nn::Path, usize, usize) -> nn::Sequential,
@@ -29,6 +31,7 @@ impl Clone for Model2_1 {
 }
 
 impl Model2_1 {
+    /// Constructs [Model2_1].
     pub fn new(in_dim: usize, out_dim: usize, learning_rate: f64,
         network_fn: fn(&nn::Path, usize, usize) -> nn::Sequential, device: tch::Device) -> Self {
         let vs = nn::VarStore::new(device);

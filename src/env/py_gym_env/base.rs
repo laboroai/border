@@ -1,3 +1,4 @@
+//! Wrapper of gym environments implemented in Python.
 #![allow(clippy::float_cmp)]
 use std::{fmt::Debug, error::Error, time::Duration};
 use std::marker::PhantomData;

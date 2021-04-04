@@ -1,10 +1,11 @@
+//! Neural network with a single input tensor and double output tensors.
 use std::{path::Path, error::Error, fmt, fmt::{Formatter, Debug}};
 use log::{info, trace};
 use tch::{Tensor, nn, nn::Module, nn::OptimizerConfig};
 
 use crate::agent::tch::model::{ModelBase, Model1};
 
-/// A network with a single input tensor and double output tensors.
+/// Neural network with a single input tensor and double output tensors.
 ///
 /// This network model is used as an actor in [crate::agent::tch::sac::SAC].
 pub struct Model1_2 {

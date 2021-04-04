@@ -1,3 +1,4 @@
+//! Replay buffer.
 use log::trace;
 use std::marker::PhantomData;
 use tch::{Tensor, kind::{FLOAT_CPU, INT64_CPU}};

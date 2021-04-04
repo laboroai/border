@@ -1,3 +1,4 @@
+//! Core functionalities.
 use std::{fmt::Debug, path::Path, error::Error};
 use crate::core::record::Record;
 

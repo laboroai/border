@@ -1,3 +1,4 @@
+//! Neural network that outputs state value and action probability.
 use std::{path::Path, error::Error};
 use log::{info, trace};
 use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
@@ -5,6 +6,7 @@ use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
 use crate::agent::tch::model::{ModelBase, Model1};
 
 #[derive(Debug)]
+/// Neural network that outputs state value and action probability.
 pub struct StateValueAndDiscreteActProb {
     var_store: nn::VarStore,
     network: nn::Sequential,
@@ -15,6 +17,7 @@ pub struct StateValueAndDiscreteActProb {
 }
 
 impl StateValueAndDiscreteActProb {
+    /// Constructs a [StateValueAndDiscreteActProb].
     pub fn new(in_dim: usize, n_act: usize, learning_rate: f64) -> Self {
         let vs = nn::VarStore::new(tch::Device::Cpu);
         let p = &vs.root();

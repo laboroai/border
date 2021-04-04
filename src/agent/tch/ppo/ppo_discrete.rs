@@ -1,3 +1,4 @@
+//! PPO agent with discrete action.
 use log::trace;
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{Kind::Float, Tensor};
@@ -16,6 +17,7 @@ use crate::{
     }
 };
 
+/// PPO agent with discrete action.
 pub struct PPODiscrete<E, M, O, A> where
     E: Env,
     M: Model1<Input=Tensor, Output=(Tensor, Tensor)>, // + Clone
@@ -43,6 +45,7 @@ impl<E, M, O, A> PPODiscrete<E, M, O, A> where
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
+    /// Constructs PPO agent with discrete action.
     pub fn new(model: M, opt_interval: OptInterval, replay_buffer: ReplayBuffer<E, O, A>) -> Self {
         PPODiscrete {
             opt_interval_counter: opt_interval.counter(),
@@ -57,21 +60,25 @@ impl<E, M, O, A> PPODiscrete<E, M, O, A> where
         }
     }
 
+    /// Set the interval of optimization steps.
     pub fn opt_interval(mut self, v: OptInterval) -> Self {
         self.opt_interval_counter = v.counter();
         self
     }
 
+    /// Set the number of parameter updates in an optimization step.
     pub fn n_updates_per_opt(mut self, v: usize) -> Self {
         self.n_updates_per_opt = v;
         self
     }
 
+    /// Set the batch size.
     pub fn batch_size(mut self, v: usize) -> Self {
         self.batch_size = v;
         self
     }
 
+    /// Set the discount factor.
     pub fn discount_factor(mut self, v: f64) -> Self {
         self.discount_factor = v;
         self

@@ -1,3 +1,4 @@
+//! SAC agent.
 pub mod base;
 pub mod builder;
 pub mod ent_coef;

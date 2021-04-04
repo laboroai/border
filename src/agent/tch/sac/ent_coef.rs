@@ -1,4 +1,4 @@
-/// Entropy coefficient of SAC.
+//! Entropy coefficient of SAC.
 use std::{borrow::Borrow, path::Path, error::Error};
 use log::{info, trace};
 use tch::{Tensor, nn, nn::OptimizerConfig};

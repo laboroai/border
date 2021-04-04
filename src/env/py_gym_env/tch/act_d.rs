@@ -1,4 +1,4 @@
-// use std::marker::PhantomData;
+//! Interface for discrete action of [super::super::PyGymEnv].
 use std::convert::TryFrom;
 use log::trace;
 use tch::Tensor;
