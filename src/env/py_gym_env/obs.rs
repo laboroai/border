@@ -108,11 +108,14 @@ impl<S, T> Obs for PyGymEnvObs<S, T> where
 ///
 /// The filter works with [super::PyGymEnv] or [super::PyVecGymEnv].
 pub struct PyGymEnvObsRawFilter<S, T> {
+    /// If the environment is vectorized.
     pub vectorized: bool,
+    /// Marker.
     pub phantom: PhantomData<(S, T)>
 }
 
 impl<S, T> PyGymEnvObsRawFilter<S, T> {
+    /// Constructs a raw filter for vectorized environments.
     pub fn vectorized() -> Self {
         Self {
             vectorized: true,

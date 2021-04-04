@@ -25,6 +25,7 @@ num-traits = "0.2.14"
 chrono = "0.4"
 tensorboard-rs = "0.2.4"
 thiserror = "1.0"
+aquamarine = "0.1.6"
 
 [[example]]
 name = "random_cartpole"

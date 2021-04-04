@@ -29,7 +29,7 @@ pub struct FrameStackFilter<S, T> {
 ///
 /// This function is used with [`FrameStack`].
 /// This function supports only vectorized environments ([`super::super::vec::PyVecGymEnv`]).
-pub fn pyobj_to_arrayd<S, T>(obs: PyObject) -> ArrayD<f32> where
+pub fn pyobj_to_arrayd<S, T>(_obs: PyObject) -> ArrayD<f32> where
     S: Shape,
     T: Element + AsPrimitive<f32>,
 {

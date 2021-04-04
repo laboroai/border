@@ -1,3 +1,4 @@
+//! Builder of SAC agent.
 use std::{marker::PhantomData, cell::RefCell};
 use tch::Tensor;
 

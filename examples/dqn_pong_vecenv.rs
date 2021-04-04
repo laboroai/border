@@ -110,9 +110,9 @@ fn main() -> Result<()> {
     env_logger::init();
     tch::manual_seed(42);
 
-    let mut agent = create_agent();
+    let agent = create_agent();
     let env = create_env(N_PROCS);
-    let mut env_eval = create_env(1);
+    let env_eval = create_env(1);
 
     let mut trainer = TrainerBuilder::default()
         .max_opts(MAX_OPTS)

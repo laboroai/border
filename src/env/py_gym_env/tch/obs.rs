@@ -1,3 +1,4 @@
+//! Items for interaction of PyGymEnvObs and tch agents.
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use log::trace;

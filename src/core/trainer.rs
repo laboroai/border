@@ -1,3 +1,4 @@
+//! Trainer.
 use std::cell::RefCell;
 use chrono::Local;
 use log::info;
@@ -8,6 +9,7 @@ use crate::core::{
     record::{Recorder, RecordValue}
 };
 
+/// Builder of [crate::core::trainer::Trainer].
 pub struct TrainerBuilder {
     max_opts: usize,
     eval_interval: usize,
@@ -27,26 +29,31 @@ impl Default for TrainerBuilder {
 }
 
 impl TrainerBuilder {
+    /// Set the number of optimization steps.
     pub fn max_opts(mut self, v: usize) -> Self {
         self.max_opts = v;
         self
     }
 
+    /// Set the interval for evaluation.
     pub fn eval_interval(mut self, v: usize) -> Self {
         self.eval_interval = v;
         self
     }
 
+    /// Set the number of episodes for evaluation.
     pub fn n_episodes_per_eval(mut self, v: usize) -> Self {
         self.n_episodes_per_eval = v;
         self
     }
 
+    /// Set the evaluation threshold.
     pub fn eval_threshold(mut self, v: f32) -> Self {
         self.eval_threshold = Some(v);
         self
     }
 
+    ///Constructs a trainer.
     pub fn build<E, A>(self, env: E, env_eval: E, agent: A) -> Trainer<E, A> where
         E: Env,
         A: Agent<E>
@@ -66,6 +73,7 @@ impl TrainerBuilder {
     }
 }
 
+/// Manages training process.
 pub struct Trainer<E: Env, A: Agent<E>> {
     env: E,
     env_eval: E,
@@ -80,20 +88,24 @@ pub struct Trainer<E: Env, A: Agent<E>> {
 }
 
 impl<E: Env, A: Agent<E>> Trainer<E, A> {
+    /// Get the reference to the agent.
     pub fn get_agent(&self) -> &impl Agent<E> {
         &self.agent
     }
 
+    /// Get the reference to the environment.
     pub fn get_env(&self) -> &E {
         &self.env
     }
 
+    /// Get the reference to the environment for evaluation.
     pub fn get_env_eval(&self) -> &E {
         &self.env_eval
     }
 
-    fn stats_eval_reward(rs: &Vec<f32>) -> (f32, f32, f32) {
-        let mean: f32 = rs.iter().sum::<f32>() / (rs.len() as f32);
+    // fn stats_eval_reward(rs: &Vec<f32>) -> (f32, f32, f32) {
+    fn stats_eval_reward(rs: &[f32]) -> (f32, f32, f32) {
+            let mean: f32 = rs.iter().sum::<f32>() / (rs.len() as f32);
         let min = rs.iter().fold(f32::NAN, |m, v| v.min(m));
         let max = rs.iter().fold(f32::NAN, |m, v| v.max(m));
 

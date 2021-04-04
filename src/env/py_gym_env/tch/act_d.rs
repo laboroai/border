@@ -20,6 +20,7 @@ impl From<Tensor> for PyGymEnvDiscreteAct {
     }
 }
 
+/// Buffer of discrete action of [crate::agent::tch::ReplayBuffer] on [super::super::base::PyGymEnv].
 pub struct TchPyGymEnvDiscreteActBuffer {
     act: Tensor,
     n_procs: i64,

@@ -1,3 +1,4 @@
+//! IQN agent.
 pub mod base;
 pub mod builder;
 pub mod model;

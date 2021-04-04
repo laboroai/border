@@ -1,4 +1,5 @@
 #![allow(clippy::float_cmp)]
+//! Utilities for interaction of agents and environments.
 use std::cell::RefCell;
 use log::info;
 use crate::core::{

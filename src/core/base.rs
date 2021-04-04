@@ -22,14 +22,20 @@ pub trait Info {}
 /// Represents all information given at every step of agent-envieronment interaction.
 /// `reward` and `is_done` have the same length, the number of processes (environments).
 pub struct Step<E: Env> {
+    /// Action.
     pub act: E::Act,
+    /// Observation.
     pub obs: E::Obs,
+    /// Reward.
     pub reward: Vec<f32>,
+    /// Flag denoting if episode is done.
     pub is_done: Vec<i8>,
+    /// Information defined by user.
     pub info: E::Info,
 }
 
 impl<E: Env> Step<E> {
+    /// Constructs a [Step] object.
     pub fn new(obs: E::Obs, act: E::Act, reward: Vec<f32>, is_done: Vec<i8>, info: E::Info) -> Self {
         Step {
             act,
@@ -43,10 +49,14 @@ impl<E: Env> Step<E> {
 
 /// Represents an environment, typically an MDP.
 pub trait Env {
+    /// Observation of the environment.
     type Obs: Obs;
+    /// Action of the environment.
     type Act: Act;
+    /// Information in the [self::Step] object.
     type Info: Info;
 
+    /// Performes an interaction step.
     fn step(&mut self, a: &Self::Act) -> (Step<Self>, Record) where Self: Sized;
 
     /// Reset the i-th environment if `is_done[i]==1.0`.

@@ -1,3 +1,4 @@
+//! SAC agent.
 use log::trace;
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{no_grad, Tensor};

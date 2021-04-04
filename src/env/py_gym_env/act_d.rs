@@ -15,6 +15,7 @@ pub struct PyGymEnvDiscreteAct {
 }
 
 impl PyGymEnvDiscreteAct {
+    /// Constructs a discrete action.
     pub fn new(act: Vec<i32>) -> Self {
         Self {
             act,

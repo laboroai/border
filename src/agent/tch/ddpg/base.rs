@@ -1,3 +1,4 @@
+//! DDPG agent.
 use log::trace;
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
 use tch::{no_grad, Tensor};
@@ -50,7 +51,7 @@ impl ActionNoise {
     }
 }
 
-// adapted from ddpg.rs in tch-rs RL examples
+/// adapted from ddpg.rs in tch-rs RL examples
 pub struct DDPG<E, Q, P, O, A> where
     E: Env,
     O: TchBuffer<Item = E::Obs>,
@@ -82,6 +83,7 @@ impl<E, Q, P, O, A> DDPG<E, Q, P, O, A> where
     O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
+    /// Constructs DDPG agent.
     pub fn new(critic: Q, actor: P, replay_buffer: ReplayBuffer<E, O, A>) -> Self {
         let critic_tgt = critic.clone();
         let actor_tgt = actor.clone();
@@ -104,31 +106,37 @@ impl<E, Q, P, O, A> DDPG<E, Q, P, O, A> where
         }
     }
 
+    /// Set optimization interval.
     pub fn opt_interval(mut self, v: OptInterval) -> Self {
         self.opt_interval_counter = v.counter();
         self
     }
 
+    /// Set the number of updates per optimization step.
     pub fn n_updates_per_opt(mut self, v: usize) -> Self {
         self.n_updates_per_opt = v;
         self
     }
 
+    /// Set the number of interaction steps for filling the replay buffer.
     pub fn min_transitions_warmup(mut self, v: usize) -> Self {
         self.min_transitions_warmup = v;
         self
     }
 
+    /// Set the batch size.
     pub fn batch_size(mut self, v: usize) -> Self {
         self.batch_size = v;
         self
     }
 
+    /// Set the discount factor.
     pub fn discount_factor(mut self, v: f64) -> Self {
         self.gamma = v;
         self
     }
 
+    /// Set the soft update coefficient.
     pub fn tau(mut self, v: f64) -> Self {
         self.tau = v;
         self

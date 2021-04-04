@@ -1,5 +1,3 @@
-use std::thread::sleep;
-
 use anyhow::Result;
 use tch::nn;
 

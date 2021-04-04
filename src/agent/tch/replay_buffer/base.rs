@@ -14,32 +14,45 @@ fn zero_reward(reward: &Tensor) -> Tensor {
     Tensor::of_slice(&zero_reward)
 }
 
+/// Generic buffer inside a replay buffer.
 pub trait TchBuffer {
+    /// Item of the buffer.
     type Item;
+    /// Batch of the items in the buffer.
     type SubBatch;
 
+    /// Constructs a [TchBuffer].
     fn new(capacity: usize, n_procs: usize) -> Self;
 
     /// Push a sample of an item (observations or actions).
     /// Note that each item may consists of values from multiple environments.
     fn push(&mut self, index: i64, item: &Self::Item);
 
+    /// Constructs a batch.
     fn batch(&self, batch_indexes: &Tensor) -> Self::SubBatch;
 }
 
+/// Batch object, generic wrt observation and action.
 pub struct TchBatch<E: Env, O, A> where
     O: TchBuffer<Item = E::Obs>,
     A: TchBuffer<Item = E::Act> {
 
+    /// Generic observation.
     pub obs: O::SubBatch,
+    /// Generic observation at the next step.
     pub next_obs: O::SubBatch,
+    /// Generic action.
     pub actions: A::SubBatch,
+    /// Reward.
     pub rewards: Tensor,
+    /// Flag if episode is done.
     pub not_dones: Tensor,
+    /// Cumulative rewards in an episode.
     pub returns: Option<Tensor>,
     phantom: PhantomData<E>,
 }
 
+/// Replay buffer.
 pub struct ReplayBuffer<E, O, A> where
     E: Env,
     O: TchBuffer<Item = E::Obs>,
@@ -65,6 +78,7 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
     O: TchBuffer<Item = E::Obs>,
     A: TchBuffer<Item = E::Act> {
 
+    /// Constructs a replay buffer.
     pub fn new(capacity: usize, n_procs: usize) -> Self {
         if capacity % n_procs != 0 {
             // TODO: Rusty error handling
@@ -89,17 +103,20 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
         }
     }
 
+    /// If set to `True`, non-zero reward is considered as the end of episodes.
     pub fn nonzero_reward_as_done(mut self, v: bool) -> Self {
         self.nonzero_reward_as_done = v;
         self
     }
 
+    /// Clears the buffer.
     pub fn clear(&mut self) {
         self.len = 0;
         self.i = 0;
         self.returns = None;
     }
 
+    /// Pushes a tuple of observation, action, reward, next observation and is_done flag.
     pub fn push(&mut self, obs: &O::Item, act: &A::Item, reward: &Tensor, next_obs: &O::Item,
                 not_done: &Tensor) {
         trace!("ReplayBuffer::push()");
@@ -124,6 +141,7 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
         }
     }
 
+    /// Constructs random samples.
     pub fn random_batch(&self, batch_size: usize) -> Option<TchBatch<E, O, A>> {
         let batch_size = batch_size.min(self.len - 1);
 
@@ -149,6 +167,7 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
         Some(TchBatch {obs, actions, rewards, next_obs, not_dones, returns, phantom})
     }
 
+    /// Updates returns in the replay buffer.
     pub fn update_returns(&mut self, estimated_return: Tensor, gamma: f64) {
         trace!("Start update returns");
 
@@ -178,10 +197,12 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
         };
     }
 
+    /// Clears returns.
     pub fn clear_returns(&mut self) {
         self.returns = None;
     }
 
+    /// Length of the replay buffer.
     pub fn len(&self) -> usize {
         self.len
     }
