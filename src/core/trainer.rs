@@ -88,9 +88,9 @@ impl TrainerBuilder {
 ///     Policy --> Act
 ///     Act -- 4. Env::step --> Env
 ///     Obs --> Step
-///     Obs -. 1. RefCell::replace .-> ObsPrev
+///     Obs -- 1. RefCell::replace --> ObsPrev
 ///     Act --> Step
-///     ObsPrev -. 2. Agent::push_obs .-> ObsPrev' 
+///     ObsPrev -- 2. Agent::push_obs --> ObsPrev'
 ///     Step -- 5. Agent::observe --> Transition
 ///
 ///     subgraph Agent
@@ -101,12 +101,14 @@ impl TrainerBuilder {
 /// ```
 ///
 /// 0. Call [`Env::reset`] for resetting the enbironment and getting an observation.
+/// An episode starts.
 /// 1. Call [`std::cell::RefCell::replace`] for placing the observation in `PrevObs`.
 /// 2. Call [`Agent::push_obs`] for placing the observation in `PrevObs'`.
 /// 3. Call [`Policy::sample`] for sampling an action from `Policy`.
 /// 4. Call [`Env::step`] for taking an action, getting a new observation, and creating [`Step`] object.
 /// 5. Call [`Agent::observe`] for updating the replay buffer with the new and previous observations.
 /// 6. Call some methods in the agent for updating policy parameters.
+/// 7. Back to 1.
 ///
 /// Actually, [`Trainer`] is not responsible for the step 6. The `Agent` does it.
 pub struct Trainer<E: Env, A: Agent<E>> {
