@@ -18,4 +18,4 @@ You can download a [pretrained model](https://drive.google.com/uc?export=downloa
 
 ## FreewayNoFrameskip-v4
 
-<img src="https://drive.google.com/uc?id=1KUXN4GpL_lrwNJ4synSH9P1ROT3ljVAD" width="256">
+<img src="https://drive.google.com/uc?export=view&id=1KUXN4GpL_lrwNJ4synSH9P1ROT3ljVAD" width="256">
