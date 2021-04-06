@@ -321,7 +321,8 @@ impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
     /// Runs a step of the environment's dynamics.
     ///
     /// It returns [`Step`] and [`Record`] objects.
-    /// The [`Record`] is composed of [`Record`]s constructed in [`ObsFilter`] and [`ActFilter`].
+    /// The [`Record`] is composed of [`Record`]s constructed in [`PyGymEnvObsFilter`] and
+    /// [`PyGymEnvActFilter`].
     fn step(&mut self, a: &A) -> (Step<Self>, Record) {
         trace!("PyGymEnv::step()");
 

@@ -25,16 +25,16 @@ pub struct FrameStackFilter<S, T> {
     phantom: PhantomData<(S, T)>
 }
 
-/// Convert `PyObject` to [`ndarray::ArrayD`].
-///
-/// This function is used with [`FrameStack`].
-/// This function supports only vectorized environments ([`super::super::vec::PyVecGymEnv`]).
-pub fn pyobj_to_arrayd<S, T>(_obs: PyObject) -> ArrayD<f32> where
-    S: Shape,
-    T: Element + AsPrimitive<f32>,
-{
-    unimplemented!();
-}
+// /// Convert `PyObject` to [`ndarray::ArrayD`].
+// ///
+// /// This function is used with [`FrameStack`].
+// /// This function supports only vectorized environments ([`crate::env::py_gym_env::vec::PyVecGymEnv`]).
+// pub fn pyobj_to_arrayd<S, T>(_obs: PyObject) -> ArrayD<f32> where
+//     S: Shape,
+//     T: Element + AsPrimitive<f32>,
+// {
+//     unimplemented!();
+// }
 
 impl<S, T> FrameStackFilter<S, T> where
     S: Shape,
