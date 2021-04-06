@@ -1,4 +1,4 @@
-//! Modules for interaction of [`super::PyGymEnv`] and [`super::vec::PyVevGymEnv`]
+//! Modules for interaction of [`super::PyGymEnv`] and [`super::vec::PyVecGymEnv`]
 //! with agents implemented with tch-rs.
 pub mod obs;
 pub mod act_d;

@@ -12,7 +12,7 @@ use crate::{
 
 /// An observation filter with stacking sequence of original observations.
 ///
-/// This filter only supports vectorized environments ([`super::super::PyVecGymEnv`]).
+/// This filter only supports vectorized environments ([`crate::env::py_gym_env::PyVecGymEnv`]).
 /// The first element of the shape `S` denotes the number of stacks (`n_stack`) and the following elements
 /// denote the shape of the partial observation, which is the observation of each environment
 /// in the vectorized environment.

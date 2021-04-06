@@ -96,7 +96,7 @@ pub trait Agent<E: Env>: Policy<E> {
 
     /// Save the agent in the given directory.
     /// This method commonly creates a number of files consisting the agent
-    /// into the given directory. For example, [crate::agents::dqn::DQN] agent saves
+    /// into the given directory. For example, [`crate::agent::tch::dqn::DQN`] agent saves
     /// two Q-networks corresponding to the original and target networks.
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>>;
 

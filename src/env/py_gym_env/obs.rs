@@ -19,9 +19,10 @@ fn any(is_done: &[i8]) -> bool {
 
 /// Convert PyObject to ArrayD.
 ///
-/// If the shape of the PyObject has the number of axes equal to the shape of
-/// observation, i.e., S.shape(), an axis is appended, corresponding to
-/// the process number, as it comes from a vectorized environment with single process.
+/// If the shape of the PyArray has the number of axes equal to the shape of
+/// observation, i.e., `S.shape().len()`, it is considered an observation from a 
+/// non-vectorized environment, an axis will be appended before the leading dimension.
+/// in order for the array to meet the shape of the array in [`PyGymEnvObs`].
 pub fn pyobj_to_arrayd<S, T>(obs: PyObject) -> ArrayD<f32> where
     S: Shape,
     T: Element + AsPrimitive<f32>,
@@ -64,17 +65,17 @@ pub struct PyGymEnvObs<S, T> where
     pub(crate) phantom: PhantomData<(S, T)>
 }
 
+// TODO: consider remove this item.
 impl<S, T> PyGymEnvObs<S, T> where
     S: Shape,
     T: Element + Debug,
 {
-    /// Create an empty observation, used in pong module.
-    pub fn new(obs: ArrayD<f32>) -> Self {
-        Self {
-            obs,
-            phantom: PhantomData
-        }
-    }
+    // pub fn new(obs: ArrayD<f32>) -> Self {
+    //     Self {
+    //         obs,
+    //         phantom: PhantomData
+    //     }
+    // }
 }
 
 impl<S, T> Obs for PyGymEnvObs<S, T> where

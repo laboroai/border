@@ -24,9 +24,42 @@ pub fn sample<E: Env, P: Policy<E>>(env: &mut E, policy: &mut P,
     (step, record)
 }
 
+#[cfg_attr(doc, aquamarine::aquamarine)]
 /// Run episodes with a policy and return cumlative rewards.
 ///
-/// This method assumes that the environment is non-vectorized or `n_proc`=1.
+/// This function assumes that the environment is non-vectorized or `n_proc`=1.
+///
+/// In this function, the main entities of the library, i.e., an environment ([`super::Env`]),
+/// observation ([`super::Obs`]), action ([`super::Act`]) and policy ([`super::Policy`]),
+/// are interacts as illustrated in the following diagram:
+///
+/// ```mermaid
+/// graph LR
+///     Env --> Obs
+///     Obs --> Policy
+///     Policy --> Act
+///     Act --> Env
+/// ```
+///
+/// By definition of the environment, observations and actions can be modified.
+/// The constructor of [`crate::env::py_gym_env::PyGymEnv`] accepts
+/// [`crate::env::py_gym_env::PyGymEnvObsFilter`] and
+/// [`crate::env::py_gym_env::PyGymEnvActFilter`] for the purpose.
+/// In this case, the interaction of the entities is shown as below
+/// (`PyGymEnvAct` is for discrete or continuous actions in reality):
+///
+/// ```mermaid
+/// graph LR
+///     PyGymEnvObsFilter --> PyGymEnvObs
+///     PyGymEnvObs --> Policy
+///     Policy --> PyGymEnvAct
+///     PyGymEnvAct --> PyGymEnvActFilter
+///
+///    subgraph PyGymEnv
+///        PyGymEnvActFilter --> Py(Python runtime)
+///        Py(Python runtime) --> PyGymEnvObsFilter
+///    end
+/// ```
 pub fn eval<E: Env, P: Policy<E>>(env: &mut E, policy: &mut P, n_episodes: usize) -> Vec<f32> {
     // TODO: check the maximum number of steps of the environment for evaluation.
     // If it is infinite, the number of evaluation steps should be given in place of
