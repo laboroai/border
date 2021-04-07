@@ -34,7 +34,7 @@ impl ZeroTensor for u8 {
 
 impl ZeroTensor for f32 {
     fn zeros(shape: &[i64]) -> Tensor {
-        Tensor::zeros(&shape, (tch::kind::Kind::Uint8, tch::Device::Cpu))
+        Tensor::zeros(&shape, tch::kind::FLOAT_CPU)
     }
 }
 
