@@ -38,7 +38,7 @@ const N_UPDATES_PER_OPT: usize = 1;
 const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
 const SOFT_UPDATE_INTERVAL: usize = 10_000;
 const TAU: f64 = 1.0;
-const MAX_OPTS: usize = 3_000_000;
+const MAX_OPTS: usize = 10_000_000;
 const EVAL_INTERVAL: usize = 10_000;
 const REPLAY_BUFFER_CAPACITY: usize = 50_000;
 const N_EPISODES_PER_EVAL: usize = 1;
@@ -53,12 +53,12 @@ impl Shape for ObsShape {
     }
 }
 
-type ObsFilter = FrameStackFilter<ObsShape, u8, u8>;
+type ObsFilter = FrameStackFilter<ObsShape, u8, f32>;
 type ActFilter = PyGymEnvDiscreteActRawFilter;
-type Obs = PyGymEnvObs<ObsShape, u8, u8>;
+type Obs = PyGymEnvObs<ObsShape, u8, f32>;
 type Act = PyGymEnvDiscreteAct;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
-type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8, u8>;
+type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8, f32>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 type ReplayBuffer = ReplayBuffer_<Env, ObsBuffer, ActBuffer>;
 
@@ -71,7 +71,7 @@ fn stride(s: i64) -> nn::ConvConfig {
 
 fn create_critic(dim_act: usize, device: tch::Device) -> Model1_1 {
     let network_fn = |p: &nn::Path, _in_shape: &[usize], out_dim| nn::seq()
-        .add_fn(|xs| xs.squeeze1(2).internal_cast_float(true))
+        .add_fn(|xs| xs.squeeze1(2))
         .add(nn::conv2d(p / "c1", N_STACK as i64, 32, 8, stride(4)))
         .add_fn(|xs| xs.relu())
         .add(nn::conv2d(p / "c2", 32, 64, 4, stride(2)))
