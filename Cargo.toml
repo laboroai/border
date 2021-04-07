@@ -55,6 +55,9 @@ name = "sac_ant"
 name = "dqn_atari"
 
 [[example]]
+name = "dqn_atari_f32"
+
+[[example]]
 name = "quantile_loss"
 
 [dev-dependencies]
