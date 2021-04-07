@@ -17,33 +17,25 @@ use crate::{
 /// denote the shape of the partial observation, which is the observation of each environment
 /// in the vectorized environment.
 #[derive(Debug)]
-pub struct FrameStackFilter<S, T> {
-    buffer: Vec<ArrayD<f32>>,
+pub struct FrameStackFilter<S, T1, T2> where
+    T2: 'static + Copy
+{
+    buffer: Vec<ArrayD<T2>>,
     n_procs: i64,
     n_stack: i64,
     vectorized: bool,
-    phantom: PhantomData<(S, T)>
+    phantom: PhantomData<(S, T1, T2)>
 }
 
-// /// Convert `PyObject` to [`ndarray::ArrayD`].
-// ///
-// /// This function is used with [`FrameStack`].
-// /// This function supports only vectorized environments ([`crate::env::py_gym_env::vec::PyVecGymEnv`]).
-// pub fn pyobj_to_arrayd<S, T>(_obs: PyObject) -> ArrayD<f32> where
-//     S: Shape,
-//     T: Element + AsPrimitive<f32>,
-// {
-//     unimplemented!();
-// }
-
-impl<S, T> FrameStackFilter<S, T> where
+impl<S, T1, T2> FrameStackFilter<S, T1, T2> where
     S: Shape,
-    T: Element + Debug + num_traits::identities::Zero + AsPrimitive<f32>,
+    T1: Element + Debug + num_traits::identities::Zero + AsPrimitive<T2>,
+    T2: 'static + Copy + num_traits::Zero
 {
     /// Constructs an observation filter for single process environments.
-    pub fn new(n_stack: i64) -> FrameStackFilter<S, T> {
+    pub fn new(n_stack: i64) -> FrameStackFilter<S, T1, T2> {
         FrameStackFilter {
-            buffer: (0..1).map(|_| {ArrayD::<f32>::zeros(S::shape())}).collect(),
+            buffer: (0..1).map(|_| {ArrayD::<T2>::zeros(S::shape())}).collect(),
             n_procs: 1,
             n_stack,
             vectorized: false,
@@ -52,9 +44,9 @@ impl<S, T> FrameStackFilter<S, T> where
     }
 
     /// Constructs an observation filter for vectorized environments.
-    pub fn vectorized(n_procs: i64, n_stack: i64) -> FrameStackFilter<S, T> {
+    pub fn vectorized(n_procs: i64, n_stack: i64) -> FrameStackFilter<S, T1, T2> {
         FrameStackFilter {
-            buffer: (0..n_procs).map(|_| {ArrayD::<f32>::zeros(S::shape())}).collect(),
+            buffer: (0..n_procs).map(|_| {ArrayD::<T2>::zeros(S::shape())}).collect(),
             n_procs,
             n_stack,
             vectorized: true, // note: n_procs can be 1 when vectorized is true
@@ -78,7 +70,7 @@ impl<S, T> FrameStackFilter<S, T> where
     }
 
     /// Update the buffer of the stacked observations.
-    fn update_buffer(&mut self, i: i64, obs: &ArrayD<f32>) {
+    fn update_buffer(&mut self, i: i64, obs: &ArrayD<T2>) {
         if let Some(arr) = self.buffer.get_mut(i as usize) {
             // Shift stacks frame(j) <- frame(j - 1) for j=1,..,(n_stack - 1)
             for j in (1..self.n_stack as usize).rev() {
@@ -95,7 +87,7 @@ impl<S, T> FrameStackFilter<S, T> where
     }
 
     /// Fill the buffer, invoked when resetting
-    fn fill_buffer(&mut self, i: i64, obs: &ArrayD<f32>) {
+    fn fill_buffer(&mut self, i: i64, obs: &ArrayD<T2>) {
         if let Some(arr) = self.buffer.get_mut(i as usize) {
             for j in (0..self.n_stack as usize).rev() {
                 let mut dst = arr.slice_mut(Self::s(j).as_ref());
@@ -108,9 +100,9 @@ impl<S, T> FrameStackFilter<S, T> where
     }
 
     /// Get ndarray from pyobj
-    fn get_ndarray(o: &PyAny) -> ArrayD<f32> {
+    fn get_ndarray(o: &PyAny) -> ArrayD<T2> {
         debug_assert_eq!(o.get_type().name().unwrap(), "ndarray");
-        let o: &PyArrayDyn<T> = o.extract().unwrap();
+        let o: &PyArrayDyn<T1> = o.extract().unwrap();
         let o = o.to_owned_array();
         let o = o.mapv(|elem| elem.as_());
         debug_assert_eq!(o.shape()[..], S::shape()[1..]);
@@ -118,11 +110,12 @@ impl<S, T> FrameStackFilter<S, T> where
     }
 }
 
-impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for FrameStackFilter<S, T> where
+impl<S, T1, T2> PyGymEnvObsFilter<PyGymEnvObs<S, T1, T2>> for FrameStackFilter<S, T1, T2> where
     S: Shape,
-    T: Element + Debug + num_traits::identities::Zero + AsPrimitive<f32>,
+    T1: Element + Debug + num_traits::identities::Zero + AsPrimitive<T2>,
+    T2: 'static + Copy + Debug + num_traits::Zero
 {
-    fn filt(&mut self, obs: PyObject) -> (PyGymEnvObs<S, T>, Record) {
+    fn filt(&mut self, obs: PyObject) -> (PyGymEnvObs<S, T1, T2>, Record) {
         if self.vectorized {
             // Processes the input observation to update `self.buffer`
             pyo3::Python::with_gil(|py| {
@@ -138,7 +131,7 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for FrameStackFilter<S, T> where
 
             // Returned values
             let array_views: Vec<_> = self.buffer.iter().map(|a| a.view()).collect();
-            let obs = PyGymEnvObs::<S, T> {
+            let obs = PyGymEnvObs::<S, T1, T2> {
                 obs: stack(Axis(0), array_views.as_slice()).unwrap(),
                 phantom: PhantomData
             };
@@ -157,7 +150,7 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for FrameStackFilter<S, T> where
             });
 
             // Returns stacked observation in the buffer
-            let obs = PyGymEnvObs::<S, T> {
+            let obs = PyGymEnvObs::<S, T1, T2> {
                 obs: self.buffer[0].clone().insert_axis(Axis(0)),
                 phantom: PhantomData
             };
@@ -169,7 +162,7 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for FrameStackFilter<S, T> where
         }
     }
 
-    fn reset(&mut self, obs: PyObject) -> PyGymEnvObs::<S, T> {
+    fn reset(&mut self, obs: PyObject) -> PyGymEnvObs::<S, T1, T2> {
         if self.vectorized {
             pyo3::Python::with_gil(|py| {
                 debug_assert_eq!(obs.as_ref(py).get_type().name().unwrap(), "list");
@@ -186,7 +179,7 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for FrameStackFilter<S, T> where
     
             // Returned values
             let array_views: Vec<_> = self.buffer.iter().map(|a| a.view()).collect();
-            PyGymEnvObs::<S, T> {
+            PyGymEnvObs::<S, T1, T2> {
                 obs: stack(Axis(0), array_views.as_slice()).unwrap(),
                 phantom: PhantomData
             }
@@ -202,7 +195,7 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for FrameStackFilter<S, T> where
             });
 
             // Returns stacked observation in the buffer
-            PyGymEnvObs::<S, T> {
+            PyGymEnvObs::<S, T1, T2> {
                 obs: self.buffer[0].clone().insert_axis(Axis(0)),
                 phantom: PhantomData
             }

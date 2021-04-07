@@ -4,7 +4,9 @@ use tch::{Tensor, TchError};
 
 /// Converts [ndarray::ArrayD] into tch Tensor.
 /// Borrowed from tch-rs. The original code didn't work with ndarray 0.14.
-pub fn try_from(value: ArrayD<f32>) -> Result<Tensor, TchError> {
+pub fn try_from<T>(value: ArrayD<T>) -> Result<Tensor, TchError> where
+    T: tch::kind::Element
+{
     // TODO: Replace this with `?` once it works with `std::option::ErrorNone`
     let slice = match value.as_slice() {
         None => return Err(TchError::Convert("cannot convert to slice".to_string())),
