@@ -23,12 +23,13 @@ fn any(is_done: &[i8]) -> bool {
 /// observation, i.e., `S.shape().len()`, it is considered an observation from a 
 /// non-vectorized environment, an axis will be appended before the leading dimension.
 /// in order for the array to meet the shape of the array in [`PyGymEnvObs`].
-pub fn pyobj_to_arrayd<S, T>(obs: PyObject) -> ArrayD<f32> where
+pub fn pyobj_to_arrayd<S, T1, T2>(obs: PyObject) -> ArrayD<T2> where
     S: Shape,
-    T: Element + AsPrimitive<f32>,
+    T1: Element + AsPrimitive<T2>,
+    T2: 'static + Copy
 {
     pyo3::Python::with_gil(|py| {
-        let obs: &PyArrayDyn<T> = obs.extract(py).unwrap();
+        let obs: &PyArrayDyn<T1> = obs.extract(py).unwrap();
         let obs = obs.to_owned_array();
         // let obs = obs.mapv(|elem| elem as f32);
         let obs = obs.mapv(|elem| elem.as_());
@@ -57,30 +58,36 @@ pub fn pyobj_to_arrayd<S, T>(obs: PyObject) -> ArrayD<f32> where
 /// vary, f32 or f64. To get observations in Rust side, the dtype is specified as a
 /// type parameter, instead of checking the dtype of Python array at runtime.
 #[derive(Clone, Debug)]
-pub struct PyGymEnvObs<S, T> where
+pub struct PyGymEnvObs<S, T1, T2> where
     S: Shape,
-    T: Element + Debug,
+    T1: Element + Debug,
+    T2: 'static + Copy
 {
-    pub(crate) obs: ArrayD<f32>,
-    pub(crate) phantom: PhantomData<(S, T)>
+    pub(crate) obs: ArrayD<T2>,
+    pub(crate) phantom: PhantomData<(S, T1)>
 }
 
-// TODO: consider remove this item.
-impl<S, T> PyGymEnvObs<S, T> where
-    S: Shape,
-    T: Element + Debug,
-{
-    // pub fn new(obs: ArrayD<f32>) -> Self {
-    //     Self {
-    //         obs,
-    //         phantom: PhantomData
-    //     }
-    // }
-}
+// // TODO: consider remove this item.
+// impl<S, T1, T2> PyGymEnvObs<S, T1, T2> where
+//     S: Shape,
+//     T1: Element + Debug,
+// {
+//     // pub fn new(obs: ArrayD<f32>) -> Self {
+//     //     Self {
+//     //         obs,
+//     //         phantom: PhantomData
+//     //     }
+//     // }
+// }
 
-impl<S, T> Obs for PyGymEnvObs<S, T> where
+// impl<S, T1, T2> Obs for PyGymEnvObs<S, T1, T2> where
+//     S: Shape,
+//     T1: Element + Debug + num_traits::identities::Zero,
+// {
+impl<S, T1, T2> Obs for PyGymEnvObs<S, T1, T2> where
     S: Shape,
-    T: Element + Debug + num_traits::identities::Zero,
+    T1: Debug + Element,
+    T2: 'static + Copy + Debug + num_traits::Zero
 {
     fn dummy(n_procs: usize) -> Self {
         let shape = &mut S::shape().to_vec();
@@ -108,14 +115,14 @@ impl<S, T> Obs for PyGymEnvObs<S, T> where
 /// An observation filter without any postprocessing.
 ///
 /// The filter works with [super::PyGymEnv] or [super::PyVecGymEnv].
-pub struct PyGymEnvObsRawFilter<S, T> {
+pub struct PyGymEnvObsRawFilter<S, T1, T2> {
     /// If the environment is vectorized.
     pub vectorized: bool,
     /// Marker.
-    pub phantom: PhantomData<(S, T)>
+    pub phantom: PhantomData<(S, T1, T2)>
 }
 
-impl<S, T> PyGymEnvObsRawFilter<S, T> {
+impl<S, T1, T2> PyGymEnvObsRawFilter<S, T1, T2> {
     /// Constructs a raw filter for vectorized environments.
     pub fn vectorized() -> Self {
         Self {
@@ -125,9 +132,9 @@ impl<S, T> PyGymEnvObsRawFilter<S, T> {
     }
 }
 
-impl<S, T> Default for PyGymEnvObsRawFilter<S, T> where
+impl<S, T1, T2> Default for PyGymEnvObsRawFilter<S, T1, T2> where
     S: Shape,
-    T: Element,
+    T1: Element,
 {
     fn default() -> Self {
         Self {
@@ -137,9 +144,10 @@ impl<S, T> Default for PyGymEnvObsRawFilter<S, T> where
     }
 }
 
-impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for PyGymEnvObsRawFilter<S, T> where
+impl<S, T1, T2> PyGymEnvObsFilter<PyGymEnvObs<S, T1, T2>> for PyGymEnvObsRawFilter<S, T1, T2> where
     S: Shape,
-    T: Element + Debug + num_traits::identities::Zero + AsPrimitive<f32>,
+    T1: Element + Debug + num_traits::identities::Zero + AsPrimitive<T2>,
+    T2: 'static + Copy + Debug + num_traits::Zero + AsPrimitive<f32>
 {
     /// Convert `PyObject` to [ndarray::ArrayD].
     ///
@@ -152,7 +160,7 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for PyGymEnvObsRawFilter<S, T> w
     ///
     /// [Record] in the returned value has `obs`, which is a flattened array of
     /// observation, for either of single and vectorized environments.
-    fn filt(&mut self, obs: PyObject) -> (PyGymEnvObs<S, T>, Record) {
+    fn filt(&mut self, obs: PyObject) -> (PyGymEnvObs<S, T1, T2>, Record) {
         if self.vectorized {
             let obs = pyo3::Python::with_gil(|py| {
                 debug_assert_eq!(obs.as_ref(py).get_type().name().unwrap(), "list");
@@ -170,7 +178,7 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for PyGymEnvObsRawFilter<S, T> w
                         // Processes the partial observation in the vectorized environment.
                         else {
                             debug_assert_eq!(o.get_type().name().unwrap(), "ndarray");
-                            let obs: &PyArrayDyn<T> = o.extract().unwrap();
+                            let obs: &PyArrayDyn<T1> = o.extract().unwrap();
                             let obs = obs.to_owned_array();
                             let obs = obs.mapv(|elem| elem.as_());
                             debug_assert_eq!(obs.shape(), S::shape());
@@ -178,30 +186,41 @@ impl<S, T> PyGymEnvObsFilter<PyGymEnvObs<S, T>> for PyGymEnvObsRawFilter<S, T> w
                         }
                     }).collect::<Vec<_>>();
                 let arrays_view: Vec<_> = filtered.iter().map(|a| a.view()).collect();
-                PyGymEnvObs::<S, T> {
+                PyGymEnvObs::<S, T1, T2> {
                     obs: stack(Axis(0), arrays_view.as_slice()).unwrap(),
                     phantom: PhantomData
                 }
             });
-            let record = Record::from_slice(
-                &[("obs", RecordValue::Array1(Vec::<_>::from_iter(obs.obs.iter().cloned())))]);
+            let record = {
+                let vec = obs.obs.iter().map(|x| x.as_()).collect();
+                Record::from_slice(&[("obs", RecordValue::Array1(vec))])
+            };
+            // let record = Record::from_slice(
+            //     &[("obs", RecordValue::Array1(
+            //         Vec::<_>::from_iter(obs.obs.iter().map(|x| x.as_()).cloned()))
+            //     )]);
             (obs, record)
         }
         else {
             let obs = pyo3::Python::with_gil(|py| {
                 if obs.as_ref(py).get_type().name().unwrap() == "NoneType" {
                     // TODO: consider panic!() if the environment returns None
-                    PyGymEnvObs::<S, T>::dummy(1)
+                    PyGymEnvObs::<S, T1, T2>::dummy(1)
                 }
                 else {
                     PyGymEnvObs {
-                        obs: pyobj_to_arrayd::<S, T>(obs),
+                        obs: pyobj_to_arrayd::<S, T1, T2>(obs),
                         phantom: PhantomData,
                     }
                 }
             });
-            let array1: Vec<f32> = obs.obs.iter().cloned().collect();
-            let record = Record::from_slice(&[("obs", RecordValue::Array1(array1))]);
+            // let array1: Vec<T2> = obs.obs.iter().cloned().collect();
+            // let record = Record::from_slice(&[("obs", RecordValue::Array1(array1))]);
+            let record = {
+                // let vec = Vec::<f32>::from_iter(obs.obs.iter().map(|x| x.as_()));
+                let vec = obs.obs.iter().map(|x| x.as_()).collect();
+                Record::from_slice(&[("obs", RecordValue::Array1(vec))])
+            };
             (obs, record)
         }
     }

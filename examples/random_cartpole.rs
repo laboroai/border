@@ -20,9 +20,9 @@ impl Shape for ObsShape {
     }
 }
 
-type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
+type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64, f32>;
 type ActFilter = PyGymEnvDiscreteActRawFilter;
-type Obs = PyGymEnvObs<ObsShape, f64>;
+type Obs = PyGymEnvObs<ObsShape, f64, f32>;
 type Act = PyGymEnvDiscreteAct;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 

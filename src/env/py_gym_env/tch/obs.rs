@@ -3,36 +3,56 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 use log::trace;
 use numpy::Element;
-use tch::Tensor;
+use tch::{Device, Tensor};
 
 use crate::{
-    agent::tch::{TchBuffer, util::{try_from, concat_slices}},
-    env::py_gym_env::{Shape, obs::PyGymEnvObs},
+    agent::tch::{TchBuffer, util::concat_slices},
+    env::py_gym_env::{Shape, obs::PyGymEnvObs, tch::util::try_from},
 };
 
-impl<S, T> From<PyGymEnvObs<S, T>> for Tensor where
+impl<S, T1, T2> From<PyGymEnvObs<S, T1, T2>> for Tensor where
     S: Shape,
-    T: Element + Debug,
+    T1: Element + Debug,
+    T2: 'static + Copy + tch::kind::Element
 {
-    fn from(v: PyGymEnvObs<S, T>) -> Tensor {
+    fn from(v: PyGymEnvObs<S, T1, T2>) -> Tensor {
         try_from(v.obs).unwrap()
     }
 }
 
-/// Buffer of observations used in a replay buffer.
-pub struct TchPyGymEnvObsBuffer<S, T> where
-    S: Shape,
-    T: Element + Debug,
-{
-    obs: Tensor,
-    phantom: PhantomData<(S, T)>,
+/// Adds capability of constructing [Tensor] with a static method.
+pub trait ZeroTensor {
+    /// Constructs zero tensor.
+    fn zeros(shape: &[i64]) -> Tensor;
 }
 
-impl<S, T> TchBuffer for TchPyGymEnvObsBuffer<S, T> where
+impl ZeroTensor for u8 {
+    fn zeros(shape: &[i64]) -> Tensor {
+        Tensor::zeros(&shape, (tch::kind::Kind::Uint8, tch::Device::Cpu))
+    }
+}
+
+impl ZeroTensor for f32 {
+    fn zeros(shape: &[i64]) -> Tensor {
+        Tensor::zeros(&shape, tch::kind::FLOAT_CPU)
+    }
+}
+
+/// Buffer of observations used in a replay buffer.
+pub struct TchPyGymEnvObsBuffer<S, T1, T2> where
     S: Shape,
-    T: Element + Debug,
+    T1: Element + Debug,
 {
-    type Item = PyGymEnvObs<S, T>;
+    obs: Tensor,
+    phantom: PhantomData<(S, T1, T2)>,
+}
+
+impl<S, T1, T2> TchBuffer for TchPyGymEnvObsBuffer<S, T1, T2> where
+    S: Shape,
+    T1: Element + Debug,
+    T2: 'static + Copy + tch::kind::Element + ZeroTensor,
+{
+    type Item = PyGymEnvObs<S, T1, T2>;
     type SubBatch = Tensor;
 
     fn new(capacity: usize, n_procs: usize) -> Self {
@@ -41,7 +61,7 @@ impl<S, T> TchBuffer for TchPyGymEnvObsBuffer<S, T> where
         let shape = concat_slices(&[capacity, n_procs],
             S::shape().iter().map(|v| *v as i64).collect::<Vec<_>>().as_slice());
         Self {
-            obs: Tensor::zeros(&shape, tch::kind::FLOAT_CPU),
+            obs: T2::zeros(&shape),
             phantom: PhantomData
         }
     }

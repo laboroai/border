@@ -87,11 +87,11 @@ fn create_critic(device: tch::Device) -> Model2_1 {
         Model2_1::new(DIM_OBS + DIM_ACT, 1, LR_CRITIC, network_fn, device)
 }
 
-type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64>;
-type Obs = PyGymEnvObs<ObsShape, f64>;
+type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64, f32>;
+type Obs = PyGymEnvObs<ObsShape, f64, f32>;
 type Act = PyGymEnvContinuousAct<ActShape>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
-type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64>;
+type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64, f32>;
 type ActBuffer = TchPyGymEnvContinuousActBuffer<ActShape>;
 
 // Custom act filter
