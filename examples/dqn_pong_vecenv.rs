@@ -52,12 +52,12 @@ impl Shape for ObsShape {
     }
 }
 
-type ObsFilter = FrameStackFilter<ObsShape, u8>;
+type ObsFilter = FrameStackFilter<ObsShape, u8, f32>;
 type ActFilter = PyGymEnvDiscreteActRawFilter;
-type Obs = PyGymEnvObs<ObsShape, u8>;
+type Obs = PyGymEnvObs<ObsShape, u8, f32>;
 type Act = PyGymEnvDiscreteAct;
 type Env = PyVecGymEnv<Obs, Act, ObsFilter, ActFilter>;
-type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8>;
+type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8, f32>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 type ReplayBuffer = ReplayBuffer_<Env, ObsBuffer, ActBuffer>;
 
@@ -70,7 +70,7 @@ fn stride(s: i64) -> nn::ConvConfig {
 
 fn create_critic(device: tch::Device) -> Model1_1 {
     let network_fn = |p: &nn::Path, _in_shape: &[usize], out_dim| nn::seq()
-        .add_fn(|xs| xs.squeeze1(2))
+        .add_fn(|xs| xs.squeeze1(2).internal_cast_float(true))
         .add(nn::conv2d(p / "c1", N_STACK as i64, 32, 8, stride(4)))
         .add_fn(|xs| xs.relu())
         .add(nn::conv2d(p / "c2", 32, 64, 4, stride(2)))
