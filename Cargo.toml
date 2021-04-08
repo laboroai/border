@@ -65,3 +65,9 @@ clap = "2.33.3"
 csv = "1.1.5"
 serde = { version = "1.0.117", features = ["derive"] }
 anyhow = "1.0.38"
+
+[package.metadata.docs.rs]
+features = [ "doc-only" ]
+
+[features]
+doc-only = ["tch/doc-only"]
