@@ -15,6 +15,7 @@ use crate::{
     }
 };
 
+#[allow(clippy::upper_case_acronyms)]
 /// DQN builder.
 pub struct DQNBuilder<E, M, O, A> where
     E: Env,

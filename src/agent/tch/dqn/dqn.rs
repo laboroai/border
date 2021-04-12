@@ -18,6 +18,7 @@ use crate::{
     }
 };
 
+#[allow(clippy::upper_case_acronyms)]
 /// DQN agent implemented with tch-rs.
 pub struct DQN<E, M, O, A> where
     E: Env,

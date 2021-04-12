@@ -3,6 +3,7 @@ use tch::Tensor;
 
 use crate::agent::tch::model::Model1;
 
+#[allow(clippy::upper_case_acronyms)]
 /// Explorers for DQN.
 pub enum DQNExplorer
 {
