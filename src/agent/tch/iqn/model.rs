@@ -1,50 +1,91 @@
 //! IQN model.
-use std::{marker::PhantomData, default::Default};
+use std::{default::Default, marker::PhantomData};
 use tch::{Tensor, Kind::Float, Device, nn};
-// use crate::agent::tch::model::ModelBase;
+use super::super::{
+    util::{FeatureExtractor, FeatureExtractorBuilder},
+    model::ModelBase
+};
 
-/// Constructs IQN output layer.
-pub struct IQNModel {
-    device: Device,
-    // Dimension of the input (feature) vector.
-    in_dim: i64,
-    // Dimension of the quantile embedding vector.
-    embed_dim: i64,
-    // Dimension of the output vector (equal to the number of actions).
-    out_dim: i64,
-    // // Feature extractor
-    // psi: Psi,
-    // Linear layers
-    lin1: nn::Linear,
-    lin2: nn::Linear,
-
-    // phantom: PhantomData<Input>
+#[allow(clippy::upper_case_acronyms)]
+/// Constructs [IQNModel].
+///
+/// The type parameter `F` is [FeatureExtractor].
+pub struct IQNBuilder<F: FeatureExtractor> {
 }
 
-impl IQNModel {
-    /// Constructs IQN model.
-    pub fn new(p: &nn::Path, in_dim: i64, embed_dim: i64, out_dim: i64, device: Device) -> Self {
+impl<F: FeatureExtractor> IQNBuilder<F> {
+    pub fn build<B>(builder: B, in_dim: i64, embed_dim: i64, out_dim: i64, learning_rate: f64, device: Device)
+        -> F where
+        B: FeatureExtractorBuilder<F = F>,
+    {
+        let vs = nn::VarStore::new(device);
+        let p = &vs.root();
+        let psi = builder.build(p);
         let lin1 = nn::linear(p, embed_dim, in_dim, Default::default());
         let lin2 = nn::linear(p, in_dim, out_dim, Default::default());
+        let opt = nn::Adam::default().build(&vs, learning_rate).unwrap();
 
-        Self {
+        IQNModel {
+            device,
+            var_store: vs,
             in_dim,
             embed_dim,
             out_dim,
             lin1,
             lin2,
-            device,
-            // phantom: PhantomData
+            psi,
+            opt,
+            phantom: PhantomData
         }
     }
+}
 
+#[allow(clippy::upper_case_acronyms)]
+/// Constructs IQN output layer, which takes input features and percent points.
+/// It returns action-value quantiles.
+///
+/// The type parameter `F` is [FeatureExtractor].
+pub struct IQNModel<F: FeatureExtractor> {
+    device: Device,
+    var_store: nn::VarStore,
+
+    // Dimension of the input (feature) vector.
+    in_dim: i64,
+
+    // Dimension of the quantile embedding vector.
+    embed_dim: i64,
+
+    // Dimension of the output vector (equal to the number of actions).
+    pub(super) out_dim: i64,
+
+    // Linear layers
+    lin1: nn::Linear,
+    lin2: nn::Linear,
+
+    // Feature extractor
+    psi: F,
+
+    // Optimizer
+    opt: nn::Optimizer<nn::Adam>,
+
+    phantom: PhantomData<F>
+}
+
+impl<T> IQNModel<T> {
     /// Returns the tensor of action-value quantiles.
-    pub fn forward(&self, psi: &Tensor, tau: &Tensor) -> Tensor {
+    ///
+    /// * The shape of `tau` is [n_quantiles].
+    /// * The shape of the output is [batch_size, n_quantiles, self.out_dim].
+    pub fn forward(&self, x: &T, tau: &Tensor) -> Tensor {
+        // Feature extraction
+        let psi = self.psi(x);
+
+        // * The shape of `psi` is [batch_size, self.in_dim].
         let batch_size = psi.size().as_slice()[0];
         let n_quantiles = tau.size().as_slice()[0];
-        debug_assert_eq!(psi.size().len(), 2);
+        debug_assert_eq!(psi.size().as_slice(), &[batch_size, self.in_dim]);
         debug_assert_eq!(psi.size().as_slice()[1], self.in_dim);
-        debug_assert_eq!(tau.size().len(), 1);
+        debug_assert_eq!(tau.size().as_slice(), &[n_quantiles]);
 
         // Eq. (4) in the paper
         let pi = std::f64::consts::PI;
@@ -68,7 +109,43 @@ impl IQNModel {
     }
 }
 
+// TODO: implement this trait
+impl<F: FeatureExtractor> ModelBase for IQNModel<F> {
+
+}
+
+#[allow(clippy::upper_case_acronyms)]
+/// The way of taking percent points.
+pub enum IQNAverage {
+    /// Average over percent points `0.05:0.1:0.95`.
+    ///
+    /// The precent points are constants.
+    Uniform10
+}
+
+/// Takes an average over percent points specified by `mode`.
+///
+/// * `psi` - Feature vectors of observations.
+/// * `iqn` - IQN output layer.
+/// * `mode` - The way of taking percent points.
+pub(super) fn average(psi: &Tensor, iqn: &IQNModel, mode: IQNAverage, device: Device) -> Tensor {
+    use IQNAverage::*;
+
+    let tau = match mode {
+        Uniform10 => Tensor::of_slice(
+            &[0.05_f32, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95]
+        ).to(device)
+    };
+
+    let averaged_action_value = iqn.forward(psi, &tau).mean1(&[1], false, Float);
+    let batch_size = psi.size()[0];
+    let n_action = iqn.out_dim;
+    debug_assert_eq!(averaged_action_value.size().as_slice(), &[batch_size, n_action]);
+    averaged_action_value
+}
+
 #[test]
+/// Check shape of tensors in IQNModel.
 fn test_iqn_model() {
     let in_dim = 1000;
     let embed_dim = 64;

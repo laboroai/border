@@ -2,6 +2,8 @@
 pub mod base;
 pub mod builder;
 pub mod model;
-pub use base::IQNAgent;
+pub mod explorer;
+pub use base::IQN;
 pub use builder::IQNBuilder;
 pub use model::IQNModel;
+pub use explorer::IQNExplorer;
