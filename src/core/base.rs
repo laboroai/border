@@ -12,6 +12,10 @@ pub trait Obs: Clone + Debug {
     /// Replace elements of observation where `is_done[i] == 1.0`.
     /// This method assumes that `is_done.len() == n_procs`.
     fn merge(self, obs_reset: Self, is_done: &[i8]) -> Self;
+
+    /// Returns the number of processes that created this observation; 
+    /// it assumes a synchronous vectorized environment.
+    fn n_procs(&self) -> usize;
 }
 
 /// Represents an action of the environment.

@@ -110,6 +110,10 @@ impl<S, T1, T2> Obs for PyGymEnvObs<S, T1, T2> where
         };
         self
     }
+
+    fn n_procs(&self) -> usize {
+        self.obs.shape()[0]
+    }
 }
 
 /// An observation filter without any postprocessing.

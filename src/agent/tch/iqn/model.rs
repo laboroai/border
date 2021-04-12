@@ -1,6 +1,7 @@
 //! IQN model.
-use std::{default::Default, marker::PhantomData};
-use tch::{Tensor, Kind::Float, Device, nn};
+use std::{path::Path, default::Default, marker::PhantomData, error::Error};
+use log::{info, trace};
+use tch::{Tensor, Kind::Float, Device, nn, nn::OptimizerConfig};
 use super::super::{
     util::{FeatureExtractor, FeatureExtractorBuilder},
     model::ModelBase
@@ -11,11 +12,13 @@ use super::super::{
 ///
 /// The type parameter `F` is [FeatureExtractor].
 pub struct IQNBuilder<F: FeatureExtractor> {
+    phantom: PhantomData<F>
 }
 
 impl<F: FeatureExtractor> IQNBuilder<F> {
+    /// Constructs [IQNModel].
     pub fn build<B>(builder: B, in_dim: i64, embed_dim: i64, out_dim: i64, learning_rate: f64, device: Device)
-        -> F where
+        -> IQNModel<F> where
         B: FeatureExtractorBuilder<F = F>,
     {
         let vs = nn::VarStore::new(device);
@@ -71,14 +74,14 @@ pub struct IQNModel<F: FeatureExtractor> {
     phantom: PhantomData<F>
 }
 
-impl<T> IQNModel<T> {
+impl<F: FeatureExtractor> IQNModel<F> {
     /// Returns the tensor of action-value quantiles.
     ///
     /// * The shape of `tau` is [n_quantiles].
     /// * The shape of the output is [batch_size, n_quantiles, self.out_dim].
-    pub fn forward(&self, x: &T, tau: &Tensor) -> Tensor {
+    pub fn forward(&self, x: &F::Input, tau: &Tensor) -> Tensor {
         // Feature extraction
-        let psi = self.psi(x);
+        let psi = self.psi.feature(x);
 
         // * The shape of `psi` is [batch_size, self.in_dim].
         let batch_size = psi.size().as_slice()[0];
@@ -111,7 +114,29 @@ impl<T> IQNModel<T> {
 
 // TODO: implement this trait
 impl<F: FeatureExtractor> ModelBase for IQNModel<F> {
+    fn backward_step(&mut self, loss: &Tensor) {
+        self.opt.backward_step(loss);
+    }
 
+    fn get_var_store(&mut self) -> &mut nn::VarStore {
+        &mut self.var_store
+    }
+
+    fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>> {
+        self.var_store.save(&path)?;
+        info!("Save IQN model to {:?}", path.as_ref());
+        let vs = self.var_store.variables();
+        for (name, _) in vs.iter() {
+            trace!("Save variable {}", name);
+        };
+        Ok(())
+    }
+
+    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<(), Box<dyn Error>> {
+        self.var_store.load(&path)?;
+        info!("Load IQN model from {:?}", path.as_ref());
+        Ok(())
+    }
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -125,10 +150,13 @@ pub enum IQNAverage {
 
 /// Takes an average over percent points specified by `mode`.
 ///
-/// * `psi` - Feature vectors of observations.
-/// * `iqn` - IQN output layer.
+/// * `obs` - Observations.
+/// * `iqn` - IQN model.
 /// * `mode` - The way of taking percent points.
-pub(super) fn average(psi: &Tensor, iqn: &IQNModel, mode: IQNAverage, device: Device) -> Tensor {
+pub(super) fn average<F>(obs: &F::Input, iqn: &IQNModel<F>, mode: IQNAverage, device: Device)
+    -> Tensor where
+    F: FeatureExtractor
+{
     use IQNAverage::*;
 
     let tau = match mode {
@@ -137,8 +165,8 @@ pub(super) fn average(psi: &Tensor, iqn: &IQNModel, mode: IQNAverage, device: De
         ).to(device)
     };
 
-    let averaged_action_value = iqn.forward(psi, &tau).mean1(&[1], false, Float);
-    let batch_size = psi.size()[0];
+    let averaged_action_value = iqn.forward(obs, &tau).mean1(&[1], false, Float);
+    let batch_size = averaged_action_value.size()[0];
     let n_action = iqn.out_dim;
     debug_assert_eq!(averaged_action_value.size().as_slice(), &[batch_size, n_action]);
     averaged_action_value
