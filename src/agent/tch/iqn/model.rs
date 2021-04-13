@@ -11,13 +11,21 @@ use super::super::{
 /// Constructs [IQNModel].
 ///
 /// The type parameter `F` is [FeatureExtractor].
-pub struct IQNBuilder<F: FeatureExtractor> {
+pub struct IQNModelBuilder<F: FeatureExtractor> {
     phantom: PhantomData<F>
 }
 
-impl<F: FeatureExtractor> IQNBuilder<F> {
+impl<F: FeatureExtractor> Default for IQNModelBuilder<F> {
+    fn default() -> Self {
+        Self {
+            phantom: PhantomData
+        }
+    }
+}
+
+impl<F: FeatureExtractor> IQNModelBuilder<F> {
     /// Constructs [IQNModel].
-    pub fn build<B>(builder: B, in_dim: i64, embed_dim: i64, out_dim: i64, learning_rate: f64, device: Device)
+    pub fn build<B>(&self, builder: B, in_dim: i64, embed_dim: i64, out_dim: i64, learning_rate: f64, device: Device)
         -> IQNModel<F> where
         B: FeatureExtractorBuilder<F = F>,
     {
@@ -141,11 +149,22 @@ impl<F: FeatureExtractor> ModelBase for IQNModel<F> {
 
 #[allow(clippy::upper_case_acronyms)]
 /// The way of taking percent points.
-pub enum IQNAverage {
-    /// Average over percent points `0.05:0.1:0.95`.
+pub enum IQNSample {
+    /// Samples over percent points `0.05:0.1:0.95`.
     ///
     /// The precent points are constants.
     Uniform10
+}
+
+impl IQNSample {
+    /// Returns samples of percent points.
+    pub fn sample(&self) -> Tensor {
+        match self {
+            Self::Uniform10 => Tensor::of_slice(
+                &[0.05_f32, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95]
+            ),
+        }
+    }
 }
 
 /// Takes an average over percent points specified by `mode`.
@@ -153,18 +172,11 @@ pub enum IQNAverage {
 /// * `obs` - Observations.
 /// * `iqn` - IQN model.
 /// * `mode` - The way of taking percent points.
-pub(super) fn average<F>(obs: &F::Input, iqn: &IQNModel<F>, mode: IQNAverage, device: Device)
+pub(super) fn average<F>(obs: &F::Input, iqn: &IQNModel<F>, mode: IQNSample, device: Device)
     -> Tensor where
     F: FeatureExtractor
 {
-    use IQNAverage::*;
-
-    let tau = match mode {
-        Uniform10 => Tensor::of_slice(
-            &[0.05_f32, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95]
-        ).to(device)
-    };
-
+    let tau = mode.sample().to(device);
     let averaged_action_value = iqn.forward(obs, &tau).mean1(&[1], false, Float);
     let batch_size = averaged_action_value.size()[0];
     let n_action = iqn.out_dim;
@@ -172,19 +184,68 @@ pub(super) fn average<F>(obs: &F::Input, iqn: &IQNModel<F>, mode: IQNAverage, de
     averaged_action_value
 }
 
-#[test]
-/// Check shape of tensors in IQNModel.
-fn test_iqn_model() {
-    let in_dim = 1000;
-    let embed_dim = 64;
-    let out_dim = 16;
-    let n_quantiles = 8;
-    let batch_size = 32;
-    let vs = nn::VarStore::new(tch::Device::Cpu);
-    let device = vs.device();
-    let model = IQNModel::new(&vs.root(), in_dim, embed_dim, out_dim, device);
-    let psi = Tensor::rand(&[batch_size, in_dim], tch::kind::FLOAT_CPU);
-    let tau = Tensor::rand(&[n_quantiles], tch::kind::FLOAT_CPU);
-    assert_eq!(tau.size().as_slice(), &[n_quantiles]);
-    let _q = model.forward(&psi, &tau);
+#[cfg(test)]
+mod test {
+    use std::default::Default;
+    use tch::{Tensor, Device, nn};
+    use super::*;
+
+    struct IdentityBuilder {
+        device: Device
+    }
+
+    impl FeatureExtractorBuilder for IdentityBuilder {
+        type F = Identity;
+
+        fn build(self, p: &nn::Path) -> Identity {
+            Identity {
+                device: self.device
+            }
+        }
+    }
+
+    impl Default for IdentityBuilder {
+        fn default() -> Self {
+            Self {
+                device: Device::Cpu
+            }
+        }
+    }
+
+    struct Identity {
+        device: Device
+    }
+
+    impl FeatureExtractor for Identity {
+        type Input = Tensor;
+
+        fn feature(&self, x: &Self::Input) -> Tensor {
+            x.to(self.device)
+        }
+    }
+
+    fn iqn_model(in_dim: i64, embed_dim: i64, out_dim: i64) -> IQNModel<Identity> {
+        let builder = IdentityBuilder::default();
+        let device = Device::Cpu;
+        let learning_rate = 1e-4;
+        IQNModelBuilder::<Identity>::default().build(
+            builder, in_dim, embed_dim, out_dim, learning_rate, device
+        )
+    }
+
+    #[test]
+    /// Check shape of tensors in IQNModel.
+    fn test_iqn_model() {
+        let in_dim = 1000;
+        let embed_dim = 64;
+        let out_dim = 16;
+        let n_quantiles = 8;
+        let batch_size = 32;
+
+        let model = iqn_model(in_dim, embed_dim, out_dim);
+        let psi = Tensor::rand(&[batch_size, in_dim], tch::kind::FLOAT_CPU);
+        let tau = Tensor::rand(&[n_quantiles], tch::kind::FLOAT_CPU);
+        assert_eq!(tau.size().as_slice(), &[n_quantiles]);
+        let _q = model.forward(&psi, &tau);
+    }    
 }

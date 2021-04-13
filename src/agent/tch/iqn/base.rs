@@ -11,8 +11,8 @@ use crate::{
     agent::{
         OptIntervalCounter,
         tch::{
-            ReplayBuffer, TchBuffer, model::ModelBase,
-            iqn::{IQNModel, IQNExplorer, model::{IQNAverage::*, average}},
+            ReplayBuffer, TchBuffer, model::ModelBase, TchBatch,
+            iqn::{IQNModel, IQNExplorer, model::{IQNSample, average}},
             util::{FeatureExtractor, quantile_huber_loss, track}
         }
     },
@@ -78,13 +78,11 @@ impl<E, F, O, A> IQN<E, F, O, A> where
     fn update_critic(&mut self, batch: TchBatch<E, O, A>) -> f32 {
         trace!("IQN::update_critic()");
 
-        let obs = batch.obs.to(self.device);
+        let obs = batch.obs;
         let a = batch.actions.to(self.device);
         let r = batch.rewards.to(self.device);
-        let next_obs = batch.next_obs.to(self.device);
+        let next_obs = batch.next_obs;
         let not_done = batch.not_dones.to(self.device);
-        trace!("obs.shape      = {:?}", obs.size());
-        trace!("next_obs.shape = {:?}", next_obs.size());
         trace!("a.shape        = {:?}", a.size());
 
         debug_assert_eq!(r.size().as_slice(), &[self.batch_size as i64]);
@@ -95,7 +93,8 @@ impl<E, F, O, A> IQN<E, F, O, A> where
                 let a = a;
 
                 // x.size() == [batch_size, n_actions, n_prob_samples]
-                let x = self.iqn.forward(&obs);
+                let tau = IQNSample::Uniform10.sample();
+                let x = self.iqn.forward(&obs, &tau);
                 debug_assert_eq!(x.size().as_slice()[0], self.batch_size as i64);
                 debug_assert_eq!(x.size().as_slice()[0], self.n_prob_samples as i64);
 
@@ -107,8 +106,9 @@ impl<E, F, O, A> IQN<E, F, O, A> where
                 );
                 x
             };
+            let tau_pred = IQNSample::Uniform10.sample();
             let tgt = no_grad(|| {
-                let x = self.iqn_tgt.forward(&next_obs);
+                let x = self.iqn_tgt.forward(&next_obs, &tau_pred);
 
                 // Takes average over quantile samples (tau_i), then takes argmax as actions
                 let y = x.copy().mean1(&[-1], false, tch::Kind::Float);
@@ -129,7 +129,7 @@ impl<E, F, O, A> IQN<E, F, O, A> where
                 );
                 x
             });
-            quantile_huber_loss(&(pred - tgt))
+            quantile_huber_loss(&(pred - tgt), &tau_pred)
         };
         self.iqn.backward_step(&loss);
 
@@ -158,7 +158,7 @@ impl<E, F, O, A> Policy<E> for IQN<E, F, O, A> where
                 let n_procs = obs.n_procs();
                 let obs = obs.clone().into();
                 let q_fn = || {
-                    let a = average(&obs, iqn, Uniform10, device);
+                    let a = average(&obs, iqn, IQNSample::Uniform10, device);
                     a.argmax(-1, true)
                 };
                 let shape = (n_procs as u32, self.iqn.out_dim as u32);
@@ -167,7 +167,7 @@ impl<E, F, O, A> Policy<E> for IQN<E, F, O, A> where
                 }
             } else {
                 let obs = obs.clone().into();
-                let a = average(&obs, &self.iqn, Uniform10, self.device);
+                let a = average(&obs, &self.iqn, IQNSample::Uniform10, self.device);
                 a.argmax(-1, true)
             }
         });
