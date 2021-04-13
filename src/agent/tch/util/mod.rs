@@ -1,7 +1,6 @@
 //! Utilities used by tch agents.
 use log::trace;
-use ndarray::ArrayD;
-use tch::{Tensor, nn, TchError};
+use tch::{Tensor, nn};
 
 use crate::agent::tch::model::ModelBase;
 
@@ -33,8 +32,10 @@ pub fn concat_slices(s1: &[i64], s2: &[i64]) -> Vec<i64> {
 
 /// Builds feature extractor
 pub trait FeatureExtractorBuilder {
+    /// [FeatureExtractor] constructed by this builder.
     type F: FeatureExtractor;
 
+    /// Constructs [FeatureExtractor].
     fn build(self, p: &nn::Path) -> Self::F;
 }
 

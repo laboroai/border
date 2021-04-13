@@ -197,7 +197,7 @@ mod test {
     impl FeatureExtractorBuilder for IdentityBuilder {
         type F = Identity;
 
-        fn build(self, p: &nn::Path) -> Identity {
+        fn build(self, _p: &nn::Path) -> Identity {
             Identity {
                 device: self.device
             }
