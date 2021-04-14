@@ -46,4 +46,7 @@ pub trait FeatureExtractor {
 
     /// Convert the input to a feature vector.
     fn feature(&self, x: &Self::Input) -> Tensor;
+
+    /// Clone [FeatureExtractor] with [`tch::nn::VarStore`].
+    fn clone_with_var_store(&self, var_store: &nn::VarStore) -> Self;
 }

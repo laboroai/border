@@ -29,24 +29,25 @@ impl<F: FeatureExtractor> IQNModelBuilder<F> {
         -> IQNModel<F> where
         B: FeatureExtractorBuilder<F = F>,
     {
-        let vs = nn::VarStore::new(device);
-        let p = &vs.root();
+        let var_store = nn::VarStore::new(device);
+        let p = &var_store.root();
         let psi = builder.build(p);
         let lin1 = nn::linear(p, embed_dim, in_dim, Default::default());
         let lin2 = nn::linear(p, in_dim, out_dim, Default::default());
-        let opt = nn::Adam::default().build(&vs, learning_rate).unwrap();
+        let opt = nn::Adam::default().build(&var_store, learning_rate).unwrap();
 
         IQNModel {
             device,
-            var_store: vs,
+            var_store,
             in_dim,
             embed_dim,
             out_dim,
             lin1,
             lin2,
             psi,
+            learning_rate,
             opt,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 }
@@ -77,9 +78,42 @@ pub struct IQNModel<F: FeatureExtractor> {
     psi: F,
 
     // Optimizer
+    learning_rate: f64,
     opt: nn::Optimizer<nn::Adam>,
 
     phantom: PhantomData<F>
+}
+
+impl<F: FeatureExtractor> Clone for IQNModel<F> {
+    fn clone(&self) -> Self {
+        let device = self.device;
+        let mut var_store = nn::VarStore::new(device);
+        let in_dim = self.in_dim;
+        let embed_dim = self.embed_dim;
+        let out_dim = self.out_dim;
+        let p = &var_store.root();
+        let lin1 = nn::linear(p, embed_dim, in_dim, Default::default());
+        let lin2 = nn::linear(p, in_dim, out_dim, Default::default());
+        let psi = self.psi.clone_with_var_store(&var_store);
+        let learning_rate = self.learning_rate;
+        let opt = nn::Adam::default().build(&var_store, learning_rate).unwrap();
+
+        var_store.copy(&self.var_store).unwrap();
+
+        Self {
+            device,
+            var_store,
+            in_dim,
+            embed_dim,
+            out_dim,
+            lin1,
+            lin2,
+            psi,
+            learning_rate,
+            opt,
+            phantom: PhantomData,
+        }
+    }
 }
 
 impl<F: FeatureExtractor> IQNModel<F> {
@@ -120,7 +154,6 @@ impl<F: FeatureExtractor> IQNModel<F> {
     }
 }
 
-// TODO: implement this trait
 impl<F: FeatureExtractor> ModelBase for IQNModel<F> {
     fn backward_step(&mut self, loss: &Tensor) {
         self.opt.backward_step(loss);
@@ -190,6 +223,7 @@ mod test {
     use tch::{Tensor, Device, nn};
     use super::*;
 
+    #[derive(Clone, Debug)]
     struct IdentityBuilder {
         device: Device
     }
@@ -212,6 +246,7 @@ mod test {
         }
     }
 
+    #[derive(Clone, Debug)]
     struct Identity {
         device: Device
     }
@@ -222,13 +257,19 @@ mod test {
         fn feature(&self, x: &Self::Input) -> Tensor {
             x.to(self.device)
         }
+
+        fn clone_with_var_store(&self, _var_store: &nn::VarStore) -> Self {
+            Self {
+                device: self.device
+            }
+        }
     }
 
     fn iqn_model(in_dim: i64, embed_dim: i64, out_dim: i64) -> IQNModel<Identity> {
         let builder = IdentityBuilder::default();
         let device = Device::Cpu;
         let learning_rate = 1e-4;
-        IQNModelBuilder::<Identity>::default().build(
+        IQNModelBuilder::default().build(
             builder, in_dim, embed_dim, out_dim, learning_rate, device
         )
     }
