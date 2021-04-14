@@ -32,8 +32,8 @@ impl<F: FeatureExtractor> IQNModelBuilder<F> {
         let var_store = nn::VarStore::new(device);
         let p = &var_store.root();
         let psi = builder.build(p);
-        let lin1 = nn::linear(p, embed_dim, in_dim, Default::default());
-        let lin2 = nn::linear(p, in_dim, out_dim, Default::default());
+        let lin1 = nn::linear(p / "iqn_lin_1", embed_dim, in_dim, Default::default());
+        let lin2 = nn::linear(p / "iqn_lin_2", in_dim, out_dim, Default::default());
         let opt = nn::Adam::default().build(&var_store, learning_rate).unwrap();
 
         IQNModel {
@@ -92,8 +92,8 @@ impl<F: FeatureExtractor> Clone for IQNModel<F> {
         let embed_dim = self.embed_dim;
         let out_dim = self.out_dim;
         let p = &var_store.root();
-        let lin1 = nn::linear(p, embed_dim, in_dim, Default::default());
-        let lin2 = nn::linear(p, in_dim, out_dim, Default::default());
+        let lin1 = nn::linear(p / "iqn_lin_1", embed_dim, in_dim, Default::default());
+        let lin2 = nn::linear(p / "iqn_lin_2", in_dim, out_dim, Default::default());
         let psi = self.psi.clone_with_var_store(&var_store);
         let learning_rate = self.learning_rate;
         let opt = nn::Adam::default().build(&var_store, learning_rate).unwrap();
