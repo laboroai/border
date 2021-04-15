@@ -1,9 +1,8 @@
-use std::{convert::TryFrom, fs::File, iter::FromIterator, default::Default};
+use std::{convert::TryFrom, fs::File, default::Default};
 use serde::Serialize;
 use anyhow::Result;
 use clap::{Arg, App};
 use csv::WriterBuilder;
-use tch::{Device, nn};
 
 use border::{
     core::{
@@ -22,9 +21,7 @@ use border::{
     agent::{
         OptInterval,
         tch::{
-            IQN, IQNBuilder, ReplayBuffer, IQNModel, IQNModelBuilder,
-            IQNExplorer, EpsilonGreedy,
-            util::{FeatureExtractor, FeatureExtractorBuilder}
+            ReplayBuffer, IQNBuilder, IQNExplorer, EpsilonGreedy,
         }
     }
 };
@@ -189,9 +186,6 @@ impl TryFrom<&Record> for CartpoleRecord {
             episode: record.get_scalar("episode")? as _,
             step: record.get_scalar("step")? as _,
             reward: record.get_scalar("reward")?,
-            // obs: Vec::from_iter(
-            //     record.get_array1("obs")?.iter().map(|v| *v as f64)
-            // )
             obs: record.get_array1("obs")?.iter().map(|v| *v as f64).collect()
         })
     }
@@ -229,14 +223,14 @@ fn main() -> Result<()> {
     let mut agent = create_agent();
     let mut recorder = BufferedRecorder::new();
     env.set_render(true);
-    agent.load("./examples/model/dqn_cartpole").unwrap(); // TODO: define appropriate error
+    agent.load("./examples/model/iqn_cartpole").unwrap(); // TODO: define appropriate error
     agent.eval();
 
     util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);
 
     // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
     let mut wtr = WriterBuilder::new().has_headers(false)
-        .from_writer(File::create("examples/model/dqn_cartpole_eval.csv")?);
+        .from_writer(File::create("examples/model/iqn_cartpole_eval.csv")?);
     for record in recorder.iter() {
         wtr.serialize(CartpoleRecord::try_from(record)?)?;
     }
