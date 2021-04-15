@@ -30,6 +30,7 @@ use border::{
 };
 
 const DIM_OBS: i64 = 4;
+const DIM_FEATURE: i64 = 16;
 const DIM_EMBED: i64 = 64;
 const DIM_ACT: i64 = 2;
 const LR_CRITIC: f64 = 0.001;
@@ -73,7 +74,7 @@ mod iqn_model {
     // MLP as feature extractor
     pub struct MLP {
         in_dim: i64,
-        embed_dim: i64,
+        feature_dim: i64,
         device: Device,
         seq: nn::Sequential
     }
@@ -87,17 +88,17 @@ mod iqn_model {
 
         fn clone_with_var_store(&self, var_store: &nn::VarStore) -> Self {
             let in_dim = self.in_dim;
-            let embed_dim = self.embed_dim;
+            let embed_dim = self.feature_dim;
             let device = var_store.device();
             let p = &var_store.root();
             let seq = nn::seq()
                 .add(nn::linear(p / "cl1", self.in_dim as _, 256, Default::default()))
                 .add_fn(|xs| xs.relu())
-                .add(nn::linear(p / "cl2", 256, self.embed_dim as _, Default::default()));
+                .add(nn::linear(p / "cl2", 256, self.feature_dim as _, Default::default()));
 
             Self {
                 in_dim,
-                embed_dim,
+                feature_dim: embed_dim,
                 device,
                 seq
             }
@@ -108,14 +109,14 @@ mod iqn_model {
     // Builder of feature extractor
     struct MLPBuilder {
         in_dim: i64,
-        embed_dim: i64,
+        feature_dim: i64,
     }
 
     impl MLPBuilder {
         pub fn new(in_dim: i64, embed_dim: i64) -> Self {
             Self {
                 in_dim,
-                embed_dim,
+                feature_dim: embed_dim,
             }
         }
     }
@@ -126,15 +127,15 @@ mod iqn_model {
 
         fn build(self, p: &nn::Path) -> Self::F {
             let in_dim = self.in_dim;
-            let embed_dim = self.embed_dim;
+            let embed_dim = self.feature_dim;
             let device = p.device();
             let seq = nn::seq()
                 .add(nn::linear(p / "cl1", self.in_dim as _, 256, Default::default()))
                 .add_fn(|xs| xs.relu())
-                .add(nn::linear(p / "cl2", 256, self.embed_dim as _, Default::default()));
+                .add(nn::linear(p / "cl2", 256, self.feature_dim as _, Default::default()));
             MLP {
                 in_dim,
-                embed_dim,
+                feature_dim: embed_dim,
                 device,
                 seq
             }
@@ -142,18 +143,18 @@ mod iqn_model {
     }
 
     // IQN model
-    pub fn create_iqn_model(in_dim: i64, embed_dim: i64,  out_dim: i64, learning_rate: f64,
+    pub fn create_iqn_model(in_dim: i64, feature_dim: i64, embed_dim: i64,  out_dim: i64, learning_rate: f64,
         device: Device) -> IQNModel<MLP> {
-        let builder = MLPBuilder::new(in_dim, embed_dim);
+        let builder = MLPBuilder::new(in_dim, feature_dim);
         IQNModelBuilder::default().build(
-            builder, in_dim, embed_dim, out_dim, learning_rate, device
+            builder, feature_dim, embed_dim, out_dim, learning_rate, device
         )
     }
 }
 
-fn create_agent(epsilon_greedy: bool) -> impl Agent<Env> {
+fn create_agent() -> impl Agent<Env> {
     let device = tch::Device::cuda_if_available();
-    let iqn_model = iqn_model::create_iqn_model(DIM_OBS, DIM_EMBED, DIM_ACT, LR_CRITIC, device);
+    let iqn_model = iqn_model::create_iqn_model(DIM_OBS, DIM_FEATURE, DIM_EMBED, DIM_ACT, LR_CRITIC, device);
     let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
     IQNBuilder::default()
         .opt_interval(OPT_INTERVAL)
@@ -188,9 +189,10 @@ impl TryFrom<&Record> for CartpoleRecord {
             episode: record.get_scalar("episode")? as _,
             step: record.get_scalar("step")? as _,
             reward: record.get_scalar("reward")?,
-            obs: Vec::from_iter(
-                record.get_array1("obs")?.iter().map(|v| *v as f64)
-            )
+            // obs: Vec::from_iter(
+            //     record.get_array1("obs")?.iter().map(|v| *v as f64)
+            // )
+            obs: record.get_array1("obs")?.iter().map(|v| *v as f64).collect()
         })
     }
 }
@@ -203,10 +205,6 @@ fn main() -> Result<()> {
         .long("skip_training")
         .takes_value(false)
         .help("Skip training"))
-    .arg(Arg::with_name("egreedy")
-        .long("epsilon_greedy")
-        .takes_value(false)
-        .help("Epsilon greedy"))
     .get_matches();
 
     env_logger::init();
@@ -215,20 +213,20 @@ fn main() -> Result<()> {
     if !matches.is_present("skip training") {
         let env = create_env();
         let env_eval = create_env();
-        let agent = create_agent(matches.is_present("egreddy"));
+        let agent = create_agent();
         let mut trainer = TrainerBuilder::default()
             .max_opts(MAX_OPTS)
             .eval_interval(EVAL_INTERVAL)
             .n_episodes_per_eval(N_EPISODES_PER_EVAL)
             .build(env, env_eval, agent);
-        let mut recorder = TensorboardRecorder::new("./examples/model/dqn_cartpole");
+        let mut recorder = TensorboardRecorder::new("./examples/model/iqn_cartpole");
     
         trainer.train(&mut recorder);
-        trainer.get_agent().save("./examples/model/dqn_cartpole").unwrap(); // TODO: define appropriate error    
+        trainer.get_agent().save("./examples/model/iqn_cartpole").unwrap(); // TODO: define appropriate error    
     }
 
     let mut env = create_env();
-    let mut agent = create_agent(matches.is_present("egreddy"));
+    let mut agent = create_agent();
     let mut recorder = BufferedRecorder::new();
     env.set_render(true);
     agent.load("./examples/model/dqn_cartpole").unwrap(); // TODO: define appropriate error
