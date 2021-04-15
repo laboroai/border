@@ -39,7 +39,7 @@ impl<F: FeatureExtractor> IQNModelBuilder<F> {
         IQNModel {
             device,
             var_store,
-            in_dim,
+            feature_dim: in_dim,
             embed_dim,
             out_dim,
             lin1,
@@ -62,7 +62,7 @@ pub struct IQNModel<F: FeatureExtractor> {
     var_store: nn::VarStore,
 
     // Dimension of the input (feature) vector.
-    in_dim: i64,
+    feature_dim: i64,
 
     // Dimension of the quantile embedding vector.
     embed_dim: i64,
@@ -88,7 +88,7 @@ impl<F: FeatureExtractor> Clone for IQNModel<F> {
     fn clone(&self) -> Self {
         let device = self.device;
         let mut var_store = nn::VarStore::new(device);
-        let in_dim = self.in_dim;
+        let in_dim = self.feature_dim;
         let embed_dim = self.embed_dim;
         let out_dim = self.out_dim;
         let p = &var_store.root();
@@ -103,7 +103,7 @@ impl<F: FeatureExtractor> Clone for IQNModel<F> {
         Self {
             device,
             var_store,
-            in_dim,
+            feature_dim: in_dim,
             embed_dim,
             out_dim,
             lin1,
@@ -128,8 +128,8 @@ impl<F: FeatureExtractor> IQNModel<F> {
         // * The shape of `psi` is [batch_size, self.in_dim].
         let batch_size = psi.size().as_slice()[0];
         let n_quantiles = tau.size().as_slice()[0];
-        debug_assert_eq!(psi.size().as_slice(), &[batch_size, self.in_dim]);
-        debug_assert_eq!(psi.size().as_slice()[1], self.in_dim);
+        debug_assert_eq!(psi.size().as_slice(), &[batch_size, self.feature_dim]);
+        debug_assert_eq!(psi.size().as_slice()[1], self.feature_dim);
         debug_assert_eq!(tau.size().as_slice(), &[n_quantiles]);
 
         // Eq. (4) in the paper
@@ -138,13 +138,13 @@ impl<F: FeatureExtractor> IQNModel<F> {
         let cos = Tensor::cos(&(tau.unsqueeze(-1) * ((pi * i).unsqueeze(0))));
         debug_assert_eq!(cos.size().as_slice(), &[n_quantiles, self.embed_dim]);
         let phi = cos.apply(&self.lin1).relu().unsqueeze(0);
-        debug_assert_eq!(phi.size().as_slice(), &[1, n_quantiles, self.in_dim]);
+        debug_assert_eq!(phi.size().as_slice(), &[1, n_quantiles, self.feature_dim]);
 
         // Merge features and embedded quantiles by elem-wise multiplication
         let psi = psi.unsqueeze(1);
-        debug_assert_eq!(psi.size().as_slice(), &[batch_size, 1, self.in_dim]);
+        debug_assert_eq!(psi.size().as_slice(), &[batch_size, 1, self.feature_dim]);
         let m = psi * phi;
-        debug_assert_eq!(m.size().as_slice(), &[batch_size, n_quantiles, self.in_dim]);
+        debug_assert_eq!(m.size().as_slice(), &[batch_size, n_quantiles, self.feature_dim]);
 
         // Action-value
         let a = m.apply(&self.lin2);

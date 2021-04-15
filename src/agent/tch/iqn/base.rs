@@ -85,52 +85,78 @@ impl<E, F, O, A> IQN<E, F, O, A> where
         let not_done = batch.not_dones.to(self.device);
         trace!("a.shape        = {:?}", a.size());
 
-        debug_assert_eq!(r.size().as_slice(), &[self.batch_size as i64]);
-        debug_assert_eq!(not_done.size().as_slice(), &[self.batch_size as i64]);
+        let batch_size = self.batch_size as _;
+        let n_percent_points = self.n_prob_samples as _;
+
+        debug_assert_eq!(r.size().as_slice(), &[batch_size, 1]);
+        debug_assert_eq!(not_done.size().as_slice(), &[batch_size, 1]);
 
         let loss = {
-            let pred = {
-                let a = a;
-
-                // x.size() == [batch_size, n_actions, n_prob_samples]
+            // predictions of z(s, a), where a is from minibatch
+            // pred.size() == [batch_size, 1, n_percent_points]
+            let (pred, tau) = {
+                // percent points
                 let tau = IQNSample::Uniform10.sample();
+                debug_assert_eq!(tau.size().as_slice(), &[n_percent_points]);
+
+                // predictions for all actions
                 let x = self.iqn.forward(&obs, &tau);
-                debug_assert_eq!(x.size().as_slice()[0], self.batch_size as i64);
-                debug_assert_eq!(x.size().as_slice()[0], self.n_prob_samples as i64);
+                let n_actions = x.size()[x.size().len() - 1];
+                debug_assert_eq!(x.size().as_slice(), &[batch_size, n_percent_points, n_actions]);
 
-                // x.size() == [batch_size, 1, n_prob_samples]
-                let x = x.gather(1, &a, false).unsqueeze(1);
-                debug_assert_eq!(
-                    x.size().as_slice(),
-                    &[self.batch_size as i64, 1, self.n_prob_samples as i64]
-                );
-                x
+                // takes z(s, a) with a from minibatch
+                let x = x.gather(-1, &a.unsqueeze(1).repeat(&[1, n_percent_points, 1]), false)
+                    .squeeze1(-1).unsqueeze(1);
+                debug_assert_eq!(x.size().as_slice(), &[batch_size, 1, n_percent_points]);
+                (x, tau)
             };
-            let tau_pred = IQNSample::Uniform10.sample();
+
+            // target values with max_a q(s, a)
+            // tgt.size() == [batch_size, n_percent_points, 1]
+            // in theory, n_percent_points can be different with that for predictions
             let tgt = no_grad(|| {
-                let x = self.iqn_tgt.forward(&next_obs, &tau_pred);
+                // percent points
+                let tau = IQNSample::Uniform10.sample();
+                debug_assert_eq!(tau.size().as_slice(), &[n_percent_points]);
 
-                // Takes average over quantile samples (tau_i), then takes argmax as actions
-                let y = x.copy().mean1(&[-1], false, tch::Kind::Float);
-                let ixs_act = y.argmax(-1, false).unsqueeze(-1);
+                // target values for all actions
+                let x = self.iqn_tgt.forward(&next_obs, &tau);
+                let n_actions = x.size()[x.size().len() - 1];
+                debug_assert_eq!(x.size().as_slice(), &[batch_size, n_percent_points, n_actions]);
 
-                // x.size() == [batch_size, n_prob_samples]
-                let x = x.gather(1, &ixs_act, false);
-                debug_assert_eq!(
-                    x.size().as_slice(),
-                    &[self.batch_size as i64, self.n_prob_samples as i64]
-                );
+                // argmax_a q(s,a), where z are averaged over tau
+                let y = x.copy().mean1(&[1], false, tch::Kind::Float);
+                let a = y.argmax(-1, false).unsqueeze(-1).unsqueeze(-1)
+                    .repeat(&[1, n_percent_points, 1]);
+                debug_assert_eq!(a.size(), &[batch_size, n_percent_points, 1]);
 
-                // x.size() == [batch_size, n_prob_samples, 1]
-                let x = r + not_done * self.discount_factor * x;
-                debug_assert_eq!(
-                    x.size().as_slice(),
-                    &[self.batch_size as i64, self.n_prob_samples as i64, 1]
-                );
-                x
+                // takes z(s, a)
+                let x = x.gather(2, &a, false);
+                debug_assert_eq!(x.size().as_slice(), &[batch_size, n_percent_points, 1]);
+
+                // target value
+                let r = r.unsqueeze(-1);
+                let not_done = not_done.unsqueeze(-1);
+                let tgt = r + not_done * self.discount_factor * x;
+                debug_assert_eq!(tgt.size().as_slice(), &[batch_size, n_percent_points, 1]);
+
+                tgt
             });
-            quantile_huber_loss(&(pred - tgt), &tau_pred)
+
+            let diff = pred - tgt;
+            debug_assert_eq!(diff.size().as_slice(),
+                &[batch_size, n_percent_points, n_percent_points]
+            );
+
+            // flatten the axes of minibatch and percent points of the target values
+            let diff = diff.flatten(0, 1);
+            debug_assert_eq!(diff.size().as_slice(),
+                &[batch_size * n_percent_points, n_percent_points]
+            );
+
+            quantile_huber_loss(&diff.transpose(0, 1), &tau).mean(tch::Kind::Float)
         };
+
         self.iqn.backward_step(&loss);
 
         f32::from(loss)

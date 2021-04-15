@@ -54,7 +54,7 @@ impl<E, F, O, A> Default for IQNBuilder<E, F, O, A> where
             batch_size: 1,
             discount_factor: 0.99,
             tau: 0.005,
-            n_prob_samples: 10,
+            n_prob_samples: 10, // IQNSample::Uniform10
             train: false,
             explorer: IQNExplorer::EpsilonGreedy(EpsilonGreedy::new()),
             phantom: PhantomData,
