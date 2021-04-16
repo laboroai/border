@@ -85,17 +85,17 @@ mod iqn_model {
 
         fn clone_with_var_store(&self, var_store: &nn::VarStore) -> Self {
             let in_dim = self.in_dim;
-            let embed_dim = self.feature_dim;
+            let feature_dim = self.feature_dim;
             let device = var_store.device();
             let p = &var_store.root();
             let seq = nn::seq()
-                .add(nn::linear(p / "cl1", self.in_dim as _, 256, Default::default()))
+                .add(nn::linear(p / "cl1", in_dim as _, 256, Default::default()))
                 .add_fn(|xs| xs.relu())
-                .add(nn::linear(p / "cl2", 256, self.feature_dim as _, Default::default()));
+                .add(nn::linear(p / "cl2", 256, feature_dim as _, Default::default()));
 
             Self {
                 in_dim,
-                feature_dim: embed_dim,
+                feature_dim,
                 device,
                 seq
             }
