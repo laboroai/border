@@ -63,6 +63,9 @@ name = "quantile_loss"
 [[example]]
 name = "iqn_cartpole"
 
+[[example]]
+name = "iqn_atari"
+
 [dev-dependencies]
 clap = "2.33.3"
 csv = "1.1.5"
