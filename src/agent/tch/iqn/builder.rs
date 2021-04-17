@@ -34,7 +34,7 @@ pub struct IQNBuilder<E, F, M, O, A> where
     n_prob_samples: usize,
     train: bool,
     explorer: IQNExplorer,
-    phantom: PhantomData<(E, F, O, A)>,
+    phantom: PhantomData<(E, F, M, O, A)>,
 }
 
 impl<E, F, M, O, A> Default for IQNBuilder<E, F, M, O, A> where

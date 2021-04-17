@@ -55,8 +55,13 @@ pub trait Model2: ModelBase {
 /// This trait also provide the ability to clone with a given [VarStore].
 /// The ability is useful when creating a target network, used in recent deep learning algorithms in common.
 pub trait SubModel {
+    /// Configuration from which [SubModel] is constructed.
     type Config;
+
+    /// Input of the [SubModel].
     type Input;
+
+    /// Output of the [SubModel].
     type Output;
 
     /// Builds [SubModel] with [VarStore] and [Self::Config].

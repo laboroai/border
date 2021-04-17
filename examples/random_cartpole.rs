@@ -1,4 +1,4 @@
-use std::{convert::TryFrom, fs::File, iter::FromIterator};
+use std::{convert::TryFrom, fs::File};
 use serde::Serialize;
 use anyhow::Result;
 
@@ -51,9 +51,10 @@ impl TryFrom<&Record> for CartpoleRecord {
             episode: record.get_scalar("episode")? as _,
             step: record.get_scalar("step")? as _,
             reward: record.get_scalar("reward")?,
-            obs: Vec::from_iter(
-                record.get_array1("obs")?.iter().map(|v| *v as f64)
-            )
+            obs: record.get_array1("obs")?.iter().map(|v| *v as f64).collect()
+            // obs: Vec::from_iter(
+            //     record.get_array1("obs")?.iter().map(|v| *v as f64)
+            // )
         })
     }
 }

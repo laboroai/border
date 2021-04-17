@@ -18,6 +18,7 @@ use crate::{
 };
 
 /// PPO agent with discrete action.
+#[allow(clippy::upper_case_acronyms)]
 pub struct PPODiscrete<E, M, O, A> where
     E: Env,
     M: Model1<Input=Tensor, Output=(Tensor, Tensor)>, // + Clone

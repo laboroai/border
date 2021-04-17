@@ -19,7 +19,7 @@ use border::{
     agent::{
         OptInterval,
         tch::{
-            ReplayBuffer as ReplayBuffer_, IQNBuilder, IQNExplorer, EpsilonGreedy,
+            ReplayBuffer as ReplayBuffer_, IQNBuilder, EpsilonGreedy,
         }
     }
 };

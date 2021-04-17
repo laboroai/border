@@ -59,9 +59,11 @@ impl OptIntervalCounter {
 }
 
 /// Critic loss type.
+#[allow(clippy::upper_case_acronyms)]
 pub enum CriticLoss {
     /// Mean squared error.
     MSE,
+
     /// Smooth L1 loss.
     SmoothL1
 }

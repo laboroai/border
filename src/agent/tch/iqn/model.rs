@@ -81,7 +81,7 @@ impl<F, M> IQNModelBuilder<F, M> where
         let psi = F::build(&var_store, fe_config);
 
         // Cos-embedding
-        let phi = IQNModel::cos_embed_nn(&var_store, feature_dim, embed_dim);
+        let phi = IQNModel::<F, M>::cos_embed_nn(&var_store, feature_dim, embed_dim);
 
         // Merge
         let f = M::build(&var_store, m_config);
@@ -147,19 +147,17 @@ impl<F, M> IQNModel<F, M> where
     fn cos_embed_nn(var_store: &VarStore, feature_dim: i64, embed_dim: i64) -> nn::Sequential {
         let p = &var_store.root();
         let device = p.device();
-        let seq = nn::seq()
-        .add_fn(|tau| {
-            let n_quantiles = tau.size().as_slice()[0];
-            let pi = std::f64::consts::PI;
-            let i = Tensor::range(0, embed_dim - 1, (Float, device));
-            let cos = Tensor::cos(&(tau.unsqueeze(-1) * ((pi * i).unsqueeze(0))));
-            debug_assert_eq!(cos.size().as_slice(), &[n_quantiles, embed_dim]);
-            cos
-        })
-        .add(nn::linear(p / "iqn_cos_to_feature", embed_dim, feature_dim, Default::default()))
-        .add_fn(|x| x.relu());
-
-        seq
+        nn::seq()
+            .add_fn(move |tau| {
+                let n_quantiles = tau.size().as_slice()[0];
+                let pi = std::f64::consts::PI;
+                let i = Tensor::range(0, embed_dim - 1, (Float, device));
+                let cos = Tensor::cos(&(tau.unsqueeze(-1) * ((pi * i).unsqueeze(0))));
+                debug_assert_eq!(cos.size().as_slice(), &[n_quantiles, embed_dim]);
+                cos
+            })
+            .add(nn::linear(p / "iqn_cos_to_feature", embed_dim, feature_dim, Default::default()))
+            .add_fn(|x| x.relu())
     }
 }
 
@@ -180,7 +178,7 @@ impl<F, M> Clone for IQNModel<F, M> where
         let psi = self.psi.clone_with_var_store(&var_store);
 
         // Cos-embedding
-        let phi = IQNModel::cos_embed_nn(&var_store, feature_dim, embed_dim);
+        let phi = IQNModel::<F, M>::cos_embed_nn(&var_store, feature_dim, embed_dim);
 
         // Merge
         let f = self.f.clone_with_var_store(&var_store);
@@ -222,12 +220,7 @@ impl<F, M> IQNModel<F, M> where
         debug_assert_eq!(psi.size().as_slice(), &[batch_size, feature_dim]);
 
         // Cosine embedding of percent points, eq. (4) in the paper
-        let phi = self.phi.forward(tau);
-        // let pi = std::f64::consts::PI;
-        // let i = Tensor::range(0, self.embed_dim - 1, (Float, self.device));
-        // let cos = Tensor::cos(&(tau.unsqueeze(-1) * ((pi * i).unsqueeze(0))));
-        // debug_assert_eq!(cos.size().as_slice(), &[n_percent_points, self.embed_dim]);
-        // let phi = cos.apply(&self.lin1).relu().unsqueeze(0);
+        let phi = self.phi.forward(tau).unsqueeze(0);
         debug_assert_eq!(phi.size().as_slice(), &[1, n_percent_points, self.feature_dim]);
 
         // Merge features and embedded quantiles by elem-wise multiplication
@@ -237,7 +230,7 @@ impl<F, M> IQNModel<F, M> where
         debug_assert_eq!(m.size().as_slice(), &[batch_size, n_percent_points, self.feature_dim]);
 
         // Action-value
-        let a = m.apply(&self.lin2);
+        let a = self.f.forward(&m);
         debug_assert_eq!(a.size().as_slice(), &[batch_size, n_percent_points, self.out_dim]);
 
         a
@@ -322,15 +315,24 @@ mod test {
     struct Identity {}
 
     impl SubModel for Identity {
+        type Config = IdentityConfig;
         type Input = Tensor;
         type Output = Tensor;
 
         fn clone_with_var_store(&self, _var_store: &nn::VarStore) -> Self {
             Self {}
         }
+
+        fn build(_var_store: &VarStore, _config: Self::Config) -> Self {
+            Self {}
+        }
+
+        fn forward(&self, input: &Self::Input) -> Self::Output {
+            input.copy()
+        }
     }
 
-    fn iqn_model(in_dim: i64, feature_dim: i64, embed_dim: i64, out_dim: i64) -> IQNModel<Identity, Identity> {
+    fn iqn_model(feature_dim: i64, embed_dim: i64, out_dim: i64) -> IQNModel<Identity, Identity> {
         let fe_config = IdentityConfig {};
         let m_config = IdentityConfig {};
         let device = Device::Cpu;
@@ -347,17 +349,17 @@ mod test {
     #[test]
     /// Check shape of tensors in IQNModel.
     fn test_iqn_model() {
-        let in_dim = 1000;
-        let feature_dim = 32;
+        let in_dim = 100;
+        let feature_dim = 100;
         let embed_dim = 64;
-        let out_dim = 16;
-        let n_quantiles = 8;
+        let out_dim = 100;
+        let n_percent_points = 8;
         let batch_size = 32;
 
-        let model = iqn_model(in_dim, feature_dim, embed_dim, out_dim);
+        let model = iqn_model(feature_dim, embed_dim, out_dim);
         let psi = Tensor::rand(&[batch_size, in_dim], tch::kind::FLOAT_CPU);
-        let tau = Tensor::rand(&[n_quantiles], tch::kind::FLOAT_CPU);
-        assert_eq!(tau.size().as_slice(), &[n_quantiles]);
+        let tau = Tensor::rand(&[n_percent_points], tch::kind::FLOAT_CPU);
+        assert_eq!(tau.size().as_slice(), &[n_percent_points]);
         let _q = model.forward(&psi, &tau);
     }    
 }

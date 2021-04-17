@@ -29,6 +29,7 @@ fn normal_logp(x: &Tensor) -> Tensor {
 }
 
 /// Soft actor critic agent.
+#[allow(clippy::upper_case_acronyms)]
 pub struct SAC<E, Q, P, O, A> where
     E: Env,
     O: TchBuffer<Item = E::Obs>,

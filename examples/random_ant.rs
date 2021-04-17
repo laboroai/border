@@ -1,5 +1,5 @@
 use std::time::Duration;
-use anyhow::Result;
+// use anyhow::Result;
 use ndarray::Array;
 
 use border::{
@@ -46,7 +46,7 @@ impl Policy<Env> for RandomPolicy {
     }
 }
 
-fn main() -> Result<()> {
+fn main() {
     env_logger::init();
     tch::manual_seed(42);
     fastrand::seed(42);
@@ -64,5 +64,5 @@ fn main() -> Result<()> {
 
     util::eval(&mut env, &mut policy, 5);
 
-    Ok(())
+    // Ok(())
 }

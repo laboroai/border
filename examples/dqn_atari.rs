@@ -1,6 +1,6 @@
 use std::time::Duration;
 use clap::{Arg, App};
-use anyhow::Result;
+// use anyhow::Result;
 use tch::nn;
 
 use border::{
@@ -109,7 +109,7 @@ fn create_env(name: &str) -> Env {
         .build(name, obs_filter, act_filter).unwrap()
 }
 
-fn main() -> Result<()> {
+fn main() {
     env_logger::init();
     tch::manual_seed(42);
 
@@ -163,5 +163,5 @@ fn main() -> Result<()> {
         util::eval(&mut env, &mut agent, 5);
     }
 
-    Ok(())
+    // Ok(())
 }

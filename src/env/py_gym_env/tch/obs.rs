@@ -28,7 +28,7 @@ pub trait ZeroTensor {
 
 impl ZeroTensor for u8 {
     fn zeros(shape: &[i64]) -> Tensor {
-        Tensor::zeros(&shape, (tch::kind::Kind::Uint8, tch::Device::Cpu))
+        Tensor::zeros(&shape, (tch::kind::Kind::Uint8, Device::Cpu))
     }
 }
 

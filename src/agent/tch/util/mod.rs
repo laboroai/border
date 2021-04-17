@@ -1,6 +1,5 @@
 //! Utilities used by tch agents.
 use log::trace;
-use tch::{Tensor, nn, nn::{Module, VarStore}};
 
 use crate::agent::tch::model::ModelBase;
 

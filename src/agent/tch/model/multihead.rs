@@ -24,7 +24,7 @@ impl StateValueAndDiscreteActProb {
         let network = nn::seq()
             .add(nn::linear(p / "cl1", in_dim as _, 256, Default::default()))
             .add_fn(|xs| xs.relu())
-            .add(nn::linear(p / "cl3", 256, 256 as _, Default::default()));
+            .add(nn::linear(p / "cl3", 256, 256, Default::default()));
         let critic = nn::linear(p / "cl", 256, 1, Default::default());
         let actor = nn::linear(p / "al", 256, n_act as _, Default::default());
         let opt = nn::Adam::default().build(&vs, learning_rate).unwrap();

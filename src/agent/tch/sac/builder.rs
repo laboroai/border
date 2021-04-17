@@ -19,6 +19,7 @@ type ActMean = Tensor;
 type ActStd = Tensor;
 
 /// SAC builder.
+#[allow(clippy::upper_case_acronyms)]
 pub struct SACBuilder {
     gamma: f64,
     tau: f64,

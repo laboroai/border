@@ -18,6 +18,7 @@ use crate::{
 };
 
 /// Policy gradient agent with discrete action.
+#[allow(clippy::upper_case_acronyms)]
 pub struct PGDiscrete<E, M, O, A> where
     E: Env,
     M: Model1<Input=Tensor, Output=Tensor>, // + Clone

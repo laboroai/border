@@ -1,4 +1,4 @@
-use anyhow::Result;
+// use anyhow::Result;
 use tch::nn;
 
 use border::{
@@ -106,7 +106,7 @@ fn create_env(n_procs: usize) -> Env {
     Env::new("PongNoFrameskip-v4", n_procs, obs_filter, act_filter, true).unwrap()
 }
 
-fn main() -> Result<()> {
+fn main() {
     env_logger::init();
     tch::manual_seed(42);
 
@@ -127,5 +127,5 @@ fn main() -> Result<()> {
     trainer.get_env().close();
     trainer.get_env_eval().close();
 
-    Ok(())
+    // Ok(())
 }

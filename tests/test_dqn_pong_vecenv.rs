@@ -1,4 +1,4 @@
-use anyhow::Result;
+// use anyhow::Result;
 use tch::nn;
 
 use border::{
@@ -107,7 +107,7 @@ fn create_env(n_procs: usize) -> Env {
 }
 
 #[test]
-fn main() -> Result<()> {
+fn main() {
     env_logger::init();
     tch::manual_seed(42);
 
@@ -127,6 +127,4 @@ fn main() -> Result<()> {
 
     trainer.get_env().close();
     trainer.get_env_eval().close();
-
-    Ok(())
 }

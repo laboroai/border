@@ -52,6 +52,7 @@ impl ActionNoise {
 }
 
 /// adapted from ddpg.rs in tch-rs RL examples
+#[allow(clippy::upper_case_acronyms)]
 pub struct DDPG<E, Q, P, O, A> where
     E: Env,
     O: TchBuffer<Item = E::Obs>,

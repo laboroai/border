@@ -1,4 +1,4 @@
-use anyhow::Result;
+// use anyhow::Result;
 use tch::nn;
 
 use border::{
@@ -84,7 +84,7 @@ fn create_env() -> Env {
     Env::new("PongNoFrameskip-v4", obs_filter, act_filter, true).unwrap()
 }
 
-fn main() -> Result<()> {
+fn main() {
     env_logger::init();
     tch::manual_seed(42);
 
@@ -99,5 +99,5 @@ fn main() -> Result<()> {
     let reward = border::core::util::eval(&mut env_eval, &mut agent, 5);
     println!("{:?}", reward);
  
-    Ok(())
+    // Ok(())
 }

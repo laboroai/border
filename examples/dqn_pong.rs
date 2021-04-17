@@ -1,4 +1,4 @@
-use anyhow::Result;
+// use anyhow::Result;
 use tch::nn;
 
 use border::{
@@ -108,7 +108,7 @@ fn create_env() -> Env {
         .build("PongNoFrameskip-v4", obs_filter, act_filter).unwrap()
 }
 
-fn main() -> Result<()> {
+fn main() {
     env_logger::init();
     tch::manual_seed(42);
 
@@ -126,5 +126,5 @@ fn main() -> Result<()> {
     trainer.train(&mut recorder);
     trainer.get_agent().save("./examples/model/dqn_pong").unwrap(); // TODO: define appropriate error
 
-    Ok(())
+    // Ok(())
 }

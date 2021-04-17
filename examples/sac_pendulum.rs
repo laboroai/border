@@ -1,4 +1,4 @@
-use std::{convert::TryFrom, fs::File, iter::FromIterator};
+use std::{convert::TryFrom, fs::File};
 use serde::Serialize;
 use anyhow::Result;
 use tch::nn;
@@ -102,8 +102,10 @@ impl PyGymEnvActFilter<Act> for ActFilter {
     fn filt(&mut self, act: Act) -> (PyObject, Record) {
         let act_filt = 2f32 * &act.act;
         let record = Record::from_slice(&[
-            ("act_org", RecordValue::Array1(Vec::from_iter(act.act.iter().cloned()))),
-            ("act_filt", RecordValue::Array1(Vec::from_iter(act_filt.iter().cloned())))
+            ("act_org", RecordValue::Array1(act.act.iter().cloned().collect())),
+            ("act_filt", RecordValue::Array1(act_filt.iter().cloned().collect()))
+            // ("act_org", RecordValue::Array1(Vec::from_iter(act.act.iter().cloned()))),
+            // ("act_filt", RecordValue::Array1(Vec::from_iter(act_filt.iter().cloned())))
         ]);
         (to_pyobj::<ActShape>(act_filt), record)
     }
@@ -152,9 +154,12 @@ impl TryFrom<&Record> for PendulumRecord {
             episode: record.get_scalar("episode")? as _,
             step: record.get_scalar("step")? as _,
             reward: record.get_scalar("reward")?,
-            obs: Vec::from_iter(record.get_array1("obs")?.iter().cloned()),
-            act_org: Vec::from_iter(record.get_array1("act_org")?.iter().cloned()),
-            act_filt: Vec::from_iter(record.get_array1("act_filt")?.iter().cloned()),
+            obs: record.get_array1("obs")?.to_vec(),
+            act_org: record.get_array1("act_org")?.to_vec(),
+            act_filt: record.get_array1("act_filt")?.to_vec()
+            // obs: Vec::from_iter(record.get_array1("obs")?.iter().cloned()),
+            // act_org: Vec::from_iter(record.get_array1("act_org")?.iter().cloned()),
+            // act_filt: Vec::from_iter(record.get_array1("act_filt")?.iter().cloned()),
         })
     }
 }

@@ -25,8 +25,8 @@ use crate::{
 /// `M::Input` and returns feature vectors.
 pub struct IQN<E, F, M, O, A> where
     E: Env,
-    F: SubModel,
-    M: SubModel,
+    F: SubModel<Output = Tensor>,
+    M: SubModel<Input = Tensor, Output = Tensor>,
     E::Obs: Into<F::Input>,
     E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
