@@ -1,6 +1,6 @@
 //! Definition of interfaces of neural networks.
 use std::{path::Path, error::Error};
-use tch::{Tensor, nn};
+use tch::{Tensor, nn, nn::VarStore};
 
 /// Base interface.
 pub trait ModelBase {
@@ -45,4 +45,26 @@ pub trait Model2: ModelBase {
 
     /// Performs forward computation given a pair of inputs.
     fn forward(&self, x1s: &Self::Input1, x2s: &Self::Input2) -> Self::Output;
+}
+
+/// Neural network model that can be initialized with [VarStore] and configuration.
+///
+/// The purpose of this trait is for modularity of neural network models.
+/// Modules, which consists a neural network, should share [VarStore].
+/// To do this, structs implementing this trait can be initialized with a given [VarStore].
+/// This trait also provide the ability to clone with a given [VarStore].
+/// The ability is useful when creating a target network, used in recent deep learning algorithms in common.
+pub trait SubModel {
+    type Config;
+    type Input;
+    type Output;
+
+    /// Builds [SubModel] with [VarStore] and [Self::Config].
+    fn build(var_store: &VarStore, config: Self::Config) -> Self;
+
+    /// Clones [SubModel] with [VarStore].
+    fn clone_with_var_store(&self, var_store: &VarStore) -> Self;
+
+    /// A generalized forward function.
+    fn forward(&self, input: &Self::Input) -> Self::Output;
 }

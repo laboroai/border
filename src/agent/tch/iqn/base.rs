@@ -11,9 +11,9 @@ use crate::{
     agent::{
         OptIntervalCounter,
         tch::{
-            ReplayBuffer, TchBuffer, model::ModelBase, TchBatch,
+            ReplayBuffer, TchBuffer, model::{ModelBase, SubModel}, TchBatch,
             iqn::{IQNModel, IQNExplorer, model::{IQNSample, average}},
-            util::{FeatureExtractor, quantile_huber_loss, track}
+            util::{quantile_huber_loss, track}
         }
     },
 };
@@ -23,11 +23,12 @@ use crate::{
 ///
 /// The type parameter `M` is a feature extractor, which takes
 /// `M::Input` and returns feature vectors.
-pub struct IQN<E, F, O, A> where
+pub struct IQN<E, F, M, O, A> where
     E: Env,
-    F: FeatureExtractor,
-    E::Obs :Into<F::Input>,
-    E::Act :From<Tensor>,
+    F: SubModel,
+    M: SubModel,
+    E::Obs: Into<F::Input>,
+    E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
@@ -37,8 +38,8 @@ pub struct IQN<E, F, O, A> where
     pub(super) n_updates_per_opt: usize,
     pub(super) min_transitions_warmup: usize,
     pub(super) batch_size: usize,
-    pub(super) iqn: IQNModel<F>,
-    pub(super) iqn_tgt: IQNModel<F>,
+    pub(super) iqn: IQNModel<F, M>,
+    pub(super) iqn_tgt: IQNModel<F, M>,
     pub(super) train: bool,
     pub(super) phantom: PhantomData<E>,
     pub(super) prev_obs: RefCell<Option<E::Obs>>,
@@ -50,9 +51,10 @@ pub struct IQN<E, F, O, A> where
     pub(super) device: Device,
 }
 
-impl<E, F, O, A> IQN<E, F, O, A> where
+impl<E, F, M, O, A> IQN<E, F, M, O, A> where
     E: Env,
-    F: FeatureExtractor,
+    F: SubModel<Output = Tensor>,
+    M: SubModel<Input = Tensor, Output = Tensor>,
     E::Obs: Into<F::Input>,
     E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
@@ -96,7 +98,7 @@ impl<E, F, O, A> IQN<E, F, O, A> where
             // pred.size() == [batch_size, 1, n_percent_points]
             let (pred, tau) = {
                 // percent points
-                let tau = IQNSample::Uniform10.sample();
+                let tau = IQNSample::Uniform10.sample().to(self.device);
                 debug_assert_eq!(tau.size().as_slice(), &[n_percent_points]);
 
                 // predictions for all actions
@@ -116,7 +118,7 @@ impl<E, F, O, A> IQN<E, F, O, A> where
             // in theory, n_percent_points can be different with that for predictions
             let tgt = no_grad(|| {
                 // percent points
-                let tau = IQNSample::Uniform10.sample();
+                let tau = IQNSample::Uniform10.sample().to(self.device);
                 debug_assert_eq!(tau.size().as_slice(), &[n_percent_points]);
 
                 // target values for all actions
@@ -168,9 +170,10 @@ impl<E, F, O, A> IQN<E, F, O, A> where
     }
 }
 
-impl<E, F, O, A> Policy<E> for IQN<E, F, O, A> where
+impl<E, F, M, O, A> Policy<E> for IQN<E, F, M, O, A> where
     E: Env,
-    F: FeatureExtractor,
+    F: SubModel<Output = Tensor>,
+    M: SubModel<Input = Tensor, Output = Tensor>,
     E::Obs: Into<F::Input>,
     E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
@@ -201,11 +204,12 @@ impl<E, F, O, A> Policy<E> for IQN<E, F, O, A> where
     }
 }
 
-impl<E, F, O, A> Agent<E> for IQN<E, F, O, A> where
+impl<E, F, M, O, A> Agent<E> for IQN<E, F, M, O, A> where
     E: Env,
-    F: FeatureExtractor,
-    E::Obs :Into<F::Input>,
-    E::Act :From<Tensor>,
+    F: SubModel<Output = Tensor>,
+    M: SubModel<Input = Tensor, Output = Tensor>,
+    E::Obs: Into<F::Input>,
+    E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {

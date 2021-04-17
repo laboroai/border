@@ -1,6 +1,6 @@
 //! Utilities used by tch agents.
 use log::trace;
-use tch::{Tensor, nn};
+use tch::{Tensor, nn, nn::{Module, VarStore}};
 
 use crate::agent::tch::model::ModelBase;
 
@@ -31,25 +31,4 @@ pub fn concat_slices(s1: &[i64], s2: &[i64]) -> Vec<i64> {
     let mut v = Vec::from(s1);
     v.append(&mut Vec::from(s2));
     v
-}
-
-/// Builds feature extractor
-pub trait FeatureExtractorBuilder {
-    /// [FeatureExtractor] constructed by this builder.
-    type F: FeatureExtractor;
-
-    /// Constructs [FeatureExtractor].
-    fn build(self, p: &nn::Path) -> Self::F;
-}
-
-/// Feature extractor that output [tch::Tensor].
-pub trait FeatureExtractor {
-    /// Input of the model.
-    type Input;
-
-    /// Convert the input to a feature vector.
-    fn feature(&self, x: &Self::Input) -> Tensor;
-
-    /// Clone [FeatureExtractor] with [`tch::nn::VarStore`].
-    fn clone_with_var_store(&self, var_store: &nn::VarStore) -> Self;
 }

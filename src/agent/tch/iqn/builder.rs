@@ -7,8 +7,7 @@ use crate::{
     agent::{
         OptInterval, OptIntervalCounter,
         tch::{
-            util::FeatureExtractor,
-            ReplayBuffer, TchBuffer,
+            ReplayBuffer, TchBuffer, model::SubModel,
             IQN, IQNModel, IQNExplorer, EpsilonGreedy
         }
     }
@@ -16,9 +15,10 @@ use crate::{
 
 #[allow(clippy::clippy::upper_case_acronyms)]
 /// IQN builder.
-pub struct IQNBuilder<E, F, O, A> where
+pub struct IQNBuilder<E, F, M, O, A> where
     E: Env,
-    F: FeatureExtractor,
+    F: SubModel,
+    M: SubModel,
     E::Obs: Into<F::Input>,
     E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
@@ -37,11 +37,12 @@ pub struct IQNBuilder<E, F, O, A> where
     phantom: PhantomData<(E, F, O, A)>,
 }
 
-impl<E, F, O, A> Default for IQNBuilder<E, F, O, A> where
+impl<E, F, M, O, A> Default for IQNBuilder<E, F, M, O, A> where
     E: Env,
-    F: FeatureExtractor,
-    E::Obs :Into<F::Input>,
-    E::Act :From<Tensor>,
+    F: SubModel,
+    M: SubModel,
+    E::Obs: Into<F::Input>,
+    E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
@@ -62,11 +63,12 @@ impl<E, F, O, A> Default for IQNBuilder<E, F, O, A> where
     }
 }
 
-impl<E, F, O, A> IQNBuilder<E, F, O, A> where
+impl<E, F, M, O, A> IQNBuilder<E, F, M, O, A> where
     E: Env,
-    F: FeatureExtractor,
-    E::Obs :Into<F::Input>,
-    E::Act :From<Tensor>,
+    F: SubModel<Output = Tensor>,
+    M: SubModel<Input = Tensor, Output = Tensor>,
+    E::Obs: Into<F::Input>,
+    E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
@@ -120,8 +122,8 @@ impl<E, F, O, A> IQNBuilder<E, F, O, A> where
     }
     
     /// Constructs [IQN] agent.
-    pub fn build(self, iqn_model: IQNModel<F>, replay_buffer: ReplayBuffer<E, O, A>, device: Device)
-        -> IQN<E, F, O, A> 
+    pub fn build(self, iqn_model: IQNModel<F, M>, replay_buffer: ReplayBuffer<E, O, A>, device: Device)
+        -> IQN<E, F, M, O, A> 
     {
         let iqn = iqn_model;
         let iqn_tgt = iqn.clone();
