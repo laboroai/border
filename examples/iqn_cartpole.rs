@@ -15,7 +15,7 @@ use border::{
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
         tch::{
             obs::TchPyGymEnvObsBuffer,
-            act_d::TchPyGymEnvDiscreteActBuffer
+            act_d::TchPyGymEnvDiscreteActBuffer,
         }
     },
     agent::{
@@ -62,77 +62,79 @@ type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 mod iqn_model {
     use tch::{Tensor, Device, nn, nn::Module};
     use border::agent::tch::{
-        util::{FeatureExtractor, FeatureExtractorBuilder},
+        model::SubModel,
         IQNModel, IQNModelBuilder
     };
 
     #[allow(clippy::upper_case_acronyms)]
-    #[derive(Debug)]
+    pub struct MLPConfig {
+        in_dim: i64,
+        out_dim: i64,
+    }
+
+    impl MLPConfig {
+        fn new(in_dim: i64, out_dim: i64) -> Self {
+            Self {
+                in_dim,
+                out_dim
+            }
+        }
+    }
+
+    #[allow(clippy::upper_case_acronyms)]
     // MLP as feature extractor
     pub struct MLP {
         in_dim: i64,
-        feature_dim: i64,
+        out_dim: i64,
         device: Device,
         seq: nn::Sequential
     }
 
-    impl FeatureExtractor for MLP {
-        type Input = Tensor;
+    impl MLP {
+        fn create_net(var_store: &nn::VarStore, in_dim: i64, out_dim: i64) -> nn::Sequential {
+            let p = &var_store.root();
+            nn::seq()
+                .add(nn::linear(p / "cl1", in_dim as _, 256, Default::default()))
+                .add_fn(|xs| xs.relu())
+                .add(nn::linear(p / "cl2", 256, out_dim as _, Default::default()))
+        }
+    }
 
-        fn feature(&self, x: &Self::Input) -> Tensor {
+    impl SubModel for MLP {
+        type Config = MLPConfig;
+        type Input = Tensor;
+        type Output = Tensor;
+
+        fn forward(&self, x: &Self::Input) -> Tensor {
             self.seq.forward(&x.to(self.device))
         }
 
-        fn clone_with_var_store(&self, var_store: &nn::VarStore) -> Self {
-            let in_dim = self.in_dim;
-            let feature_dim = self.feature_dim;
+        fn build(var_store: &nn::VarStore, config: Self::Config) -> Self {
+            let in_dim = config.in_dim;
+            let out_dim = config.out_dim;
             let device = var_store.device();
-            let p = &var_store.root();
-            let seq = nn::seq()
-                .add(nn::linear(p / "cl1", in_dim as _, 256, Default::default()))
-                .add_fn(|xs| xs.relu())
-                .add(nn::linear(p / "cl2", 256, feature_dim as _, Default::default()));
+            let seq = Self::create_net(var_store, in_dim, out_dim);
 
             Self {
                 in_dim,
-                feature_dim,
+                out_dim,
                 device,
                 seq
             }
         }
-    }
 
-    #[allow(clippy::upper_case_acronyms)]
-    // Builder of feature extractor
-    struct MLPBuilder {
-        in_dim: i64,
-        feature_dim: i64,
-    }
+        fn clone_with_var_store(&self, var_store: &nn::VarStore) -> Self {
+            let in_dim = self.in_dim;
+            let out_dim = self.out_dim;
+            let device = var_store.device();
+            let mut var_store_new = nn::VarStore::new(device);
+            let seq = Self::create_net(&var_store_new, in_dim, out_dim);
 
-    impl MLPBuilder {
-        pub fn new(in_dim: i64, embed_dim: i64) -> Self {
+            var_store_new.copy(var_store).unwrap();
+
             Self {
                 in_dim,
-                feature_dim: embed_dim,
-            }
-        }
-    }
-
-    #[allow(clippy::upper_case_acronyms)]
-    impl FeatureExtractorBuilder for MLPBuilder {
-        type F = MLP;
-
-        fn build(self, p: &nn::Path) -> Self::F {
-            let in_dim = self.in_dim;
-            let embed_dim = self.feature_dim;
-            let device = p.device();
-            let seq = nn::seq()
-                .add(nn::linear(p / "cl1", self.in_dim as _, 256, Default::default()))
-                .add_fn(|xs| xs.relu())
-                .add(nn::linear(p / "cl2", 256, self.feature_dim as _, Default::default()));
-            MLP {
-                in_dim,
-                feature_dim: embed_dim,
+                out_dim,
                 device,
                 seq
             }
@@ -141,11 +143,15 @@ mod iqn_model {
 
     // IQN model
     pub fn create_iqn_model(in_dim: i64, feature_dim: i64, embed_dim: i64,  out_dim: i64, learning_rate: f64,
-        device: Device) -> IQNModel<MLP> {
-        let builder = MLPBuilder::new(in_dim, feature_dim);
-        IQNModelBuilder::default().build(
-            builder, feature_dim, embed_dim, out_dim, learning_rate, device
-        )
+        device: Device) -> IQNModel<MLP, MLP> {
+        let fe_config = MLPConfig::new(in_dim, feature_dim);
+        let m_config = MLPConfig::new(feature_dim, out_dim);
+        IQNModelBuilder::default()
+            .feature_dim(feature_dim)
+            .embed_dim(embed_dim)
+            .out_dim(out_dim)
+            .learning_rate(learning_rate)
+            .build(fe_config, m_config, device)
     }
 }
 
