@@ -8,7 +8,7 @@ use crate::{
         OptInterval, OptIntervalCounter,
         tch::{
             ReplayBuffer, TchBuffer, model::SubModel,
-            IQN, IQNModel, IQNExplorer, EpsilonGreedy
+            iqn::{IQN, IQNModel, IQNExplorer, EpsilonGreedy}
         }
     }
 };
@@ -57,7 +57,7 @@ impl<E, F, M, O, A> Default for IQNBuilder<E, F, M, O, A> where
             tau: 0.005,
             n_prob_samples: 10, // IQNSample::Uniform10
             train: false,
-            explorer: IQNExplorer::EpsilonGreedy(EpsilonGreedy::new()),
+            explorer: IQNExplorer::EpsilonGreedy(EpsilonGreedy::default()),
             phantom: PhantomData,
         }
     }

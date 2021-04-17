@@ -5,5 +5,5 @@ pub mod model;
 pub mod explorer;
 pub use base::IQN;
 pub use builder::IQNBuilder;
-pub use model::IQNModel;
-pub use explorer::IQNExplorer;
+pub use model::{IQNModelBuilder, IQNModel};
+pub use explorer::{IQNExplorer, EpsilonGreedy};

@@ -1,4 +1,5 @@
 //! Exploration strategies of IQN.
+use std::default::Default;
 use tch::Tensor;
 
 #[allow(clippy::upper_case_acronyms)]
@@ -37,16 +38,29 @@ pub struct EpsilonGreedy {
     final_step: usize,
 }
 
-#[allow(clippy::new_without_default)]
-impl EpsilonGreedy {
-    /// Constructs epsilon-greedy explorer.
-    pub fn new() -> Self {
+impl Default for EpsilonGreedy {
+    fn default() -> Self {
         Self {
             n_opts: 0,
             eps_start: 1.0,
             eps_final: 0.02,
             final_step: 100_000,
         }
+    }
+}
+
+#[allow(clippy::new_without_default)]
+impl EpsilonGreedy {
+    /// Constructs epsilon-greedy explorer.
+    pub fn with_params(eps_start: f64, eps_final: f64, final_step: usize) -> IQNExplorer {
+        IQNExplorer::EpsilonGreedy(
+            Self {
+                n_opts: 0,
+                eps_start,
+                eps_final,
+                final_step
+            }
+        )
     }
 
     /// Constructs epsilon-greedy explorer.

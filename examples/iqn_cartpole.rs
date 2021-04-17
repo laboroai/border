@@ -21,7 +21,8 @@ use border::{
     agent::{
         OptInterval,
         tch::{
-            ReplayBuffer, IQNBuilder, IQNExplorer, EpsilonGreedy,
+            ReplayBuffer,
+            iqn::{IQNBuilder, EpsilonGreedy}
         }
     }
 };
@@ -35,12 +36,15 @@ const DISCOUNT_FACTOR: f64 = 0.99;
 const BATCH_SIZE: usize = 64;
 const N_TRANSITIONS_WARMUP: usize = 100;
 const N_UPDATES_PER_OPT: usize = 1;
-const TAU: f64 = 0.005;
-const OPT_INTERVAL: OptInterval = OptInterval::Steps(50);
-const MAX_OPTS: usize = 1000;
+const TAU: f64 = 0.001;
+const OPT_INTERVAL: OptInterval = OptInterval::Steps(25);
+const MAX_OPTS: usize = 2000;
 const EVAL_INTERVAL: usize = 50;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
+const EPS_START: f64 = 1.0;
+const EPS_FINAL: f64 = 0.01;
+const FINAL_STEP: usize = MAX_OPTS;
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -63,7 +67,7 @@ mod iqn_model {
     use tch::{Tensor, Device, nn, nn::Module};
     use border::agent::tch::{
         model::SubModel,
-        IQNModel, IQNModelBuilder
+        iqn::{IQNModel, IQNModelBuilder}
     };
 
     #[allow(clippy::upper_case_acronyms)]
@@ -127,10 +131,7 @@ mod iqn_model {
             let in_dim = self.in_dim;
             let out_dim = self.out_dim;
             let device = var_store.device();
-            let mut var_store_new = nn::VarStore::new(device);
-            let seq = Self::create_net(&var_store_new, in_dim, out_dim);
-
-            var_store_new.copy(var_store).unwrap();
+            let seq = Self::create_net(&var_store, in_dim, out_dim);
 
             Self {
                 in_dim,
@@ -166,7 +167,7 @@ fn create_agent() -> impl Agent<Env> {
         .batch_size(BATCH_SIZE)
         .discount_factor(DISCOUNT_FACTOR)
         .tau(TAU)
-        .explorer(IQNExplorer::EpsilonGreedy(EpsilonGreedy::new()))
+        .explorer(EpsilonGreedy::with_params(EPS_START, EPS_FINAL, FINAL_STEP))
         .build(iqn_model, replay_buffer, device)
 }
 

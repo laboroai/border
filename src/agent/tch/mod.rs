@@ -14,7 +14,4 @@ pub use dqn::{DQN, DQNBuilder};
 pub use ppo_discrete::PPODiscrete;
 pub use sac::{SAC, SACBuilder};
 pub use ddpg::DDPG;
-pub use iqn::{
-    IQN, IQNBuilder, explorer::{IQNExplorer, EpsilonGreedy},
-    model::{IQNModel, IQNModelBuilder}
-};
+// pub use iqn::{IQN, IQNBuilder, model::{IQNModel, IQNModelBuilder}};
