@@ -28,7 +28,7 @@ use border::{
 };
 
 const DIM_OBS: i64 = 4;
-const DIM_FEATURE: i64 = 16;
+const DIM_FEATURE: i64 = 32;
 const DIM_EMBED: i64 = 64;
 const DIM_ACT: i64 = 2;
 const LR_CRITIC: f64 = 0.001;
@@ -37,14 +37,14 @@ const BATCH_SIZE: usize = 64;
 const N_TRANSITIONS_WARMUP: usize = 100;
 const N_UPDATES_PER_OPT: usize = 1;
 const TAU: f64 = 0.001;
-const OPT_INTERVAL: OptInterval = OptInterval::Steps(25);
-const MAX_OPTS: usize = 2000;
-const EVAL_INTERVAL: usize = 50;
+const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
+const MAX_OPTS: usize = 10000;
+const EVAL_INTERVAL: usize = 500;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const EPS_START: f64 = 1.0;
 const EPS_FINAL: f64 = 0.01;
-const FINAL_STEP: usize = MAX_OPTS;
+const FINAL_STEP: usize = 3500; // MAX_OPTS;
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -71,41 +71,46 @@ mod iqn_model {
     };
 
     #[allow(clippy::upper_case_acronyms)]
-    pub struct MLPConfig {
+    pub struct FCConfig {
         in_dim: i64,
         out_dim: i64,
+        relu: bool,
     }
 
-    impl MLPConfig {
-        fn new(in_dim: i64, out_dim: i64) -> Self {
+    impl FCConfig {
+        fn new(in_dim: i64, out_dim: i64, relu: bool) -> Self {
             Self {
                 in_dim,
-                out_dim
+                out_dim,
+                relu
             }
         }
     }
 
     #[allow(clippy::upper_case_acronyms)]
-    // MLP as feature extractor
-    pub struct MLP {
+    // Fully connected layer as feature extractor and network output
+    pub struct FC {
         in_dim: i64,
         out_dim: i64,
+        relu: bool,
         device: Device,
         seq: nn::Sequential
     }
 
-    impl MLP {
-        fn create_net(var_store: &nn::VarStore, in_dim: i64, out_dim: i64) -> nn::Sequential {
+    impl FC {
+        fn create_net(var_store: &nn::VarStore, in_dim: i64, out_dim: i64, relu: bool) -> nn::Sequential {
             let p = &var_store.root();
-            nn::seq()
-                .add(nn::linear(p / "cl1", in_dim as _, 256, Default::default()))
-                .add_fn(|xs| xs.relu())
-                .add(nn::linear(p / "cl2", 256, out_dim as _, Default::default()))
+            let mut seq = nn::seq()
+                .add(nn::linear(p / "cl1", in_dim, out_dim, Default::default()));
+            if relu {
+                seq = seq.add_fn(|xs| xs.relu());
+            }
+            seq
         }
     }
 
-    impl SubModel for MLP {
-        type Config = MLPConfig;
+    impl SubModel for FC {
+        type Config = FCConfig;
         type Input = Tensor;
         type Output = Tensor;
 
@@ -116,12 +121,14 @@ mod iqn_model {
         fn build(var_store: &nn::VarStore, config: Self::Config) -> Self {
             let in_dim = config.in_dim;
             let out_dim = config.out_dim;
+            let relu = config.relu;
             let device = var_store.device();
-            let seq = Self::create_net(var_store, in_dim, out_dim);
+            let seq = Self::create_net(var_store, in_dim, out_dim, relu);
 
             Self {
                 in_dim,
                 out_dim,
+                relu,
                 device,
                 seq
             }
@@ -130,12 +137,14 @@ mod iqn_model {
         fn clone_with_var_store(&self, var_store: &nn::VarStore) -> Self {
             let in_dim = self.in_dim;
             let out_dim = self.out_dim;
+            let relu = self.relu;
             let device = var_store.device();
-            let seq = Self::create_net(&var_store, in_dim, out_dim);
+            let seq = Self::create_net(&var_store, in_dim, out_dim, relu);
 
             Self {
                 in_dim,
                 out_dim,
+                relu,
                 device,
                 seq
             }
@@ -144,9 +153,9 @@ mod iqn_model {
 
     // IQN model
     pub fn create_iqn_model(in_dim: i64, feature_dim: i64, embed_dim: i64,  out_dim: i64, learning_rate: f64,
-        device: Device) -> IQNModel<MLP, MLP> {
-        let fe_config = MLPConfig::new(in_dim, feature_dim);
-        let m_config = MLPConfig::new(feature_dim, out_dim);
+        device: Device) -> IQNModel<FC, FC> {
+        let fe_config = FCConfig::new(in_dim, feature_dim, true);
+        let m_config = FCConfig::new(feature_dim, out_dim, false);
         IQNModelBuilder::default()
             .feature_dim(feature_dim)
             .embed_dim(embed_dim)
