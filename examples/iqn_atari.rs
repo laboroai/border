@@ -19,16 +19,18 @@ use border::{
     agent::{
         OptInterval,
         tch::{
-            ReplayBuffer as ReplayBuffer_, IQNBuilder, EpsilonGreedy,
+            ReplayBuffer as ReplayBuffer_,
+            iqn::{IQNBuilder, EpsilonGreedy},
         }
     }
 };
 
 const N_PROCS: usize = 1;
-const N_STACK: usize = 4;
+const N_STACK: i64 = 4;
 const DIM_OBS: [usize; 4] = [4, 1, 84, 84];
-const DIM_FEATURE: i64 = 16;
+const DIM_FEATURE: i64 = 3136;
 const DIM_EMBED: i64 = 64;
+const DIM_HIDDEN: i64 = 512;
 const LR_CRITIC: f64 = 0.001;
 const DISCOUNT_FACTOR: f64 = 0.99;
 const BATCH_SIZE: usize = 32;
@@ -62,15 +64,29 @@ type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 type ReplayBuffer = ReplayBuffer_<Env, ObsBuffer, ActBuffer>;
 
 mod iqn_model {
-    use tch::{Tensor, Device, nn, nn::Module};
+    use tch::{Tensor, Device, nn, nn::Module, nn::VarStore};
     use border::agent::tch::{
-        util::{FeatureExtractor, FeatureExtractorBuilder},
-        IQNModel, IQNModelBuilder
+        model::SubModel,
+        iqn::{IQNModel, IQNModelBuilder}
     };
 
     #[allow(clippy::upper_case_acronyms)]
-    #[derive(Debug)]
     // ConvNet as feature extractor
+    pub struct ConvNetConfig {
+        n_stack: i64,
+        feature_dim: i64,
+    }
+
+    impl ConvNetConfig {
+        fn new(n_stack: i64, feature_dim: i64) -> Self {
+            Self {
+                n_stack,
+                feature_dim
+            }
+        }
+    }
+
+    #[allow(clippy::upper_case_acronyms)]
     pub struct ConvNet {
         n_stack: i64,
         feature_dim: i64,
@@ -86,8 +102,9 @@ mod iqn_model {
     }
 
     impl ConvNet {
-        fn conv_net(n_stack: i64, feature_dim: i64, p: &nn::Path) -> nn::Sequential {
-            nn::seq()
+        fn _build(var_store: &VarStore, n_stack: i64, feature_dim: i64) -> Self {
+            let p = &var_store.root();
+            let seq = nn::seq()
                 .add_fn(|xs| xs.squeeze1(2).internal_cast_float(true))
                 .add(nn::conv2d(p / "c1", n_stack, 32, 8, stride(4)))
                 .add_fn(|xs| xs.relu())
@@ -97,71 +114,115 @@ mod iqn_model {
                 .add_fn(|xs| xs.relu().flat_view())
                 .add(nn::linear(p / "l1", 3136, 512, Default::default()))
                 .add_fn(|xs| xs.relu())
-                .add(nn::linear(p / "l2", 512, feature_dim, Default::default()))
-        }
-    }
+                .add(nn::linear(p / "l2", 512, feature_dim, Default::default()));
 
-    impl FeatureExtractor for ConvNet {
-        type Input = Tensor;
-
-        fn feature(&self, x: &Self::Input) -> Tensor {
-            self.seq.forward(&x.to(self.device))
-        }
-
-        fn clone_with_var_store(&self, var_store: &nn::VarStore) -> Self {
-            let p = &var_store.root();
-            Self {
-                n_stack: self.n_stack,
-                feature_dim: self.feature_dim,
-                device: var_store.device(),
-                seq: Self::conv_net(self.n_stack, self.feature_dim, p)
-            }
-        }
-    }
-
-    #[allow(clippy::upper_case_acronyms)]
-    // Builder of feature extractor
-    struct ConvNetBuilder {
-        n_stack: i64,
-        feature_dim: i64,
-    }
-
-    impl ConvNetBuilder {
-        pub fn new(n_stack: i64, feature_dim: i64) -> Self {
             Self {
                 n_stack,
                 feature_dim,
+                device: var_store.device(),
+                seq
+            }
+        }
+    }
+
+    impl SubModel for ConvNet {
+        type Config = ConvNetConfig;
+        type Input = Tensor;
+        type Output = Tensor;
+
+        fn forward(&self, x: &Self::Input) -> Tensor {
+            self.seq.forward(&x.to(self.device))
+        }
+
+        fn build(var_store: &VarStore, config: Self::Config) -> Self {
+            Self::_build(var_store, config.n_stack, config.feature_dim)
+        }
+
+        fn clone_with_var_store(&self, var_store: &nn::VarStore) -> Self {
+            Self::_build(var_store, self.n_stack, self.feature_dim)
+        }
+    }
+
+    // MLP as output layer of IQNModel
+    #[allow(clippy::upper_case_acronyms)]
+    pub struct MLPConfig {
+        in_dim: i64,
+        hidden_dim: i64,
+        out_dim: i64
+    }
+
+    impl MLPConfig {
+        fn new(in_dim: i64, hidden_dim: i64, out_dim: i64) -> Self {
+            Self {
+                in_dim,
+                hidden_dim,
+                out_dim
             }
         }
     }
 
     #[allow(clippy::upper_case_acronyms)]
-    impl FeatureExtractorBuilder for ConvNetBuilder {
-        type F = ConvNet;
+    pub struct MLP {
+        in_dim: i64,
+        hidden_dim: i64,
+        out_dim: i64,
+        seq: nn::Sequential
+    }
 
-        fn build(self, p: &nn::Path) -> Self::F {
-            Self::F {
-                n_stack: self.n_stack,
-                feature_dim: self.feature_dim,
-                device: p.device(),
-                seq: ConvNet::conv_net(self.n_stack, self.feature_dim, p)
+    impl MLP {
+        fn _build(var_store: &VarStore, in_dim: i64, hidden_dim: i64, out_dim: i64) -> Self {
+            let p = &var_store.root();
+            let seq = nn::seq()
+                .add(nn::linear(p / "cl1", in_dim, hidden_dim, Default::default()))
+                .add_fn(|x| x.relu())
+                .add(nn::linear(p / "cl2", hidden_dim, out_dim, Default::default()));
+
+            Self {
+                in_dim,
+                hidden_dim,
+                out_dim,
+                seq
             }
+
+        }
+    }
+
+    impl SubModel for MLP {
+        type Config = MLPConfig;
+        type Input = Tensor;
+        type Output = Tensor;
+
+        fn forward(&self, input: &Self::Input) -> Self::Output {
+            self.seq.forward(input)
+        }
+
+        fn build(var_store: &nn::VarStore, config: Self::Config) -> Self {
+            Self::_build(var_store, config.in_dim, config.hidden_dim, config.out_dim)
+        }
+
+        fn clone_with_var_store(&self, var_store: &VarStore) -> Self {
+            Self::_build(var_store, self.in_dim, self.hidden_dim, self.out_dim)
         }
     }
 
     // IQN model
-    pub fn create_iqn_model(n_stack: i64, feature_dim: i64, embed_dim: i64,  out_dim: i64,
-        learning_rate: f64, device: Device) -> IQNModel<ConvNet> {
-        let builder = ConvNetBuilder::new(n_stack, feature_dim);
-        IQNModelBuilder::default().build(
-            builder, feature_dim, embed_dim, out_dim, learning_rate, device
-        )
+    pub fn create_iqn_model(n_stack: i64, feature_dim: i64, embed_dim: i64, hidden_dim: i64,
+        out_dim: i64, learning_rate: f64, device: Device) -> IQNModel<ConvNet, MLP> {
+        let fe_config = ConvNetConfig::new(n_stack, feature_dim);
+        let m_config = MLPConfig::new(feature_dim, hidden_dim, out_dim);
+        IQNModelBuilder::default()
+            .feature_dim(feature_dim)
+            .embed_dim(embed_dim)
+            .out_dim(out_dim)
+            .learning_rate(learning_rate)
+            .build(fe_config, m_config, device)
     }
 }
 
 fn create_agent(dim_act: i64) -> impl Agent<Env> {
     let device = tch::Device::cuda_if_available();
-    let iqn_model = iqn_model::create_iqn_model(N_STACK as _, DIM_FEATURE, DIM_EMBED, dim_act, LR_CRITIC, device);
+    let iqn_model = iqn_model::create_iqn_model(N_STACK, DIM_FEATURE, DIM_EMBED,
+        DIM_HIDDEN, dim_act, LR_CRITIC, device);
     let replay_buffer = ReplayBuffer::new(REPLAY_BUFFER_CAPACITY, N_PROCS);
     IQNBuilder::default()
         .opt_interval(OPT_INTERVAL)
@@ -176,7 +237,7 @@ fn create_agent(dim_act: i64) -> impl Agent<Env> {
 }
 
 fn create_env(name: &str) -> Env {
-    let obs_filter = ObsFilter::new(N_STACK as i64);
+    let obs_filter = ObsFilter::new(N_STACK);
     let act_filter = ActFilter::default();
     PyGymEnvBuilder::default()
         .atari_wrapper(true)
