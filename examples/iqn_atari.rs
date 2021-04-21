@@ -111,10 +111,7 @@ mod iqn_model {
                 .add(nn::conv2d(p / "c2", 32, 64, 4, stride(2)))
                 .add_fn(|xs| xs.relu())
                 .add(nn::conv2d(p / "c3", 64, 64, 3, stride(1)))
-                .add_fn(|xs| xs.relu().flat_view())
-                .add(nn::linear(p / "l1", 3136, 512, Default::default()))
-                .add_fn(|xs| xs.relu())
-                .add(nn::linear(p / "l2", 512, feature_dim, Default::default()));
+                .add_fn(|xs| xs.relu().flat_view());
 
             Self {
                 n_stack,
