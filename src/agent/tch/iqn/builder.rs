@@ -13,6 +13,8 @@ use crate::{
     }
 };
 
+use super::model::IQNSample;
+
 #[allow(clippy::clippy::upper_case_acronyms)]
 /// IQN builder.
 pub struct IQNBuilder<E, F, M, O, A> where
@@ -31,7 +33,9 @@ pub struct IQNBuilder<E, F, M, O, A> where
     batch_size: usize,
     discount_factor: f64,
     tau: f64,
-    n_prob_samples: usize,
+    sample_percents_pred: IQNSample,
+    sample_percents_tgt: IQNSample,
+    sample_percents_act: IQNSample,
     train: bool,
     explorer: IQNExplorer,
     phantom: PhantomData<(E, F, M, O, A)>,
@@ -55,7 +59,9 @@ impl<E, F, M, O, A> Default for IQNBuilder<E, F, M, O, A> where
             batch_size: 1,
             discount_factor: 0.99,
             tau: 0.005,
-            n_prob_samples: 10, // IQNSample::Uniform10
+            sample_percents_pred: IQNSample::Uniform10,
+            sample_percents_tgt: IQNSample::Uniform8,
+            sample_percents_act: IQNSample::Const10,
             train: false,
             explorer: IQNExplorer::EpsilonGreedy(EpsilonGreedy::default()),
             phantom: PhantomData,
@@ -141,7 +147,9 @@ impl<E, F, M, O, A> IQNBuilder<E, F, M, O, A> where
             batch_size: self.batch_size,
             discount_factor: self.discount_factor,
             tau: self.tau,
-            n_prob_samples: self.n_prob_samples,
+            sample_percents_pred: self.sample_percents_pred,
+            sample_percents_tgt: self.sample_percents_tgt,
+            sample_percents_act: self.sample_percents_act,
             train: self.train,
             explorer: self.explorer,
             device,

@@ -46,7 +46,9 @@ pub struct IQN<E, F, M, O, A> where
     pub(super) replay_buffer: ReplayBuffer<E, O, A>,
     pub(super) discount_factor: f64,
     pub(super) tau: f64,
-    pub(super) n_prob_samples: usize,
+    pub(super) sample_percents_pred: IQNSample,
+    pub(super) sample_percents_tgt: IQNSample,
+    pub(super) sample_percents_act: IQNSample,
     pub(super) explorer: IQNExplorer,
     pub(super) device: Device,
 }
@@ -88,7 +90,8 @@ impl<E, F, M, O, A> IQN<E, F, M, O, A> where
         trace!("a.shape        = {:?}", a.size());
 
         let batch_size = self.batch_size as _;
-        let n_percent_points = self.n_prob_samples as _;
+        let n_percent_points_pred = self.sample_percents_pred.n_percent_points();
+        let n_percent_points_tgt = self.sample_percents_tgt.n_percent_points();
 
         debug_assert_eq!(r.size().as_slice(), &[batch_size, 1]);
         debug_assert_eq!(not_done.size().as_slice(), &[batch_size, 1]);
@@ -97,8 +100,10 @@ impl<E, F, M, O, A> IQN<E, F, M, O, A> where
             // predictions of z(s, a), where a is from minibatch
             // pred.size() == [batch_size, 1, n_percent_points]
             let (pred, tau) = {
+                let n_percent_points = n_percent_points_pred;
+
                 // percent points
-                let tau = IQNSample::Uniform10.sample().to(self.device);
+                let tau = self.sample_percents_pred.sample().to(self.device);
                 debug_assert_eq!(tau.size().as_slice(), &[n_percent_points]);
 
                 // predictions for all actions
@@ -117,8 +122,10 @@ impl<E, F, M, O, A> IQN<E, F, M, O, A> where
             // tgt.size() == [batch_size, n_percent_points, 1]
             // in theory, n_percent_points can be different with that for predictions
             let tgt = no_grad(|| {
+                let n_percent_points = n_percent_points_tgt;
+
                 // percent points
-                let tau = IQNSample::Uniform10.sample().to(self.device);
+                let tau = self.sample_percents_tgt.sample().to(self.device);
                 debug_assert_eq!(tau.size().as_slice(), &[n_percent_points]);
 
                 // target values for all actions
@@ -147,13 +154,13 @@ impl<E, F, M, O, A> IQN<E, F, M, O, A> where
 
             let diff = pred - tgt;
             debug_assert_eq!(diff.size().as_slice(),
-                &[batch_size, n_percent_points, n_percent_points]
+                &[batch_size, n_percent_points_tgt, n_percent_points_pred]
             );
 
             // flatten the axes of minibatch and percent points of the target values
             let diff = diff.flatten(0, 1);
             debug_assert_eq!(diff.size().as_slice(),
-                &[batch_size * n_percent_points, n_percent_points]
+                &[batch_size * n_percent_points_tgt, n_percent_points_pred]
             );
 
             quantile_huber_loss(&diff.transpose(0, 1), &tau).mean(tch::Kind::Float)
@@ -186,8 +193,9 @@ impl<E, F, M, O, A> Policy<E> for IQN<E, F, M, O, A> where
                 let device = self.device;
                 let n_procs = obs.n_procs();
                 let obs = obs.clone().into();
+                let sample_percents_act = &self.sample_percents_act;
                 let q_fn = || {
-                    let a = average(&obs, iqn, IQNSample::Uniform10, device);
+                    let a = average(&obs, iqn, sample_percents_act, device);
                     a.argmax(-1, true)
                 };
                 let shape = (n_procs as u32, self.iqn.out_dim as u32);
@@ -196,7 +204,7 @@ impl<E, F, M, O, A> Policy<E> for IQN<E, F, M, O, A> where
                 }
             } else {
                 let obs = obs.clone().into();
-                let a = average(&obs, &self.iqn, IQNSample::Uniform10, self.device);
+                let a = average(&obs, &self.iqn, &self.sample_percents_act, self.device);
                 a.argmax(-1, true)
             }
         });
