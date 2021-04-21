@@ -106,6 +106,7 @@ fn create_env(n_procs: usize) -> Env {
     Env::new("PongNoFrameskip-v4", n_procs, obs_filter, act_filter, true).unwrap()
 }
 
+#[cfg(not(target_os = "windows"))]
 #[test]
 fn main() {
     env_logger::init();
