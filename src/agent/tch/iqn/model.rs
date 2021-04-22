@@ -1,5 +1,5 @@
 //! IQN model.
-use std::{path::Path, default::Default, marker::PhantomData, error::Error};
+use std::{path::Path, default::Default, marker::PhantomData, error::Error, f64::consts::PI};
 use log::{info, trace};
 use tch::{Tensor, Kind::Float, Device, nn, nn::{OptimizerConfig, Module, VarStore}};
 use super::super::model::{ModelBase, SubModel};
@@ -151,9 +151,8 @@ impl<F, M> IQNModel<F, M> where
         nn::seq()
             .add_fn(move |tau| {
                 let n_quantiles = tau.size().as_slice()[0];
-                let pi = std::f64::consts::PI;
-                let i = Tensor::range(0, embed_dim - 1, (Float, device));
-                let cos = Tensor::cos(&(tau.unsqueeze(-1) * ((pi * i).unsqueeze(0))));
+                let i = Tensor::range(1, embed_dim, (Float, device));
+                let cos = Tensor::cos(&(tau.unsqueeze(-1) * ((PI * i).unsqueeze(0))));
                 debug_assert_eq!(cos.size().as_slice(), &[n_quantiles, embed_dim]);
                 cos
             })
