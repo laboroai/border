@@ -61,7 +61,7 @@ impl<E, F, M, O, A> Default for IQNBuilder<E, F, M, O, A> where
             tau: 0.005,
             sample_percents_pred: IQNSample::Uniform10,
             sample_percents_tgt: IQNSample::Uniform8,
-            sample_percents_act: IQNSample::Const10,
+            sample_percents_act: IQNSample::Uniform32, // Const10,
             train: false,
             explorer: IQNExplorer::EpsilonGreedy(EpsilonGreedy::default()),
             phantom: PhantomData,

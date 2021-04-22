@@ -10,7 +10,8 @@ pub fn quantile_huber_loss(x: &Tensor, tau: &Tensor) -> Tensor {
 
     let tau = tau.unsqueeze(-1);
     let x_abs = x.abs();
-    let loss = (&x_abs - 0.5).where1(&x_abs.gt(1.0), &(0.5 * x.pow(2.0)));
-
-    (tau - Tensor::where4(&x.detach().lt(0.0), 1., 0.)).abs() * loss
+    let x_abs_gt_1 = &x_abs.gt(1.0).detach();
+    let x_lt_0 = &x.lt(0.0).detach();
+    let loss = (&x_abs - 0.5).where1(x_abs_gt_1, &(0.5 * x.pow(2.0)));
+    (tau - Tensor::where4(x_lt_0, 1., 0.)).abs() * loss
 }

@@ -28,8 +28,13 @@ pub mod agent;
 pub mod env;
 pub mod error;
 
-pub use crate::core::util::eval;
-pub use crate::core::trainer::Trainer;
-pub use crate::core::base::{Act, Obs, Env, Policy, Agent};
-pub use crate::env::py_gym_env::{PyGymEnv, PyVecGymEnv};
-pub use crate::agent::tch::{DQN, SAC};
+#[allow(unused_imports)]
+use crate::{
+    core::{
+        util::eval,
+        trainer::Trainer,
+        base::{Act, Obs, Env, Policy, Agent}
+    },
+    env::py_gym_env::{PyGymEnv, PyVecGymEnv},
+    agent::tch::{DQN, SAC}
+};

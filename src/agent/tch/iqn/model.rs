@@ -79,7 +79,7 @@ impl<F, M> IQNModelBuilder<F, M> where
         // Feature extractor
         let psi = F::build(&var_store, fe_config);
 
-        // Cos-embedding
+        // Cosine embedding
         let phi = IQNModel::<F, M>::cos_embed_nn(&var_store, feature_dim, embed_dim);
 
         // Merge
@@ -145,6 +145,7 @@ impl<F, M> IQNModel<F, M> where
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
 {
+    // Cosine embedding.
     fn cos_embed_nn(var_store: &VarStore, feature_dim: i64, embed_dim: i64) -> nn::Sequential {
         let p = &var_store.root();
         let device = p.device();
@@ -280,6 +281,9 @@ pub enum IQNSample {
 
     /// 8 samples from uniform distribution.
     Uniform8,
+
+    /// 32 samples from uniform distribution.
+    Uniform32,
 }
 
 impl IQNSample {
@@ -291,6 +295,7 @@ impl IQNSample {
             ),
             Self::Uniform10 => Tensor::rand(&[10], tch::kind::FLOAT_CPU),
             Self::Uniform8 => Tensor::rand(&[8], tch::kind::FLOAT_CPU),
+            Self::Uniform32 => Tensor::rand(&[32], tch::kind::FLOAT_CPU),
         }
     }
 
@@ -300,6 +305,7 @@ impl IQNSample {
             Self::Const10 => 10,
             Self::Uniform10 => 10,
             Self::Uniform8 => 8,
+            Self::Uniform32 => 32,
         }
     }
 }

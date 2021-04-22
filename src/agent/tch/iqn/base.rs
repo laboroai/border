@@ -87,7 +87,6 @@ impl<E, F, M, O, A> IQN<E, F, M, O, A> where
         let r = batch.rewards.to(self.device);
         let next_obs = batch.next_obs;
         let not_done = batch.not_dones.to(self.device);
-        trace!("a.shape        = {:?}", a.size());
 
         let batch_size = self.batch_size as _;
         let n_percent_points_pred = self.sample_percents_pred.n_percent_points();
@@ -95,6 +94,9 @@ impl<E, F, M, O, A> IQN<E, F, M, O, A> where
 
         debug_assert_eq!(r.size().as_slice(), &[batch_size, 1]);
         debug_assert_eq!(not_done.size().as_slice(), &[batch_size, 1]);
+
+        // Expect discrete action, thus action is a scalar
+        debug_assert_eq!(a.size().as_slice(), &[batch_size, 1]);
 
         let loss = {
             // predictions of z(s, a), where a is from minibatch
@@ -111,9 +113,12 @@ impl<E, F, M, O, A> IQN<E, F, M, O, A> where
                 let n_actions = x.size()[x.size().len() - 1];
                 debug_assert_eq!(x.size().as_slice(), &[batch_size, n_percent_points, n_actions]);
 
+                // Reshape action for applying torch.gather
+                let a = a.unsqueeze(1).repeat(&[1, n_percent_points, 1]);
+                debug_assert_eq!(a.size().as_slice(), &[batch_size, n_percent_points, 1]);
+
                 // takes z(s, a) with a from minibatch
-                let x = x.gather(-1, &a.unsqueeze(1).repeat(&[1, n_percent_points, 1]), false)
-                    .squeeze1(-1).unsqueeze(1);
+                let x = x.gather(-1, &a, false).squeeze1(-1).unsqueeze(1);
                 debug_assert_eq!(x.size().as_slice(), &[batch_size, 1, n_percent_points]);
                 (x, tau)
             };
@@ -133,7 +138,7 @@ impl<E, F, M, O, A> IQN<E, F, M, O, A> where
                 let n_actions = x.size()[x.size().len() - 1];
                 debug_assert_eq!(x.size().as_slice(), &[batch_size, n_percent_points, n_actions]);
 
-                // argmax_a q(s,a), where z are averaged over tau
+                // argmax_a z(s,a), where z are averaged over tau
                 let y = x.copy().mean1(&[1], false, tch::Kind::Float);
                 let a = y.argmax(-1, false).unsqueeze(-1).unsqueeze(-1)
                     .repeat(&[1, n_percent_points, 1]);
