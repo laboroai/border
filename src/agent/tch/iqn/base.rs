@@ -155,13 +155,13 @@ impl<E, F, M, O, A> IQN<E, F, M, O, A> where
                 tgt.unsqueeze(-1)
             });
 
-            let diff = pred - tgt;
-            debug_assert_eq!(diff.size().as_slice(),
-                &[batch_size, n_percent_points_tgt, n_percent_points_pred]
-            );
+            // let diff = pred - tgt;
+            // debug_assert_eq!(diff.size().as_slice(),
+            //     &[batch_size, n_percent_points_tgt, n_percent_points_pred]
+            // );
 
             let tau = tau.unsqueeze(1).repeat(&[1, n_percent_points_tgt, 1]);
-            quantile_huber_loss(&diff, &tau).mean(tch::Kind::Float)
+            quantile_huber_loss(&pred, &tgt, &tau).mean(tch::Kind::Float)
         };
 
         self.iqn.backward_step(&loss);

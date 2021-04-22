@@ -159,7 +159,7 @@ impl<F, M> IQNModel<F, M> where
                 debug_assert_eq!(tau.size().as_slice(), &[batch_size, n_percent_points, 1]);
                 debug_assert_eq!(i.size().as_slice(), &[1, 1, embed_dim]);
 
-                let cos = Tensor::cos(&(tau * ((PI * i))));
+                let cos = Tensor::cos(&(tau * (PI * i)));
 
                 debug_assert_eq!(cos.size().as_slice(), &[batch_size, n_percent_points, embed_dim]);
 

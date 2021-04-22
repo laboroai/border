@@ -11,8 +11,9 @@ fn main() {
             (0..40).map(|x| (x as f32 - 20.) / 10.).collect::<Vec<_>>().as_slice()
         )).collect::<Vec<_>>().as_slice()
     );
+    let x_tgt = x.zeros_like();
 
-    let data = quantile_huber_loss(&x, &tau).tr();
+    let data = quantile_huber_loss(&x, &x_tgt, &tau).tr();
     let mut wtr = csv::Writer::from_writer(io::stdout());
 
     (0..data.size()[0])
