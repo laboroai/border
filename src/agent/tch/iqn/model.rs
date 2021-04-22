@@ -151,10 +151,18 @@ impl<F, M> IQNModel<F, M> where
         let device = p.device();
         nn::seq()
             .add_fn(move |tau| {
-                let n_quantiles = tau.size().as_slice()[0];
-                let i = Tensor::range(1, embed_dim, (Float, device));
-                let cos = Tensor::cos(&(tau.unsqueeze(-1) * ((PI * i).unsqueeze(0))));
-                debug_assert_eq!(cos.size().as_slice(), &[n_quantiles, embed_dim]);
+                let batch_size = tau.size().as_slice()[0];
+                let n_percent_points = tau.size().as_slice()[1];
+                let tau = tau.unsqueeze(-1);
+                let i = Tensor::range(1, embed_dim, (Float, device)).unsqueeze(0).unsqueeze(0);
+
+                debug_assert_eq!(tau.size().as_slice(), &[batch_size, n_percent_points, 1]);
+                debug_assert_eq!(i.size().as_slice(), &[1, 1, embed_dim]);
+
+                let cos = Tensor::cos(&(tau * ((PI * i))));
+
+                debug_assert_eq!(cos.size().as_slice(), &[batch_size, n_percent_points, embed_dim]);
+
                 cos
             })
             .add(nn::linear(p / "iqn_cos_to_feature", embed_dim, feature_dim, Default::default()))
@@ -183,9 +191,9 @@ impl<F, M> Clone for IQNModel<F, M> where
         // Merge
         let f = self.f.clone_with_var_store(&var_store);
 
-        var_store.copy(&self.var_store).unwrap();
-
         let opt = nn::Adam::default().build(&var_store, learning_rate).unwrap();
+
+        var_store.copy(&self.var_store).unwrap();
 
         Self {
             device,
@@ -214,7 +222,7 @@ impl<F, M> IQNModel<F, M> where
     pub fn forward(&self, x: &F::Input, tau: &Tensor) -> Tensor {
         // Used to check tensor size
         let feature_dim = self.feature_dim;
-        let n_percent_points = tau.size().as_slice()[0];
+        let n_percent_points = tau.size().as_slice()[1];
 
         // Feature extraction
         let psi = self.psi.forward(x);
@@ -222,8 +230,8 @@ impl<F, M> IQNModel<F, M> where
         debug_assert_eq!(psi.size().as_slice(), &[batch_size, feature_dim]);
 
         // Cosine embedding of percent points, eq. (4) in the paper
-        let phi = self.phi.forward(tau).unsqueeze(0);
-        debug_assert_eq!(phi.size().as_slice(), &[1, n_percent_points, self.feature_dim]);
+        let phi = self.phi.forward(tau);
+        debug_assert_eq!(phi.size().as_slice(), &[batch_size, n_percent_points, self.feature_dim]);
 
         // Merge features and embedded quantiles by elem-wise multiplication
         let psi = psi.unsqueeze(1);
@@ -288,14 +296,14 @@ pub enum IQNSample {
 
 impl IQNSample {
     /// Returns samples of percent points.
-    pub fn sample(&self) -> Tensor {
+    pub fn sample(&self, batch_size: i64) -> Tensor {
         match self {
             Self::Const10 => Tensor::of_slice(
                 &[0.05_f32, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95]
-            ),
-            Self::Uniform10 => Tensor::rand(&[10], tch::kind::FLOAT_CPU),
-            Self::Uniform8 => Tensor::rand(&[8], tch::kind::FLOAT_CPU),
-            Self::Uniform32 => Tensor::rand(&[32], tch::kind::FLOAT_CPU),
+            ).unsqueeze(0).repeat(&[batch_size, 1]),
+            Self::Uniform10 => Tensor::rand(&[batch_size, 10], tch::kind::FLOAT_CPU),
+            Self::Uniform8 => Tensor::rand(&[batch_size, 8], tch::kind::FLOAT_CPU),
+            Self::Uniform32 => Tensor::rand(&[batch_size, 32], tch::kind::FLOAT_CPU),
         }
     }
 
@@ -315,12 +323,12 @@ impl IQNSample {
 /// * `obs` - Observations.
 /// * `iqn` - IQN model.
 /// * `mode` - The way of taking percent points.
-pub(super) fn average<F, M>(obs: &F::Input, iqn: &IQNModel<F, M>, mode: &IQNSample, device: Device)
+pub(super) fn average<F, M>(batch_size: i64, obs: &F::Input, iqn: &IQNModel<F, M>, mode: &IQNSample, device: Device)
     -> Tensor where
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>
 {
-    let tau = mode.sample().to(device);
+    let tau = mode.sample(batch_size).to(device);
     let averaged_action_value = iqn.forward(obs, &tau).mean1(&[1], false, Float);
     let batch_size = averaged_action_value.size()[0];
     let n_action = iqn.out_dim;

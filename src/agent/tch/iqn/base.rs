@@ -105,22 +105,22 @@ impl<E, F, M, O, A> IQN<E, F, M, O, A> where
                 let n_percent_points = n_percent_points_pred;
 
                 // percent points
-                let tau = self.sample_percents_pred.sample().to(self.device);
-                debug_assert_eq!(tau.size().as_slice(), &[n_percent_points]);
+                let tau = self.sample_percents_pred.sample(batch_size).to(self.device);
+                debug_assert_eq!(tau.size().as_slice(), &[batch_size, n_percent_points]);
 
                 // predictions for all actions
-                let x = self.iqn.forward(&obs, &tau);
-                let n_actions = x.size()[x.size().len() - 1];
-                debug_assert_eq!(x.size().as_slice(), &[batch_size, n_percent_points, n_actions]);
+                let z = self.iqn.forward(&obs, &tau);
+                let n_actions = z.size()[z.size().len() - 1];
+                debug_assert_eq!(z.size().as_slice(), &[batch_size, n_percent_points, n_actions]);
 
                 // Reshape action for applying torch.gather
                 let a = a.unsqueeze(1).repeat(&[1, n_percent_points, 1]);
                 debug_assert_eq!(a.size().as_slice(), &[batch_size, n_percent_points, 1]);
 
                 // takes z(s, a) with a from minibatch
-                let x = x.gather(-1, &a, false).squeeze1(-1).unsqueeze(1);
-                debug_assert_eq!(x.size().as_slice(), &[batch_size, 1, n_percent_points]);
-                (x, tau)
+                let pred = z.gather(-1, &a, false).squeeze1(-1).unsqueeze(1);
+                debug_assert_eq!(pred.size().as_slice(), &[batch_size, 1, n_percent_points]);
+                (pred, tau)
             };
 
             // target values with max_a q(s, a)
@@ -130,31 +130,29 @@ impl<E, F, M, O, A> IQN<E, F, M, O, A> where
                 let n_percent_points = n_percent_points_tgt;
 
                 // percent points
-                let tau = self.sample_percents_tgt.sample().to(self.device);
-                debug_assert_eq!(tau.size().as_slice(), &[n_percent_points]);
+                let tau = self.sample_percents_tgt.sample(batch_size).to(self.device);
+                debug_assert_eq!(tau.size().as_slice(), &[batch_size, n_percent_points]);
 
                 // target values for all actions
-                let x = self.iqn_tgt.forward(&next_obs, &tau);
-                let n_actions = x.size()[x.size().len() - 1];
-                debug_assert_eq!(x.size().as_slice(), &[batch_size, n_percent_points, n_actions]);
+                let z = self.iqn_tgt.forward(&next_obs, &tau);
+                let n_actions = z.size()[z.size().len() - 1];
+                debug_assert_eq!(z.size().as_slice(), &[batch_size, n_percent_points, n_actions]);
 
                 // argmax_a z(s,a), where z are averaged over tau
-                let y = x.copy().mean1(&[1], false, tch::Kind::Float);
+                let y = z.copy().mean1(&[1], false, tch::Kind::Float);
                 let a = y.argmax(-1, false).unsqueeze(-1).unsqueeze(-1)
                     .repeat(&[1, n_percent_points, 1]);
                 debug_assert_eq!(a.size(), &[batch_size, n_percent_points, 1]);
 
                 // takes z(s, a)
-                let x = x.gather(2, &a, false);
-                debug_assert_eq!(x.size().as_slice(), &[batch_size, n_percent_points, 1]);
+                let z = z.gather(2, &a, false).squeeze1(-1);
+                debug_assert_eq!(z.size().as_slice(), &[batch_size, n_percent_points]);
 
                 // target value
-                let r = r.unsqueeze(-1);
-                let not_done = not_done.unsqueeze(-1);
-                let tgt = r + not_done * self.discount_factor * x;
-                debug_assert_eq!(tgt.size().as_slice(), &[batch_size, n_percent_points, 1]);
+                let tgt = r + not_done * self.discount_factor * z;
+                debug_assert_eq!(tgt.size().as_slice(), &[batch_size, n_percent_points]);
 
-                tgt
+                tgt.unsqueeze(-1)
             });
 
             let diff = pred - tgt;
@@ -162,13 +160,8 @@ impl<E, F, M, O, A> IQN<E, F, M, O, A> where
                 &[batch_size, n_percent_points_tgt, n_percent_points_pred]
             );
 
-            // flatten the axes of minibatch and percent points of the target values
-            let diff = diff.flatten(0, 1);
-            debug_assert_eq!(diff.size().as_slice(),
-                &[batch_size * n_percent_points_tgt, n_percent_points_pred]
-            );
-
-            quantile_huber_loss(&diff.transpose(0, 1), &tau).mean(tch::Kind::Float)
+            let tau = tau.unsqueeze(1).repeat(&[1, n_percent_points_tgt, 1]);
+            quantile_huber_loss(&diff, &tau).mean(tch::Kind::Float)
         };
 
         self.iqn.backward_step(&loss);
@@ -192,24 +185,26 @@ impl<E, F, M, O, A> Policy<E> for IQN<E, F, M, O, A> where
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
     fn sample(&mut self, obs: &E::Obs) -> E::Act {
+        // Depending on the context, it can be interpreted as the nuber of processes.
+        let batch_size = obs.batch_size() as _;
+
         let a = no_grad(|| {
             if self.train {
                 let iqn = &self.iqn;
                 let device = self.device;
-                let n_procs = obs.n_procs();
                 let obs = obs.clone().into();
                 let sample_percents_act = &self.sample_percents_act;
                 let q_fn = || {
-                    let a = average(&obs, iqn, sample_percents_act, device);
+                    let a = average(batch_size, &obs, iqn, sample_percents_act, device);
                     a.argmax(-1, true)
                 };
-                let shape = (n_procs as u32, self.iqn.out_dim as u32);
+                let shape = (batch_size as u32, self.iqn.out_dim as u32);
                 match &mut self.explorer {
                     IQNExplorer::EpsilonGreedy(egreedy) => egreedy.action(shape, q_fn),
                 }
             } else {
                 let obs = obs.clone().into();
-                let a = average(&obs, &self.iqn, &self.sample_percents_act, self.device);
+                let a = average(batch_size, &obs, &self.iqn, &self.sample_percents_act, self.device);
                 a.argmax(-1, true)
             }
         });

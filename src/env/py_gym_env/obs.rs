@@ -111,7 +111,12 @@ impl<S, T1, T2> Obs for PyGymEnvObs<S, T1, T2> where
         self
     }
 
+    // TODO: consider to remove this method
     fn n_procs(&self) -> usize {
+        self.obs.shape()[0]
+    }
+
+    fn batch_size(&self) -> usize {
         self.obs.shape()[0]
     }
 }

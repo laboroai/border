@@ -15,7 +15,12 @@ pub trait Obs: Clone + Debug {
 
     /// Returns the number of processes that created this observation; 
     /// it assumes a synchronous vectorized environment.
+    ///
+    /// TODO: consider to remove this, replace with `batch_size()`.
     fn n_procs(&self) -> usize;
+
+    /// Returns the batch size.
+    fn batch_size(&self) -> usize;
 }
 
 /// Represents an action of the environment.

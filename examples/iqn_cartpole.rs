@@ -28,23 +28,25 @@ use border::{
 };
 
 const DIM_OBS: i64 = 4;
-const DIM_FEATURE: i64 = 32;
+const DIM_FEATURE: i64 = 128;
 const DIM_EMBED: i64 = 64;
 const DIM_ACT: i64 = 2;
 const LR_CRITIC: f64 = 0.001;
 const DISCOUNT_FACTOR: f64 = 0.99;
-const BATCH_SIZE: usize = 64;
+const BATCH_SIZE: usize = 64; // 32;
 const N_TRANSITIONS_WARMUP: usize = 100;
 const N_UPDATES_PER_OPT: usize = 1;
-const TAU: f64 = 0.001;
+// const TAU: f64 = 0.001;
+const TAU: f64 = 0.1;
+const SOFT_UPDATE_INTERVAL: usize = 100;
 const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
 const MAX_OPTS: usize = 10000;
 const EVAL_INTERVAL: usize = 500;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const EPS_START: f64 = 1.0;
-const EPS_FINAL: f64 = 0.01;
-const FINAL_STEP: usize = 3500; // MAX_OPTS;
+const EPS_FINAL: f64 = 0.1;
+const FINAL_STEP: usize = 5000; // MAX_OPTS;
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -176,6 +178,7 @@ fn create_agent() -> impl Agent<Env> {
         .batch_size(BATCH_SIZE)
         .discount_factor(DISCOUNT_FACTOR)
         .tau(TAU)
+        .soft_update_interval(SOFT_UPDATE_INTERVAL)
         .explorer(EpsilonGreedy::with_params(EPS_START, EPS_FINAL, FINAL_STEP))
         .build(iqn_model, replay_buffer, device)
 }
