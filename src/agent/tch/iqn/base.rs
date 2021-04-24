@@ -155,7 +155,7 @@ impl<E, F, M, O, A> IQN<E, F, M, O, A> where
                 tgt.unsqueeze(-1)
             });
 
-            let diff = pred - tgt;
+            let diff = tgt - pred;
             debug_assert_eq!(diff.size().as_slice(),
                 &[batch_size, n_percent_points_tgt, n_percent_points_pred]
             );
