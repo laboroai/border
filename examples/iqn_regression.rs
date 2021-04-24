@@ -4,9 +4,9 @@ use ndarray::{Axis, Array, stack};
 use tch::{Tensor, nn, nn::{Module, VarStore}, kind::FLOAT_CPU, IndexOp};
 use border::agent::tch::{iqn::{IQNModel, IQNModelBuilder}, model::{ModelBase, SubModel}, util::quantile_huber_loss};
 
-const N_SAMPLE: i64 = 100;
-const N_TRAIN_STEP: i64 = 100;
-const BATCH_SIZE: i64 = 32;
+const N_SAMPLE: i64 = 300;
+const N_TRAIN_STEP: i64 = 10000;
+const BATCH_SIZE: i64 = 64;
 const N_PERCENT_POINTS: i64 = 5;
 const FEATURE_DIM: i64 = 8;
 const EMBED_DIM: i64 = 64;
@@ -72,10 +72,10 @@ fn sample_percent_points() -> Tensor {
 fn create_data() -> (Tensor, Tensor) {
     let slope = 2.0;
     let bias = -3.0;
-    let log_var_slope = 0.01;
+    let log_var_slope = 0.2;
     let xs: Tensor = 10.0 * Tensor::rand(&[N_SAMPLE, 1], FLOAT_CPU) - 5.0;
-    let noise_scale = Tensor::exp(&(log_var_slope * &xs));
-    let eps = Tensor::rand(&[N_SAMPLE, 1], FLOAT_CPU) * noise_scale;
+    let noise_scale = Tensor::exp(&(log_var_slope * &xs + 1.0));
+    let eps = Tensor::zeros(&[N_SAMPLE, 1], FLOAT_CPU).normal_(0.0, 1.0) * noise_scale;
     let ys: Tensor = slope * &xs + bias + eps;
     (xs, ys)
 }
@@ -111,7 +111,7 @@ fn main() {
 
         let ys = ys.unsqueeze(-1).repeat(&[1, N_PERCENT_POINTS, 1]);
         let tau = tau.unsqueeze(-1);
-        let diff = pred - ys;
+        let diff = ys - pred;
         let loss = quantile_huber_loss(&diff, &tau).mean(tch::Kind::Float);
         model.backward_step(&loss);
     }
@@ -138,3 +138,9 @@ fn main() {
         .map(|t| Vec::<f32>::from(&t).iter().map(|x| x.to_string()).collect::<Vec<_>>())
         .for_each(|v| wtr.write_record(&v).unwrap());
 }
+
+// fn main() {
+//     let a = Tensor::of_slice(&[1f32, 3.0, 4.0, 2.0, 5.0]);
+//     let lt = &a.lt(4.0);
+//     println!("{:?}", Tensor::where4(lt, 0., 1.));
+// }
