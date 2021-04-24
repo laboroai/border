@@ -3,7 +3,7 @@ use tch::Tensor;
 
 /// Returns the quantile huber loss.
 ///
-/// The first dimension of `x` corresponds to quantiles `tau`.
+/// `x` and `tau` has the same shape.
 pub fn quantile_huber_loss(x: &Tensor, tau: &Tensor) -> Tensor {
     debug_assert_eq!(x.size().as_slice(), tau.size().as_slice());
 

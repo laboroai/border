@@ -66,6 +66,9 @@ name = "iqn_cartpole"
 [[example]]
 name = "iqn_atari"
 
+[[example]]
+name = "iqn_regression"
+
 [dev-dependencies]
 clap = "2.33.3"
 csv = "1.1.5"

@@ -18,3 +18,5 @@ examples/__pycache__
 
 .DS_Store
 tmp.csv
+
+iqn_regression*.csv

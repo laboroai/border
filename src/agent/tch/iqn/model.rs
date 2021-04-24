@@ -155,15 +155,13 @@ impl<F, M> IQNModel<F, M> where
                 let n_percent_points = tau.size().as_slice()[1];
                 let tau = tau.unsqueeze(-1);
                 let i = Tensor::range(1, embed_dim, (Float, device)).unsqueeze(0).unsqueeze(0);
-
                 debug_assert_eq!(tau.size().as_slice(), &[batch_size, n_percent_points, 1]);
                 debug_assert_eq!(i.size().as_slice(), &[1, 1, embed_dim]);
 
                 let cos = Tensor::cos(&(tau * (PI * i)));
-
                 debug_assert_eq!(cos.size().as_slice(), &[batch_size, n_percent_points, embed_dim]);
 
-                cos
+                cos.reshape(&[-1, embed_dim])
             })
             .add(nn::linear(p / "iqn_cos_to_feature", embed_dim, feature_dim, Default::default()))
             .add_fn(|x| x.relu())
@@ -217,8 +215,9 @@ impl<F, M> IQNModel<F, M> where
 {
     /// Returns the tensor of action-value quantiles.
     ///
-    /// * The shape of `tau` is [n_quantiles].
-    /// * The shape of the output is [batch_size, n_quantiles, self.out_dim].
+    /// * The shape of` psi(x)` (feature vector) is [batch_size, feature_dim].
+    /// * The shape of `tau` is [batch_size, n_percent_points].
+    /// * The shape of the output is [batch_size, n_percent_points, self.out_dim].
     pub fn forward(&self, x: &F::Input, tau: &Tensor) -> Tensor {
         // Used to check tensor size
         let feature_dim = self.feature_dim;
@@ -230,8 +229,10 @@ impl<F, M> IQNModel<F, M> where
         debug_assert_eq!(psi.size().as_slice(), &[batch_size, feature_dim]);
 
         // Cosine embedding of percent points, eq. (4) in the paper
+        debug_assert_eq!(tau.size().as_slice(), &[batch_size, n_percent_points]);
         let phi = self.phi.forward(tau);
-        debug_assert_eq!(phi.size().as_slice(), &[batch_size, n_percent_points, self.feature_dim]);
+        debug_assert_eq!(phi.size().as_slice(), &[batch_size * n_percent_points, self.feature_dim]);
+        let phi = phi.reshape(&[batch_size, n_percent_points, self.feature_dim]);
 
         // Merge features and embedded quantiles by elem-wise multiplication
         let psi = psi.unsqueeze(1);
