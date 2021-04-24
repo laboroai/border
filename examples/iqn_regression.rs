@@ -1,6 +1,5 @@
 //! Example of using IQNModel for quantile regression.
 use std::{default::Default};
-use ndarray::{Axis, Array, stack};
 use tch::{Tensor, nn, nn::{Module, VarStore}, kind::FLOAT_CPU, IndexOp};
 use border::agent::tch::{iqn::{IQNModel, IQNModelBuilder}, model::{ModelBase, SubModel}, util::quantile_huber_loss};
 

@@ -391,8 +391,7 @@ mod test {
 
         let model = iqn_model(feature_dim, embed_dim, out_dim);
         let psi = Tensor::rand(&[batch_size, in_dim], tch::kind::FLOAT_CPU);
-        let tau = Tensor::rand(&[n_percent_points], tch::kind::FLOAT_CPU);
-        assert_eq!(tau.size().as_slice(), &[n_percent_points]);
+        let tau = Tensor::rand(&[batch_size, n_percent_points], tch::kind::FLOAT_CPU);
         let _q = model.forward(&psi, &tau);
     }    
 }
