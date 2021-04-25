@@ -42,7 +42,7 @@ const MAX_OPTS: usize = 3_000_000;
 const EVAL_INTERVAL: usize = 10_000;
 const REPLAY_BUFFER_CAPACITY: usize = 50_000;
 const N_EPISODES_PER_EVAL: usize = 1;
-const EPS_GREEDY_FINAL_STEP: usize = 1_000_000;
+const EPS_FINAL_STEP: usize = 1_000_000;
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -97,7 +97,7 @@ fn create_agent(dim_act: usize) -> impl Agent<Env> {
         .discount_factor(DISCOUNT_FACTOR)
         .soft_update_interval(SOFT_UPDATE_INTERVAL)
         .tau(TAU)
-        .explorer(EpsilonGreedy::with_final_step(EPS_GREEDY_FINAL_STEP))
+        .explorer(EpsilonGreedy::with_final_step(EPS_FINAL_STEP))
         .build(qnet, replay_buffer, device)
 }
 
@@ -162,6 +162,4 @@ fn main() {
 
         util::eval(&mut env, &mut agent, 5);
     }
-
-    // Ok(())
 }

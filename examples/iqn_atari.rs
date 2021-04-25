@@ -26,25 +26,25 @@ use border::{
 };
 
 const N_PROCS: usize = 1;
-const N_STACK: i64 = 4;
+const N_STACK: usize = 4;
 const DIM_OBS: [usize; 4] = [4, 1, 84, 84];
 const DIM_FEATURE: i64 = 3136;
 const DIM_EMBED: i64 = 64;
 const DIM_HIDDEN: i64 = 512;
-const LR_CRITIC: f64 = 0.001;
+const LR_QNET: f64 = 1e-4;
 const DISCOUNT_FACTOR: f64 = 0.99;
 const BATCH_SIZE: usize = 32;
-const N_TRANSITIONS_WARMUP: usize = 10_000;
+const N_TRANSITIONS_WARMUP: usize = 2500;
 const N_UPDATES_PER_OPT: usize = 1;
 const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
 const SOFT_UPDATE_INTERVAL: usize = 10_000;
 const TAU: f64 = 1.0;
 const MAX_OPTS: usize = 4_000_000;
 const EVAL_INTERVAL: usize = 10_000;
-const REPLAY_BUFFER_CAPACITY: usize = 200_000;
+const REPLAY_BUFFER_CAPACITY: usize = 50_000;
 const N_EPISODES_PER_EVAL: usize = 1;
 const EPS_START: f64 = 1.0;
-const EPS_FINAL: f64 = 0.01;
+const EPS_FINAL: f64 = 0.02;
 const EPS_FINAL_STEP: usize = 1_000_000;
 
 #[derive(Debug, Clone)]
@@ -220,8 +220,8 @@ mod iqn_model {
 
 fn create_agent(dim_act: i64) -> impl Agent<Env> {
     let device = tch::Device::cuda_if_available();
-    let iqn_model = iqn_model::create_iqn_model(N_STACK, DIM_FEATURE, DIM_EMBED,
-        DIM_HIDDEN, dim_act, LR_CRITIC, device);
+    let iqn_model = iqn_model::create_iqn_model(N_STACK as i64, DIM_FEATURE, DIM_EMBED,
+        DIM_HIDDEN, dim_act, LR_QNET, device);
     let replay_buffer = ReplayBuffer::new(REPLAY_BUFFER_CAPACITY, N_PROCS);
     IQNBuilder::default()
         .opt_interval(OPT_INTERVAL)
@@ -236,7 +236,7 @@ fn create_agent(dim_act: i64) -> impl Agent<Env> {
 }
 
 fn create_env(name: &str) -> Env {
-    let obs_filter = ObsFilter::new(N_STACK);
+    let obs_filter = ObsFilter::new(N_STACK as i64);
     let act_filter = ActFilter::default();
     PyGymEnvBuilder::default()
         .atari_wrapper(true)
