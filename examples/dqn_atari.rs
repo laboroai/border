@@ -1,11 +1,10 @@
 use std::time::Duration;
 use clap::{Arg, App};
-// use anyhow::Result;
 use tch::nn;
 
 use border::{
     core::{
-        TrainerBuilder, Agent, util,
+        Agent, TrainerBuilder, util,
         record::TensorboardRecorder,
     },
     env::py_gym_env::{
@@ -21,8 +20,8 @@ use border::{
     agent::{
         OptInterval,
         tch::{
-            DQNBuilder, ReplayBuffer as ReplayBuffer_, model::Model1_1,
-            dqn::explorer::EpsilonGreedy,
+            ReplayBuffer as ReplayBuffer_,
+            DQNBuilder, model::Model1_1, dqn::explorer::EpsilonGreedy,
         }
     }
 };
