@@ -44,6 +44,7 @@ const EVAL_INTERVAL: usize = 2_000;
 const REPLAY_BUFFER_CAPACITY: usize = 100_000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const MAX_STEPS_IN_EPISODE: usize = 200;
+const MODEL_DIR: &str = "./examples/model/sac_pendulum";
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -175,17 +176,17 @@ fn main() -> Result<()> {
         .max_opts(MAX_OPTS)
         .eval_interval(EVAL_INTERVAL)
         .n_episodes_per_eval(N_EPISODES_PER_EVAL)
+        .model_dir(MODEL_DIR)
         .build(env, env_eval, agent);
     let mut recorder = TensorboardRecorder::new("./examples/model/sac_pendulum");
 
     trainer.train(&mut recorder);
-    trainer.get_agent().save("./examples/model/sac_pendulum").unwrap();
 
     let mut env = create_env();
     let mut agent = create_agent();
     let mut recorder = BufferedRecorder::new();
     env.set_render(true);
-    agent.load("./examples/model/sac_pendulum").unwrap();
+    agent.load(MODEL_DIR).unwrap();
     agent.eval();
 
     let reward = eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);

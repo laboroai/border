@@ -41,6 +41,7 @@ const MAX_OPTS: usize = 1000;
 const EVAL_INTERVAL: usize = 50;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
+const MODEL_DIR: &str = "./examples/model/dqn_cartpole";
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -143,18 +144,18 @@ fn main() -> Result<()> {
             .max_opts(MAX_OPTS)
             .eval_interval(EVAL_INTERVAL)
             .n_episodes_per_eval(N_EPISODES_PER_EVAL)
+            .model_dir(MODEL_DIR)
             .build(env, env_eval, agent);
         let mut recorder = TensorboardRecorder::new("./examples/model/dqn_cartpole");
     
         trainer.train(&mut recorder);
-        trainer.get_agent().save("./examples/model/dqn_cartpole").unwrap(); // TODO: define appropriate error    
     }
 
     let mut env = create_env();
     let mut agent = create_agent(matches.is_present("egreddy"));
     let mut recorder = BufferedRecorder::new();
     env.set_render(true);
-    agent.load("./examples/model/dqn_cartpole").unwrap(); // TODO: define appropriate error
+    agent.load(MODEL_DIR).unwrap(); // TODO: define appropriate error
     agent.eval();
 
     util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);

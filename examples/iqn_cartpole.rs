@@ -28,7 +28,7 @@ use border::{
 };
 
 const DIM_OBS: i64 = 4;
-const DIM_FEATURE: i64 = 128;
+const DIM_FEATURE: i64 = 256;
 const DIM_EMBED: i64 = 64;
 const DIM_ACT: i64 = 2;
 const LR_CRITIC: f64 = 0.001;
@@ -36,7 +36,6 @@ const DISCOUNT_FACTOR: f64 = 0.99;
 const BATCH_SIZE: usize = 64; // 32;
 const N_TRANSITIONS_WARMUP: usize = 100;
 const N_UPDATES_PER_OPT: usize = 1;
-// const TAU: f64 = 0.001;
 const TAU: f64 = 0.1;
 const SOFT_UPDATE_INTERVAL: usize = 100;
 const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
@@ -47,6 +46,7 @@ const N_EPISODES_PER_EVAL: usize = 5;
 const EPS_START: f64 = 1.0;
 const EPS_FINAL: f64 = 0.1;
 const FINAL_STEP: usize = 5000; // MAX_OPTS;
+const MODEL_DIR: &str = "examples/model/iqn_cartpole";
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -231,18 +231,18 @@ fn main() -> Result<()> {
             .max_opts(MAX_OPTS)
             .eval_interval(EVAL_INTERVAL)
             .n_episodes_per_eval(N_EPISODES_PER_EVAL)
+            .model_dir(MODEL_DIR)
             .build(env, env_eval, agent);
         let mut recorder = TensorboardRecorder::new("./examples/model/iqn_cartpole");
     
         trainer.train(&mut recorder);
-        trainer.get_agent().save("./examples/model/iqn_cartpole").unwrap(); // TODO: define appropriate error    
     }
 
     let mut env = create_env();
     let mut agent = create_agent();
     let mut recorder = BufferedRecorder::new();
     env.set_render(true);
-    agent.load("./examples/model/iqn_cartpole").unwrap(); // TODO: define appropriate error
+    agent.load(MODEL_DIR).unwrap(); // TODO: define appropriate error
     agent.eval();
 
     util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);

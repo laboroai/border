@@ -271,7 +271,7 @@ fn main() {
     let mut env = create_env(name);
     let dim_act = env.get_num_actions_atari();
     let mut agent = create_agent(dim_act as _);
-    
+
     if !matches.is_present("play") {
         let env_eval = create_env(name);
         let mut trainer = TrainerBuilder::default()

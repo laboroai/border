@@ -34,7 +34,31 @@ name = "random_cartpole"
 name = "dqn_cartpole"
 
 [[example]]
+name = "iqn_cartpole"
+
+[[example]]
 name = "sac_pendulum"
+
+[[example]]
+name = "quantile_loss"
+
+[[example]]
+name = "dqn_atari"
+
+[[example]]
+name = "iqn_atari"
+
+[[example]]
+name = "iqn_regression"
+
+[[example]]
+name = "random_ant"
+
+[[example]]
+name = "sac_ant"
+
+
+
 
 [[example]]
 name = "dqn_pong"
@@ -46,28 +70,7 @@ name = "dqn_pong_vecenv"
 name = "dqn_pong_eval"
 
 [[example]]
-name = "random_ant"
-
-[[example]]
-name = "sac_ant"
-
-[[example]]
-name = "dqn_atari"
-
-[[example]]
 name = "dqn_atari_f32"
-
-[[example]]
-name = "quantile_loss"
-
-[[example]]
-name = "iqn_cartpole"
-
-[[example]]
-name = "iqn_atari"
-
-[[example]]
-name = "iqn_regression"
 
 [dev-dependencies]
 clap = "2.33.3"
