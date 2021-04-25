@@ -85,7 +85,7 @@ impl<F, M> IQNModelBuilder<F, M> where
         // Merge
         let f = M::build(&var_store, m_config);
 
-        let opt = nn::Adam::default().build(&var_store, learning_rate).unwrap();
+        let opt = nn::AdamW::default().build(&var_store, learning_rate).unwrap();
 
         IQNModel {
             device,
@@ -136,7 +136,7 @@ pub struct IQNModel<F, M> where
 
     // Optimizer
     learning_rate: f64,
-    opt: nn::Optimizer<nn::Adam>,
+    opt: nn::Optimizer<nn::AdamW>,
 
     phantom: PhantomData<(F, M)>
 }
@@ -189,7 +189,7 @@ impl<F, M> Clone for IQNModel<F, M> where
         // Merge
         let f = self.f.clone_with_var_store(&var_store);
 
-        let opt = nn::Adam::default().build(&var_store, learning_rate).unwrap();
+        let opt = nn::AdamW::default().build(&var_store, learning_rate).unwrap();
 
         var_store.copy(&self.var_store).unwrap();
 
