@@ -16,6 +16,7 @@ pub struct TrainerBuilder {
     eval_interval: usize,
     n_episodes_per_eval: usize,
     eval_threshold: Option<f32>,
+    model_dir: Option<String>,
 }
 
 impl Default for TrainerBuilder {
@@ -25,6 +26,7 @@ impl Default for TrainerBuilder {
             eval_interval: 0,
             n_episodes_per_eval: 0,
             eval_threshold: None,
+            model_dir: None,
         }
     }    
 }
@@ -54,6 +56,12 @@ impl TrainerBuilder {
         self
     }
 
+    /// Set the directory the trained model being saved.
+    pub fn model_dir<T: Into<String>>(mut self, model_dir: T) -> Self {
+        self.model_dir = Some(model_dir.into());
+        self
+    }
+
     ///Constructs a trainer.
     pub fn build<E, A>(self, env: E, env_eval: E, agent: A) -> Trainer<E, A> where
         E: Env,
@@ -68,14 +76,17 @@ impl TrainerBuilder {
             eval_interval: self.eval_interval,
             n_episodes_per_eval: self.n_episodes_per_eval,
             eval_threshold: self.eval_threshold,
+            model_dir: self.model_dir,
             count_opts: 0,
-            count_steps: 0,    
+            count_steps: 0,
         }
     }
 }
 
 #[cfg_attr(doc, aquamarine::aquamarine)]
 /// Manages training process.
+///
+/// ## Training loop
 ///
 /// For training an agent with standard RL algorithms in the library, the agent and environment
 /// interact as illustrated in the following diagram:
@@ -111,6 +122,17 @@ impl TrainerBuilder {
 /// 7. Back to 1.
 ///
 /// Actually, [`Trainer`] is not responsible for the step 6. The `Agent` does it.
+///
+/// ## Model evaluation and saving
+///
+/// [Trainer::train()] evaluates the agent being trained with the interval of optimization
+/// steps specified by [TrainerBuilder::eval_interval()]. If the evaluation reward is
+/// greater than the maximum in the history of training, the agent will be saved in the
+/// directory specified by [TrainerBuilder::model_dir()].
+///
+/// A trained agent often consists of a number of neural networks like an action-value
+/// network, its target network, a policy network. Typically, [Agent] saves all of these
+/// neural networks in a directory.
 pub struct Trainer<E: Env, A: Agent<E>> {
     env: E,
     env_eval: E,
@@ -120,6 +142,7 @@ pub struct Trainer<E: Env, A: Agent<E>> {
     eval_interval: usize,
     n_episodes_per_eval: usize,
     eval_threshold: Option<f32>,
+    model_dir: Option<String>,
     count_opts: usize,
     count_steps: usize
 }
@@ -159,6 +182,7 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
     pub fn train<T: Recorder>(&mut self, recorder: &mut T) {
         let mut count_steps_local = 0;
         let mut now = std::time::SystemTime::now();
+        let mut max_eval_reward = std::f32::MIN;
 
         let obs = self.env.reset(None).unwrap();
         self.agent.push_obs(&obs);
@@ -233,8 +257,21 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
                     // The timer is used to measure the elapsed time for training
                     now = std::time::SystemTime::now();
 
+                    // Save the trained model
+                    if self.model_dir != None && mean > max_eval_reward {
+                        if let Some(model_dir) = self.model_dir.clone() {
+                            max_eval_reward = mean;
+                            match self.agent.save(&model_dir) {
+                                Ok(()) => info!("Saved the model in {:?}", &model_dir),
+                                Err(_) => info!("Failed to save model."),
+                            }
+                        }
+                    }
+
+                    // Set the agent in evaluation mode
                     self.agent.train();
 
+                    // If the evaluation reward exceeds the threshold
                     if let Some(th) = self.eval_threshold {
                         over_eval_threshold = mean >= th;
                     }
