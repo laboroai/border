@@ -31,9 +31,9 @@ const DIM_OBS: [usize; 4] = [4, 1, 84, 84];
 const DIM_FEATURE: i64 = 3136;
 const DIM_EMBED: i64 = 64;
 const DIM_HIDDEN: i64 = 512;
-const SAMPLE_PERCENTS_PRED: IQNSample = IQNSample::Median;
-const SAMPLE_PERCENTS_TGT: IQNSample = IQNSample::Median;
-const SAMPLE_PERCENTS_ACT: IQNSample = IQNSample::Median;
+const SAMPLE_PERCENTS_PRED: IQNSample = IQNSample::Uniform64;
+const SAMPLE_PERCENTS_TGT: IQNSample = IQNSample::Uniform64;
+const SAMPLE_PERCENTS_ACT: IQNSample = IQNSample::Uniform32;
 const LR_QNET: f64 = 1e-4;
 const DISCOUNT_FACTOR: f64 = 0.99;
 const BATCH_SIZE: usize = 32;
@@ -209,9 +209,7 @@ mod iqn_model {
 
     // IQN model
     pub fn create_iqn_model(n_stack: i64, feature_dim: i64, embed_dim: i64, hidden_dim: i64,
-        out_dim: i64, learning_rate: f64, sample_percent_pred: IQNSample,
-        sample_percent_tgt: IQNSample, sample_percent_act: IQNSample,
-        device: Device) -> IQNModel<ConvNet, MLP> {
+        out_dim: i64, learning_rate: f64, device: Device) -> IQNModel<ConvNet, MLP> {
         let fe_config = ConvNetConfig::new(n_stack, feature_dim);
         let m_config = MLPConfig::new(feature_dim, hidden_dim, out_dim);
         IQNModelBuilder::default()
@@ -219,9 +217,6 @@ mod iqn_model {
             .embed_dim(embed_dim)
             .out_dim(out_dim)
             .learning_rate(learning_rate)
-            .sample_percent_pred(sample_percent_pred)
-            .sample_percent_tgt(sample_percent_tgt)
-            .sample_percent_act(sample_percent_act)
             .build(fe_config, m_config, device)
     }
 }
@@ -229,8 +224,7 @@ mod iqn_model {
 fn create_agent(dim_act: i64) -> impl Agent<Env> {
     let device = tch::Device::cuda_if_available();
     let iqn_model = iqn_model::create_iqn_model(N_STACK as i64, DIM_FEATURE, DIM_EMBED,
-        DIM_HIDDEN, dim_act, SAMPLE_PERCENTS_PRED, SAMPLE_PERCENTS_TGT,
-        SAMPLE_PERCENTS_ACT, LR_QNET, device);
+        DIM_HIDDEN, dim_act, LR_QNET, device);
     let replay_buffer = ReplayBuffer::new(REPLAY_BUFFER_CAPACITY, N_PROCS);
     IQNBuilder::default()
         .opt_interval(OPT_INTERVAL)
@@ -241,6 +235,9 @@ fn create_agent(dim_act: i64) -> impl Agent<Env> {
         .soft_update_interval(SOFT_UPDATE_INTERVAL)
         .tau(TAU)
         .explorer(EpsilonGreedy::with_params(EPS_START, EPS_FINAL, EPS_FINAL_STEP))
+        .sample_percent_pred(SAMPLE_PERCENTS_PRED)
+        .sample_percent_tgt(SAMPLE_PERCENTS_TGT)
+        .sample_percent_act(SAMPLE_PERCENTS_ACT)
         .build(iqn_model, replay_buffer, device)
 }
 

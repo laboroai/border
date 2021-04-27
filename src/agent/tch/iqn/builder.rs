@@ -126,7 +126,25 @@ impl<E, F, M, O, A> IQNBuilder<E, F, M, O, A> where
         self.explorer = v;
         self
     }
-    
+
+    /// Sampling percent points.
+    pub fn sample_percent_pred(mut self, v: IQNSample) -> Self {
+        self.sample_percents_pred = v;
+        self
+    }
+
+    /// Sampling percent points.
+    pub fn sample_percent_tgt(mut self, v: IQNSample) -> Self {
+        self.sample_percents_tgt = v;
+        self
+    }
+
+    /// Sampling percent points.
+    pub fn sample_percent_act(mut self, v: IQNSample) -> Self {
+        self.sample_percents_act = v;
+        self
+    }
+
     /// Constructs [IQN] agent.
     pub fn build(self, iqn_model: IQNModel<F, M>, replay_buffer: ReplayBuffer<E, O, A>, device: Device)
         -> IQN<E, F, M, O, A> 

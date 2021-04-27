@@ -85,7 +85,7 @@ impl<E, F, M, O, A> IQN<E, F, M, O, A> where
         let obs = batch.obs;
         let a = batch.actions.to(self.device);
         let r = batch.rewards.to(self.device);
-        let next_obs = batch.next_obs.to(self.device);
+        let next_obs = batch.next_obs;
         let not_done = batch.not_dones.to(self.device);
 
         let batch_size = self.batch_size as _;
