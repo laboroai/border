@@ -1,7 +1,7 @@
 //! DQN agent implemented with tch-rs.
 use log::trace;
 use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
-use tch::{no_grad, Tensor};
+use tch::{Tensor, no_grad, Device};
 
 use crate::{
     core::{
@@ -44,7 +44,7 @@ pub struct DQN<E, M, O, A> where
     pub(crate) discount_factor: f64,
     pub(crate) tau: f64,
     pub(crate) explorer: DQNExplorer,
-    pub(crate) device: tch::Device,
+    pub(crate) device: Device,
 }
 
 impl<E, M, O, A> DQN<E, M, O, A> where
@@ -80,11 +80,6 @@ impl<E, M, O, A> DQN<E, M, O, A> where
         let r = batch.rewards.to(self.device);
         let next_obs = batch.next_obs.to(self.device);
         let not_done = batch.not_dones.to(self.device);
-        trace!("obs.shape      = {:?}", obs.size());
-        trace!("next_obs.shape = {:?}", next_obs.size());
-        trace!("a.shape        = {:?}", a.size());
-        trace!("r.shape        = {:?}", r.size());
-        trace!("not_done.shape = {:?}", not_done.size());
 
         let loss = {
             let pred = {

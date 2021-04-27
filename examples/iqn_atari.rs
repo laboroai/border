@@ -34,21 +34,21 @@ const DIM_HIDDEN: i64 = 512;
 const SAMPLE_PERCENTS_PRED: IQNSample = IQNSample::Median;
 const SAMPLE_PERCENTS_TGT: IQNSample = IQNSample::Median;
 const SAMPLE_PERCENTS_ACT: IQNSample = IQNSample::Median;
-const LR_QNET: f64 = 5e-5;
+const LR_QNET: f64 = 1e-4;
 const DISCOUNT_FACTOR: f64 = 0.99;
 const BATCH_SIZE: usize = 32;
-const N_TRANSITIONS_WARMUP: usize = 50000;
+const N_TRANSITIONS_WARMUP: usize = 2500;
 const N_UPDATES_PER_OPT: usize = 1;
-const OPT_INTERVAL: OptInterval = OptInterval::Steps(1); // (4)
-const SOFT_UPDATE_INTERVAL: usize = 10_000; // / 4; // 4 is from opt_interval value
+const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
+const SOFT_UPDATE_INTERVAL: usize = 10_000;
 const TAU: f64 = 1.0;
-const MAX_OPTS: usize = 4_000_000;
+const MAX_OPTS: usize = 3_000_000;
 const EVAL_INTERVAL: usize = 10_000;
-const REPLAY_BUFFER_CAPACITY: usize = 200_000;
+const REPLAY_BUFFER_CAPACITY: usize = 50_000;
 const N_EPISODES_PER_EVAL: usize = 1;
 const EPS_START: f64 = 1.0;
 const EPS_FINAL: f64 = 0.02;
-const EPS_FINAL_STEP: usize = 1_000_000; // 250_000;
+const EPS_FINAL_STEP: usize = 1_000_000;
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
