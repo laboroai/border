@@ -14,7 +14,9 @@ autoexamples = false
 
 [dependencies]
 ndarray = { version = "0.14", features = ["serde"] }
-tch = "0.3.0"
+# tch = "0.3.0"
+# tch = "0.4.0"
+tch = { git = "https://github.com/taku-y/tch-rs", branch = "adam_eps" }
 numpy = "0.13"
 pyo3 = "0.13"
 fastrand = "1.4.0"
