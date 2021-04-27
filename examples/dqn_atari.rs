@@ -70,7 +70,7 @@ fn stride(s: i64) -> nn::ConvConfig {
 
 fn create_critic(dim_act: usize, device: tch::Device) -> Model1_1 {
     let network_fn = |p: &nn::Path, _in_shape: &[usize], out_dim| nn::seq()
-        .add_fn(|xs| xs.squeeze1(2).internal_cast_float(true))
+        .add_fn(|xs| xs.squeeze1(2).internal_cast_float(true) / 255)
         .add(nn::conv2d(p / "c1", N_STACK as i64, 32, 8, stride(4)))
         .add_fn(|xs| xs.relu())
         .add(nn::conv2d(p / "c2", 32, 64, 4, stride(2)))
