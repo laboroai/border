@@ -20,7 +20,7 @@ use border::{
         OptInterval,
         tch::{
             ReplayBuffer as ReplayBuffer_,
-            iqn::{IQNBuilder, EpsilonGreedy},
+            iqn::{IQNBuilder, model::IQNSample, EpsilonGreedy},
         }
     }
 };
@@ -31,13 +31,16 @@ const DIM_OBS: [usize; 4] = [4, 1, 84, 84];
 const DIM_FEATURE: i64 = 3136;
 const DIM_EMBED: i64 = 64;
 const DIM_HIDDEN: i64 = 512;
-const LR_QNET: f64 = 1e-4;
+const SAMPLE_PERCENTS_PRED: IQNSample = IQNSample::Median;
+const SAMPLE_PERCENTS_TGT: IQNSample = IQNSample::Median;
+const SAMPLE_PERCENTS_ACT: IQNSample = IQNSample::Median;
+const LR_QNET: f64 = 5e-5;
 const DISCOUNT_FACTOR: f64 = 0.99;
 const BATCH_SIZE: usize = 32;
 const N_TRANSITIONS_WARMUP: usize = 50000;
 const N_UPDATES_PER_OPT: usize = 1;
-const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
-const SOFT_UPDATE_INTERVAL: usize = 10_000;
+const OPT_INTERVAL: OptInterval = OptInterval::Steps(1); // (4)
+const SOFT_UPDATE_INTERVAL: usize = 10_000; // / 4; // 4 is from opt_interval value
 const TAU: f64 = 1.0;
 const MAX_OPTS: usize = 4_000_000;
 const EVAL_INTERVAL: usize = 10_000;
@@ -45,7 +48,7 @@ const REPLAY_BUFFER_CAPACITY: usize = 200_000;
 const N_EPISODES_PER_EVAL: usize = 1;
 const EPS_START: f64 = 1.0;
 const EPS_FINAL: f64 = 0.02;
-const EPS_FINAL_STEP: usize = 1_000_000;
+const EPS_FINAL_STEP: usize = 1_000_000; // 250_000;
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -206,7 +209,9 @@ mod iqn_model {
 
     // IQN model
     pub fn create_iqn_model(n_stack: i64, feature_dim: i64, embed_dim: i64, hidden_dim: i64,
-        out_dim: i64, learning_rate: f64, device: Device) -> IQNModel<ConvNet, MLP> {
+        out_dim: i64, learning_rate: f64, sample_percent_pred: IQNSample,
+        sample_percent_tgt: IQNSample, sample_percent_act: IQNSample,
+        device: Device) -> IQNModel<ConvNet, MLP> {
         let fe_config = ConvNetConfig::new(n_stack, feature_dim);
         let m_config = MLPConfig::new(feature_dim, hidden_dim, out_dim);
         IQNModelBuilder::default()
@@ -214,6 +219,9 @@ mod iqn_model {
             .embed_dim(embed_dim)
             .out_dim(out_dim)
             .learning_rate(learning_rate)
+            .sample_percent_pred(sample_percent_pred)
+            .sample_percent_tgt(sample_percent_tgt)
+            .sample_percent_act(sample_percent_act)
             .build(fe_config, m_config, device)
     }
 }
@@ -221,7 +229,8 @@ mod iqn_model {
 fn create_agent(dim_act: i64) -> impl Agent<Env> {
     let device = tch::Device::cuda_if_available();
     let iqn_model = iqn_model::create_iqn_model(N_STACK as i64, DIM_FEATURE, DIM_EMBED,
-        DIM_HIDDEN, dim_act, LR_QNET, device);
+        DIM_HIDDEN, dim_act, SAMPLE_PERCENTS_PRED, SAMPLE_PERCENTS_TGT,
+        SAMPLE_PERCENTS_ACT, LR_QNET, device);
     let replay_buffer = ReplayBuffer::new(REPLAY_BUFFER_CAPACITY, N_PROCS);
     IQNBuilder::default()
         .opt_interval(OPT_INTERVAL)

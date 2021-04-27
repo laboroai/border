@@ -299,6 +299,12 @@ pub enum IQNSample {
 
     /// 32 samples from uniform distribution.
     Uniform32,
+
+    /// 64 samples from uniform distribution.
+    Uniform64,
+
+    /// Single sample, median.
+    Median,
 }
 
 impl IQNSample {
@@ -311,6 +317,8 @@ impl IQNSample {
             Self::Uniform10 => Tensor::rand(&[batch_size, 10], tch::kind::FLOAT_CPU),
             Self::Uniform8 => Tensor::rand(&[batch_size, 8], tch::kind::FLOAT_CPU),
             Self::Uniform32 => Tensor::rand(&[batch_size, 32], tch::kind::FLOAT_CPU),
+            Self::Uniform64 => Tensor::rand(&[batch_size, 64], tch::kind::FLOAT_CPU),
+            Self::Median => Tensor::of_slice(&[0.5_f32]).unsqueeze(0).repeat(&[batch_size, 1]),
         }
     }
 
@@ -321,6 +329,8 @@ impl IQNSample {
             Self::Uniform10 => 10,
             Self::Uniform8 => 8,
             Self::Uniform32 => 32,
+            Self::Uniform64 => 64,
+            Self::Median => 1,
         }
     }
 }
