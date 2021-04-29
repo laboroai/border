@@ -190,25 +190,19 @@ impl<E, F, M, O, A> Policy<E> for IQN<E, F, M, O, A> where
         let batch_size = obs.batch_size() as _;
 
         let a = no_grad(|| {
+            let obs = obs.clone().into();
+            let action_value = average(batch_size, &obs, &self.iqn, &self.sample_percents_act, self.device);
+
             if self.train {
-                let iqn = &self.iqn;
-                let device = self.device;
-                let obs = obs.clone().into();
-                let sample_percents_act = &self.sample_percents_act;
-                let q_fn = || {
-                    let a = average(batch_size, &obs, iqn, sample_percents_act, device);
-                    a.argmax(-1, true)
-                };
-                let shape = (batch_size as u32, self.iqn.out_dim as u32);
                 match &mut self.explorer {
-                    IQNExplorer::EpsilonGreedy(egreedy) => egreedy.action(shape, q_fn),
+                    IQNExplorer::EpsilonGreedy(egreedy) => egreedy.action(action_value),
                 }
-            } else {
-                let obs = obs.clone().into();
-                let a = average(batch_size, &obs, &self.iqn, &self.sample_percents_act, self.device);
-                a.argmax(-1, true)
+            }
+            else {
+                action_value.argmax(-1, true)
             }
         });
+
         a.into()
     }
 }
