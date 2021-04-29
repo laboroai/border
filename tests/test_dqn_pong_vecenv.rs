@@ -107,6 +107,7 @@ fn create_env(n_procs: usize) -> Env {
 }
 
 #[cfg(not(target_os = "windows"))]
+#[ignore]
 #[test]
 fn main() {
     env_logger::init();
