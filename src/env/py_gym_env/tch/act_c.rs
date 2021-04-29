@@ -1,14 +1,12 @@
 //! Conversion of continuous actions in [crate::env::py_gym_env::base::PyGymEnv].
-use std::marker::PhantomData;
 use log::trace;
 use ndarray::{Array1, IxDyn};
+use std::marker::PhantomData;
 use tch::Tensor;
 
 use crate::{
-    agent::tch::{TchBuffer, util::concat_slices},
-    env::py_gym_env::{
-        Shape, act_c::PyGymEnvContinuousAct, tch::util::try_from
-    }
+    agent::tch::{util::concat_slices, TchBuffer},
+    env::py_gym_env::{act_c::PyGymEnvContinuousAct, tch::util::try_from, Shape},
 };
 
 impl<S: Shape> From<Tensor> for PyGymEnvContinuousAct<S> {
@@ -30,7 +28,7 @@ impl<S: Shape> From<Tensor> for PyGymEnvContinuousAct<S> {
 pub struct TchPyGymEnvContinuousActBuffer<S: Shape> {
     act: Tensor,
     n_procs: i64,
-    phantom: PhantomData<S>
+    phantom: PhantomData<S>,
 }
 
 impl<S: Shape> TchBuffer for TchPyGymEnvContinuousActBuffer<S> {
@@ -40,8 +38,14 @@ impl<S: Shape> TchBuffer for TchPyGymEnvContinuousActBuffer<S> {
     fn new(capacity: usize, n_procs: usize) -> Self {
         let capacity = capacity as _;
         let n_procs = n_procs as _;
-        let shape = concat_slices(&[capacity, n_procs],
-            S::shape().iter().map(|v| *v as i64).collect::<Vec<_>>().as_slice());
+        let shape = concat_slices(
+            &[capacity, n_procs],
+            S::shape()
+                .iter()
+                .map(|v| *v as i64)
+                .collect::<Vec<_>>()
+                .as_slice(),
+        );
         Self {
             act: Tensor::zeros(&shape, tch::kind::FLOAT_CPU),
             n_procs,
@@ -61,7 +65,10 @@ impl<S: Shape> TchBuffer for TchPyGymEnvContinuousActBuffer<S> {
     fn batch(&self, batch_indexes: &Tensor) -> Tensor {
         let batch = self.act.index_select(0, &batch_indexes);
         let batch = batch.flatten(0, 1);
-        debug_assert_eq!(batch.size().as_slice()[0], batch_indexes.size()[0] * self.n_procs);
+        debug_assert_eq!(
+            batch.size().as_slice()[0],
+            batch_indexes.size()[0] * self.n_procs
+        );
         batch
     }
 }

@@ -1,28 +1,22 @@
+use clap::{App, Arg};
 use std::time::Duration;
-use clap::{Arg, App};
 
 use border::{
-    core::{
-        Agent, TrainerBuilder, util,
-        record::TensorboardRecorder,
+    agent::{
+        tch::{
+            iqn::{model::IQNSample, EpsilonGreedy, IQNBuilder},
+            ReplayBuffer as ReplayBuffer_,
+        },
+        OptInterval,
     },
+    core::{record::TensorboardRecorder, util, Agent, TrainerBuilder},
     env::py_gym_env::{
-        Shape, PyGymEnv, PyGymEnvBuilder,
-        obs::PyGymEnvObs,
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
         framestack::FrameStackFilter,
-        tch::{
-            obs::TchPyGymEnvObsBuffer,
-            act_d::TchPyGymEnvDiscreteActBuffer
-        }
+        obs::PyGymEnvObs,
+        tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
+        PyGymEnv, PyGymEnvBuilder, Shape,
     },
-    agent::{
-        OptInterval,
-        tch::{
-            ReplayBuffer as ReplayBuffer_,
-            iqn::{IQNBuilder, model::IQNSample, EpsilonGreedy},
-        }
-    }
 };
 
 const N_PROCS: usize = 1;
@@ -69,11 +63,11 @@ type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 type ReplayBuffer = ReplayBuffer_<Env, ObsBuffer, ActBuffer>;
 
 mod iqn_model {
-    use tch::{Tensor, Device, nn, nn::Module, nn::VarStore};
     use border::agent::tch::{
+        iqn::{IQNModel, IQNModelBuilder},
         model::SubModel,
-        iqn::{IQNModel, IQNModelBuilder}
     };
+    use tch::{nn, nn::Module, nn::VarStore, Device, Tensor};
 
     #[allow(clippy::upper_case_acronyms)]
     // ConvNet as feature extractor
@@ -86,7 +80,7 @@ mod iqn_model {
         fn new(n_stack: i64, feature_dim: i64) -> Self {
             Self {
                 n_stack,
-                feature_dim
+                feature_dim,
             }
         }
     }
@@ -96,7 +90,7 @@ mod iqn_model {
         n_stack: i64,
         feature_dim: i64,
         device: Device,
-        seq: nn::Sequential
+        seq: nn::Sequential,
     }
 
     fn stride(s: i64) -> nn::ConvConfig {
@@ -122,7 +116,7 @@ mod iqn_model {
                 n_stack,
                 feature_dim,
                 device: var_store.device(),
-                seq
+                seq,
             }
         }
     }
@@ -150,7 +144,7 @@ mod iqn_model {
     pub struct MLPConfig {
         in_dim: i64,
         hidden_dim: i64,
-        out_dim: i64
+        out_dim: i64,
     }
 
     impl MLPConfig {
@@ -158,7 +152,7 @@ mod iqn_model {
             Self {
                 in_dim,
                 hidden_dim,
-                out_dim
+                out_dim,
             }
         }
     }
@@ -168,24 +162,33 @@ mod iqn_model {
         in_dim: i64,
         hidden_dim: i64,
         out_dim: i64,
-        seq: nn::Sequential
+        seq: nn::Sequential,
     }
 
     impl MLP {
         fn _build(var_store: &VarStore, in_dim: i64, hidden_dim: i64, out_dim: i64) -> Self {
             let p = &var_store.root();
             let seq = nn::seq()
-                .add(nn::linear(p / "cl1", in_dim, hidden_dim, Default::default()))
+                .add(nn::linear(
+                    p / "cl1",
+                    in_dim,
+                    hidden_dim,
+                    Default::default(),
+                ))
                 .add_fn(|x| x.relu())
-                .add(nn::linear(p / "cl2", hidden_dim, out_dim, Default::default()));
+                .add(nn::linear(
+                    p / "cl2",
+                    hidden_dim,
+                    out_dim,
+                    Default::default(),
+                ));
 
             Self {
                 in_dim,
                 hidden_dim,
                 out_dim,
-                seq
+                seq,
             }
-
         }
     }
 
@@ -208,8 +211,15 @@ mod iqn_model {
     }
 
     // IQN model
-    pub fn create_iqn_model(n_stack: i64, feature_dim: i64, embed_dim: i64, hidden_dim: i64,
-        out_dim: i64, learning_rate: f64, device: Device) -> IQNModel<ConvNet, MLP> {
+    pub fn create_iqn_model(
+        n_stack: i64,
+        feature_dim: i64,
+        embed_dim: i64,
+        hidden_dim: i64,
+        out_dim: i64,
+        learning_rate: f64,
+        device: Device,
+    ) -> IQNModel<ConvNet, MLP> {
         let fe_config = ConvNetConfig::new(n_stack, feature_dim);
         let m_config = MLPConfig::new(feature_dim, hidden_dim, out_dim);
         IQNModelBuilder::default()
@@ -223,8 +233,15 @@ mod iqn_model {
 
 fn create_agent(dim_act: i64) -> impl Agent<Env> {
     let device = tch::Device::cuda_if_available();
-    let iqn_model = iqn_model::create_iqn_model(N_STACK as i64, DIM_FEATURE, DIM_EMBED,
-        DIM_HIDDEN, dim_act, LR_QNET, device);
+    let iqn_model = iqn_model::create_iqn_model(
+        N_STACK as i64,
+        DIM_FEATURE,
+        DIM_EMBED,
+        DIM_HIDDEN,
+        dim_act,
+        LR_QNET,
+        device,
+    );
     let replay_buffer = ReplayBuffer::new(REPLAY_BUFFER_CAPACITY, N_PROCS);
     IQNBuilder::default()
         .opt_interval(OPT_INTERVAL)
@@ -234,7 +251,11 @@ fn create_agent(dim_act: i64) -> impl Agent<Env> {
         .discount_factor(DISCOUNT_FACTOR)
         .soft_update_interval(SOFT_UPDATE_INTERVAL)
         .tau(TAU)
-        .explorer(EpsilonGreedy::with_params(EPS_START, EPS_FINAL, EPS_FINAL_STEP))
+        .explorer(EpsilonGreedy::with_params(
+            EPS_START,
+            EPS_FINAL,
+            EPS_FINAL_STEP,
+        ))
         .sample_percent_pred(SAMPLE_PERCENTS_PRED)
         .sample_percent_tgt(SAMPLE_PERCENTS_TGT)
         .sample_percent_act(SAMPLE_PERCENTS_ACT)
@@ -246,7 +267,8 @@ fn create_env(name: &str) -> Env {
     let act_filter = ActFilter::default();
     PyGymEnvBuilder::default()
         .atari_wrapper(true)
-        .build(name, obs_filter, act_filter).unwrap()
+        .build(name, obs_filter, act_filter)
+        .unwrap()
 }
 
 fn main() {
@@ -256,21 +278,27 @@ fn main() {
     let matches = App::new("iqn_atari")
         .version("0.1.0")
         .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
-        .arg(Arg::with_name("name")
-            .long("name")
-            .takes_value(true)
-            .required(true)
-            .index(1)
-            .help("The name of the atari environment (e.g., PongNoFrameskip-v4)"))
-        .arg(Arg::with_name("play")
-            .long("play")
-            .takes_value(true)
-            .help("Play with the trained model of the given path"))
-        .arg(Arg::with_name("wait")
-            .long("wait")
-            .takes_value(true)
-            .default_value("25")
-            .help("Waiting time in milliseconds between frames when playing"))        
+        .arg(
+            Arg::with_name("name")
+                .long("name")
+                .takes_value(true)
+                .required(true)
+                .index(1)
+                .help("The name of the atari environment (e.g., PongNoFrameskip-v4)"),
+        )
+        .arg(
+            Arg::with_name("play")
+                .long("play")
+                .takes_value(true)
+                .help("Play with the trained model of the given path"),
+        )
+        .arg(
+            Arg::with_name("wait")
+                .long("wait")
+                .takes_value(true)
+                .default_value("25")
+                .help("Waiting time in milliseconds between frames when playing"),
+        )
         .get_matches();
 
     let name = matches.value_of("name").unwrap();
@@ -285,14 +313,11 @@ fn main() {
             .eval_interval(EVAL_INTERVAL)
             .n_episodes_per_eval(N_EPISODES_PER_EVAL)
             .build(env, env_eval, agent);
-        let mut recorder = TensorboardRecorder::new(
-            format!("./examples/model/iqn_{}", name)
-        );
+        let mut recorder = TensorboardRecorder::new(format!("./examples/model/iqn_{}", name));
         let model_dir = format!("./examples/model/iqn_{}", name);
         trainer.train(&mut recorder);
         trainer.get_agent().save(model_dir).unwrap(); // TODO: define appropriate error
-    }
-    else {
+    } else {
         let time = matches.value_of("wait").unwrap().parse::<u64>().unwrap();
         let model_dir = matches.value_of("play").unwrap();
         env.set_render(true);

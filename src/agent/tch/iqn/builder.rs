@@ -1,23 +1,25 @@
 //! Builder of IQN agent
-use std::{cell::RefCell, marker::PhantomData, default::Default};
-use tch::{Tensor, Device};
+use std::{cell::RefCell, default::Default, marker::PhantomData};
+use tch::{Device, Tensor};
 
 use crate::{
-    core::Env,
     agent::{
-        OptInterval, OptIntervalCounter,
         tch::{
-            ReplayBuffer, TchBuffer, model::SubModel,
-            iqn::{IQN, IQNModel, IQNExplorer, EpsilonGreedy}
-        }
-    }
+            iqn::{EpsilonGreedy, IQNExplorer, IQNModel, IQN},
+            model::SubModel,
+            ReplayBuffer, TchBuffer,
+        },
+        OptInterval, OptIntervalCounter,
+    },
+    core::Env,
 };
 
 use super::model::IQNSample;
 
 #[allow(clippy::clippy::upper_case_acronyms)]
 /// IQN builder.
-pub struct IQNBuilder<E, F, M, O, A> where
+pub struct IQNBuilder<E, F, M, O, A>
+where
     E: Env,
     F: SubModel,
     M: SubModel,
@@ -41,7 +43,8 @@ pub struct IQNBuilder<E, F, M, O, A> where
     phantom: PhantomData<(E, F, M, O, A)>,
 }
 
-impl<E, F, M, O, A> Default for IQNBuilder<E, F, M, O, A> where
+impl<E, F, M, O, A> Default for IQNBuilder<E, F, M, O, A>
+where
     E: Env,
     F: SubModel,
     M: SubModel,
@@ -69,7 +72,8 @@ impl<E, F, M, O, A> Default for IQNBuilder<E, F, M, O, A> where
     }
 }
 
-impl<E, F, M, O, A> IQNBuilder<E, F, M, O, A> where
+impl<E, F, M, O, A> IQNBuilder<E, F, M, O, A>
+where
     E: Env,
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
@@ -121,8 +125,7 @@ impl<E, F, M, O, A> IQNBuilder<E, F, M, O, A> where
     }
 
     /// Set explorer.
-    pub fn explorer(mut self, v: IQNExplorer) -> Self where
-    {
+    pub fn explorer(mut self, v: IQNExplorer) -> Self where {
         self.explorer = v;
         self
     }
@@ -146,9 +149,12 @@ impl<E, F, M, O, A> IQNBuilder<E, F, M, O, A> where
     }
 
     /// Constructs [IQN] agent.
-    pub fn build(self, iqn_model: IQNModel<F, M>, replay_buffer: ReplayBuffer<E, O, A>, device: Device)
-        -> IQN<E, F, M, O, A> 
-    {
+    pub fn build(
+        self,
+        iqn_model: IQNModel<F, M>,
+        replay_buffer: ReplayBuffer<E, O, A>,
+        device: Device,
+    ) -> IQN<E, F, M, O, A> {
         let iqn = iqn_model;
         let iqn_tgt = iqn.clone();
 

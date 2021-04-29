@@ -1,29 +1,23 @@
+use clap::{App, Arg};
 use std::time::Duration;
-use clap::{Arg, App};
 use tch::nn;
 
 use border::{
-    core::{
-        Agent, TrainerBuilder, util,
-        record::TensorboardRecorder,
+    agent::{
+        tch::{
+            dqn::explorer::EpsilonGreedy, model::Model1_1, DQNBuilder,
+            ReplayBuffer as ReplayBuffer_,
+        },
+        OptInterval,
     },
+    core::{record::TensorboardRecorder, util, Agent, TrainerBuilder},
     env::py_gym_env::{
-        Shape, PyGymEnv, PyGymEnvBuilder,
-        obs::PyGymEnvObs,
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
         framestack::FrameStackFilter,
-        tch::{
-            obs::TchPyGymEnvObsBuffer,
-            act_d::TchPyGymEnvDiscreteActBuffer
-        }
+        obs::PyGymEnvObs,
+        tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
+        PyGymEnv, PyGymEnvBuilder, Shape,
     },
-    agent::{
-        OptInterval,
-        tch::{
-            ReplayBuffer as ReplayBuffer_,
-            DQNBuilder, model::Model1_1, dqn::explorer::EpsilonGreedy,
-        }
-    }
 };
 
 const N_PROCS: usize = 1;
@@ -69,17 +63,19 @@ fn stride(s: i64) -> nn::ConvConfig {
 }
 
 fn create_critic(dim_act: usize, device: tch::Device) -> Model1_1 {
-    let network_fn = |p: &nn::Path, _in_shape: &[usize], out_dim| nn::seq()
-        .add_fn(|xs| xs.squeeze1(2).internal_cast_float(true) / 255)
-        .add(nn::conv2d(p / "c1", N_STACK as i64, 32, 8, stride(4)))
-        .add_fn(|xs| xs.relu())
-        .add(nn::conv2d(p / "c2", 32, 64, 4, stride(2)))
-        .add_fn(|xs| xs.relu())
-        .add(nn::conv2d(p / "c3", 64, 64, 3, stride(1)))
-        .add_fn(|xs| xs.relu().flat_view())
-        .add(nn::linear(p / "l1", 3136, 512, Default::default()))
-        .add_fn(|xs| xs.relu())
-        .add(nn::linear(p / "l2", 512, out_dim as _, Default::default()));
+    let network_fn = |p: &nn::Path, _in_shape: &[usize], out_dim| {
+        nn::seq()
+            .add_fn(|xs| xs.squeeze1(2).internal_cast_float(true) / 255)
+            .add(nn::conv2d(p / "c1", N_STACK as i64, 32, 8, stride(4)))
+            .add_fn(|xs| xs.relu())
+            .add(nn::conv2d(p / "c2", 32, 64, 4, stride(2)))
+            .add_fn(|xs| xs.relu())
+            .add(nn::conv2d(p / "c3", 64, 64, 3, stride(1)))
+            .add_fn(|xs| xs.relu().flat_view())
+            .add(nn::linear(p / "l1", 3136, 512, Default::default()))
+            .add_fn(|xs| xs.relu())
+            .add(nn::linear(p / "l2", 512, out_dim as _, Default::default()))
+    };
     Model1_1::new(&DIM_OBS, dim_act, LR_QNET, network_fn, device)
 }
 
@@ -105,7 +101,8 @@ fn create_env(name: &str) -> Env {
     let act_filter = ActFilter::default();
     PyGymEnvBuilder::default()
         .atari_wrapper(true)
-        .build(name, obs_filter, act_filter).unwrap()
+        .build(name, obs_filter, act_filter)
+        .unwrap()
 }
 
 fn main() {
@@ -115,21 +112,27 @@ fn main() {
     let matches = App::new("dqn_atari")
         .version("0.1.0")
         .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
-        .arg(Arg::with_name("name")
-            .long("name")
-            .takes_value(true)
-            .required(true)
-            .index(1)
-            .help("The name of the atari environment (e.g., PongNoFrameskip-v4)"))
-        .arg(Arg::with_name("play")
-            .long("play")
-            .takes_value(true)
-            .help("Play with the trained model of the given path"))
-        .arg(Arg::with_name("wait")
-            .long("wait")
-            .takes_value(true)
-            .default_value("25")
-            .help("Waiting time in milliseconds between frames when playing"))        
+        .arg(
+            Arg::with_name("name")
+                .long("name")
+                .takes_value(true)
+                .required(true)
+                .index(1)
+                .help("The name of the atari environment (e.g., PongNoFrameskip-v4)"),
+        )
+        .arg(
+            Arg::with_name("play")
+                .long("play")
+                .takes_value(true)
+                .help("Play with the trained model of the given path"),
+        )
+        .arg(
+            Arg::with_name("wait")
+                .long("wait")
+                .takes_value(true)
+                .default_value("25")
+                .help("Waiting time in milliseconds between frames when playing"),
+        )
         .get_matches();
 
     let name = matches.value_of("name").unwrap();
@@ -144,14 +147,11 @@ fn main() {
             .eval_interval(EVAL_INTERVAL)
             .n_episodes_per_eval(N_EPISODES_PER_EVAL)
             .build(env, env_eval, agent);
-        let mut recorder = TensorboardRecorder::new(
-            format!("./examples/model/dqn_{}", name)
-        );
+        let mut recorder = TensorboardRecorder::new(format!("./examples/model/dqn_{}", name));
         let model_dir = format!("./examples/model/dqn_{}", name);
         trainer.train(&mut recorder);
         trainer.get_agent().save(model_dir).unwrap(); // TODO: define appropriate error
-    }
-    else {
+    } else {
         let time = matches.value_of("wait").unwrap().parse::<u64>().unwrap();
         let model_dir = matches.value_of("play").unwrap();
         env.set_render(true);

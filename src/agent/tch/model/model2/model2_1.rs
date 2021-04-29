@@ -1,9 +1,14 @@
 //! Neural network with two input tensors and single output tensor.
-use std::{path::Path, error::Error, fmt, fmt::{Formatter, Debug}};
 use log::{info, trace};
-use tch::{Tensor, nn, nn::Module, nn::OptimizerConfig};
+use std::{
+    error::Error,
+    fmt,
+    fmt::{Debug, Formatter},
+    path::Path,
+};
+use tch::{nn, nn::Module, nn::OptimizerConfig, Tensor};
 
-use crate::agent::tch::model::{ModelBase, Model2};
+use crate::agent::tch::model::{Model2, ModelBase};
 
 /// Neural network with two input tensors and single output tensor.
 pub struct Model2_1 {
@@ -13,18 +18,26 @@ pub struct Model2_1 {
     opt: nn::Optimizer<nn::Adam>,
     in_dim: usize,
     out_dim: usize,
-    learning_rate: f64
+    learning_rate: f64,
 }
 
 /// TODO: implement debug print.
 impl Debug for Model2_1 {
-    fn fmt(&self, _f: &mut Formatter<'_>) -> fmt::Result { Ok(()) }
+    fn fmt(&self, _f: &mut Formatter<'_>) -> fmt::Result {
+        Ok(())
+    }
 }
 
 impl Clone for Model2_1 {
     fn clone(&self) -> Self {
         let device = self.var_store.device();
-        let mut new = Self::new(self.in_dim, self.out_dim, self.learning_rate, self.network_fn, device);
+        let mut new = Self::new(
+            self.in_dim,
+            self.out_dim,
+            self.learning_rate,
+            self.network_fn,
+            device,
+        );
         new.var_store.copy(&self.var_store).unwrap();
         new
     }
@@ -32,8 +45,13 @@ impl Clone for Model2_1 {
 
 impl Model2_1 {
     /// Constructs [Model2_1].
-    pub fn new(in_dim: usize, out_dim: usize, learning_rate: f64,
-        network_fn: fn(&nn::Path, usize, usize) -> nn::Sequential, device: tch::Device) -> Self {
+    pub fn new(
+        in_dim: usize,
+        out_dim: usize,
+        learning_rate: f64,
+        network_fn: fn(&nn::Path, usize, usize) -> nn::Sequential,
+        device: tch::Device,
+    ) -> Self {
         let vs = nn::VarStore::new(device);
         let p = &vs.root();
         let network = network_fn(p, in_dim, out_dim);
@@ -66,7 +84,7 @@ impl ModelBase for Model2_1 {
         let vs = self.var_store.variables();
         for (name, _) in vs.iter() {
             trace!("Save variable {}", name);
-        };
+        }
         Ok(())
     }
 

@@ -2,27 +2,22 @@
 use tch::nn;
 
 use border::{
-    core::{
-        TrainerBuilder, Agent,
-        record::TensorboardRecorder,
+    agent::{
+        tch::{
+            dqn::explorer::{DQNExplorer, EpsilonGreedy},
+            model::Model1_1,
+            DQNBuilder, ReplayBuffer as ReplayBuffer_,
+        },
+        OptInterval,
     },
+    core::{record::TensorboardRecorder, Agent, TrainerBuilder},
     env::py_gym_env::{
-        Shape, PyVecGymEnv,
-        obs::PyGymEnvObs,
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
         framestack::FrameStackFilter,
-        tch::{
-            obs::TchPyGymEnvObsBuffer,
-            act_d::TchPyGymEnvDiscreteActBuffer
-        }
+        obs::PyGymEnvObs,
+        tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
+        PyVecGymEnv, Shape,
     },
-    agent::{
-        OptInterval,
-        tch::{
-            DQNBuilder, ReplayBuffer as ReplayBuffer_, model::Model1_1,
-            dqn::explorer::{DQNExplorer, EpsilonGreedy},
-        }
-    }
 };
 
 const N_PROCS: usize = 4;
@@ -69,17 +64,19 @@ fn stride(s: i64) -> nn::ConvConfig {
 }
 
 fn create_critic(device: tch::Device) -> Model1_1 {
-    let network_fn = |p: &nn::Path, _in_shape: &[usize], out_dim| nn::seq()
-        .add_fn(|xs| xs.squeeze1(2).internal_cast_float(true))
-        .add(nn::conv2d(p / "c1", N_STACK as i64, 32, 8, stride(4)))
-        .add_fn(|xs| xs.relu())
-        .add(nn::conv2d(p / "c2", 32, 64, 4, stride(2)))
-        .add_fn(|xs| xs.relu())
-        .add(nn::conv2d(p / "c3", 64, 64, 3, stride(1)))
-        .add_fn(|xs| xs.relu().flat_view())
-        .add(nn::linear(p / "l1", 3136, 512, Default::default()))
-        .add_fn(|xs| xs.relu())
-        .add(nn::linear(p / "l2", 512, out_dim as _, Default::default()));
+    let network_fn = |p: &nn::Path, _in_shape: &[usize], out_dim| {
+        nn::seq()
+            .add_fn(|xs| xs.squeeze1(2).internal_cast_float(true))
+            .add(nn::conv2d(p / "c1", N_STACK as i64, 32, 8, stride(4)))
+            .add_fn(|xs| xs.relu())
+            .add(nn::conv2d(p / "c2", 32, 64, 4, stride(2)))
+            .add_fn(|xs| xs.relu())
+            .add(nn::conv2d(p / "c3", 64, 64, 3, stride(1)))
+            .add_fn(|xs| xs.relu().flat_view())
+            .add(nn::linear(p / "l1", 3136, 512, Default::default()))
+            .add_fn(|xs| xs.relu())
+            .add(nn::linear(p / "l2", 512, out_dim as _, Default::default()))
+    };
     Model1_1::new(&DIM_OBS, DIM_ACT, LR_QNET, network_fn, device)
 }
 
@@ -125,7 +122,10 @@ fn main() {
     let mut recorder = TensorboardRecorder::new("./examples/model/dqn_pong_vecenv");
 
     trainer.train(&mut recorder);
-    trainer.get_agent().save("./examples/model/dqn_pong_vecenv").unwrap(); // TODO: define appropriate error
+    trainer
+        .get_agent()
+        .save("./examples/model/dqn_pong_vecenv")
+        .unwrap(); // TODO: define appropriate error
 
     trainer.get_env().close();
     trainer.get_env_eval().close();

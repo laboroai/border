@@ -3,11 +3,11 @@ use std::time::Duration;
 use ndarray::Array;
 
 use border::{
-    core::{Policy, util},
+    core::{util, Policy},
     env::py_gym_env::{
-        Shape, PyGymEnv, PyGymEnvBuilder,
+        act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter},
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-        act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter}
+        PyGymEnv, PyGymEnvBuilder, Shape,
     },
 };
 
@@ -39,9 +39,13 @@ struct RandomPolicy {}
 
 impl Policy<Env> for RandomPolicy {
     fn sample(&mut self, _: &Obs) -> Act {
-        Act::new(Array::from(
-            (0..8).map(|_| 2f32 * fastrand::f32() - 1f32).collect::<Vec<_>>())
-            .into_dyn()
+        Act::new(
+            Array::from(
+                (0..8)
+                    .map(|_| 2f32 * fastrand::f32() - 1f32)
+                    .collect::<Vec<_>>(),
+            )
+            .into_dyn(),
         )
     }
 }
@@ -57,10 +61,11 @@ fn main() {
     let mut env = PyGymEnvBuilder::default()
         .pybullet(true)
         .atari_wrapper(false)
-        .build("AntPyBulletEnv-v0", obs_filter, act_filter).unwrap();
+        .build("AntPyBulletEnv-v0", obs_filter, act_filter)
+        .unwrap();
     env.set_render(true);
     env.set_wait_in_render(Duration::from_millis(10));
-    let mut policy = RandomPolicy{};
+    let mut policy = RandomPolicy {};
 
     util::eval(&mut env, &mut policy, 5);
 

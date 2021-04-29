@@ -1,7 +1,10 @@
 //! Replay buffer.
 use log::trace;
 use std::marker::PhantomData;
-use tch::{Tensor, kind::{FLOAT_CPU, INT64_CPU}};
+use tch::{
+    kind::{FLOAT_CPU, INT64_CPU},
+    Tensor,
+};
 
 use crate::core::Env;
 
@@ -9,8 +12,9 @@ use crate::core::Env;
 ///
 /// TODO: Add test.
 fn zero_reward(reward: &Tensor) -> Tensor {
-    let zero_reward = Vec::<f32>::from(reward).iter()
-        .map(|x| {if *x == 0f32 { 1f32 } else { 0f32 }})
+    let zero_reward = Vec::<f32>::from(reward)
+        .iter()
+        .map(|x| if *x == 0f32 { 1f32 } else { 0f32 })
         .collect::<Vec<_>>();
     Tensor::of_slice(&zero_reward)
 }
@@ -34,10 +38,11 @@ pub trait TchBuffer {
 }
 
 /// Batch object, generic wrt observation and action.
-pub struct TchBatch<E: Env, O, A> where
+pub struct TchBatch<E: Env, O, A>
+where
     O: TchBuffer<Item = E::Obs>,
-    A: TchBuffer<Item = E::Act> {
-
+    A: TchBuffer<Item = E::Act>,
+{
     /// Generic observation.
     pub obs: O::SubBatch,
     /// Generic observation at the next step.
@@ -54,11 +59,12 @@ pub struct TchBatch<E: Env, O, A> where
 }
 
 /// Replay buffer.
-pub struct ReplayBuffer<E, O, A> where
+pub struct ReplayBuffer<E, O, A>
+where
     E: Env,
     O: TchBuffer<Item = E::Obs>,
-    A: TchBuffer<Item = E::Act> {
-
+    A: TchBuffer<Item = E::Act>,
+{
     obs: O,
     next_obs: O,
     actions: A,
@@ -74,11 +80,12 @@ pub struct ReplayBuffer<E, O, A> where
 }
 
 #[allow(clippy::len_without_is_empty)]
-impl<E, O, A> ReplayBuffer<E, O, A> where
+impl<E, O, A> ReplayBuffer<E, O, A>
+where
     E: Env,
     O: TchBuffer<Item = E::Obs>,
-    A: TchBuffer<Item = E::Act> {
-
+    A: TchBuffer<Item = E::Act>,
+{
     /// Constructs a replay buffer.
     pub fn new(capacity: usize, n_procs: usize) -> Self {
         if capacity % n_procs != 0 {
@@ -118,8 +125,14 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
     }
 
     /// Pushes a tuple of observation, action, reward, next observation and is_done flag.
-    pub fn push(&mut self, obs: &O::Item, act: &A::Item, reward: &Tensor, next_obs: &O::Item,
-                not_done: &Tensor) {
+    pub fn push(
+        &mut self,
+        obs: &O::Item,
+        act: &A::Item,
+        reward: &Tensor,
+        next_obs: &O::Item,
+        not_done: &Tensor,
+    ) {
         trace!("ReplayBuffer::push()");
 
         let i = (self.i % self.capacity) as i64;
@@ -130,10 +143,11 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
 
         if !self.nonzero_reward_as_done {
             self.not_dones.get(i as _).copy_(&not_done.unsqueeze(-1));
-        }
-        else {
+        } else {
             let zero_reward = zero_reward(reward);
-            self.not_dones.get(i as _).copy_(&(zero_reward * not_done).unsqueeze(-1));
+            self.not_dones
+                .get(i as _)
+                .copy_(&(zero_reward * not_done).unsqueeze(-1));
         }
 
         self.i += 1;
@@ -161,11 +175,19 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
         let not_dones = self.not_dones.index_select(0, &batch_indexes).flatten(0, 1);
         let returns = match self.returns.as_ref() {
             Some(r) => Some(r.index_select(0, &batch_indexes).flatten(0, 1)),
-            None => None
+            None => None,
         };
         let phantom = PhantomData;
 
-        Some(TchBatch {obs, actions, rewards, next_obs, not_dones, returns, phantom})
+        Some(TchBatch {
+            obs,
+            actions,
+            rewards,
+            next_obs,
+            not_dones,
+            returns,
+            phantom,
+        })
     }
 
     /// Updates returns in the replay buffer.
@@ -178,17 +200,23 @@ impl<E, O, A> ReplayBuffer<E, O, A> where
             trace!("r.shape                = {:?}", r.size());
             trace!("estimated_return.shape = {:?}", estimated_return.size());
 
-            r.get((self.len - 1) as _).copy_(&estimated_return.squeeze());
+            r.get((self.len - 1) as _)
+                .copy_(&estimated_return.squeeze());
             trace!("Set estimated_return to the tail of the buffer");
 
             for s in (0..(self.len - 2) as i64).rev() {
-                trace!("self.rewards.get(s).shape   = {:?}", self.rewards.get(s).size());
+                trace!(
+                    "self.rewards.get(s).shape   = {:?}",
+                    self.rewards.get(s).size()
+                );
                 trace!("r.get(s).shape              = {:?}", r.get(s).size());
-                trace!("self.not_dones.get(s).shape = {:?}", self.not_dones.get(s).size());
+                trace!(
+                    "self.not_dones.get(s).shape = {:?}",
+                    self.not_dones.get(s).size()
+                );
 
-                let r_s = 
-                    self.rewards.get(s).squeeze() + 
-                    gamma * r.get(s + 1) * self.not_dones.get(s).squeeze();
+                let r_s = self.rewards.get(s).squeeze()
+                    + gamma * r.get(s + 1) * self.not_dones.get(s).squeeze();
                 trace!("Compute r_s");
                 trace!("r_s.shape = {:?}", r_s.size());
                 r.get(s).copy_(&r_s);

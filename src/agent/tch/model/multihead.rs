@@ -1,9 +1,9 @@
 //! Neural network that outputs state value and action probability.
-use std::{path::Path, error::Error};
 use log::{info, trace};
-use tch::{Tensor, nn, nn::Module, Device, nn::OptimizerConfig};
+use std::{error::Error, path::Path};
+use tch::{nn, nn::Module, nn::OptimizerConfig, Device, Tensor};
 
-use crate::agent::tch::model::{ModelBase, Model1};
+use crate::agent::tch::model::{Model1, ModelBase};
 
 #[derive(Debug)]
 /// Neural network that outputs state value and action probability.
@@ -50,20 +50,25 @@ impl ModelBase for StateValueAndDiscreteActProb {
 
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>> {
         self.var_store.save(&path)?;
-        info!("Save StateValueAndDiscreteActProb model to {:?}", path.as_ref());
+        info!(
+            "Save StateValueAndDiscreteActProb model to {:?}",
+            path.as_ref()
+        );
         let vs = self.var_store.variables();
         for (name, _) in vs.iter() {
             trace!("Save variable {}", name);
-        };
+        }
         Ok(())
     }
 
     fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<(), Box<dyn Error>> {
         self.var_store.load(&path)?;
-        info!("Load StateValueAndDiscreteActProb model from {:?}", path.as_ref());
+        info!(
+            "Load StateValueAndDiscreteActProb model from {:?}",
+            path.as_ref()
+        );
         Ok(())
     }
-   
 }
 
 impl Model1 for StateValueAndDiscreteActProb {
@@ -76,7 +81,7 @@ impl Model1 for StateValueAndDiscreteActProb {
     }
 
     fn in_shape(&self) -> &[usize] {
-        unimplemented!()       
+        unimplemented!()
     }
 
     fn out_dim(&self) -> usize {

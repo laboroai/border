@@ -5,7 +5,7 @@ pub enum OptInterval {
     /// Optimization interval specified as interaction steps.
     Steps(usize),
     /// Optimization interval specified as episodes.
-    Episodes(usize)
+    Episodes(usize),
 }
 
 impl OptInterval {
@@ -13,7 +13,7 @@ impl OptInterval {
     pub fn counter(self) -> OptIntervalCounter {
         OptIntervalCounter {
             opt_interval: self,
-            count: 0
+            count: 0,
         }
     }
 }
@@ -21,7 +21,7 @@ impl OptInterval {
 /// The counter for optimization.
 pub struct OptIntervalCounter {
     opt_interval: OptInterval,
-    count: usize
+    count: usize,
 }
 
 impl OptIntervalCounter {
@@ -34,23 +34,20 @@ impl OptIntervalCounter {
                 if self.count == interval {
                     self.count = 0;
                     true
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             OptInterval::Episodes(interval) => {
                 if is_done_any {
                     self.count += 1;
                     if self.count == interval {
                         self.count = 0;
                         true
-                    }
-                    else {
+                    } else {
                         false
                     }
-                }
-                else {
+                } else {
                     false
                 }
             }
@@ -65,5 +62,5 @@ pub enum CriticLoss {
     MSE,
 
     /// Smooth L1 loss.
-    SmoothL1
+    SmoothL1,
 }

@@ -1,16 +1,16 @@
 //! Vectorized environment using multiprocess module in Python.
 #![allow(unused_variables, unreachable_code)]
-use std::{fmt::Debug, error::Error};
-use std::marker::PhantomData;
-use log::{trace};
+use log::trace;
 use pyo3::{
+    types::{IntoPyDict, PyTuple},
     PyObject, PyResult, ToPyObject,
-    types::{IntoPyDict, PyTuple}
 };
+use std::marker::PhantomData;
+use std::{error::Error, fmt::Debug};
 
 use crate::{
-    core::{Obs, Act, Step, Env, record::Record},
-    env::py_gym_env::{PyGymInfo, PyGymEnvObsFilter, PyGymEnvActFilter}
+    core::{record::Record, Act, Env, Obs, Step},
+    env::py_gym_env::{PyGymEnvActFilter, PyGymEnvObsFilter, PyGymInfo},
 };
 
 /// A vectorized environment using multiprocess module in Python.
@@ -24,7 +24,8 @@ pub struct PyVecGymEnv<O, A, OF, AF> {
     phantom: PhantomData<(O, A)>,
 }
 
-impl<O, A, OF, AF> PyVecGymEnv<O, A, OF, AF> where 
+impl<O, A, OF, AF> PyVecGymEnv<O, A, OF, AF>
+where
     O: Obs,
     A: Act,
     OF: PyGymEnvObsFilter<O>,
@@ -37,7 +38,13 @@ impl<O, A, OF, AF> PyVecGymEnv<O, A, OF, AF> where
     /// * `name` - Name of a gym environment.
     /// * `atari_wrapper` - If `true`, `wrap_deepmind()` is applied to the environment.
     ///   See `atari_wrapper.py`.
-    pub fn new(name: &str, n_procs: usize, obs_filter: OF, act_filter: AF, atari_wrapper: bool) -> PyResult<Self> {
+    pub fn new(
+        name: &str,
+        n_procs: usize,
+        obs_filter: OF,
+        act_filter: AF,
+        atari_wrapper: bool,
+    ) -> PyResult<Self> {
         pyo3::Python::with_gil(|py| {
             // sys.argv is used by pyglet library, which is responsible for rendering.
             // Depending on the python interpreter, however, sys.argv can be empty.
@@ -52,7 +59,11 @@ impl<O, A, OF, AF> PyVecGymEnv<O, A, OF, AF> where
             let _ = path.call_method("append", ("examples",), None)?;
 
             let gym = py.import("atari_wrappers")?;
-            let env = gym.call("make", (name, Option::<&str>::None, atari_wrapper, n_procs), None)?;
+            let env = gym.call(
+                "make",
+                (name, Option::<&str>::None, atari_wrapper, n_procs),
+                None,
+            )?;
 
             Ok(PyVecGymEnv {
                 env: env.into(),
@@ -74,7 +85,8 @@ impl<O, A, OF, AF> PyVecGymEnv<O, A, OF, AF> where
     }
 }
 
-impl<O, A, OF, AF> Env for PyVecGymEnv<O, A, OF, AF> where
+impl<O, A, OF, AF> Env for PyVecGymEnv<O, A, OF, AF>
+where
     O: Obs,
     A: Act,
     OF: PyGymEnvObsFilter<O>,
@@ -88,7 +100,7 @@ impl<O, A, OF, AF> Env for PyVecGymEnv<O, A, OF, AF> where
     ///
     /// If `is_done` is None, all environemnts are resetted.
     /// Otherwise, `is_done` is `Vec<f32>` and environments with `is_done[i] == 1.0` are resetted.
-    fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<O, Box<dyn Error>>  {
+    fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<O, Box<dyn Error>> {
         trace!("PyVecGymEnv::reset()");
 
         // Reset the action filter, required for stateful filters.
@@ -97,7 +109,7 @@ impl<O, A, OF, AF> Env for PyVecGymEnv<O, A, OF, AF> where
         pyo3::Python::with_gil(|py| {
             let obs = match is_done {
                 None => self.env.call_method0(py, "reset").unwrap(),
-                Some(v) => self.env.call_method1(py, "reset", (v.clone(),)).unwrap()
+                Some(v) => self.env.call_method1(py, "reset", (v.clone(),)).unwrap(),
             };
             Ok(self.obs_filter.reset(obs))
         })
@@ -123,7 +135,7 @@ impl<O, A, OF, AF> Env for PyVecGymEnv<O, A, OF, AF> where
             let is_done: Vec<f32> = is_done.extract(py).unwrap();
             let is_done: Vec<i8> = is_done.into_iter().map(|x| x as i8).collect();
 
-            let step = Step::<Self>::new(obs, a.clone(), reward, is_done, PyGymInfo{});
+            let step = Step::<Self>::new(obs, a.clone(), reward, is_done, PyGymInfo {});
             let record = record_o.merge(record_a);
 
             (step, record)

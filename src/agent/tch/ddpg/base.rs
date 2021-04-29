@@ -1,21 +1,21 @@
 //! DDPG agent.
 use log::trace;
-use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
+use std::{cell::RefCell, error::Error, fs, marker::PhantomData, path::Path};
 use tch::{no_grad, Tensor};
 
 use crate::{
-    core::{
-        Policy, Agent, Step, Env,
-        record::{Record, RecordValue}
-    },
     agent::{
-        OptInterval, OptIntervalCounter,
         tch::{
-            ReplayBuffer, TchBuffer, TchBatch,
             model::{Model1, Model2},
-            util::track
-        }
-    }
+            util::track,
+            ReplayBuffer, TchBatch, TchBuffer,
+        },
+        OptInterval, OptIntervalCounter,
+    },
+    core::{
+        record::{Record, RecordValue},
+        Agent, Env, Policy, Step,
+    },
 };
 
 type ActionValue = Tensor;
@@ -24,7 +24,7 @@ struct ActionNoise {
     mu: f64,
     theta: f64,
     sigma: f64,
-    state: Tensor
+    state: Tensor,
 }
 
 impl ActionNoise {
@@ -53,7 +53,8 @@ impl ActionNoise {
 
 /// adapted from ddpg.rs in tch-rs RL examples
 #[allow(clippy::upper_case_acronyms)]
-pub struct DDPG<E, Q, P, O, A> where
+pub struct DDPG<E, Q, P, O, A>
+where
     E: Env,
     O: TchBuffer<Item = E::Obs>,
     A: TchBuffer<Item = E::Act>,
@@ -72,15 +73,16 @@ pub struct DDPG<E, Q, P, O, A> where
     opt_interval_counter: OptIntervalCounter,
     train: bool,
     prev_obs: RefCell<Option<E::Obs>>,
-    phantom: PhantomData<E>
+    phantom: PhantomData<E>,
 }
 
-impl<E, Q, P, O, A> DDPG<E, Q, P, O, A> where
+impl<E, Q, P, O, A> DDPG<E, Q, P, O, A>
+where
     E: Env,
     Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
     P: Model1<Output = A::SubBatch> + Clone,
-    E::Obs :Into<O::SubBatch>,
-    E::Act :From<Tensor>,
+    E::Obs: Into<O::SubBatch>,
+    E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
@@ -149,13 +151,8 @@ impl<E, Q, P, O, A> DDPG<E, Q, P, O, A> where
         let obs = self.prev_obs.replace(None).unwrap();
         let reward = Tensor::of_slice(&step.reward[..]);
         let not_done = Tensor::from(1f32) - Tensor::of_slice(&step.is_done[..]);
-        self.replay_buffer.push(
-            &obs,
-            &step.act,
-            &reward,
-            &next_obs,
-            &not_done,
-        );
+        self.replay_buffer
+            .push(&obs, &step.act, &reward, &next_obs, &not_done);
         let _ = self.prev_obs.replace(Some(next_obs));
     }
 
@@ -236,12 +233,13 @@ impl<E, Q, P, O, A> DDPG<E, Q, P, O, A> where
     }
 }
 
-impl<E, Q, P, O, A> Policy<E> for DDPG<E, Q, P, O, A> where
+impl<E, Q, P, O, A> Policy<E> for DDPG<E, Q, P, O, A>
+where
     E: Env,
     // Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
     P: Model1<Output = A::SubBatch> + Clone,
-    E::Obs :Into<O::SubBatch>,
-    E::Act :From<Tensor>,
+    E::Obs: Into<O::SubBatch>,
+    E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
@@ -250,19 +248,19 @@ impl<E, Q, P, O, A> Policy<E> for DDPG<E, Q, P, O, A> where
         let act = tch::no_grad(|| self.actor.forward(&obs));
         if self.train {
             self.action_noise.apply(&act).clip(-1.0, 1.0).into()
-        }
-        else {
+        } else {
             act.into()
         }
     }
 }
 
-impl<E, Q, P, O, A> Agent<E> for DDPG<E, Q, P, O, A> where
+impl<E, Q, P, O, A> Agent<E> for DDPG<E, Q, P, O, A>
+where
     E: Env,
     Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
     P: Model1<Output = A::SubBatch> + Clone,
-    E::Obs :Into<O::SubBatch>,
-    E::Act :From<Tensor>,
+    E::Obs: Into<O::SubBatch>,
+    E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
@@ -293,7 +291,7 @@ impl<E, Q, P, O, A> Agent<E> for DDPG<E, Q, P, O, A> where
         // Check if doing optimization
         let do_optimize = self.opt_interval_counter.do_optimize(&step.is_done)
             && self.replay_buffer.len() + 1 >= self.min_transitions_warmup;
-    
+
         // Push transition to the replay buffer
         self.push_transition(step);
         trace!("Push transition");
@@ -311,17 +309,16 @@ impl<E, Q, P, O, A> Agent<E> for DDPG<E, Q, P, O, A> where
                 loss_actor += self.update_actor(&batch);
                 self.soft_update();
                 trace!("Update models");
-            };
+            }
 
             loss_critic /= self.n_updates_per_opt as f32;
             loss_actor /= self.n_updates_per_opt as f32;
 
             Some(Record::from_slice(&[
                 ("loss_critic", RecordValue::Scalar(loss_critic)),
-                ("loss_actor", RecordValue::Scalar(loss_actor))
+                ("loss_actor", RecordValue::Scalar(loss_actor)),
             ]))
-        }
-        else {
+        } else {
             None
         }
     }
@@ -329,18 +326,24 @@ impl<E, Q, P, O, A> Agent<E> for DDPG<E, Q, P, O, A> where
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
-        self.critic.save(&path.as_ref().join("critic.pt").as_path())?;
-        self.critic_tgt.save(&path.as_ref().join("critic_tgt.pt").as_path())?;
+        self.critic
+            .save(&path.as_ref().join("critic.pt").as_path())?;
+        self.critic_tgt
+            .save(&path.as_ref().join("critic_tgt.pt").as_path())?;
         self.actor.save(&path.as_ref().join("actor.pt").as_path())?;
-        self.actor_tgt.save(&path.as_ref().join("actor_tgt.pt").as_path())?;
+        self.actor_tgt
+            .save(&path.as_ref().join("actor_tgt.pt").as_path())?;
         Ok(())
     }
 
     fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<(), Box<dyn Error>> {
-        self.critic.load(&path.as_ref().join("critic.pt").as_path())?;
-        self.critic_tgt.load(&path.as_ref().join("critic_tgt.pt").as_path())?;
+        self.critic
+            .load(&path.as_ref().join("critic.pt").as_path())?;
+        self.critic_tgt
+            .load(&path.as_ref().join("critic_tgt.pt").as_path())?;
         self.actor.load(&path.as_ref().join("actor.pt").as_path())?;
-        self.actor_tgt.load(&path.as_ref().join("actor_tgt.pt").as_path())?;
+        self.actor_tgt
+            .load(&path.as_ref().join("actor_tgt.pt").as_path())?;
         Ok(())
     }
 }

@@ -1,29 +1,27 @@
 //! Policy gradient agent with discrete action.
 use log::trace;
-use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
+use std::{cell::RefCell, error::Error, fs, marker::PhantomData, path::Path};
 use tch::{Kind::Float, Tensor};
 
 use crate::{
-    core::{
-        Policy, Agent, Step, Env,
-        record::{Record, RecordValue}
-    },
     agent::{
+        tch::{model::Model1, ReplayBuffer, TchBatch, TchBuffer},
         OptInterval, OptIntervalCounter,
-        tch::{
-            ReplayBuffer, TchBuffer, TchBatch,
-            model::Model1
-        }
-    }
+    },
+    core::{
+        record::{Record, RecordValue},
+        Agent, Env, Policy, Step,
+    },
 };
 
 /// Policy gradient agent with discrete action.
 #[allow(clippy::upper_case_acronyms)]
-pub struct PGDiscrete<E, M, O, A> where
+pub struct PGDiscrete<E, M, O, A>
+where
     E: Env,
-    M: Model1<Input=Tensor, Output=Tensor>, // + Clone
-    E::Obs :Into<M::Input> + Clone,
-    E::Act :From<Tensor>,
+    M: Model1<Input = Tensor, Output = Tensor>, // + Clone
+    E::Obs: Into<M::Input> + Clone,
+    E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
@@ -38,11 +36,12 @@ pub struct PGDiscrete<E, M, O, A> where
     phandom: PhantomData<E>,
 }
 
-impl<E, M, O, A> PGDiscrete<E, M, O, A> where
+impl<E, M, O, A> PGDiscrete<E, M, O, A>
+where
     E: Env,
-    M: Model1<Input=Tensor, Output=Tensor>, // + Clone
-    E::Obs :Into<M::Input> + Clone,
-    E::Act :From<Tensor>,
+    M: Model1<Input = Tensor, Output = Tensor>, // + Clone
+    E::Obs: Into<M::Input> + Clone,
+    E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
@@ -90,13 +89,8 @@ impl<E, M, O, A> PGDiscrete<E, M, O, A> where
         let obs = self.prev_obs.replace(None).unwrap();
         let reward = Tensor::of_slice(&step.reward[..]);
         let not_done = Tensor::from(1f32) - Tensor::of_slice(&step.is_done[..]);
-        self.replay_buffer.push(
-            &obs,
-            &step.act,
-            &reward,
-            &next_obs,
-            &not_done,
-        );
+        self.replay_buffer
+            .push(&obs, &step.act, &reward, &next_obs, &not_done);
         let _ = self.prev_obs.replace(Some(next_obs));
     }
 
@@ -108,7 +102,10 @@ impl<E, M, O, A> PGDiscrete<E, M, O, A> where
         trace!("batch.next_obs.shape = {:?}", &batch.next_obs.size());
         trace!("batch.actions.shape  = {:?}", &batch.actions.size());
         trace!("batch.rewards.shape  = {:?}", &batch.rewards.size());
-        trace!("batch.returns.shape  = {:?}", &batch.returns.as_ref().unwrap().size());
+        trace!(
+            "batch.returns.shape  = {:?}",
+            &batch.returns.as_ref().unwrap().size()
+        );
 
         let loss = {
             let actor = self.model.forward(&batch.obs);
@@ -126,11 +123,12 @@ impl<E, M, O, A> PGDiscrete<E, M, O, A> where
     }
 }
 
-impl <E, M, O, A> Policy<E> for PGDiscrete<E, M, O, A> where
+impl<E, M, O, A> Policy<E> for PGDiscrete<E, M, O, A>
+where
     E: Env,
-    M: Model1<Input=Tensor, Output=Tensor>, // + Clone,
-    E::Obs :Into<M::Input> + Clone,
-    E::Act :From<Tensor>,
+    M: Model1<Input = Tensor, Output = Tensor>, // + Clone,
+    E::Obs: Into<M::Input> + Clone,
+    E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
@@ -138,8 +136,7 @@ impl <E, M, O, A> Policy<E> for PGDiscrete<E, M, O, A> where
         let obs = obs.clone().into();
         let a = self.model.forward(&obs);
         let a = if self.train {
-            a.softmax(-1, Float)
-            .multinomial(1, true)
+            a.softmax(-1, Float).multinomial(1, true)
         } else {
             a.argmax(-1, true)
         };
@@ -147,11 +144,12 @@ impl <E, M, O, A> Policy<E> for PGDiscrete<E, M, O, A> where
     }
 }
 
-impl <E, M, O, A> Agent<E> for PGDiscrete<E, M, O, A> where
+impl<E, M, O, A> Agent<E> for PGDiscrete<E, M, O, A>
+where
     E: Env,
-    M: Model1<Input=Tensor, Output=Tensor>, // + Clone
-    E::Obs :Into<M::Input> + Clone,
-    E::Act :From<Tensor>,
+    M: Model1<Input = Tensor, Output = Tensor>, // + Clone
+    E::Obs: Into<M::Input> + Clone,
+    E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
@@ -180,7 +178,7 @@ impl <E, M, O, A> Agent<E> for PGDiscrete<E, M, O, A> where
 
         // Check if doing optimization
         let do_optimize = self.opt_interval_counter.do_optimize(&step.is_done);
-            // && self.replay_buffer.len() + 1 >= self.min_transitions_warmup;
+        // && self.replay_buffer.len() + 1 >= self.min_transitions_warmup;
 
         // Push transition to the replay buffer
         self.push_transition(step);
@@ -195,24 +193,22 @@ impl <E, M, O, A> Agent<E> for PGDiscrete<E, M, O, A> where
             //     = self.model.forward(&self.prev_obs.borrow().to_owned().unwrap().into());
             // self.replay_buffer.update_returns(estimated_return.detach(), self.discount_factor);
             let estimated_return = Tensor::of_slice(&[0f32]);
-            self.replay_buffer.update_returns(estimated_return, self.discount_factor);
+            self.replay_buffer
+                .update_returns(estimated_return, self.discount_factor);
 
             // Update model parameters
             for _ in 0..self.n_updates_per_opt {
                 let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
                 loss += self.update_model(batch) as f32;
-            };
+            }
 
             // Clear replay buffer
             self.replay_buffer.clear();
 
             loss /= self.n_updates_per_opt as f32;
 
-            Some(Record::from_slice(&[
-                ("loss", RecordValue::Scalar(loss)),
-            ]))
-        }
-        else {
+            Some(Record::from_slice(&[("loss", RecordValue::Scalar(loss))]))
+        } else {
             None
         }
     }

@@ -1,6 +1,6 @@
 //! Definition of interfaces of neural networks.
-use std::{path::Path, error::Error};
-use tch::{Tensor, nn, nn::VarStore};
+use std::{error::Error, path::Path};
+use tch::{nn, nn::VarStore, Tensor};
 
 /// Base interface.
 pub trait ModelBase {
@@ -17,7 +17,7 @@ pub trait ModelBase {
     fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<(), Box<dyn Error>>;
 }
 
-/// Neural networks with a single input and a single output. 
+/// Neural networks with a single input and a single output.
 pub trait Model1: ModelBase {
     /// The input of the neural network.
     type Input;

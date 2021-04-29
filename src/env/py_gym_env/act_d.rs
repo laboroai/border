@@ -1,11 +1,14 @@
 //! Discrete action for [`super::PyGymEnv`] and [`super::PyVecGymEnv`].
-use std::fmt::Debug;
+use pyo3::{IntoPy, PyObject};
 use std::default::Default;
-use pyo3::{PyObject, IntoPy};
+use std::fmt::Debug;
 
 use crate::{
-    core::{Act, record::{Record, RecordValue}},
-    env::py_gym_env::PyGymEnvActFilter
+    core::{
+        record::{Record, RecordValue},
+        Act,
+    },
+    env::py_gym_env::PyGymEnvActFilter,
 };
 
 /// Represents action.
@@ -17,9 +20,7 @@ pub struct PyGymEnvDiscreteAct {
 impl PyGymEnvDiscreteAct {
     /// Constructs a discrete action.
     pub fn new(act: Vec<i32>) -> Self {
-        Self {
-            act,
-        }
+        Self { act }
     }
 }
 
@@ -31,7 +32,7 @@ impl Act for PyGymEnvDiscreteAct {}
 #[derive(Clone, Debug)]
 pub struct PyGymEnvDiscreteActRawFilter {
     /// `true` for filters on vectorized environments.
-    pub vectorized: bool
+    pub vectorized: bool,
 }
 
 impl PyGymEnvDiscreteActRawFilter {
@@ -52,21 +53,15 @@ impl PyGymEnvDiscreteActRawFilter {}
 // TODO: support vecenv
 impl PyGymEnvActFilter<PyGymEnvDiscreteAct> for PyGymEnvDiscreteActRawFilter {
     fn filt(&mut self, act: PyGymEnvDiscreteAct) -> (PyObject, Record) {
-        let record = Record::from_slice(&[
-            ("act", RecordValue::Array1(
-                act.act.iter().map(|v| *v as f32).collect::<Vec<_>>()
-            ))
-        ]);
+        let record = Record::from_slice(&[(
+            "act",
+            RecordValue::Array1(act.act.iter().map(|v| *v as f32).collect::<Vec<_>>()),
+        )]);
 
         let act = if self.vectorized {
-            pyo3::Python::with_gil(|py| {
-                act.act.into_py(py)
-            })
-        }
-        else {
-            pyo3::Python::with_gil(|py| {
-                act.act[0].into_py(py)
-            })
+            pyo3::Python::with_gil(|py| act.act.into_py(py))
+        } else {
+            pyo3::Python::with_gil(|py| act.act[0].into_py(py))
         };
         (act, record)
     }

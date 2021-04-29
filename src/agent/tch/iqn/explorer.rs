@@ -4,13 +4,11 @@ use tch::Tensor;
 
 #[allow(clippy::upper_case_acronyms)]
 /// Explorers for IQN.
-pub enum IQNExplorer
-{
+pub enum IQNExplorer {
     // /// Softmax action selection.
     // Softmax(Softmax),
-
     /// Epsilon-greedy action selection.
-    EpsilonGreedy(EpsilonGreedy)
+    EpsilonGreedy(EpsilonGreedy),
 }
 
 // /// Softmax explorer for IQN.
@@ -53,28 +51,24 @@ impl Default for EpsilonGreedy {
 impl EpsilonGreedy {
     /// Constructs epsilon-greedy explorer.
     pub fn with_params(eps_start: f64, eps_final: f64, final_step: usize) -> IQNExplorer {
-        IQNExplorer::EpsilonGreedy(
-            Self {
-                n_opts: 0,
-                eps_start,
-                eps_final,
-                final_step
-            }
-        )
+        IQNExplorer::EpsilonGreedy(Self {
+            n_opts: 0,
+            eps_start,
+            eps_final,
+            final_step,
+        })
     }
 
     /// Constructs epsilon-greedy explorer.
     ///
     /// TODO: improve interface.
     pub fn with_final_step(final_step: usize) -> IQNExplorer {
-        IQNExplorer::EpsilonGreedy(
-            Self {
-                n_opts: 0,
-                eps_start: 1.0,
-                eps_final: 0.02,
-                final_step,
-            }
-        )
+        IQNExplorer::EpsilonGreedy(Self {
+            n_opts: 0,
+            eps_start: 1.0,
+            eps_final: 0.02,
+            final_step,
+        })
     }
 
     /// Takes an action based on the observation and the critic.
@@ -89,11 +83,12 @@ impl EpsilonGreedy {
             let batch_size = action_value.size()[0];
             let n_actions = action_value.size()[1] as u32;
             Tensor::of_slice(
-                (0..batch_size).map(|_| fastrand::u32(..n_actions) as i32).collect::<Vec<_>>()
-                .as_slice()
+                (0..batch_size)
+                    .map(|_| fastrand::u32(..n_actions) as i32)
+                    .collect::<Vec<_>>()
+                    .as_slice(),
             )
-        }
-        else {
+        } else {
             action_value.argmax(-1, true)
         }
     }

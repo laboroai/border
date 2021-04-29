@@ -1,7 +1,16 @@
 //! Example of using IQNModel for quantile regression.
-use std::{default::Default};
-use tch::{Tensor, nn, nn::{Module, VarStore}, kind::FLOAT_CPU, IndexOp};
-use border::agent::tch::{iqn::{IQNModel, IQNModelBuilder}, model::{ModelBase, SubModel}, util::quantile_huber_loss};
+use border::agent::tch::{
+    iqn::{IQNModel, IQNModelBuilder},
+    model::{ModelBase, SubModel},
+    util::quantile_huber_loss,
+};
+use std::default::Default;
+use tch::{
+    kind::FLOAT_CPU,
+    nn,
+    nn::{Module, VarStore},
+    IndexOp, Tensor,
+};
 
 const N_SAMPLE: i64 = 300;
 const N_TRAIN_STEP: i64 = 10000;
@@ -12,7 +21,7 @@ const EMBED_DIM: i64 = 64;
 
 struct LinearConfig {
     in_dim: i64,
-    out_dim: i64
+    out_dim: i64,
 }
 
 impl LinearConfig {
@@ -24,7 +33,7 @@ impl LinearConfig {
 struct Linear {
     in_dim: i64,
     out_dim: i64,
-    linear: nn::Linear
+    linear: nn::Linear,
 }
 
 impl SubModel for Linear {
@@ -39,7 +48,7 @@ impl SubModel for Linear {
         Linear {
             in_dim,
             out_dim,
-            linear: nn::linear(p, in_dim, out_dim, Default::default())
+            linear: nn::linear(p, in_dim, out_dim, Default::default()),
         }
     }
 
@@ -50,7 +59,7 @@ impl SubModel for Linear {
         Linear {
             in_dim,
             out_dim,
-            linear: nn::linear(p, in_dim, out_dim, Default::default())
+            linear: nn::linear(p, in_dim, out_dim, Default::default()),
         }
     }
 
@@ -61,8 +70,10 @@ impl SubModel for Linear {
 
 // Samples percent points
 fn sample_percent_points() -> Tensor {
-    Tensor::of_slice(&[0.1, 0.3, 0.5, 0.7, 0.9]).internal_cast_float(true)
-        .unsqueeze(0).repeat(&[BATCH_SIZE, 1])
+    Tensor::of_slice(&[0.1, 0.3, 0.5, 0.7, 0.9])
+        .internal_cast_float(true)
+        .unsqueeze(0)
+        .repeat(&[BATCH_SIZE, 1])
 }
 
 // Returns pair (xs, ys) of inputs and outputs.
@@ -121,20 +132,31 @@ fn main() {
     let mut wtr = csv::Writer::from_path("examples/iqn_regression_data.csv").unwrap();
     (0..data.size()[0])
         .map(|i| data.i(i))
-        .map(|t| Vec::<f32>::from(&t).iter().map(|x| x.to_string()).collect::<Vec<_>>())
+        .map(|t| {
+            Vec::<f32>::from(&t)
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>()
+        })
         .for_each(|v| wtr.write_record(&v).unwrap());
 
     // Write prediction to file
     let xs = (Tensor::range(0, 99, FLOAT_CPU) / 100.0 * 10.0 - 5.0).unsqueeze(-1);
     let tau = Tensor::of_slice(&[0.1f32, 0.3, 0.5, 0.7, 0.9])
-        .unsqueeze(0).repeat(&[100, 1]);
+        .unsqueeze(0)
+        .repeat(&[100, 1]);
     let ys = model.forward(&xs, &tau).squeeze1(-1);
     let data = Tensor::cat(&[xs, ys], 1);
     assert_eq!(data.size().as_slice(), &[100, 6]);
     let mut wtr = csv::Writer::from_path("examples/iqn_regression_pred.csv").unwrap();
     (0..data.size()[0])
         .map(|i| data.i(i))
-        .map(|t| Vec::<f32>::from(&t).iter().map(|x| x.to_string()).collect::<Vec<_>>())
+        .map(|t| {
+            Vec::<f32>::from(&t)
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>()
+        })
         .for_each(|v| wtr.write_record(&v).unwrap());
 }
 

@@ -1,21 +1,25 @@
 //! IQN agent implemented with tch-rs.
 use log::trace;
-use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
-use tch::{Tensor, no_grad, Device};
+use std::{cell::RefCell, error::Error, fs, marker::PhantomData, path::Path};
+use tch::{no_grad, Device, Tensor};
 
 use crate::{
-    core::{
-        Policy, Agent, Step, Env, Obs,
-        record::{Record, RecordValue}
-    },
     agent::{
-        OptIntervalCounter,
         tch::{
-            ReplayBuffer, TchBuffer, model::{ModelBase, SubModel}, TchBatch,
-            iqn::{IQNModel, IQNExplorer, model::{IQNSample, average}},
-            util::{quantile_huber_loss, track}
-        }
-    }
+            iqn::{
+                model::{average, IQNSample},
+                IQNExplorer, IQNModel,
+            },
+            model::{ModelBase, SubModel},
+            util::{quantile_huber_loss, track},
+            ReplayBuffer, TchBatch, TchBuffer,
+        },
+        OptIntervalCounter,
+    },
+    core::{
+        record::{Record, RecordValue},
+        Agent, Env, Obs, Policy, Step,
+    },
 };
 
 #[allow(clippy::upper_case_acronyms)]
@@ -23,7 +27,8 @@ use crate::{
 ///
 /// The type parameter `M` is a feature extractor, which takes
 /// `M::Input` and returns feature vectors.
-pub struct IQN<E, F, M, O, A> where
+pub struct IQN<E, F, M, O, A>
+where
     E: Env,
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
@@ -53,7 +58,8 @@ pub struct IQN<E, F, M, O, A> where
     pub(super) device: Device,
 }
 
-impl<E, F, M, O, A> IQN<E, F, M, O, A> where
+impl<E, F, M, O, A> IQN<E, F, M, O, A>
+where
     E: Env,
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
@@ -69,13 +75,8 @@ impl<E, F, M, O, A> IQN<E, F, M, O, A> where
         let obs = self.prev_obs.replace(None).unwrap();
         let reward = Tensor::of_slice(&step.reward[..]);
         let not_done = Tensor::from(1f32) - Tensor::of_slice(&step.is_done[..]);
-        self.replay_buffer.push(
-            &obs,
-            &step.act,
-            &reward,
-            &next_obs,
-            &not_done,
-        );
+        self.replay_buffer
+            .push(&obs, &step.act, &reward, &next_obs, &not_done);
         let _ = self.prev_obs.replace(Some(next_obs));
     }
 
@@ -111,7 +112,10 @@ impl<E, F, M, O, A> IQN<E, F, M, O, A> where
                 // predictions for all actions
                 let z = self.iqn.forward(&obs, &tau);
                 let n_actions = z.size()[z.size().len() - 1];
-                debug_assert_eq!(z.size().as_slice(), &[batch_size, n_percent_points, n_actions]);
+                debug_assert_eq!(
+                    z.size().as_slice(),
+                    &[batch_size, n_percent_points, n_actions]
+                );
 
                 // Reshape action for applying torch.gather
                 let a = a.unsqueeze(1).repeat(&[1, n_percent_points, 1]);
@@ -136,12 +140,18 @@ impl<E, F, M, O, A> IQN<E, F, M, O, A> where
                 // target values for all actions
                 let z = self.iqn_tgt.forward(&next_obs, &tau);
                 let n_actions = z.size()[z.size().len() - 1];
-                debug_assert_eq!(z.size().as_slice(), &[batch_size, n_percent_points, n_actions]);
+                debug_assert_eq!(
+                    z.size().as_slice(),
+                    &[batch_size, n_percent_points, n_actions]
+                );
 
                 // argmax_a z(s,a), where z are averaged over tau
                 let y = z.copy().mean1(&[1], false, tch::Kind::Float);
-                let a = y.argmax(-1, false).unsqueeze(-1).unsqueeze(-1)
-                    .repeat(&[1, n_percent_points, 1]);
+                let a = y.argmax(-1, false).unsqueeze(-1).unsqueeze(-1).repeat(&[
+                    1,
+                    n_percent_points,
+                    1,
+                ]);
                 debug_assert_eq!(a.size(), &[batch_size, n_percent_points, 1]);
 
                 // takes z(s, a)
@@ -156,7 +166,8 @@ impl<E, F, M, O, A> IQN<E, F, M, O, A> where
             });
 
             let diff = tgt - pred;
-            debug_assert_eq!(diff.size().as_slice(),
+            debug_assert_eq!(
+                diff.size().as_slice(),
                 &[batch_size, n_percent_points_tgt, n_percent_points_pred]
             );
 
@@ -176,7 +187,8 @@ impl<E, F, M, O, A> IQN<E, F, M, O, A> where
     }
 }
 
-impl<E, F, M, O, A> Policy<E> for IQN<E, F, M, O, A> where
+impl<E, F, M, O, A> Policy<E> for IQN<E, F, M, O, A>
+where
     E: Env,
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
@@ -191,14 +203,19 @@ impl<E, F, M, O, A> Policy<E> for IQN<E, F, M, O, A> where
 
         let a = no_grad(|| {
             let obs = obs.clone().into();
-            let action_value = average(batch_size, &obs, &self.iqn, &self.sample_percents_act, self.device);
+            let action_value = average(
+                batch_size,
+                &obs,
+                &self.iqn,
+                &self.sample_percents_act,
+                self.device,
+            );
 
             if self.train {
                 match &mut self.explorer {
                     IQNExplorer::EpsilonGreedy(egreedy) => egreedy.action(action_value),
                 }
-            }
-            else {
+            } else {
                 action_value.argmax(-1, true)
             }
         });
@@ -207,7 +224,8 @@ impl<E, F, M, O, A> Policy<E> for IQN<E, F, M, O, A> where
     }
 }
 
-impl<E, F, M, O, A> Agent<E> for IQN<E, F, M, O, A> where
+impl<E, F, M, O, A> Agent<E> for IQN<E, F, M, O, A>
+where
     E: Env,
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
@@ -256,7 +274,7 @@ impl<E, F, M, O, A> Agent<E> for IQN<E, F, M, O, A> where
                 trace!("Sample random batch");
 
                 loss_critic += self.update_critic(batch);
-            };
+            }
 
             self.soft_update_counter += 1;
             if self.soft_update_counter == self.soft_update_interval {
@@ -267,11 +285,11 @@ impl<E, F, M, O, A> Agent<E> for IQN<E, F, M, O, A> where
 
             loss_critic /= self.n_updates_per_opt as f32;
 
-            Some(Record::from_slice(&[
-                ("loss_critic", RecordValue::Scalar(loss_critic)),
-            ]))
-        }
-        else {
+            Some(Record::from_slice(&[(
+                "loss_critic",
+                RecordValue::Scalar(loss_critic),
+            )]))
+        } else {
             None
         }
     }
@@ -280,13 +298,15 @@ impl<E, F, M, O, A> Agent<E> for IQN<E, F, M, O, A> where
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
         self.iqn.save(&path.as_ref().join("iqn.pt").as_path())?;
-        self.iqn_tgt.save(&path.as_ref().join("iqn_tgt.pt").as_path())?;
+        self.iqn_tgt
+            .save(&path.as_ref().join("iqn_tgt.pt").as_path())?;
         Ok(())
     }
 
     fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<(), Box<dyn Error>> {
         self.iqn.load(&path.as_ref().join("iqn.pt").as_path())?;
-        self.iqn_tgt.load(&path.as_ref().join("iqn_tgt.pt").as_path())?;
+        self.iqn_tgt
+            .load(&path.as_ref().join("iqn_tgt.pt").as_path())?;
         Ok(())
     }
 }

@@ -1,14 +1,14 @@
 //! Entropy coefficient of SAC.
-use std::{borrow::Borrow, path::Path, error::Error};
 use log::{info, trace};
-use tch::{Tensor, nn, nn::OptimizerConfig};
+use std::{borrow::Borrow, error::Error, path::Path};
+use tch::{nn, nn::OptimizerConfig, Tensor};
 
 /// Mode of the entropy coefficient of SAC.
 pub enum EntCoefMode {
     /// Use a constant as alpha.
     Fix(f64),
     /// Automatic tuning given `(target_entropy, learning_rate)`.
-    Auto(f64, f64)
+    Auto(f64, f64),
 }
 
 /// The entropy coefficient of SAC.
@@ -29,13 +29,15 @@ impl EntCoef {
                 let init = nn::Init::Const(alpha.ln());
                 let log_alpha = path.borrow().var("log_alpha", &[1], init);
                 (log_alpha, None, None)
-            },
+            }
             EntCoefMode::Auto(target_entropy, learning_rate) => {
                 let init = nn::Init::Const(0.0);
                 let log_alpha = path.borrow().var("log_alpha", &[1], init);
-                let opt = nn::Adam::default().build(&var_store, learning_rate).unwrap();
+                let opt = nn::Adam::default()
+                    .build(&var_store, learning_rate)
+                    .unwrap();
                 (log_alpha, Some(target_entropy), Some(opt))
-            },
+            }
         };
 
         Self {
@@ -62,8 +64,7 @@ impl EntCoef {
     pub fn update(&mut self, logp: &Tensor) {
         if let Some(target_entropy) = &self.target_entropy {
             let target_entropy = Tensor::from(*target_entropy);
-            let loss = -(&self.log_alpha * (logp + target_entropy).detach())
-                .mean(tch::Kind::Float);
+            let loss = -(&self.log_alpha * (logp + target_entropy).detach()).mean(tch::Kind::Float);
             self.backward_step(&loss);
         }
     }
@@ -75,7 +76,7 @@ impl EntCoef {
         let vs = self.var_store.variables();
         for (name, _) in vs.iter() {
             trace!("Save variable {}", name);
-        };
+        }
         Ok(())
     }
 
