@@ -54,22 +54,22 @@ mod tests {
         let file_base = "dqn_PongNoFrameskip-v4_20210428_ec2";
 
         let mut path = dirs::home_dir().context("Couldn't find home directory")?;
-        path.push(".border/model");
-        let model_root_dir = path.as_path();
-        if !model_root_dir.exists() {
-            info!("Create directory {:?}", model_root_dir);
-            std::fs::create_dir(model_root_dir)?;
-        }
+        // path.push(".border/model");
+        // let model_root_dir = path.as_path();
+        // if !model_root_dir.exists() {
+        //     info!("Create directory {:?}", model_root_dir);
+        //     std::fs::create_dir(model_root_dir)?;
+        // }
 
-        let mut path = dirs::home_dir().context("Couldn't find home directory")?;
-        path.push(".border/model/");
-        path.push(file_base);
-        path.set_extension("zip");
+        // let mut path = dirs::home_dir().context("Couldn't find home directory")?;
+        // path.push(".border/model/");
+        // path.push(file_base);
+        // path.set_extension("zip");
 
-        // ignore when failed to remove file
-        std::fs::remove_file(&path.as_path()).unwrap_or(());
+        // // ignore when failed to remove file
+        // std::fs::remove_file(&path.as_path()).unwrap_or(());
 
-        let _path = get_model_from_url(url, file_base)?;
+        // let _path = get_model_from_url(url, file_base)?;
 
         Ok(())
     }
