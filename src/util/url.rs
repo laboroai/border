@@ -56,13 +56,12 @@ mod tests {
         let mut path = dirs::home_dir().context("Couldn't find home directory")?;
         path.push(".border/model");
         let model_root_dir = path.as_path();
-        println!("{:?}", model_root_dir);
+
         if !model_root_dir.exists() {
             info!("Create directory {:?}", model_root_dir);
             std::fs::create_dir_all(model_root_dir)?;
         }
 
-        println!("model_root_dir");
         let mut path = dirs::home_dir().context("Couldn't find home directory")?;
         path.push(".border/model/");
         path.push(file_base);
