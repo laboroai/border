@@ -1,8 +1,10 @@
 use clap::{App, Arg};
 use std::time::Duration;
+use anyhow::Result;
 use tch::nn;
 
 use border::{
+    util::url::get_model_from_url,
     agent::{
         tch::{
             dqn::explorer::EpsilonGreedy, model::Model1_1, DQNBuilder,
@@ -105,7 +107,7 @@ fn create_env(name: &str) -> Env {
         .unwrap()
 }
 
-fn main() {
+fn main() -> Result<()> {
     env_logger::init();
     tch::manual_seed(42);
 
@@ -127,6 +129,12 @@ fn main() {
                 .help("Play with the trained model of the given path"),
         )
         .arg(
+            Arg::with_name("play-gdrive")
+                .long("play-gdrive")
+                .takes_value(false)
+                .help("Play with the trained model downloaded from google drive"),
+        )
+        .arg(
             Arg::with_name("wait")
                 .long("wait")
                 .takes_value(true)
@@ -140,7 +148,7 @@ fn main() {
     let dim_act = env.get_num_actions_atari();
     let mut agent = create_agent(dim_act as _);
 
-    if !matches.is_present("play") {
+    if !(matches.is_present("play") || matches.is_present("play-gdrive")) {
         let env_eval = create_env(name);
         let mut trainer = TrainerBuilder::default()
             .max_opts(MAX_OPTS)
@@ -152,13 +160,23 @@ fn main() {
         trainer.train(&mut recorder);
         trainer.get_agent().save(model_dir).unwrap(); // TODO: define appropriate error
     } else {
-        let time = matches.value_of("wait").unwrap().parse::<u64>().unwrap();
-        let model_dir = matches.value_of("play").unwrap();
+        if matches.is_present("play") {
+            let model_dir = matches.value_of("play").expect("Failed to parse model directory");
+            agent.load(model_dir).unwrap(); // TODO: define appropriate error
+        }
+        else {
+            let file_base = "dqn_PongNoFrameskip-v4_20210428_ec2";
+            let url = "https://drive.google.com/uc?export=download&id=1TF5aN9fH5wd4APFHj9RP1JxuVNoi6lqJ";
+            let model_dir = get_model_from_url(url, file_base)?;
+            agent.load(model_dir).unwrap(); // TODO: define appropriate error
+        };
+
+        let time = matches.value_of("wait").unwrap().parse::<u64>()?;
         env.set_render(true);
         env.set_wait_in_render(Duration::from_millis(time));
-        agent.load(model_dir).unwrap(); // TODO: define appropriate error
         agent.eval();
-
         util::eval(&mut env, &mut agent, 5);
     }
+
+    Ok(())
 }

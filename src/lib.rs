@@ -27,6 +27,7 @@ pub mod agent;
 pub mod core;
 pub mod env;
 pub mod error;
+pub mod util;
 
 #[allow(unused_imports)]
 use crate::{

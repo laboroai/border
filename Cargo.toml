@@ -28,6 +28,10 @@ chrono = "0.4"
 tensorboard-rs = "0.2.4"
 thiserror = "1.0"
 aquamarine = "0.1"
+reqwest = { version = "0.11.3", features = ["blocking"]}
+dirs = "3.0.2"
+anyhow = "1.0.38"
+zip = "0.5.12"
 
 [[example]]
 name = "random_cartpole"
@@ -78,7 +82,6 @@ name = "dqn_atari_f32"
 clap = "2.33.3"
 csv = "1.1.5"
 serde = { version = "1.0.117", features = ["derive"] }
-anyhow = "1.0.38"
 
 [package.metadata.docs.rs]
 features = [ "doc-only" ]
