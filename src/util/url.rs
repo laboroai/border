@@ -58,6 +58,7 @@ mod tests {
         let model_root_dir = path.as_path();
         println!("{:?}", model_root_dir);
         if !model_root_dir.exists() {
+            println!("Create directory {:?}", model_root_dir);
             info!("Create directory {:?}", model_root_dir);
             std::fs::create_dir(model_root_dir)?;
         }
