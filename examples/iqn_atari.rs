@@ -274,7 +274,7 @@ fn create_env(name: &str) -> Env {
 }
 
 fn main() -> Result<()> {
-    env_logger::init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
 
     let matches = App::new("iqn_atari")

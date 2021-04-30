@@ -223,6 +223,9 @@ impl TryFrom<&Record> for CartpoleRecord {
 }
 
 fn main() -> Result<()> {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    tch::manual_seed(42);
+
     let matches = App::new("dqn_cartpole")
         .version("0.1.0")
         .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
@@ -233,9 +236,6 @@ fn main() -> Result<()> {
                 .help("Skip training"),
         )
         .get_matches();
-
-    env_logger::init();
-    tch::manual_seed(42);
 
     if !matches.is_present("skip training") {
         let env = create_env();

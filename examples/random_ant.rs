@@ -51,7 +51,7 @@ impl Policy<Env> for RandomPolicy {
 }
 
 fn main() {
-    env_logger::init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
     fastrand::seed(42);
 
