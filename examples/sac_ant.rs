@@ -1,9 +1,10 @@
-// use std::time::Duration;
-// use anyhow::Result;
 use clap::{App, Arg};
+use std::time::Duration;
+use anyhow::Result;
 use tch::nn;
 
 use border::{
+    util::url::get_model_from_url,
     agent::{
         tch::{
             model::{Model1_2, Model2_1},
@@ -130,7 +131,7 @@ fn create_env() -> Env {
         .unwrap()
 }
 
-fn main() {
+fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
     fastrand::seed(42);
@@ -144,9 +145,22 @@ fn main() {
                 .takes_value(true)
                 .help("Play with the trained model of the given path"),
         )
+        .arg(
+            Arg::with_name("play-gdrive")
+                .long("play-gdrive")
+                .takes_value(false)
+                .help("Play with the trained model downloaded from google drive"),
+        )
+        .arg(
+            Arg::with_name("wait")
+                .long("wait")
+                .takes_value(true)
+                .default_value("25")
+                .help("Waiting time in milliseconds between frames when playing"),
+        )
         .get_matches();
 
-    if !matches.is_present("play") {
+    if !(matches.is_present("play") || matches.is_present("play-gdrive")) {
         let env = create_env();
         let env_eval = create_env();
         let agent = create_agent();
@@ -163,17 +177,26 @@ fn main() {
             .save("./examples/model/sac_ant")
             .unwrap();
     } else {
-        let model_file = matches.value_of("play").unwrap();
         let mut env = create_env();
         let mut agent = create_agent();
 
-        env.set_render(true);
-        // env.set_wait_in_render(Duration::from_millis(50));
-        agent.load(model_file).unwrap(); // TODO: define appropriate error
-        agent.eval();
+        if matches.is_present("play") {
+            let model_dir = matches.value_of("play").expect("Failed to parse model directory");
+            agent.load(model_dir).unwrap(); // TODO: define appropriate error
+        }
+        else {
+            let file_base = "sac_ant_20210324_ec2_smoothl1";
+            let url = "https://drive.google.com/uc?export=download&id=1XvFi2nJD5OhpTvs-Et3YREuoqy8c3Vkq";
+            let model_dir = get_model_from_url(url, file_base)?;
+            agent.load(model_dir).unwrap(); // TODO: define appropriate error
+        };
 
+        let time = matches.value_of("wait").unwrap().parse::<u64>()?;
+        env.set_render(true);
+        env.set_wait_in_render(Duration::from_millis(time));
+        agent.eval();
         util::eval(&mut env, &mut agent, 5);
     }
 
-    // Ok(())
+    Ok(())
 }
