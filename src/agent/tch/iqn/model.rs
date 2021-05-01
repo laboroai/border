@@ -14,7 +14,7 @@ use tch::{
 /// Constructs [IQNModel].
 ///
 /// The type parameter `F` represents a submodel for a feature extractor,
-/// converting [F::Input] to a feature vector.
+/// converting `F::Input` to a feature vector.
 /// The type parameter `M` represents a submodel for merging
 /// cos-embedded percent points and feature vectors.
 pub struct IQNModelBuilder<F, M>
@@ -123,8 +123,6 @@ where
 #[allow(clippy::upper_case_acronyms)]
 /// Constructs IQN output layer, which takes input features and percent points.
 /// It returns action-value quantiles.
-///
-/// The type parameter `F` is [FeatureExtractor].
 pub struct IQNModel<F, M>
 where
     F: SubModel<Output = Tensor>,
