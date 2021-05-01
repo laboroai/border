@@ -13,11 +13,11 @@ use border::{
     },
     core::{record::TensorboardRecorder, util, Agent, TrainerBuilder},
     env::py_gym_env::{
+        AtariWrapper, PyGymEnv, PyGymEnvBuilder, Shape,
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
-        framestack::FrameStackFilter,
         obs::PyGymEnvObs,
+        framestack::FrameStackFilter,
         tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
-        PyGymEnv, PyGymEnvBuilder, Shape,
     },
     util::url::get_model_from_url,
 };
@@ -98,11 +98,11 @@ fn create_agent(dim_act: usize) -> impl Agent<Env> {
         .build(qnet, replay_buffer, device)
 }
 
-fn create_env(name: &str) -> Env {
+fn create_env(name: &str, mode: AtariWrapper) -> Env {
     let obs_filter = ObsFilter::new(N_STACK as i64);
     let act_filter = ActFilter::default();
     PyGymEnvBuilder::default()
-        .atari_wrapper(true)
+        .atari_wrapper(Some(mode))
         .build(name, obs_filter, act_filter)
         .unwrap()
 }
@@ -144,19 +144,19 @@ fn main() -> Result<()> {
         .get_matches();
 
     let name = matches.value_of("name").unwrap();
-    let mut env = create_env(name);
-    let dim_act = env.get_num_actions_atari();
+    let mut env_eval = create_env(name, AtariWrapper::Eval);
+    let dim_act = env_eval.get_num_actions_atari();
     let mut agent = create_agent(dim_act as _);
 
     if !(matches.is_present("play") || matches.is_present("play-gdrive")) {
-        let env_eval = create_env(name);
+        let env_train = create_env(name, AtariWrapper::Train);
         let saving_model_dir = format!("./examples/model/dqn_{}", name);
         let mut trainer = TrainerBuilder::default()
             .max_opts(MAX_OPTS)
             .eval_interval(EVAL_INTERVAL)
             .n_episodes_per_eval(N_EPISODES_PER_EVAL)
             .model_dir(saving_model_dir)
-            .build(env, env_eval, agent);
+            .build(env_train, env_eval, agent);
         let mut recorder = TensorboardRecorder::new(format!("./examples/model/dqn_{}", name));
         trainer.train(&mut recorder);
     } else {
@@ -175,10 +175,10 @@ fn main() -> Result<()> {
         };
 
         let time = matches.value_of("wait").unwrap().parse::<u64>()?;
-        env.set_render(true);
-        env.set_wait_in_render(Duration::from_millis(time));
+        env_eval.set_render(true);
+        env_eval.set_wait_in_render(Duration::from_millis(time));
         agent.eval();
-        util::eval(&mut env, &mut agent, 5);
+        util::eval(&mut env_eval, &mut agent, 5);
     }
 
     Ok(())

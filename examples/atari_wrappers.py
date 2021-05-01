@@ -200,10 +200,10 @@ def make_env(env_id, img_dir, atari_wrapper, seed, rank):
 
     return _thunk
 
-def make_env_single_proc(env_id, atari_wrapper):
+def make_env_single_proc(env_id, atari_wrapper, train):
     env = gym.make(env_id)
     if atari_wrapper:
-        env = wrap_deepmind(env)
+        env = wrap_deepmind(env, episode_life=train, clip_rewards=train)
         env = WrapPyTorch(env)
 
     return env

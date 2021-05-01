@@ -7,6 +7,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::{error::Error, fmt::Debug, time::Duration};
 
+use super::AtariWrapper;
 use crate::core::{record::Record, Act, Env, Info, Obs, Step};
 
 /// Information given at every step of the interaction with the environment.
@@ -68,7 +69,7 @@ pub trait PyGymEnvActFilter<A: Act> {
 /// Constructs [PyGymEnv].
 pub struct PyGymEnvBuilder<O, A, OF, AF> {
     max_steps: Option<usize>,
-    atari_wrapper: bool,
+    atari_wrapper: Option<AtariWrapper>,
     pybullet: bool,
     phantom: PhantomData<(O, A, OF, AF)>,
 }
@@ -77,7 +78,7 @@ impl<O, A, OF, AF> Default for PyGymEnvBuilder<O, A, OF, AF> {
     fn default() -> Self {
         Self {
             max_steps: None,
-            atari_wrapper: false,
+            atari_wrapper: None,
             pybullet: false,
             phantom: PhantomData,
         }
@@ -98,7 +99,7 @@ where
     }
 
     /// Set `True` when using Atari wrapper.
-    pub fn atari_wrapper(mut self, v: bool) -> Self {
+    pub fn atari_wrapper(mut self, v: Option<AtariWrapper>) -> Self {
         self.atari_wrapper = v;
         self
     }
@@ -123,9 +124,13 @@ where
         // import pybullet-gym if it exists
         if py.import("pybulletgym").is_ok() {}
 
-        let env = if self.atari_wrapper {
+        let env = if let Some(mode) = self.atari_wrapper {
+            let mode = match mode {
+                AtariWrapper::Train => true,
+                AtariWrapper::Eval => false,
+            };
             let gym = py.import("atari_wrappers")?;
-            let env = gym.call("make_env_single_proc", (name, self.atari_wrapper), None)?;
+            let env = gym.call("make_env_single_proc", (name, true, mode), None)?;
             env.call_method("seed", (42,), None)?;
             env
         } else {
@@ -197,7 +202,12 @@ where
     /// Constructs an environment.
     ///
     /// `name` is the name of the environment, which is implemented in OpenAI gym.
-    pub fn new(name: &str, obs_filter: OF, act_filter: AF, atari_wrapper: bool) -> PyResult<Self> {
+    pub fn new(
+        name: &str,
+        obs_filter: OF,
+        act_filter: AF,
+        atari_wrapper: Option<AtariWrapper>,
+    ) -> PyResult<Self> {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
@@ -211,9 +221,13 @@ where
         // import pybullet-gym if it exists
         if py.import("pybulletgym").is_ok() {}
 
-        let env = if atari_wrapper {
+        let env = if let Some(mode) = atari_wrapper {
+            let mode = match mode {
+                AtariWrapper::Train => true,
+                AtariWrapper::Eval => false,
+            };
             let gym = py.import("atari_wrappers")?;
-            let env = gym.call("make_env_single_proc", (name, atari_wrapper), None)?;
+            let env = gym.call("make_env_single_proc", (name, true, mode), None)?;
             env.call_method("seed", (42,), None)?;
             env
         } else {
