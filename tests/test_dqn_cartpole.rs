@@ -1,31 +1,29 @@
-use std::{convert::TryFrom, fs::File, iter::FromIterator};
-use serde::Serialize;
 use anyhow::Result;
-use clap::{Arg, App};
+use clap::{App, Arg};
 use csv::WriterBuilder;
+use serde::Serialize;
+use std::{convert::TryFrom, fs::File};
 use tch::nn;
 
 use border::{
+    agent::{
+        tch::{
+            dqn::explorer::{DQNExplorer, EpsilonGreedy},
+            model::Model1_1,
+            DQNBuilder, ReplayBuffer,
+        },
+        OptInterval,
+    },
     core::{
-        Agent, TrainerBuilder, util,
-        record::{TensorboardRecorder, BufferedRecorder, Record}
+        record::{BufferedRecorder, Record, TensorboardRecorder},
+        util, Agent, TrainerBuilder,
     },
     env::py_gym_env::{
-        Shape, PyGymEnv,
-        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
-        tch::{
-            obs::TchPyGymEnvObsBuffer,
-            act_d::TchPyGymEnvDiscreteActBuffer
-        }
+        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
+        tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
+        PyGymEnv, Shape,
     },
-    agent::{
-        OptInterval,
-        tch::{
-            DQNBuilder, ReplayBuffer, model::Model1_1,
-            dqn::explorer::{DQNExplorer, EpsilonGreedy},
-        }
-    }
 };
 
 const DIM_OBS: usize = 4;
@@ -60,10 +58,17 @@ type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64, f32>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 
 fn create_critic(device: tch::Device) -> Model1_1 {
-    let network_fn = |p: &nn::Path, in_dim: &[usize], out_dim| nn::seq()
-        .add(nn::linear(p / "cl1", in_dim[0] as _, 256, Default::default()))
-        .add_fn(|xs| xs.relu())
-        .add(nn::linear(p / "cl2", 256, out_dim as _, Default::default()));
+    let network_fn = |p: &nn::Path, in_dim: &[usize], out_dim| {
+        nn::seq()
+            .add(nn::linear(
+                p / "cl1",
+                in_dim[0] as _,
+                256,
+                Default::default(),
+            ))
+            .add_fn(|xs| xs.relu())
+            .add(nn::linear(p / "cl2", 256, out_dim as _, Default::default()))
+    };
     Model1_1::new(&[DIM_OBS], DIM_ACT, LR_QNET, network_fn, device)
 }
 
@@ -81,8 +86,7 @@ fn create_agent(epsilon_greedy: bool) -> impl Agent<Env> {
 
     if epsilon_greedy {
         builder.explorer(DQNExplorer::EpsilonGreedy(EpsilonGreedy::new()))
-    }
-    else {
+    } else {
         builder
     }
     .build(qnet, replay_buffer, device)
@@ -91,7 +95,7 @@ fn create_agent(epsilon_greedy: bool) -> impl Agent<Env> {
 fn create_env() -> Env {
     let obs_filter = ObsFilter::default(); //::new();
     let act_filter = ActFilter::default();
-    Env::new("CartPole-v0", obs_filter, act_filter, false).unwrap()
+    Env::new("CartPole-v0", obs_filter, act_filter, None).unwrap()
 }
 
 #[derive(Debug, Serialize)]
@@ -110,9 +114,13 @@ impl TryFrom<&Record> for CartpoleRecord {
             episode: record.get_scalar("episode")? as _,
             step: record.get_scalar("step")? as _,
             reward: record.get_scalar("reward")?,
-            obs: Vec::from_iter(
-                record.get_array1("obs")?.iter().map(|v| *v as f64)
-            )
+            obs: record
+                .get_array1("obs")?
+                .iter()
+                .map(|v| *v as f64)
+                .collect(), // obs: Vec::from_iter(
+                            //     record.get_array1("obs")?.iter().map(|v| *v as f64)
+                            // )
         })
     }
 }
@@ -120,17 +128,21 @@ impl TryFrom<&Record> for CartpoleRecord {
 #[test]
 fn main() -> Result<()> {
     let matches = App::new("dqn_cartpole")
-    .version("0.1.0")
-    .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
-    .arg(Arg::with_name("skip training")
-        .long("skip_training")
-        .takes_value(false)
-        .help("Skip training"))
-    .arg(Arg::with_name("egreedy")
-        .long("epsilon_greedy")
-        .takes_value(false)
-        .help("Epsilon greedy"))
-    .get_matches();
+        .version("0.1.0")
+        .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
+        .arg(
+            Arg::with_name("skip training")
+                .long("skip_training")
+                .takes_value(false)
+                .help("Skip training"),
+        )
+        .arg(
+            Arg::with_name("egreedy")
+                .long("epsilon_greedy")
+                .takes_value(false)
+                .help("Epsilon greedy"),
+        )
+        .get_matches();
 
     env_logger::init();
     tch::manual_seed(42);
@@ -145,9 +157,12 @@ fn main() -> Result<()> {
             .n_episodes_per_eval(N_EPISODES_PER_EVAL)
             .build(env, env_eval, agent);
         let mut recorder = TensorboardRecorder::new("./examples/model/dqn_cartpole");
-    
+
         trainer.train(&mut recorder);
-        trainer.get_agent().save("./examples/model/dqn_cartpole").unwrap(); // TODO: define appropriate error    
+        trainer
+            .get_agent()
+            .save("./examples/model/dqn_cartpole")
+            .unwrap(); // TODO: define appropriate error
     }
 
     let mut env = create_env();
@@ -160,7 +175,8 @@ fn main() -> Result<()> {
     util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);
 
     // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
-    let mut wtr = WriterBuilder::new().has_headers(false)
+    let mut wtr = WriterBuilder::new()
+        .has_headers(false)
         .from_writer(File::create("examples/model/dqn_cartpole_eval.csv")?);
     for record in recorder.iter() {
         wtr.serialize(CartpoleRecord::try_from(record)?)?;

@@ -1,13 +1,13 @@
 //! Trainer.
-use std::cell::RefCell;
 use chrono::Local;
 use log::info;
+use std::cell::RefCell;
 
 #[allow(unused_imports)]
 use crate::core::{
-    Env, Agent, Policy, Step,
-    util::{sample, eval},
-    record::{Recorder, RecordValue}
+    record::{RecordValue, Recorder},
+    util::{eval, sample},
+    Agent, Env, Policy, Step,
 };
 
 /// Builder of [crate::core::trainer::Trainer].
@@ -16,6 +16,7 @@ pub struct TrainerBuilder {
     eval_interval: usize,
     n_episodes_per_eval: usize,
     eval_threshold: Option<f32>,
+    model_dir: Option<String>,
 }
 
 impl Default for TrainerBuilder {
@@ -25,8 +26,9 @@ impl Default for TrainerBuilder {
             eval_interval: 0,
             n_episodes_per_eval: 0,
             eval_threshold: None,
+            model_dir: None,
         }
-    }    
+    }
 }
 
 impl TrainerBuilder {
@@ -54,10 +56,17 @@ impl TrainerBuilder {
         self
     }
 
+    /// Set the directory the trained model being saved.
+    pub fn model_dir<T: Into<String>>(mut self, model_dir: T) -> Self {
+        self.model_dir = Some(model_dir.into());
+        self
+    }
+
     ///Constructs a trainer.
-    pub fn build<E, A>(self, env: E, env_eval: E, agent: A) -> Trainer<E, A> where
+    pub fn build<E, A>(self, env: E, env_eval: E, agent: A) -> Trainer<E, A>
+    where
         E: Env,
-        A: Agent<E>
+        A: Agent<E>,
     {
         Trainer {
             env,
@@ -68,14 +77,17 @@ impl TrainerBuilder {
             eval_interval: self.eval_interval,
             n_episodes_per_eval: self.n_episodes_per_eval,
             eval_threshold: self.eval_threshold,
+            model_dir: self.model_dir,
             count_opts: 0,
-            count_steps: 0,    
+            count_steps: 0,
         }
     }
 }
 
 #[cfg_attr(doc, aquamarine::aquamarine)]
 /// Manages training process.
+///
+/// ## Training loop
 ///
 /// For training an agent with standard RL algorithms in the library, the agent and environment
 /// interact as illustrated in the following diagram:
@@ -111,6 +123,17 @@ impl TrainerBuilder {
 /// 7. Back to 1.
 ///
 /// Actually, [`Trainer`] is not responsible for the step 6. The `Agent` does it.
+///
+/// ## Model evaluation and saving
+///
+/// [Trainer::train()] evaluates the agent being trained with the interval of optimization
+/// steps specified by [TrainerBuilder::eval_interval()]. If the evaluation reward is
+/// greater than the maximum in the history of training, the agent will be saved in the
+/// directory specified by [TrainerBuilder::model_dir()].
+///
+/// A trained agent often consists of a number of neural networks like an action-value
+/// network, its target network, a policy network. Typically, [Agent] saves all of these
+/// neural networks in a directory.
 pub struct Trainer<E: Env, A: Agent<E>> {
     env: E,
     env_eval: E,
@@ -120,8 +143,9 @@ pub struct Trainer<E: Env, A: Agent<E>> {
     eval_interval: usize,
     n_episodes_per_eval: usize,
     eval_threshold: Option<f32>,
+    model_dir: Option<String>,
     count_opts: usize,
-    count_steps: usize
+    count_steps: usize,
 }
 
 impl<E: Env, A: Agent<E>> Trainer<E, A> {
@@ -142,7 +166,7 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
 
     // fn stats_eval_reward(rs: &Vec<f32>) -> (f32, f32, f32) {
     fn stats_eval_reward(rs: &[f32]) -> (f32, f32, f32) {
-            let mean: f32 = rs.iter().sum::<f32>() / (rs.len() as f32);
+        let mean: f32 = rs.iter().sum::<f32>() / (rs.len() as f32);
         let min = rs.iter().fold(f32::NAN, |m, v| v.min(m));
         let max = rs.iter().fold(f32::NAN, |m, v| v.max(m));
 
@@ -159,6 +183,7 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
     pub fn train<T: Recorder>(&mut self, recorder: &mut T) {
         let mut count_steps_local = 0;
         let mut now = std::time::SystemTime::now();
+        let mut max_eval_reward = std::f32::MIN;
 
         let obs = self.env.reset(None).unwrap();
         self.agent.push_obs(&obs);
@@ -183,10 +208,11 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
             // These are o_t+1 (without reset) or o_0 (with reset).
             // In the next iteration of the loop, o_t+1 will be treated as the previous observation
             // in the next training step executed in agent.observation().
-            self.agent.push_obs(&self.obs_prev.borrow().as_ref().unwrap());
+            self.agent
+                .push_obs(&self.obs_prev.borrow().as_ref().unwrap());
 
             if let Some(mut record) = option_record {
-                use RecordValue::{Scalar, DateTime};
+                use RecordValue::{DateTime, Scalar};
 
                 self.count_opts += 1;
                 record.insert("n_steps", Scalar(self.count_steps as _));
@@ -198,10 +224,8 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
                     let fps = match now.elapsed() {
                         Ok(elapsed) => {
                             Some(count_steps_local as f32 / elapsed.as_millis() as f32 * 1000.0)
-                        },
-                        Err(_) => {
-                            None
                         }
+                        Err(_) => None,
                     };
                     // Reset counter for getting FPS in training
                     count_steps_local = 0;
@@ -211,10 +235,16 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
 
                     // Evaluation
                     self.agent.eval();
-                    let rewards = eval(&mut self.env_eval, &mut self.agent, self.n_episodes_per_eval);
+                    let rewards = eval(
+                        &mut self.env_eval,
+                        &mut self.agent,
+                        self.n_episodes_per_eval,
+                    );
                     let (mean, min, max) = Self::stats_eval_reward(&rewards);
-                    info!("Opt step {}, Eval (mean, min, max) of r_sum: {}, {}, {}",
-                        self.count_opts, mean, min, max);
+                    info!(
+                        "Opt step {}, Eval (mean, min, max) of r_sum: {}, {}, {}",
+                        self.count_opts, mean, min, max
+                    );
                     record.insert("mean_cum_eval_reward", Scalar(mean));
 
                     if let Some(fps) = fps {
@@ -224,7 +254,7 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
                     match now.elapsed() {
                         Ok(elapsed) => {
                             info!("{} sec. in evaluation", elapsed.as_millis() as f32 / 1000.0);
-                        },
+                        }
                         Err(_) => {
                             info!("An error occured when getting time")
                         }
@@ -233,8 +263,21 @@ impl<E: Env, A: Agent<E>> Trainer<E, A> {
                     // The timer is used to measure the elapsed time for training
                     now = std::time::SystemTime::now();
 
+                    // Save the trained model
+                    if self.model_dir != None && mean > max_eval_reward {
+                        if let Some(model_dir) = self.model_dir.clone() {
+                            max_eval_reward = mean;
+                            match self.agent.save(&model_dir) {
+                                Ok(()) => info!("Saved the model in {:?}", &model_dir),
+                                Err(_) => info!("Failed to save model."),
+                            }
+                        }
+                    }
+
+                    // Set the agent in evaluation mode
                     self.agent.train();
 
+                    // If the evaluation reward exceeds the threshold
                     if let Some(th) = self.eval_threshold {
                         over_eval_threshold = mean >= th;
                     }

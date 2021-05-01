@@ -10,5 +10,5 @@ pub enum LrrError {
 
     /// Record value type error.
     #[error("Record value type error: {0}")]
-    RecordValueTypeError(String)
+    RecordValueTypeError(String),
 }

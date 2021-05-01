@@ -1,22 +1,22 @@
 //! SAC agent.
 use log::trace;
-use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
+use std::{cell::RefCell, error::Error, fs, marker::PhantomData, path::Path};
 use tch::{no_grad, Tensor};
 
 use crate::{
-    core::{
-        Policy, Agent, Step, Env,
-        record::{Record, RecordValue},
-    },
     agent::{
-        OptIntervalCounter, CriticLoss,
         tch::{
-            ReplayBuffer, TchBuffer, TchBatch,
             model::{Model1, Model2},
-            util::track,
             sac::ent_coef::EntCoef,
-        }
-    }
+            util::track,
+            ReplayBuffer, TchBatch, TchBuffer,
+        },
+        CriticLoss, OptIntervalCounter,
+    },
+    core::{
+        record::{Record, RecordValue},
+        Agent, Env, Policy, Step,
+    },
 };
 
 type ActionValue = Tensor;
@@ -24,12 +24,15 @@ type ActMean = Tensor;
 type ActStd = Tensor;
 
 fn normal_logp(x: &Tensor) -> Tensor {
-    let tmp: Tensor = Tensor::from(-0.5 * (2.0 * std::f32::consts::PI).ln() as f32) - 0.5 * x.pow(2);
+    let tmp: Tensor =
+        Tensor::from(-0.5 * (2.0 * std::f32::consts::PI).ln() as f32) - 0.5 * x.pow(2);
     tmp.sum1(&[-1], false, tch::Kind::Float)
 }
 
 /// Soft actor critic agent.
-pub struct SAC<E, Q, P, O, A> where
+#[allow(clippy::upper_case_acronyms)]
+pub struct SAC<E, Q, P, O, A>
+where
     E: Env,
     O: TchBuffer<Item = E::Obs>,
     A: TchBuffer<Item = E::Act>,
@@ -56,12 +59,13 @@ pub struct SAC<E, Q, P, O, A> where
     pub(in crate::agent::tch::sac) device: tch::Device,
 }
 
-impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
+impl<E, Q, P, O, A> SAC<E, Q, P, O, A>
+where
     E: Env,
     Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
-    P: Model1<Input=Tensor, Output = (ActMean, ActStd)> + Clone,
-    E::Obs :Into<O::SubBatch>,
-    E::Act :From<Tensor>,
+    P: Model1<Input = Tensor, Output = (ActMean, ActStd)> + Clone,
+    E::Obs: Into<O::SubBatch>,
+    E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
@@ -71,13 +75,8 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
         let obs = self.prev_obs.replace(None).unwrap();
         let reward = Tensor::of_slice(&step.reward[..]);
         let not_done = Tensor::from(1f32) - Tensor::of_slice(&step.is_done[..]);
-        self.replay_buffer.push(
-            &obs,
-            &step.act,
-            &reward,
-            &next_obs,
-            &not_done,
-        );
+        self.replay_buffer
+            .push(&obs, &step.act, &reward, &next_obs, &not_done);
         let _ = self.prev_obs.replace(Some(next_obs));
     }
 
@@ -90,7 +89,8 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
         let a = (&std * &z + &mean).tanh();
         let log_p = normal_logp(&z)
             - (Tensor::from(1f32) - a.pow(2.0) + Tensor::from(self.epsilon))
-            .log().sum1(&[-1], false, tch::Kind::Float);
+                .log()
+                .sum1(&[-1], false, tch::Kind::Float);
 
         debug_assert_eq!(a.size().as_slice()[0], self.batch_size as i64);
         debug_assert_eq!(log_p.size().as_slice(), [self.batch_size as i64]);
@@ -99,7 +99,10 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
     }
 
     fn qvals(&self, qnets: &[Q], obs: &Tensor, act: &Tensor) -> Vec<Tensor> {
-        qnets.iter().map(|qnet| qnet.forward(obs, act).squeeze()).collect()
+        qnets
+            .iter()
+            .map(|qnet| qnet.forward(obs, act).squeeze())
+            .collect()
     }
 
     /// Returns the minimum values of q values over critics
@@ -123,7 +126,7 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
 
     //     qvals_mean
     // }
-    
+
     fn update_critic(&mut self, batch: &TchBatch<E, O, A>) -> f32 {
         trace!("SAC::update_critic()");
 
@@ -147,19 +150,21 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
             debug_assert_eq!(tgt.size().as_slice(), [self.batch_size as i64]);
 
             let losses: Vec<_> = match self.critic_loss {
-                CriticLoss::MSE => preds.iter()
+                CriticLoss::MSE => preds
+                    .iter()
                     .map(|pred| pred.mse_loss(&tgt, tch::Reduction::Mean))
                     .collect(),
-                CriticLoss::SmoothL1 => preds.iter()
+                CriticLoss::SmoothL1 => preds
+                    .iter()
                     .map(|pred| pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0))
-                    .collect()
-                };
+                    .collect(),
+            };
 
             losses
         };
 
         for (qnet, loss) in self.qnets.iter_mut().zip(&losses) {
-            qnet.backward_step(&loss);            
+            qnet.backward_step(&loss);
         }
 
         losses.iter().map(f32::from).sum::<f32>() / (self.qnets.len() as f32)
@@ -192,12 +197,13 @@ impl<E, Q, P, O, A> SAC<E, Q, P, O, A> where
     }
 }
 
-impl<E, Q, P, O, A> Policy<E> for SAC<E, Q, P, O, A> where
+impl<E, Q, P, O, A> Policy<E> for SAC<E, Q, P, O, A>
+where
     E: Env,
     Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
-    P: Model1<Input=Tensor, Output = (ActMean, ActStd)> + Clone,
-    E::Obs :Into<O::SubBatch>,
-    E::Act :From<Tensor>,
+    P: Model1<Input = Tensor, Output = (ActMean, ActStd)> + Clone,
+    E::Obs: Into<O::SubBatch>,
+    E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
@@ -207,20 +213,20 @@ impl<E, Q, P, O, A> Policy<E> for SAC<E, Q, P, O, A> where
         let std = lstd.clip(self.min_lstd, self.max_lstd).exp();
         let act = if self.train {
             std * Tensor::randn(&mean.size(), tch::kind::FLOAT_CPU).to(self.device) + mean
-        }
-        else {
+        } else {
             mean
         };
         act.tanh().into()
     }
 }
 
-impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A> where
+impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A>
+where
     E: Env,
     Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
-    P: Model1<Input=Tensor, Output = (ActMean, ActStd)> + Clone,
-    E::Obs :Into<O::SubBatch>,
-    E::Act :From<Tensor>,
+    P: Model1<Input = Tensor, Output = (ActMean, ActStd)> + Clone,
+    E::Obs: Into<O::SubBatch>,
+    E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
@@ -251,7 +257,7 @@ impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A> where
         // Check if doing optimization
         let do_optimize = self.opt_interval_counter.do_optimize(&step.is_done)
             && self.replay_buffer.len() + 1 >= self.min_transitions_warmup;
-    
+
         // Push transition to the replay buffer
         self.push_transition(step);
         trace!("Push transition");
@@ -267,16 +273,17 @@ impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A> where
                 loss_critic += self.update_critic(&batch);
                 loss_actor += self.update_actor(&batch);
                 self.soft_update();
-            };
+            }
 
             Some(Record::from_slice(&[
                 ("loss_critic", RecordValue::Scalar(loss_critic)),
                 ("loss_actor", RecordValue::Scalar(loss_actor)),
-                ("ent_coef", RecordValue::Scalar(
-                    self.ent_coef.alpha().double_value(&[0]) as f32))
+                (
+                    "ent_coef",
+                    RecordValue::Scalar(self.ent_coef.alpha().double_value(&[0]) as f32),
+                ),
             ]))
-        }
-        else {
+        } else {
             None
         }
     }
@@ -289,7 +296,8 @@ impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A> where
             qnet_tgt.save(&path.as_ref().join(format!("qnet_tgt_{}.pt", i)).as_path())?;
         }
         self.pi.save(&path.as_ref().join("pi.pt").as_path())?;
-        self.ent_coef.save(&path.as_ref().join("ent_coef.pt").as_path())?;
+        self.ent_coef
+            .save(&path.as_ref().join("ent_coef.pt").as_path())?;
         Ok(())
     }
 
@@ -299,7 +307,8 @@ impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A> where
             qnet_tgt.load(&path.as_ref().join(format!("qnet_tgt_{}.pt", i)).as_path())?;
         }
         self.pi.load(&path.as_ref().join("pi.pt").as_path())?;
-        self.ent_coef.load(&path.as_ref().join("ent_coef.pt").as_path())?;
+        self.ent_coef
+            .load(&path.as_ref().join("ent_coef.pt").as_path())?;
         Ok(())
     }
 }

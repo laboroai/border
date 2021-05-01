@@ -1,13 +1,13 @@
 use std::time::Duration;
-use anyhow::Result;
+// use anyhow::Result;
 use ndarray::Array;
 
 use border::{
-    core::{Policy, util},
+    core::{util, Policy},
     env::py_gym_env::{
-        Shape, PyGymEnv, PyGymEnvBuilder,
+        act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter},
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-        act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter}
+        PyGymEnv, PyGymEnvBuilder, Shape,
     },
 };
 
@@ -39,15 +39,19 @@ struct RandomPolicy {}
 
 impl Policy<Env> for RandomPolicy {
     fn sample(&mut self, _: &Obs) -> Act {
-        Act::new(Array::from(
-            (0..8).map(|_| 2f32 * fastrand::f32() - 1f32).collect::<Vec<_>>())
-            .into_dyn()
+        Act::new(
+            Array::from(
+                (0..8)
+                    .map(|_| 2f32 * fastrand::f32() - 1f32)
+                    .collect::<Vec<_>>(),
+            )
+            .into_dyn(),
         )
     }
 }
 
-fn main() -> Result<()> {
-    env_logger::init();
+fn main() {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
     fastrand::seed(42);
 
@@ -56,13 +60,14 @@ fn main() -> Result<()> {
     // TODO: Define appropriate error for failing to construct environment
     let mut env = PyGymEnvBuilder::default()
         .pybullet(true)
-        .atari_wrapper(false)
-        .build("AntPyBulletEnv-v0", obs_filter, act_filter).unwrap();
+        .atari_wrapper(None)
+        .build("AntPyBulletEnv-v0", obs_filter, act_filter)
+        .unwrap();
     env.set_render(true);
     env.set_wait_in_render(Duration::from_millis(10));
-    let mut policy = RandomPolicy{};
+    let mut policy = RandomPolicy {};
 
     util::eval(&mut env, &mut policy, 5);
 
-    Ok(())
+    // Ok(())
 }

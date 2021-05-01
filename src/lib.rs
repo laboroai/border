@@ -23,13 +23,19 @@
 //! Like this, border is flexible in combination of environments and agents.
 //! By providing some bridges, it is able to switch computational backends or internal implementation of
 //! environments and agents. This concept is illustrated in schematic diagram of [eval] and [Trainer].
-pub mod core;
 pub mod agent;
+pub mod core;
 pub mod env;
 pub mod error;
+pub mod util;
 
-pub use crate::core::util::eval;
-pub use crate::core::trainer::Trainer;
-pub use crate::core::base::{Act, Obs, Env, Policy, Agent};
-pub use crate::env::py_gym_env::{PyGymEnv, PyVecGymEnv};
-pub use crate::agent::tch::{DQN, SAC};
+#[allow(unused_imports)]
+use crate::{
+    agent::tch::{DQN, SAC},
+    core::{
+        base::{Act, Agent, Env, Obs, Policy},
+        trainer::Trainer,
+        util::eval,
+    },
+    env::py_gym_env::{PyGymEnv, PyVecGymEnv},
+};

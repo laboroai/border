@@ -1,9 +1,14 @@
 //! A network with a single input tensor and a single output tensor.
-use std::{path::Path, error::Error, fmt, fmt::{Formatter, Debug}};
 use log::{info, trace};
-use tch::{Tensor, nn, nn::Module, nn::OptimizerConfig};
+use std::{
+    error::Error,
+    fmt,
+    fmt::{Debug, Formatter},
+    path::Path,
+};
+use tch::{nn, nn::Module, nn::OptimizerConfig, Tensor};
 
-use crate::agent::tch::model::{ModelBase, Model1};
+use crate::agent::tch::model::{Model1, ModelBase};
 
 /// A network with a single input tensor and a single output tensor.
 pub struct Model1_1 {
@@ -13,19 +18,25 @@ pub struct Model1_1 {
     opt: nn::Optimizer<nn::Adam>,
     in_shape: Vec<usize>,
     out_dim: usize,
-    learning_rate: f64
+    learning_rate: f64,
 }
 
 // TODO: implement this
 impl Debug for Model1_1 {
-    fn fmt(&self, _f: &mut Formatter<'_>) -> fmt::Result { Ok(()) }
+    fn fmt(&self, _f: &mut Formatter<'_>) -> fmt::Result {
+        Ok(())
+    }
 }
 
 impl Clone for Model1_1 {
     fn clone(&self) -> Self {
         let device = self.var_store.device();
         let mut new = Self::new(
-            &self.in_shape[..], self.out_dim, self.learning_rate, self.network_fn, device
+            &self.in_shape[..],
+            self.out_dim,
+            self.learning_rate,
+            self.network_fn,
+            device,
         );
         new.var_store.copy(&self.var_store).unwrap();
         new
@@ -34,9 +45,13 @@ impl Clone for Model1_1 {
 
 impl Model1_1 {
     /// Constructs a network with a single input tensor and a single output tensor.
-    pub fn new(in_shape: &[usize], out_dim: usize, learning_rate: f64,
+    pub fn new(
+        in_shape: &[usize],
+        out_dim: usize,
+        learning_rate: f64,
         network_fn: fn(&nn::Path, &[usize], usize) -> nn::Sequential,
-        device: tch::Device) -> Self {
+        device: tch::Device,
+    ) -> Self {
         // let vs = nn::VarStore::new(tch::Device::Cpu);
         let vs = nn::VarStore::new(device);
         let p = &vs.root();
@@ -69,7 +84,7 @@ impl ModelBase for Model1_1 {
         let vs = self.var_store.variables();
         for (name, _) in vs.iter() {
             trace!("Save variable {}", name);
-        };
+        }
         Ok(())
     }
 

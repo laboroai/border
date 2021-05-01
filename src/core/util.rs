@@ -1,17 +1,22 @@
 #![allow(clippy::float_cmp)]
 //! Utilities for interaction of agents and environments.
-use std::cell::RefCell;
-use log::info;
 use crate::core::{
-    Obs, Step, Env, Policy, record::{Record, Recorder, RecordValue}
+    record::{Record, RecordValue, Recorder},
+    Env, Obs, Policy, Step,
 };
+use log::info;
+use std::cell::RefCell;
 
 /// Takes an action based on the policy and apply it to the environment.
 ///
 /// It returns [crate::core::base::Step] object.
-pub fn sample<E: Env, P: Policy<E>>(env: &mut E, policy: &mut P,
-    obs_prev: &RefCell<Option<E::Obs>>) -> (Step<E>, Record) {
-    let obs = obs_prev.replace(None)
+pub fn sample<E: Env, P: Policy<E>>(
+    env: &mut E,
+    policy: &mut P,
+    obs_prev: &RefCell<Option<E::Obs>>,
+) -> (Step<E>, Record) {
+    let obs = obs_prev
+        .replace(None)
         .expect("The buffer of the previous observations is not initialized.");
     let a = policy.sample(&obs);
     let (step, record) = env.step(&a);
@@ -76,13 +81,12 @@ pub fn eval<E: Env, P: Policy<E>>(env: &mut E, policy: &mut P, n_episodes: usize
             r_sum += &step.reward[0];
             if step.is_done[0] == 1 {
                 break;
-            }
-            else {
+            } else {
                 steps += 1;
             }
         }
         rs.push(r_sum);
-        info!("Episode {:?}, {:?} steps", i, steps);
+        info!("Episode {:?}, {:?} steps, reward = {:?}", i, steps, r_sum);
     }
     rs
 }
@@ -90,11 +94,16 @@ pub fn eval<E: Env, P: Policy<E>>(env: &mut E, policy: &mut P, n_episodes: usize
 /// Run episodes with a policy and recorder.
 ///
 /// This method assumes that the environment is non-vectorized or `n_proc`=1.
-pub fn eval_with_recorder<E, P, R>(env: &mut E, policy: &mut P, n_episodes: usize, recorder: &mut R) -> Vec<f32>
-    where
+pub fn eval_with_recorder<E, P, R>(
+    env: &mut E,
+    policy: &mut P,
+    n_episodes: usize,
+    recorder: &mut R,
+) -> Vec<f32>
+where
     E: Env,
     P: Policy<E>,
-    R: Recorder
+    R: Recorder,
 {
     let mut rs = Vec::new();
     let obs = env.reset(None).unwrap();
@@ -105,7 +114,9 @@ pub fn eval_with_recorder<E, P, R>(env: &mut E, policy: &mut P, n_episodes: usiz
         let mut r_sum = 0.0;
         loop {
             let (step, mut record) = sample(env, policy, &obs_prev);
-            if step.is_done[0] == 1 { break; }
+            if step.is_done[0] == 1 {
+                break;
+            }
             r_sum += &step.reward[0];
 
             record.insert("reward", RecordValue::Scalar(step.reward[0] as _));

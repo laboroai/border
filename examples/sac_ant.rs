@@ -1,29 +1,25 @@
-// use std::time::Duration;
 use anyhow::Result;
-use clap::{Arg, App};
+use clap::{App, Arg};
+use std::time::Duration;
 use tch::nn;
 
 use border::{
-    core::{
-        Agent, TrainerBuilder, util,
-        record::TensorboardRecorder,
-    }, 
-    env::py_gym_env::{
-        Shape, PyGymEnv, PyGymEnvBuilder,
-        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-        act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter},
-        tch::{
-            obs::TchPyGymEnvObsBuffer,
-            act_c::TchPyGymEnvContinuousActBuffer,
-        }
-    },
     agent::{
-        OptInterval, CriticLoss,
         tch::{
-            SACBuilder, ReplayBuffer, sac::EntCoefMode,
-            model::{Model1_2, Model2_1}
-        }
-    }
+            model::{Model1_2, Model2_1},
+            sac::EntCoefMode,
+            ReplayBuffer, SACBuilder,
+        },
+        CriticLoss, OptInterval,
+    },
+    core::{record::TensorboardRecorder, util, Agent, TrainerBuilder},
+    env::py_gym_env::{
+        act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter},
+        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
+        tch::{act_c::TchPyGymEnvContinuousActBuffer, obs::TchPyGymEnvObsBuffer},
+        PyGymEnv, PyGymEnvBuilder, Shape,
+    },
+    util::url::get_model_from_url,
 };
 
 const DIM_OBS: usize = 28;
@@ -71,22 +67,31 @@ impl Shape for ActShape {
 }
 
 fn create_actor(device: tch::Device) -> Model1_2 {
-    let network_fn = |p: &nn::Path, in_dim, hidden_dim| nn::seq()
-        .add(nn::linear(p / "al1", in_dim as _, 400, Default::default()))
-        .add_fn(|xs| xs.relu())
-        .add(nn::linear(p / "al2", 400, hidden_dim as _, Default::default()))
-        .add_fn(|xs| xs.relu());
+    let network_fn = |p: &nn::Path, in_dim, hidden_dim| {
+        nn::seq()
+            .add(nn::linear(p / "al1", in_dim as _, 400, Default::default()))
+            .add_fn(|xs| xs.relu())
+            .add(nn::linear(
+                p / "al2",
+                400,
+                hidden_dim as _,
+                Default::default(),
+            ))
+            .add_fn(|xs| xs.relu())
+    };
     Model1_2::new(DIM_OBS, 300, DIM_ACT, LR_ACTOR, network_fn, device)
 }
 
 fn create_critic(device: tch::Device) -> Model2_1 {
-    let network_fn = |p: &nn::Path, in_dim, out_dim| nn::seq()
-        .add(nn::linear(p / "cl1", in_dim as _, 400, Default::default()))
-        .add_fn(|xs| xs.relu())
-        .add(nn::linear(p / "cl2", 400, 300, Default::default()))
-        .add_fn(|xs| xs.relu())
-        .add(nn::linear(p / "cl3", 300, out_dim as _, Default::default()));
-        Model2_1::new(DIM_OBS + DIM_ACT, 1, LR_CRITIC, network_fn, device)
+    let network_fn = |p: &nn::Path, in_dim, out_dim| {
+        nn::seq()
+            .add(nn::linear(p / "cl1", in_dim as _, 400, Default::default()))
+            .add_fn(|xs| xs.relu())
+            .add(nn::linear(p / "cl2", 400, 300, Default::default()))
+            .add_fn(|xs| xs.relu())
+            .add(nn::linear(p / "cl3", 300, out_dim as _, Default::default()))
+    };
+    Model2_1::new(DIM_OBS + DIM_ACT, 1, LR_CRITIC, network_fn, device)
 }
 
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f32, f32>;
@@ -121,25 +126,41 @@ fn create_env() -> Env {
     let act_filter = ActFilter::default();
     PyGymEnvBuilder::default()
         .pybullet(true)
-        .atari_wrapper(false)
-        .build("AntPyBulletEnv-v0", obs_filter, act_filter).unwrap()
+        .atari_wrapper(None)
+        .build("AntPyBulletEnv-v0", obs_filter, act_filter)
+        .unwrap()
 }
 
 fn main() -> Result<()> {
-    env_logger::init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
     fastrand::seed(42);
 
     let matches = App::new("dqn_cartpole")
         .version("0.1.0")
         .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
-        .arg(Arg::with_name("play")
-            .long("play")
-            .takes_value(true)
-            .help("Play with the trained model of the given path"))
+        .arg(
+            Arg::with_name("play")
+                .long("play")
+                .takes_value(true)
+                .help("Play with the trained model of the given path"),
+        )
+        .arg(
+            Arg::with_name("play-gdrive")
+                .long("play-gdrive")
+                .takes_value(false)
+                .help("Play with the trained model downloaded from google drive"),
+        )
+        .arg(
+            Arg::with_name("wait")
+                .long("wait")
+                .takes_value(true)
+                .default_value("25")
+                .help("Waiting time in milliseconds between frames when playing"),
+        )
         .get_matches();
 
-    if !matches.is_present("play") {
+    if !(matches.is_present("play") || matches.is_present("play-gdrive")) {
         let env = create_env();
         let env_eval = create_env();
         let agent = create_agent();
@@ -149,20 +170,33 @@ fn main() -> Result<()> {
             .n_episodes_per_eval(N_EPISODES_PER_EVAL)
             .build(env, env_eval, agent);
         let mut recorder = TensorboardRecorder::new("./examples/model/sac_ant");
-    
+
         trainer.train(&mut recorder);
-        trainer.get_agent().save("./examples/model/sac_ant").unwrap();    
-    }
-    else {
-        let model_file = matches.value_of("play").unwrap();
+        trainer
+            .get_agent()
+            .save("./examples/model/sac_ant")
+            .unwrap();
+    } else {
         let mut env = create_env();
         let mut agent = create_agent();
 
-        env.set_render(true);
-        // env.set_wait_in_render(Duration::from_millis(50));
-        agent.load(model_file).unwrap(); // TODO: define appropriate error
-        agent.eval();
+        if matches.is_present("play") {
+            let model_dir = matches
+                .value_of("play")
+                .expect("Failed to parse model directory");
+            agent.load(model_dir).unwrap(); // TODO: define appropriate error
+        } else {
+            let file_base = "sac_ant_20210324_ec2_smoothl1";
+            let url =
+                "https://drive.google.com/uc?export=download&id=1XvFi2nJD5OhpTvs-Et3YREuoqy8c3Vkq";
+            let model_dir = get_model_from_url(url, file_base)?;
+            agent.load(model_dir).unwrap(); // TODO: define appropriate error
+        };
 
+        let time = matches.value_of("wait").unwrap().parse::<u64>()?;
+        env.set_render(true);
+        env.set_wait_in_render(Duration::from_millis(time));
+        agent.eval();
         util::eval(&mut env, &mut agent, 5);
     }
 

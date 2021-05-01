@@ -1,17 +1,20 @@
 //! Builder of SAC agent.
-use std::{marker::PhantomData, cell::RefCell};
+use std::{cell::RefCell, marker::PhantomData};
 use tch::Tensor;
 
 use crate::{
-    core::Env,
     agent::{
-        OptInterval, OptIntervalCounter, CriticLoss,
         tch::{
-            ReplayBuffer, TchBuffer,
             model::{Model1, Model2},
-            sac::{SAC, ent_coef::{EntCoef, EntCoefMode}}
-        }
-    }
+            sac::{
+                ent_coef::{EntCoef, EntCoefMode},
+                SAC,
+            },
+            ReplayBuffer, TchBuffer,
+        },
+        CriticLoss, OptInterval, OptIntervalCounter,
+    },
+    core::Env,
 };
 
 type ActionValue = Tensor;
@@ -19,6 +22,7 @@ type ActMean = Tensor;
 type ActStd = Tensor;
 
 /// SAC builder.
+#[allow(clippy::upper_case_acronyms)]
 pub struct SACBuilder {
     gamma: f64,
     tau: f64,
@@ -50,12 +54,12 @@ impl Default for SACBuilder {
             batch_size: 1,
             train: false,
             critic_loss: CriticLoss::MSE,
-            reward_scale: 1.0
+            reward_scale: 1.0,
         }
     }
 }
 
-impl SACBuilder{
+impl SACBuilder {
     /// Discount factor.
     pub fn discount_factor(mut self, v: f64) -> Self {
         self.gamma = v;
@@ -73,7 +77,7 @@ impl SACBuilder{
         self.ent_coef_mode = v;
         self
     }
-    
+
     /// Set optimization interval.
     pub fn opt_interval(mut self, v: OptInterval) -> Self {
         self.opt_interval_counter = v.counter();
@@ -113,13 +117,19 @@ impl SACBuilder{
     }
 
     /// Constructs SAC.
-    pub fn build<E, Q, P, O, A>(self, critics: Vec<Q>, policy: P,
-        replay_buffer: ReplayBuffer<E, O, A>, device: tch::Device) -> SAC<E, Q, P, O, A> where
+    pub fn build<E, Q, P, O, A>(
+        self,
+        critics: Vec<Q>,
+        policy: P,
+        replay_buffer: ReplayBuffer<E, O, A>,
+        device: tch::Device,
+    ) -> SAC<E, Q, P, O, A>
+    where
         E: Env,
         Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
         P: Model1<Output = (ActMean, ActStd)> + Clone,
-        E::Obs :Into<O::SubBatch>,
-        E::Act :From<Tensor>,
+        E::Obs: Into<O::SubBatch>,
+        E::Act: From<Tensor>,
         O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
         A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
     {
@@ -146,7 +156,7 @@ impl SACBuilder{
             critic_loss: self.critic_loss,
             prev_obs: RefCell::new(None),
             device,
-            phantom: PhantomData,       
+            phantom: PhantomData,
         }
     }
 }

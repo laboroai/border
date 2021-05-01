@@ -1,6 +1,6 @@
 [package]
 name = "border"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
 edition = "2018"
 
@@ -14,7 +14,9 @@ autoexamples = false
 
 [dependencies]
 ndarray = { version = "0.14", features = ["serde"] }
-tch = "0.3.0"
+# tch = "0.3.0"
+# tch = "0.4.0"
+tch = { git = "https://github.com/taku-y/tch-rs", branch = "adam_eps" }
 numpy = "0.13"
 pyo3 = "0.13"
 fastrand = "1.4.0"
@@ -26,6 +28,10 @@ chrono = "0.4"
 tensorboard-rs = "0.2.4"
 thiserror = "1.0"
 aquamarine = "0.1"
+reqwest = { version = "0.11.3", features = ["blocking"]}
+dirs = "3.0.2"
+anyhow = "1.0.38"
+zip = "0.5.12"
 
 [[example]]
 name = "random_cartpole"
@@ -34,16 +40,22 @@ name = "random_cartpole"
 name = "dqn_cartpole"
 
 [[example]]
+name = "iqn_cartpole"
+
+[[example]]
 name = "sac_pendulum"
 
 [[example]]
-name = "dqn_pong"
+name = "quantile_loss"
 
 [[example]]
-name = "dqn_pong_vecenv"
+name = "dqn_atari"
 
 [[example]]
-name = "dqn_pong_eval"
+name = "iqn_atari"
+
+[[example]]
+name = "iqn_regression"
 
 [[example]]
 name = "random_ant"
@@ -52,19 +64,15 @@ name = "random_ant"
 name = "sac_ant"
 
 [[example]]
-name = "dqn_atari"
+name = "dqn_pong_vecenv"
 
 [[example]]
-name = "dqn_atari_f32"
-
-[[example]]
-name = "quantile_loss"
+name = "dqn_pong_eval"
 
 [dev-dependencies]
 clap = "2.33.3"
 csv = "1.1.5"
 serde = { version = "1.0.117", features = ["derive"] }
-anyhow = "1.0.38"
 
 [package.metadata.docs.rs]
 features = [ "doc-only" ]

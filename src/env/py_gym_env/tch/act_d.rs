@@ -1,12 +1,9 @@
 //! Interface for discrete action of [super::super::PyGymEnv].
-use std::convert::TryFrom;
 use log::trace;
+use std::convert::TryFrom;
 use tch::Tensor;
 
-use crate::{
-    agent::tch::TchBuffer,
-    env::py_gym_env::act_d::PyGymEnvDiscreteAct
-};
+use crate::{agent::tch::TchBuffer, env::py_gym_env::act_d::PyGymEnvDiscreteAct};
 
 impl From<Tensor> for PyGymEnvDiscreteAct {
     /// Assumes `t` is a scalar or 1-dimensional vector,
@@ -14,9 +11,7 @@ impl From<Tensor> for PyGymEnvDiscreteAct {
     /// equal to the number of environments in the vectorized environment.
     fn from(t: Tensor) -> Self {
         trace!("Tensor from TchPyGymEnvDiscreteAct: {:?}", t);
-        Self {
-            act: t.into(),
-        }
+        Self { act: t.into() }
     }
 }
 
@@ -49,7 +44,10 @@ impl TchBuffer for TchPyGymEnvDiscreteActBuffer {
     fn batch(&self, batch_indexes: &Tensor) -> Tensor {
         let batch = self.act.index_select(0, &batch_indexes);
         let batch = batch.flatten(0, 1).unsqueeze(-1);
-        debug_assert_eq!(batch.size().as_slice(), [batch_indexes.size()[0] * self.n_procs, 1]);
+        debug_assert_eq!(
+            batch.size().as_slice(),
+            [batch_indexes.size()[0] * self.n_procs, 1]
+        );
         batch
     }
 }

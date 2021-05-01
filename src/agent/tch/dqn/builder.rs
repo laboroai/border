@@ -4,24 +4,28 @@ use std::{cell::RefCell, marker::PhantomData};
 use tch::Tensor;
 
 use crate::{
-    core::Env,
     agent::{
-        OptInterval, OptIntervalCounter,
         tch::{
-            ReplayBuffer, TchBuffer,
+            dqn::{
+                explorer::{DQNExplorer, Softmax},
+                DQN,
+            },
             model::Model1,
-            dqn::{DQN, explorer::{DQNExplorer, Softmax}}
-        }
-    }
+            ReplayBuffer, TchBuffer,
+        },
+        OptInterval, OptIntervalCounter,
+    },
+    core::Env,
 };
 
 #[allow(clippy::upper_case_acronyms)]
 /// DQN builder.
-pub struct DQNBuilder<E, M, O, A> where
+pub struct DQNBuilder<E, M, O, A>
+where
     E: Env,
-    M: Model1<Input=Tensor, Output=Tensor> + Clone,
-    E::Obs :Into<M::Input>,
-    E::Act :From<Tensor>,
+    M: Model1<Input = Tensor, Output = Tensor> + Clone,
+    E::Obs: Into<M::Input>,
+    E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
@@ -38,11 +42,12 @@ pub struct DQNBuilder<E, M, O, A> where
 }
 
 #[allow(clippy::new_without_default)]
-impl<E, M, O, A> DQNBuilder<E, M, O, A> where
+impl<E, M, O, A> DQNBuilder<E, M, O, A>
+where
     E: Env,
-    M: Model1<Input=Tensor, Output=Tensor> + Clone,
-    E::Obs :Into<M::Input>,
-    E::Act :From<Tensor>,
+    M: Model1<Input = Tensor, Output = Tensor> + Clone,
+    E::Obs: Into<M::Input>,
+    E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
@@ -63,11 +68,12 @@ impl<E, M, O, A> DQNBuilder<E, M, O, A> where
     }
 }
 
-impl<E, M, O, A> DQNBuilder<E, M, O, A> where
+impl<E, M, O, A> DQNBuilder<E, M, O, A>
+where
     E: Env,
-    M: Model1<Input=Tensor, Output=Tensor> + Clone,
-    E::Obs :Into<M::Input>,
-    E::Act :From<Tensor>,
+    M: Model1<Input = Tensor, Output = Tensor> + Clone,
+    E::Obs: Into<M::Input>,
+    E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
@@ -114,14 +120,18 @@ impl<E, M, O, A> DQNBuilder<E, M, O, A> where
     }
 
     /// Set explorer.
-    pub fn explorer(mut self, v: DQNExplorer) -> DQNBuilder<E, M, O, A> where
-    {
+    pub fn explorer(mut self, v: DQNExplorer) -> DQNBuilder<E, M, O, A> where {
         self.explorer = v;
         self
     }
 
     /// Constructs DQN.
-    pub fn build(self, qnet: M, replay_buffer: ReplayBuffer<E, O, A>, device: tch::Device) -> DQN<E, M, O, A> {
+    pub fn build(
+        self,
+        qnet: M,
+        replay_buffer: ReplayBuffer<E, O, A>,
+        device: tch::Device,
+    ) -> DQN<E, M, O, A> {
         let qnet_tgt = qnet.clone();
 
         DQN {

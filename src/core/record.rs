@@ -1,10 +1,15 @@
 //! This module offers types for recording values obtained during training and evaluation.
 //!
-use std::{
-    collections::{HashMap, hash_map::{Iter, IntoIter, Keys}},
-    convert::Into, path::Path, iter::IntoIterator
-};
 use chrono::prelude::{DateTime, Local};
+use std::{
+    collections::{
+        hash_map::{IntoIter, Iter, Keys},
+        HashMap,
+    },
+    convert::Into,
+    iter::IntoIterator,
+    path::Path,
+};
 use tensorboard_rs::summary_writer::SummaryWriter;
 
 use crate::error::LrrError;
@@ -24,7 +29,7 @@ pub enum RecordValue {
 
 #[derive(Debug)]
 /// Represents a record.
-pub struct Record (HashMap<String, RecordValue>);
+pub struct Record(HashMap<String, RecordValue>);
 
 impl Record {
     /// Construct empty record.
@@ -34,7 +39,11 @@ impl Record {
 
     /// Create `Record` from slice of `(Into<String>, RecordValue)`.
     pub fn from_slice<K: Into<String> + Clone>(s: &[(K, RecordValue)]) -> Self {
-        Self (s.iter().map(|(k, v)| (k.clone().into(), v.clone())).collect())
+        Self(
+            s.iter()
+                .map(|(k, v)| (k.clone().into(), v.clone()))
+                .collect(),
+        )
     }
 
     /// Get keys.
@@ -72,10 +81,9 @@ impl Record {
         if let Some(v) = self.0.get(k) {
             match v {
                 RecordValue::Scalar(v) => Ok(*v as _),
-                _ => Err(LrrError::RecordValueTypeError("Scalar".to_string()))
+                _ => Err(LrrError::RecordValueTypeError("Scalar".to_string())),
             }
-        }
-        else {
+        } else {
             Err(LrrError::RecordKeyError(k.to_string()))
         }
     }
@@ -85,10 +93,9 @@ impl Record {
         if let Some(v) = self.0.get(k) {
             match v {
                 RecordValue::Array1(v) => Ok(v.clone()),
-                _ => Err(LrrError::RecordValueTypeError("Array1".to_string()))
+                _ => Err(LrrError::RecordValueTypeError("Array1".to_string())),
             }
-        }
-        else {
+        } else {
             Err(LrrError::RecordKeyError(k.to_string()))
         }
     }
@@ -123,7 +130,7 @@ impl TensorboardRecorder {
     pub fn new<P: AsRef<Path>>(logdir: P) -> Self {
         Self {
             writer: SummaryWriter::new(logdir),
-            step_key: "n_opts".to_string()
+            step_key: "n_opts".to_string(),
         }
     }
 }
@@ -135,19 +142,21 @@ impl Recorder for TensorboardRecorder {
     fn write(&mut self, record: Record) {
         // TODO: handle error
         let step = match record.get(&self.step_key).unwrap() {
-            RecordValue::Scalar(v) => { *v as usize },
-            _ => { panic!() }
+            RecordValue::Scalar(v) => *v as usize,
+            _ => {
+                panic!()
+            }
         };
 
         for (k, v) in record.iter() {
             if *k != self.step_key {
                 match v {
-                    RecordValue::Scalar(v) => {
-                        self.writer.add_scalar(k, *v as f32, step)
-                    },
-                    RecordValue::DateTime(_) => {}, // discard value
-                    _ => { unimplemented!() }
-                };                
+                    RecordValue::Scalar(v) => self.writer.add_scalar(k, *v as f32, step),
+                    RecordValue::DateTime(_) => {} // discard value
+                    _ => {
+                        unimplemented!()
+                    }
+                };
             }
         }
     }
@@ -158,11 +167,13 @@ impl Recorder for TensorboardRecorder {
 /// This is used for recording sequences of observation and action
 /// during evaluation runs in [`crate::core::util::eval_with_recorder`].
 #[derive(Default)]
-pub struct BufferedRecorder (Vec<Record>);
+pub struct BufferedRecorder(Vec<Record>);
 
 impl BufferedRecorder {
     /// Construct the recorder.
-    pub fn new() -> Self { Self(Vec::default()) }
+    pub fn new() -> Self {
+        Self(Vec::default())
+    }
 
     /// Returns an iterator over the records.
     pub fn iter(&self) -> std::slice::Iter<Record> {

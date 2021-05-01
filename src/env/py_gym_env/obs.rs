@@ -1,16 +1,19 @@
 //! Observation for [`super::PyGymEnv`] and [`super::PyVecGymEnv`].
-use std::{fmt::Debug, iter::FromIterator};
-use std::default::Default;
-use std::marker::PhantomData;
 use log::trace;
+use ndarray::{stack, ArrayD, Axis, IxDyn};
 use num_traits::cast::AsPrimitive;
-use pyo3::{Py, PyObject, types::PyList};
-use ndarray::{ArrayD, Axis, IxDyn, stack};
 use numpy::{Element, PyArrayDyn};
+use pyo3::{types::PyList, Py, PyObject};
+use std::default::Default;
+use std::fmt::Debug;
+use std::marker::PhantomData;
 
 use crate::{
-    core::{Obs, record::{Record, RecordValue}},
-    env::py_gym_env::{Shape, PyGymEnvObsFilter},
+    core::{
+        record::{Record, RecordValue},
+        Obs,
+    },
+    env::py_gym_env::{PyGymEnvObsFilter, Shape},
 };
 
 fn any(is_done: &[i8]) -> bool {
@@ -20,13 +23,14 @@ fn any(is_done: &[i8]) -> bool {
 /// Convert PyObject to ArrayD.
 ///
 /// If the shape of the PyArray has the number of axes equal to the shape of
-/// observation, i.e., `S.shape().len()`, it is considered an observation from a 
+/// observation, i.e., `S.shape().len()`, it is considered an observation from a
 /// non-vectorized environment, an axis will be appended before the leading dimension.
 /// in order for the array to meet the shape of the array in [`PyGymEnvObs`].
-pub fn pyobj_to_arrayd<S, T1, T2>(obs: PyObject) -> ArrayD<T2> where
+pub fn pyobj_to_arrayd<S, T1, T2>(obs: PyObject) -> ArrayD<T2>
+where
     S: Shape,
     T1: Element + AsPrimitive<T2>,
-    T2: 'static + Copy
+    T2: 'static + Copy,
 {
     pyo3::Python::with_gil(|py| {
         let obs: &PyArrayDyn<T1> = obs.extract(py).unwrap();
@@ -37,12 +41,10 @@ pub fn pyobj_to_arrayd<S, T1, T2>(obs: PyObject) -> ArrayD<T2> where
             if obs.shape().len() == S::shape().len() + 1 {
                 // In this case obs has a dimension for n_procs
                 obs
-            }
-            else if obs.shape().len() == S::shape().len() {
+            } else if obs.shape().len() == S::shape().len() {
                 // add dimension for n_procs
                 obs.insert_axis(Axis(0))
-            }
-            else {
+            } else {
                 panic!();
             }
         };
@@ -54,17 +56,18 @@ pub fn pyobj_to_arrayd<S, T1, T2>(obs: PyObject) -> ArrayD<T2> where
 ///
 /// `S` is the shape of an observation, except for batch and process dimensions.
 /// `T` is the dtype of ndarray in the Python gym environment.
-/// For some reason, the dtype of observations in Python gym environments seems to 
+/// For some reason, the dtype of observations in Python gym environments seems to
 /// vary, f32 or f64. To get observations in Rust side, the dtype is specified as a
 /// type parameter, instead of checking the dtype of Python array at runtime.
 #[derive(Clone, Debug)]
-pub struct PyGymEnvObs<S, T1, T2> where
+pub struct PyGymEnvObs<S, T1, T2>
+where
     S: Shape,
     T1: Element + Debug,
-    T2: 'static + Copy
+    T2: 'static + Copy,
 {
     pub(crate) obs: ArrayD<T2>,
-    pub(crate) phantom: PhantomData<(S, T1)>
+    pub(crate) phantom: PhantomData<(S, T1)>,
 }
 
 // // TODO: consider remove this item.
@@ -84,10 +87,11 @@ pub struct PyGymEnvObs<S, T1, T2> where
 //     S: Shape,
 //     T1: Element + Debug + num_traits::identities::Zero,
 // {
-impl<S, T1, T2> Obs for PyGymEnvObs<S, T1, T2> where
+impl<S, T1, T2> Obs for PyGymEnvObs<S, T1, T2>
+where
     S: Shape,
     T1: Debug + Element,
-    T2: 'static + Copy + Debug + num_traits::Zero
+    T2: 'static + Copy + Debug + num_traits::Zero,
 {
     fn dummy(n_procs: usize) -> Self {
         let shape = &mut S::shape().to_vec();
@@ -95,7 +99,7 @@ impl<S, T1, T2> Obs for PyGymEnvObs<S, T1, T2> where
         trace!("Shape of TchPyGymEnvObs: {:?}", shape);
         Self {
             obs: ArrayD::zeros(IxDyn(&shape[..])),
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 
@@ -103,12 +107,22 @@ impl<S, T1, T2> Obs for PyGymEnvObs<S, T1, T2> where
         if any(is_done) {
             for (i, is_done_i) in is_done.iter().enumerate() {
                 if *is_done_i != 0 {
-                    self.obs.index_axis_mut(Axis(0), i)
+                    self.obs
+                        .index_axis_mut(Axis(0), i)
                         .assign(&obs_reset.obs.index_axis(Axis(0), i));
                 }
             }
         };
         self
+    }
+
+    // TODO: consider to remove this method
+    fn n_procs(&self) -> usize {
+        self.obs.shape()[0]
+    }
+
+    fn batch_size(&self) -> usize {
+        self.obs.shape()[0]
     }
 }
 
@@ -119,7 +133,7 @@ pub struct PyGymEnvObsRawFilter<S, T1, T2> {
     /// If the environment is vectorized.
     pub vectorized: bool,
     /// Marker.
-    pub phantom: PhantomData<(S, T1, T2)>
+    pub phantom: PhantomData<(S, T1, T2)>,
 }
 
 impl<S, T1, T2> PyGymEnvObsRawFilter<S, T1, T2> {
@@ -132,7 +146,8 @@ impl<S, T1, T2> PyGymEnvObsRawFilter<S, T1, T2> {
     }
 }
 
-impl<S, T1, T2> Default for PyGymEnvObsRawFilter<S, T1, T2> where
+impl<S, T1, T2> Default for PyGymEnvObsRawFilter<S, T1, T2>
+where
     S: Shape,
     T1: Element,
 {
@@ -144,10 +159,11 @@ impl<S, T1, T2> Default for PyGymEnvObsRawFilter<S, T1, T2> where
     }
 }
 
-impl<S, T1, T2> PyGymEnvObsFilter<PyGymEnvObs<S, T1, T2>> for PyGymEnvObsRawFilter<S, T1, T2> where
+impl<S, T1, T2> PyGymEnvObsFilter<PyGymEnvObs<S, T1, T2>> for PyGymEnvObsRawFilter<S, T1, T2>
+where
     S: Shape,
     T1: Element + Debug + num_traits::identities::Zero + AsPrimitive<T2>,
-    T2: 'static + Copy + Debug + num_traits::Zero + AsPrimitive<f32>
+    T2: 'static + Copy + Debug + num_traits::Zero + AsPrimitive<f32>,
 {
     /// Convert `PyObject` to [ndarray::ArrayD].
     ///
@@ -168,7 +184,9 @@ impl<S, T1, T2> PyGymEnvObsFilter<PyGymEnvObs<S, T1, T2>> for PyGymEnvObsRawFilt
 
                 // Iterate over the list of observations of the environments in the
                 // vectorized environment.
-                let filtered = obs.as_ref(py).iter()
+                let filtered = obs
+                    .as_ref(py)
+                    .iter()
                     .map(|o| {
                         // `NoneType` means the element will be ignored in the following processes.
                         // This can appears in partial reset of the vectorized environment.
@@ -184,11 +202,12 @@ impl<S, T1, T2> PyGymEnvObsFilter<PyGymEnvObs<S, T1, T2>> for PyGymEnvObsRawFilt
                             debug_assert_eq!(obs.shape(), S::shape());
                             obs
                         }
-                    }).collect::<Vec<_>>();
+                    })
+                    .collect::<Vec<_>>();
                 let arrays_view: Vec<_> = filtered.iter().map(|a| a.view()).collect();
                 PyGymEnvObs::<S, T1, T2> {
                     obs: stack(Axis(0), arrays_view.as_slice()).unwrap(),
-                    phantom: PhantomData
+                    phantom: PhantomData,
                 }
             });
             let record = {
@@ -200,14 +219,12 @@ impl<S, T1, T2> PyGymEnvObsFilter<PyGymEnvObs<S, T1, T2>> for PyGymEnvObsRawFilt
             //         Vec::<_>::from_iter(obs.obs.iter().map(|x| x.as_()).cloned()))
             //     )]);
             (obs, record)
-        }
-        else {
+        } else {
             let obs = pyo3::Python::with_gil(|py| {
                 if obs.as_ref(py).get_type().name().unwrap() == "NoneType" {
                     // TODO: consider panic!() if the environment returns None
                     PyGymEnvObs::<S, T1, T2>::dummy(1)
-                }
-                else {
+                } else {
                     PyGymEnvObs {
                         obs: pyobj_to_arrayd::<S, T1, T2>(obs),
                         phantom: PhantomData,

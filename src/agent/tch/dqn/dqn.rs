@@ -1,30 +1,30 @@
 //! DQN agent implemented with tch-rs.
 use log::trace;
-use std::{error::Error, cell::RefCell, marker::PhantomData, path::Path, fs};
-use tch::{no_grad, Tensor};
+use std::{cell::RefCell, error::Error, fs, marker::PhantomData, path::Path};
+use tch::{no_grad, Device, Tensor};
 
 use crate::{
-    core::{
-        Policy, Agent, Step, Env,
-        record::{Record, RecordValue}
-    },
     agent::{
-        OptIntervalCounter,
         tch::{
-            ReplayBuffer, TchBuffer, TchBatch,
-            model::Model1, util::track,
-            dqn::explorer::DQNExplorer
-        }
-    }
+            dqn::explorer::DQNExplorer, model::Model1, util::track, ReplayBuffer, TchBatch,
+            TchBuffer,
+        },
+        OptIntervalCounter,
+    },
+    core::{
+        record::{Record, RecordValue},
+        Agent, Env, Policy, Step,
+    },
 };
 
 #[allow(clippy::upper_case_acronyms)]
 /// DQN agent implemented with tch-rs.
-pub struct DQN<E, M, O, A> where
+pub struct DQN<E, M, O, A>
+where
     E: Env,
     M: Model1 + Clone,
-    E::Obs :Into<M::Input>,
-    E::Act :From<Tensor>,
+    E::Obs: Into<M::Input>,
+    E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
@@ -44,14 +44,15 @@ pub struct DQN<E, M, O, A> where
     pub(crate) discount_factor: f64,
     pub(crate) tau: f64,
     pub(crate) explorer: DQNExplorer,
-    pub(crate) device: tch::Device,
+    pub(crate) device: Device,
 }
 
-impl<E, M, O, A> DQN<E, M, O, A> where
+impl<E, M, O, A> DQN<E, M, O, A>
+where
     E: Env,
-    M: Model1<Input=Tensor, Output=Tensor> + Clone,
-    E::Obs :Into<M::Input>,
-    E::Act :From<Tensor>,
+    M: Model1<Input = Tensor, Output = Tensor> + Clone,
+    E::Obs: Into<M::Input>,
+    E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
@@ -62,13 +63,8 @@ impl<E, M, O, A> DQN<E, M, O, A> where
         let obs = self.prev_obs.replace(None).unwrap();
         let reward = Tensor::of_slice(&step.reward[..]);
         let not_done = Tensor::from(1f32) - Tensor::of_slice(&step.is_done[..]);
-        self.replay_buffer.push(
-            &obs,
-            &step.act,
-            &reward,
-            &next_obs,
-            &not_done,
-        );
+        self.replay_buffer
+            .push(&obs, &step.act, &reward, &next_obs, &not_done);
         let _ = self.prev_obs.replace(Some(next_obs));
     }
 
@@ -80,11 +76,6 @@ impl<E, M, O, A> DQN<E, M, O, A> where
         let r = batch.rewards.to(self.device);
         let next_obs = batch.next_obs.to(self.device);
         let not_done = batch.not_dones.to(self.device);
-        trace!("obs.shape      = {:?}", obs.size());
-        trace!("next_obs.shape = {:?}", next_obs.size());
-        trace!("a.shape        = {:?}", a.size());
-        trace!("r.shape        = {:?}", r.size());
-        trace!("not_done.shape = {:?}", not_done.size());
 
         let loss = {
             let pred = {
@@ -111,11 +102,12 @@ impl<E, M, O, A> DQN<E, M, O, A> where
     }
 }
 
-impl<E, M, O, A> Policy<E> for DQN<E, M, O, A> where
+impl<E, M, O, A> Policy<E> for DQN<E, M, O, A>
+where
     E: Env,
-    M: Model1<Input=Tensor, Output=Tensor> + Clone,
-    E::Obs :Into<M::Input>,
-    E::Act :From<Tensor>,
+    M: Model1<Input = Tensor, Output = Tensor> + Clone,
+    E::Obs: Into<M::Input>,
+    E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
@@ -136,11 +128,12 @@ impl<E, M, O, A> Policy<E> for DQN<E, M, O, A> where
     }
 }
 
-impl<E, M, O, A> Agent<E> for DQN<E, M, O, A> where
+impl<E, M, O, A> Agent<E> for DQN<E, M, O, A>
+where
     E: Env,
-    M: Model1<Input=Tensor, Output=Tensor> + Clone,
-    E::Obs :Into<M::Input>,
-    E::Act :From<Tensor>,
+    M: Model1<Input = Tensor, Output = Tensor> + Clone,
+    E::Obs: Into<M::Input>,
+    E::Act: From<Tensor>,
     O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
 {
@@ -184,7 +177,7 @@ impl<E, M, O, A> Agent<E> for DQN<E, M, O, A> where
                 trace!("Sample random batch");
 
                 loss_critic += self.update_critic(batch);
-            };
+            }
 
             self.soft_update_counter += 1;
             if self.soft_update_counter == self.soft_update_interval {
@@ -195,11 +188,11 @@ impl<E, M, O, A> Agent<E> for DQN<E, M, O, A> where
 
             loss_critic /= self.n_updates_per_opt as f32;
 
-            Some(Record::from_slice(&[
-                ("loss_critic", RecordValue::Scalar(loss_critic)),
-            ]))
-        }
-        else {
+            Some(Record::from_slice(&[(
+                "loss_critic",
+                RecordValue::Scalar(loss_critic),
+            )]))
+        } else {
             None
         }
     }
@@ -208,13 +201,15 @@ impl<E, M, O, A> Agent<E> for DQN<E, M, O, A> where
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
         self.qnet.save(&path.as_ref().join("qnet.pt").as_path())?;
-        self.qnet_tgt.save(&path.as_ref().join("qnet_tgt.pt").as_path())?;
+        self.qnet_tgt
+            .save(&path.as_ref().join("qnet_tgt.pt").as_path())?;
         Ok(())
     }
 
     fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<(), Box<dyn Error>> {
         self.qnet.load(&path.as_ref().join("qnet.pt").as_path())?;
-        self.qnet_tgt.load(&path.as_ref().join("qnet_tgt.pt").as_path())?;
+        self.qnet_tgt
+            .load(&path.as_ref().join("qnet_tgt.pt").as_path())?;
         Ok(())
     }
 }

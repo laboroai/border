@@ -1,13 +1,14 @@
 //! Wrapper of gym environments implemented in Python.
 #![allow(clippy::float_cmp)]
-use std::{fmt::Debug, error::Error, time::Duration};
-use std::marker::PhantomData;
-use std::cell::RefCell;
-use log::{trace};
+use log::trace;
+use pyo3::types::{IntoPyDict, PyTuple};
 use pyo3::{PyObject, PyResult, Python, ToPyObject};
-use pyo3::types::{PyTuple, IntoPyDict};
+use std::cell::RefCell;
+use std::marker::PhantomData;
+use std::{error::Error, fmt::Debug, time::Duration};
 
-use crate::core::{Act, Env, Info, Obs, Step, record::Record};
+use super::AtariWrapper;
+use crate::core::{record::Record, Act, Env, Info, Obs, Step};
 
 /// Information given at every step of the interaction with the environment.
 ///
@@ -68,7 +69,7 @@ pub trait PyGymEnvActFilter<A: Act> {
 /// Constructs [PyGymEnv].
 pub struct PyGymEnvBuilder<O, A, OF, AF> {
     max_steps: Option<usize>,
-    atari_wrapper: bool,
+    atari_wrapper: Option<AtariWrapper>,
     pybullet: bool,
     phantom: PhantomData<(O, A, OF, AF)>,
 }
@@ -77,18 +78,19 @@ impl<O, A, OF, AF> Default for PyGymEnvBuilder<O, A, OF, AF> {
     fn default() -> Self {
         Self {
             max_steps: None,
-            atari_wrapper: false,
+            atari_wrapper: None,
             pybullet: false,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 }
 
-impl<O, A, OF, AF> PyGymEnvBuilder<O, A, OF, AF> where 
+impl<O, A, OF, AF> PyGymEnvBuilder<O, A, OF, AF>
+where
     O: Obs,
     A: Act,
     OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>
+    AF: PyGymEnvActFilter<A>,
 {
     /// Set `True` when using PyBullet environments.
     pub fn pybullet(mut self, v: bool) -> Self {
@@ -97,13 +99,18 @@ impl<O, A, OF, AF> PyGymEnvBuilder<O, A, OF, AF> where
     }
 
     /// Set `True` when using Atari wrapper.
-    pub fn atari_wrapper(mut self, v: bool) -> Self {
+    pub fn atari_wrapper(mut self, v: Option<AtariWrapper>) -> Self {
         self.atari_wrapper = v;
         self
     }
 
     /// Constructs [PyGymEnv].
-    pub fn build(self, name: &str, obs_filter: OF, act_filter: AF) -> PyResult<PyGymEnv<O, A, OF, AF>> {
+    pub fn build(
+        self,
+        name: &str,
+        obs_filter: OF,
+        act_filter: AF,
+    ) -> PyResult<PyGymEnv<O, A, OF, AF>> {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
@@ -117,13 +124,16 @@ impl<O, A, OF, AF> PyGymEnvBuilder<O, A, OF, AF> where
         // import pybullet-gym if it exists
         if py.import("pybulletgym").is_ok() {}
 
-        let env = if self.atari_wrapper {
+        let env = if let Some(mode) = self.atari_wrapper {
+            let mode = match mode {
+                AtariWrapper::Train => true,
+                AtariWrapper::Eval => false,
+            };
             let gym = py.import("atari_wrappers")?;
-            let env = gym.call("make_env_single_proc", (name, self.atari_wrapper), None)?;
+            let env = gym.call("make_env_single_proc", (name, true, mode), None)?;
             env.call_method("seed", (42,), None)?;
             env
-        }
-        else {
+        } else {
             let gym = py.import("gym")?;
             let env = gym.call("make", (name,), None)?;
             env.call_method("seed", (42,), None)?;
@@ -162,11 +172,12 @@ impl<O, A, OF, AF> PyGymEnvBuilder<O, A, OF, AF> where
 /// Represents an environment in [OpenAI gym](https://github.com/openai/gym).
 /// The code is adapted from [tch-rs RL example](https://github.com/LaurentMazare/tch-rs/tree/master/examples/reinforcement-learning).
 #[derive(Debug, Clone)]
-pub struct PyGymEnv<O, A, OF, AF> where
+pub struct PyGymEnv<O, A, OF, AF>
+where
     O: Obs,
     A: Act,
     OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>
+    AF: PyGymEnvActFilter<A>,
 {
     render: bool,
     env: PyObject,
@@ -181,16 +192,22 @@ pub struct PyGymEnv<O, A, OF, AF> where
     phantom: PhantomData<(O, A)>,
 }
 
-impl<O, A, OF, AF> PyGymEnv<O, A, OF, AF> where
+impl<O, A, OF, AF> PyGymEnv<O, A, OF, AF>
+where
     O: Obs,
     A: Act,
     OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>
+    AF: PyGymEnvActFilter<A>,
 {
     /// Constructs an environment.
     ///
     /// `name` is the name of the environment, which is implemented in OpenAI gym.
-    pub fn new(name: &str, obs_filter: OF, act_filter: AF, atari_wrapper: bool) -> PyResult<Self> {
+    pub fn new(
+        name: &str,
+        obs_filter: OF,
+        act_filter: AF,
+        atari_wrapper: Option<AtariWrapper>,
+    ) -> PyResult<Self> {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
@@ -204,13 +221,16 @@ impl<O, A, OF, AF> PyGymEnv<O, A, OF, AF> where
         // import pybullet-gym if it exists
         if py.import("pybulletgym").is_ok() {}
 
-        let env = if atari_wrapper {
+        let env = if let Some(mode) = atari_wrapper {
+            let mode = match mode {
+                AtariWrapper::Train => true,
+                AtariWrapper::Eval => false,
+            };
             let gym = py.import("atari_wrappers")?;
-            let env = gym.call("make_env_single_proc", (name, atari_wrapper), None)?;
+            let env = gym.call("make_env_single_proc", (name, true, mode), None)?;
             env.call_method("seed", (42,), None)?;
             env
-        }
-        else {
+        } else {
             let gym = py.import("gym")?;
             let env = gym.call("make", (name,), None)?;
             env.call_method("seed", (42,), None)?;
@@ -277,11 +297,12 @@ impl<O, A, OF, AF> PyGymEnv<O, A, OF, AF> where
     }
 }
 
-impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
+impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF>
+where
     O: Obs,
     A: Act + Debug,
     OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>
+    AF: PyGymEnvActFilter<A>,
 {
     type Obs = O;
     type Act = A;
@@ -292,7 +313,7 @@ impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
     /// In this environment, the length of `is_done` is assumed to be 1.
     ///
     /// TODO: defines appropriate error for the method and returns it.
-    fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<O, Box<dyn Error>>  {
+    fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<O, Box<dyn Error>> {
         trace!("PyGymEnv::reset()");
 
         // Reset the action filter, required for stateful filters.
@@ -309,8 +330,7 @@ impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
 
         if !reset {
             Ok(O::dummy(1))
-        }
-        else {
+        } else {
             pyo3::Python::with_gil(|py| {
                 let obs = self.env.call_method0(py, "reset")?;
                 Ok(self.obs_filter.reset(obs))
@@ -340,9 +360,11 @@ impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
             let obs = step.get_item(0).to_owned();
             let (obs, record_o) = self.obs_filter.filt(obs.to_object(py));
             let reward: Vec<f32> = vec![step.get_item(1).extract().unwrap()];
-            let mut is_done: Vec<i8> = vec![
-                if step.get_item(2).extract().unwrap() {1} else {0}
-            ];
+            let mut is_done: Vec<i8> = vec![if step.get_item(2).extract().unwrap() {
+                1
+            } else {
+                0
+            }];
 
             let c = *self.count_steps.borrow();
             self.count_steps.replace(c + 1);
@@ -354,8 +376,8 @@ impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF> where
             };
 
             (
-                Step::<Self>::new(obs, a.clone(), reward, is_done, PyGymInfo{}),
-                record_o.merge(record_a)
+                Step::<Self>::new(obs, a.clone(), reward, is_done, PyGymInfo {}),
+                record_o.merge(record_a),
             )
         })
     }

@@ -1,6 +1,6 @@
 //! Core functionalities.
-use std::{fmt::Debug, path::Path, error::Error};
 use crate::core::record::Record;
+use std::{error::Error, fmt::Debug, path::Path};
 
 /// Represents an observation of the environment.
 pub trait Obs: Clone + Debug {
@@ -12,6 +12,15 @@ pub trait Obs: Clone + Debug {
     /// Replace elements of observation where `is_done[i] == 1.0`.
     /// This method assumes that `is_done.len() == n_procs`.
     fn merge(self, obs_reset: Self, is_done: &[i8]) -> Self;
+
+    /// Returns the number of processes that created this observation;
+    /// it assumes a synchronous vectorized environment.
+    ///
+    /// TODO: consider to remove this, replace with `batch_size()`.
+    fn n_procs(&self) -> usize;
+
+    /// Returns the batch size.
+    fn batch_size(&self) -> usize;
 }
 
 /// Represents an action of the environment.
@@ -37,7 +46,13 @@ pub struct Step<E: Env> {
 
 impl<E: Env> Step<E> {
     /// Constructs a [Step] object.
-    pub fn new(obs: E::Obs, act: E::Act, reward: Vec<f32>, is_done: Vec<i8>, info: E::Info) -> Self {
+    pub fn new(
+        obs: E::Obs,
+        act: E::Act,
+        reward: Vec<f32>,
+        is_done: Vec<i8>,
+        info: E::Info,
+    ) -> Self {
         Step {
             act,
             obs,
@@ -58,7 +73,9 @@ pub trait Env {
     type Info: Info;
 
     /// Performes an interaction step.
-    fn step(&mut self, a: &Self::Act) -> (Step<Self>, Record) where Self: Sized;
+    fn step(&mut self, a: &Self::Act) -> (Step<Self>, Record)
+    where
+        Self: Sized;
 
     /// Reset the i-th environment if `is_done[i]==1.0`.
     /// Thei-th return value should be ignored if `is_done[i]==0.0`.
