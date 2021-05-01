@@ -9,6 +9,7 @@ use border::{
         framestack::FrameStackFilter,
         obs::PyGymEnvObs,
         tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
+        atari::AtariWrapper,
         PyGymEnv, Shape,
     },
 };
@@ -29,12 +30,12 @@ impl Shape for ObsShape {
     }
 }
 
-type ObsFilter = FrameStackFilter<ObsShape, u8, f32>;
+type ObsFilter = FrameStackFilter<ObsShape, u8, u8>;
 type ActFilter = PyGymEnvDiscreteActRawFilter;
-type Obs = PyGymEnvObs<ObsShape, u8, f32>;
+type Obs = PyGymEnvObs<ObsShape, u8, u8>;
 type Act = PyGymEnvDiscreteAct;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
-type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8, f32>;
+type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8, u8>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 type ReplayBuffer = ReplayBuffer_<Env, ObsBuffer, ActBuffer>;
 
@@ -48,7 +49,7 @@ fn stride(s: i64) -> nn::ConvConfig {
 fn create_critic(device: tch::Device) -> Model1_1 {
     let network_fn = |p: &nn::Path, _in_shape: &[usize], out_dim| {
         nn::seq()
-            .add_fn(|xs| xs.squeeze1(2))
+            .add_fn(|xs| xs.squeeze1(2).internal_cast_float(true) / 255)
             .add(nn::conv2d(p / "c1", N_STACK as i64, 32, 8, stride(4)))
             .add_fn(|xs| xs.relu())
             .add(nn::conv2d(p / "c2", 32, 64, 4, stride(2)))
@@ -73,7 +74,7 @@ fn create_agent() -> impl Agent<Env> {
 fn create_env() -> Env {
     let obs_filter = ObsFilter::new(N_STACK as i64);
     let act_filter = ActFilter::default();
-    Env::new("PongNoFrameskip-v4", obs_filter, act_filter, true).unwrap()
+    Env::new("PongNoFrameskip-v4", obs_filter, act_filter, Some(AtariWrapper::Eval)).unwrap()
 }
 
 fn main() {

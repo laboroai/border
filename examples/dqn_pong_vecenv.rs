@@ -47,12 +47,12 @@ impl Shape for ObsShape {
     }
 }
 
-type ObsFilter = FrameStackFilter<ObsShape, u8, f32>;
+type ObsFilter = FrameStackFilter<ObsShape, u8, u8>;
 type ActFilter = PyGymEnvDiscreteActRawFilter;
-type Obs = PyGymEnvObs<ObsShape, u8, f32>;
+type Obs = PyGymEnvObs<ObsShape, u8, u8>;
 type Act = PyGymEnvDiscreteAct;
 type Env = PyVecGymEnv<Obs, Act, ObsFilter, ActFilter>;
-type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8, f32>;
+type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8, u8>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 type ReplayBuffer = ReplayBuffer_<Env, ObsBuffer, ActBuffer>;
 

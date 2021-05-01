@@ -69,6 +69,8 @@ The pretrained agent will be saved locally in `$HOME/.border/model`.
 
 ### Vectorized environment for atari games
 
+(The code might be broken due to recent changes. It will be fixed in future. The below description is for an older version)
+
 The following command trains a DQN agent in an vectorized environment of Pong:
 
   ```bash
