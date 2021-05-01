@@ -38,7 +38,7 @@ const N_UPDATES_PER_OPT: usize = 1;
 const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
 const SOFT_UPDATE_INTERVAL: usize = 10_000;
 const TAU: f64 = 1.0;
-const MAX_OPTS: usize = 3_000_000;
+const MAX_OPTS: usize = 5_000_000;
 const EVAL_INTERVAL: usize = 10_000;
 const REPLAY_BUFFER_CAPACITY: usize = 50_000;
 const N_EPISODES_PER_EVAL: usize = 1;
@@ -316,21 +316,22 @@ fn main() -> Result<()> {
 
     if !(matches.is_present("play") || matches.is_present("play-gdrive")) {
         let env_eval = create_env(name);
+        let saving_model_dir = format!("./examples/model/iqn_{}", name);
         let mut trainer = TrainerBuilder::default()
             .max_opts(MAX_OPTS)
             .eval_interval(EVAL_INTERVAL)
             .n_episodes_per_eval(N_EPISODES_PER_EVAL)
+            .model_dir(saving_model_dir)
             .build(env, env_eval, agent);
         let mut recorder = TensorboardRecorder::new(format!("./examples/model/iqn_{}", name));
-        let model_dir = format!("./examples/model/iqn_{}", name);
         trainer.train(&mut recorder);
-        trainer.get_agent().save(model_dir).unwrap(); // TODO: define appropriate error
     } else {
         if matches.is_present("play") {
             let model_dir = matches.value_of("play").expect("Failed to parse model directory");
             agent.load(model_dir).unwrap(); // TODO: define appropriate error
         }
         else {
+            // TODO: change file_base and url depending on the game
             let file_base = "iqn_PongNoFrameskip-v4_20210430_ec2";
             let url = "https://drive.google.com/uc?export=download&id=1Urq_gTRlhTRzELUZlz8V5W3J1twwUD5E";
             let model_dir = get_model_from_url(url, file_base)?;
