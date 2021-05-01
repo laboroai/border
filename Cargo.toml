@@ -1,6 +1,6 @@
 [package]
 name = "border"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
 edition = "2018"
 
