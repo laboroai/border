@@ -99,10 +99,10 @@ where
         // Merge
         let f = M::build(&var_store, m_config);
 
-        let mut adam = nn::Adam::default();
-        adam.eps = 0.01 / 32.0;
-        let opt = adam.build(&var_store, learning_rate).unwrap();
-        // let opt = nn::AdamW::default().build(&var_store, learning_rate).unwrap();
+        // let mut adam = nn::Adam::default();
+        // adam.eps = 0.01 / 32.0;
+        // let opt = adam.build(&var_store, learning_rate).unwrap();
+        let opt = nn::Adam::default().build(&var_store, learning_rate).unwrap();
 
         IQNModel {
             device,
@@ -217,10 +217,10 @@ where
         // Merge
         let f = self.f.clone_with_var_store(&var_store);
 
-        let mut adam = nn::Adam::default();
-        adam.eps = 0.01 / 32.0;
-        let opt = adam.build(&var_store, learning_rate).unwrap();
-        // let opt = nn::AdamW::default().build(&var_store, learning_rate).unwrap();
+        // let mut adam = nn::Adam::default();
+        // adam.eps = 0.01 / 32.0;
+        // let opt = adam.build(&var_store, learning_rate).unwrap();
+        let opt = nn::Adam::default().build(&var_store, learning_rate).unwrap();
 
         var_store.copy(&self.var_store).unwrap();
 
