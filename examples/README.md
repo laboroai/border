@@ -6,7 +6,7 @@
   $ cargo run --example sac_ant
   ```
 
-  <img src="https://drive.google.com/uc?id=16TEKfby6twCP6PxYoSlBqzOPEwVk1o4Q" width="512">
+  <img src="https://drive.google.com/uc?id=16TEKfby6twCP6PxYoSlBqzOPEwVk1o4Q" width="256">
 
 * Testing
 
