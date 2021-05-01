@@ -3,15 +3,21 @@
 * Training
 
   ```bash
-  $ RUST_LOG=info cargo run --example sac_ant
+  $ cargo run --example sac_ant
   ```
 
-  <img src="https://drive.google.com/uc?id=1d9UJCtz31iX2XYo_FaqVx8ZSkRLa8eMI" width="512">
+  <img src="https://drive.google.com/uc?id=16TEKfby6twCP6PxYoSlBqzOPEwVk1o4Q" width="512">
 
 * Testing
 
   ```bash
-  $ cargo run --example sac_ane -- --play=$REPO/examples/model/sac_ant
+  $ cargo run --example sac_ant -- --play=$REPO/examples/model/sac_ant
+  ```
+
+* Testing with downloading a pretrained model
+
+  ```bash
+  $ cargo run --example sac_ant -- --play-gdrive
   ```
 
 You can download a [pretrained model](https://drive.google.com/uc?export=download&id=1fdAVJLgFY2v0BDyE-xGt7mxpa8GXa9aX).
