@@ -63,12 +63,6 @@ name = "random_ant"
 [[example]]
 name = "sac_ant"
 
-
-
-
-[[example]]
-name = "dqn_pong"
-
 [[example]]
 name = "dqn_pong_vecenv"
 
