@@ -20,7 +20,7 @@
   $ cargo run --example sac_ant -- --play-gdrive
   ```
 
-You can download a [pretrained model](https://drive.google.com/uc?export=download&id=1fdAVJLgFY2v0BDyE-xGt7mxpa8GXa9aX).
+You can download a pretrained model from [here](https://drive.google.com/uc?export=download&id=1fdAVJLgFY2v0BDyE-xGt7mxpa8GXa9aX).
 
 ## FreewayNoFrameskip-v4
 

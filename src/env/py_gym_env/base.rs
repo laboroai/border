@@ -2,7 +2,7 @@
 #![allow(clippy::float_cmp)]
 use log::trace;
 use pyo3::types::{IntoPyDict, PyTuple};
-use pyo3::{PyObject, PyResult, Python, ToPyObject};
+use pyo3::{PyObject, PyResult, Python, ToPyObject, types::PyModule};
 use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::{error::Error, fmt::Debug, time::Duration};
@@ -152,6 +152,51 @@ where
         let observation_space = env.getattr("observation_space")?;
         let observation_space = observation_space.getattr("shape")?.extract()?;
 
+        let pybullet_state = if !self.pybullet {
+            None
+        } else {
+            let pybullet_state = Python::with_gil(|py| {
+                PyModule::from_code(py, r#"
+_torsoId = None
+_floor = False
+
+def add_floor(env):
+    global _floor
+    if not _floor:
+        p = env.env._p
+        import pybullet_data
+        p.setAdditionalSearchPath(pybullet_data.getDataPath())
+        p.loadURDF("plane.urdf")
+        _floor = True
+        env.env.stateId = p.saveState()
+
+def get_torso_id(p):
+    global _torsoId
+    if _torsoId is None:
+        torsoId = -1
+        for i in range(p.getNumBodies()):
+            print(p.getBodyInfo(i))
+            if p.getBodyInfo(i)[0].decode() == "torso":
+                torsoId = i
+                print("found torso")
+        _torsoId = torsoId
+    
+    return _torsoId
+
+def update_camera_pos(env):
+    p = env.env._p
+    torsoId = get_torso_id(env.env._p)
+    if torsoId >= 0:
+        distance = 5
+        yaw = 0
+        humanPos, humanOrn = p.getBasePositionAndOrientation(torsoId)
+        p.resetDebugVisualizerCamera(distance, yaw, -20, humanPos)
+
+            "#, "pybullet_state.py", "pybullet_state").unwrap().to_object(py)
+            });
+            Some(pybullet_state)
+        };
+
         Ok(PyGymEnv {
             env: env.into(),
             action_space,
@@ -164,6 +209,7 @@ where
             wait_in_render: Duration::from_millis(0),
             max_steps: self.max_steps,
             pybullet: self.pybullet,
+            pybullet_state,
             phantom: PhantomData,
         })
     }
@@ -171,7 +217,7 @@ where
 
 /// Represents an environment in [OpenAI gym](https://github.com/openai/gym).
 /// The code is adapted from [tch-rs RL example](https://github.com/LaurentMazare/tch-rs/tree/master/examples/reinforcement-learning).
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct PyGymEnv<O, A, OF, AF>
 where
     O: Obs,
@@ -189,6 +235,7 @@ where
     act_filter: AF,
     wait_in_render: Duration,
     pybullet: bool,
+    pybullet_state: Option<PyObject>,
     phantom: PhantomData<(O, A)>,
 }
 
@@ -261,6 +308,7 @@ where
             act_filter,
             wait_in_render: Duration::from_millis(0),
             pybullet: false,
+            pybullet_state: None,
             phantom: PhantomData,
         })
     }
@@ -333,6 +381,10 @@ where
         } else {
             pyo3::Python::with_gil(|py| {
                 let obs = self.env.call_method0(py, "reset")?;
+                if self.pybullet && self.render {
+                    let floor: &PyModule = self.pybullet_state.as_ref().unwrap().extract(py).unwrap();
+                    floor.call1("add_floor", (&self.env,)).unwrap();
+                }
                 Ok(self.obs_filter.reset(obs))
             })
         }
@@ -350,6 +402,10 @@ where
             if self.render {
                 if !self.pybullet {
                     let _ = self.env.call_method0(py, "render");
+                }
+                else {
+                    let cam: &PyModule = self.pybullet_state.as_ref().unwrap().extract(py).unwrap();
+                    cam.call1("update_camera_pos", (&self.env,)).unwrap();
                 }
                 std::thread::sleep(self.wait_in_render);
             }
