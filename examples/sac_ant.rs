@@ -1,10 +1,9 @@
+use anyhow::Result;
 use clap::{App, Arg};
 use std::time::Duration;
-use anyhow::Result;
 use tch::nn;
 
 use border::{
-    util::url::get_model_from_url,
     agent::{
         tch::{
             model::{Model1_2, Model2_1},
@@ -20,6 +19,7 @@ use border::{
         tch::{act_c::TchPyGymEnvContinuousActBuffer, obs::TchPyGymEnvObsBuffer},
         PyGymEnv, PyGymEnvBuilder, Shape,
     },
+    util::url::get_model_from_url,
 };
 
 const DIM_OBS: usize = 28;
@@ -181,12 +181,14 @@ fn main() -> Result<()> {
         let mut agent = create_agent();
 
         if matches.is_present("play") {
-            let model_dir = matches.value_of("play").expect("Failed to parse model directory");
+            let model_dir = matches
+                .value_of("play")
+                .expect("Failed to parse model directory");
             agent.load(model_dir).unwrap(); // TODO: define appropriate error
-        }
-        else {
+        } else {
             let file_base = "sac_ant_20210324_ec2_smoothl1";
-            let url = "https://drive.google.com/uc?export=download&id=1XvFi2nJD5OhpTvs-Et3YREuoqy8c3Vkq";
+            let url =
+                "https://drive.google.com/uc?export=download&id=1XvFi2nJD5OhpTvs-Et3YREuoqy8c3Vkq";
             let model_dir = get_model_from_url(url, file_base)?;
             agent.load(model_dir).unwrap(); // TODO: define appropriate error
         };

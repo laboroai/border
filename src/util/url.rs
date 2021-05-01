@@ -1,16 +1,19 @@
 //! Download pretrained model from a network drive.
 // use core::slice::SlicePattern;
-use std::{fs::File, io::Write, path::Path, fmt::Debug};
-use log::info;
 use anyhow::{Context, Result};
-use reqwest::{IntoUrl};
+use log::info;
+use reqwest::IntoUrl;
+use std::{fmt::Debug, fs::File, io::Write, path::Path};
 
 /// Download a pretrained model as a zip file from given url.
 ///
-/// This function will download a zip file in `~/border/model`, extract it, then 
+/// This function will download a zip file in `~/border/model`, extract it, then
 /// return a path to the extracted directory, which should contains a pretrained
 /// model.
-pub fn get_model_from_url<T: AsRef<Path>>(url: impl IntoUrl + Debug, file_base: T) -> Result<impl AsRef<Path>> {
+pub fn get_model_from_url<T: AsRef<Path>>(
+    url: impl IntoUrl + Debug,
+    file_base: T,
+) -> Result<impl AsRef<Path>> {
     info!("Download file from {:?}", url);
     let response = reqwest::blocking::get(url)?;
 
@@ -38,9 +41,9 @@ pub fn get_model_from_url<T: AsRef<Path>>(url: impl IntoUrl + Debug, file_base: 
 
 #[cfg(test)]
 mod tests {
-    use log::info;
-    use anyhow::{Context, Result};
     use super::get_model_from_url;
+    use anyhow::{Context, Result};
+    use log::info;
 
     fn init() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -50,7 +53,8 @@ mod tests {
     fn test_get_model_from_url() -> Result<()> {
         init();
 
-        let url = "https://drive.google.com/uc?export=download&id=1TF5aN9fH5wd4APFHj9RP1JxuVNoi6lqJ";
+        let url =
+            "https://drive.google.com/uc?export=download&id=1TF5aN9fH5wd4APFHj9RP1JxuVNoi6lqJ";
         let file_base = "dqn_PongNoFrameskip-v4_20210428_ec2";
 
         let mut path = dirs::home_dir().context("Couldn't find home directory")?;

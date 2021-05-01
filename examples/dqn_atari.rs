@@ -1,10 +1,9 @@
+use anyhow::Result;
 use clap::{App, Arg};
 use std::time::Duration;
-use anyhow::Result;
 use tch::nn;
 
 use border::{
-    util::url::get_model_from_url,
     agent::{
         tch::{
             dqn::explorer::EpsilonGreedy, model::Model1_1, DQNBuilder,
@@ -20,6 +19,7 @@ use border::{
         tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
         PyGymEnv, PyGymEnvBuilder, Shape,
     },
+    util::url::get_model_from_url,
 };
 
 const N_PROCS: usize = 1;
@@ -161,13 +161,15 @@ fn main() -> Result<()> {
         trainer.train(&mut recorder);
     } else {
         if matches.is_present("play") {
-            let model_dir = matches.value_of("play").expect("Failed to parse model directory");
+            let model_dir = matches
+                .value_of("play")
+                .expect("Failed to parse model directory");
             agent.load(model_dir).unwrap(); // TODO: define appropriate error
-        }
-        else {
+        } else {
             // TODO: change file_base and url depending on the game
             let file_base = "dqn_PongNoFrameskip-v4_20210428_ec2";
-            let url = "https://drive.google.com/uc?export=download&id=1TF5aN9fH5wd4APFHj9RP1JxuVNoi6lqJ";
+            let url =
+                "https://drive.google.com/uc?export=download&id=1TF5aN9fH5wd4APFHj9RP1JxuVNoi6lqJ";
             let model_dir = get_model_from_url(url, file_base)?;
             agent.load(model_dir).unwrap(); // TODO: define appropriate error
         };
