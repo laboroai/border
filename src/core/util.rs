@@ -86,7 +86,7 @@ pub fn eval<E: Env, P: Policy<E>>(env: &mut E, policy: &mut P, n_episodes: usize
             }
         }
         rs.push(r_sum);
-        info!("Episode {:?}, {:?} steps", i, steps);
+        info!("Episode {:?}, {:?} steps, reward = {:?}", i, steps, r_sum);
     }
     rs
 }
