@@ -126,7 +126,7 @@ fn create_env() -> Env {
     let act_filter = ActFilter::default();
     PyGymEnvBuilder::default()
         .pybullet(true)
-        .atari_wrapper(false)
+        .atari_wrapper(None)
         .build("AntPyBulletEnv-v0", obs_filter, act_filter)
         .unwrap()
 }

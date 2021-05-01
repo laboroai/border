@@ -95,7 +95,7 @@ fn create_agent(epsilon_greedy: bool) -> impl Agent<Env> {
 fn create_env() -> Env {
     let obs_filter = ObsFilter::default(); //::new();
     let act_filter = ActFilter::default();
-    Env::new("CartPole-v0", obs_filter, act_filter, false).unwrap()
+    Env::new("CartPole-v0", obs_filter, act_filter, None).unwrap()
 }
 
 #[derive(Debug, Serialize)]

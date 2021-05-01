@@ -60,7 +60,7 @@ fn main() {
     // TODO: Define appropriate error for failing to construct environment
     let mut env = PyGymEnvBuilder::default()
         .pybullet(true)
-        .atari_wrapper(false)
+        .atari_wrapper(None)
         .build("AntPyBulletEnv-v0", obs_filter, act_filter)
         .unwrap();
     env.set_render(true);

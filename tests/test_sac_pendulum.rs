@@ -143,7 +143,7 @@ fn create_agent() -> impl Agent<Env> {
 fn create_env() -> Env {
     let obs_filter = ObsFilter::default(); //new();
     let act_filter = ActFilter {}; //new();
-    Env::new("Pendulum-v0", obs_filter, act_filter, false)
+    Env::new("Pendulum-v0", obs_filter, act_filter, None)
         .unwrap()
         .max_steps(Some(MAX_STEPS_IN_EPISODE))
 }
