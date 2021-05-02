@@ -6,10 +6,10 @@ use border::{
     core::Agent,
     env::py_gym_env::{
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
+        atari::AtariWrapper,
         framestack::FrameStackFilter,
         obs::PyGymEnvObs,
         tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
-        atari::AtariWrapper,
         PyGymEnv, Shape,
     },
 };
@@ -74,7 +74,13 @@ fn create_agent() -> impl Agent<Env> {
 fn create_env() -> Env {
     let obs_filter = ObsFilter::new(N_STACK as i64);
     let act_filter = ActFilter::default();
-    Env::new("PongNoFrameskip-v4", obs_filter, act_filter, Some(AtariWrapper::Eval)).unwrap()
+    Env::new(
+        "PongNoFrameskip-v4",
+        obs_filter,
+        act_filter,
+        Some(AtariWrapper::Eval),
+    )
+    .unwrap()
 }
 
 fn main() {

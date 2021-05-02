@@ -102,7 +102,9 @@ where
         // let mut adam = nn::Adam::default();
         // adam.eps = 0.01 / 32.0;
         // let opt = adam.build(&var_store, learning_rate).unwrap();
-        let opt = nn::Adam::default().build(&var_store, learning_rate).unwrap();
+        let opt = nn::Adam::default()
+            .build(&var_store, learning_rate)
+            .unwrap();
 
         IQNModel {
             device,
@@ -220,7 +222,9 @@ where
         // let mut adam = nn::Adam::default();
         // adam.eps = 0.01 / 32.0;
         // let opt = adam.build(&var_store, learning_rate).unwrap();
-        let opt = nn::Adam::default().build(&var_store, learning_rate).unwrap();
+        let opt = nn::Adam::default()
+            .build(&var_store, learning_rate)
+            .unwrap();
 
         var_store.copy(&self.var_store).unwrap();
 

@@ -13,11 +13,11 @@ use border::{
     },
     core::{record::TensorboardRecorder, util, Agent, TrainerBuilder},
     env::py_gym_env::{
-        AtariWrapper, PyGymEnv, PyGymEnvBuilder, Shape,
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
-        obs::PyGymEnvObs,
         framestack::FrameStackFilter,
+        obs::PyGymEnvObs,
         tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
+        AtariWrapper, PyGymEnv, PyGymEnvBuilder, Shape,
     },
     util::url::get_model_from_url,
 };

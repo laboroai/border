@@ -12,11 +12,11 @@ use border::{
     },
     core::{record::TensorboardRecorder, Agent, TrainerBuilder},
     env::py_gym_env::{
-        AtariWrapper, PyVecGymEnv, PyVecGymEnvBuilder, Shape,
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
-        obs::PyGymEnvObs,
         framestack::FrameStackFilter,
+        obs::PyGymEnvObs,
         tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
+        AtariWrapper, PyVecGymEnv, PyVecGymEnvBuilder, Shape,
     },
 };
 

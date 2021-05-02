@@ -12,11 +12,11 @@ use border::{
     },
     core::{record::TensorboardRecorder, util, Agent, TrainerBuilder},
     env::py_gym_env::{
-        AtariWrapper, PyGymEnv, PyGymEnvBuilder, Shape,
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
-        obs::PyGymEnvObs,
         framestack::FrameStackFilter,
+        obs::PyGymEnvObs,
         tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
+        AtariWrapper, PyGymEnv, PyGymEnvBuilder, Shape,
     },
     util::url::get_model_from_url,
 };
@@ -313,7 +313,7 @@ fn main() -> Result<()> {
     let mut env_eval = create_env(name, AtariWrapper::Eval);
     let dim_act = env_eval.get_num_actions_atari();
     let mut agent = create_agent(dim_act as _);
-    
+
     if !(matches.is_present("play") || matches.is_present("play-gdrive")) {
         let env_train = create_env(name, AtariWrapper::Train);
         let saving_model_dir = format!("./examples/model/dqn_{}", name);

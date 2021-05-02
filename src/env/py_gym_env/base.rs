@@ -2,7 +2,7 @@
 #![allow(clippy::float_cmp)]
 use log::trace;
 use pyo3::types::{IntoPyDict, PyTuple};
-use pyo3::{PyObject, PyResult, Python, ToPyObject, types::PyModule};
+use pyo3::{types::PyModule, PyObject, PyResult, Python, ToPyObject};
 use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::{error::Error, fmt::Debug, time::Duration};
@@ -156,7 +156,9 @@ where
             None
         } else {
             let pybullet_state = Python::with_gil(|py| {
-                PyModule::from_code(py, r#"
+                PyModule::from_code(
+                    py,
+                    r#"
 _torsoId = None
 _floor = False
 
@@ -192,7 +194,12 @@ def update_camera_pos(env):
         humanPos, humanOrn = p.getBasePositionAndOrientation(torsoId)
         p.resetDebugVisualizerCamera(distance, yaw, -20, humanPos)
 
-            "#, "pybullet_state.py", "pybullet_state").unwrap().to_object(py)
+            "#,
+                    "pybullet_state.py",
+                    "pybullet_state",
+                )
+                .unwrap()
+                .to_object(py)
             });
             Some(pybullet_state)
         };
@@ -382,7 +389,8 @@ where
             pyo3::Python::with_gil(|py| {
                 let obs = self.env.call_method0(py, "reset")?;
                 if self.pybullet && self.render {
-                    let floor: &PyModule = self.pybullet_state.as_ref().unwrap().extract(py).unwrap();
+                    let floor: &PyModule =
+                        self.pybullet_state.as_ref().unwrap().extract(py).unwrap();
                     floor.call1("add_floor", (&self.env,)).unwrap();
                 }
                 Ok(self.obs_filter.reset(obs))
@@ -402,8 +410,7 @@ where
             if self.render {
                 if !self.pybullet {
                     let _ = self.env.call_method0(py, "render");
-                }
-                else {
+                } else {
                     let cam: &PyModule = self.pybullet_state.as_ref().unwrap().extract(py).unwrap();
                     cam.call1("update_camera_pos", (&self.env,)).unwrap();
                 }

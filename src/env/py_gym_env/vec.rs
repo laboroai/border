@@ -15,13 +15,13 @@ use crate::{
 };
 
 /// Constructs [PyVecGymEnv]
-pub struct PyVecGymEnvBuilder<O, A, OF, AF>  {
+pub struct PyVecGymEnvBuilder<O, A, OF, AF> {
     atari_wrapper: Option<AtariWrapper>,
     n_procs: usize,
     phantom: PhantomData<(O, A, OF, AF)>,
 }
 
-impl <O, A, OF, AF> Default for PyVecGymEnvBuilder<O, A, OF, AF> {
+impl<O, A, OF, AF> Default for PyVecGymEnvBuilder<O, A, OF, AF> {
     fn default() -> Self {
         Self {
             atari_wrapper: None,
@@ -38,7 +38,6 @@ where
     OF: PyGymEnvObsFilter<O>,
     AF: PyGymEnvActFilter<A>,
 {
-
     /// Sets `True` when using Atari wrapper.
     pub fn atari_wrapper(mut self, v: Option<AtariWrapper>) -> Self {
         self.atari_wrapper = v;
@@ -94,7 +93,6 @@ where
         })
     }
 }
-    
 
 /// A vectorized environment using multiprocess module in Python.
 /// The code is adapted from [tch-rs RL example](https://github.com/LaurentMazare/tch-rs/tree/master/examples/reinforcement-learning).
