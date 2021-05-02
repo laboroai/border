@@ -1,42 +1,41 @@
-// use anyhow::Result;
+use anyhow::{Context, Result};
+use clap::{App, Arg};
 use tch::nn;
 
 use border::{
     agent::{
         tch::{
-            dqn::explorer::{DQNExplorer, EpsilonGreedy},
-            model::Model1_1,
-            DQNBuilder, ReplayBuffer as ReplayBuffer_,
+            dqn::explorer::EpsilonGreedy, model::Model1_1, DQNBuilder,
+            ReplayBuffer as ReplayBuffer_,
         },
         OptInterval,
     },
     core::{record::TensorboardRecorder, Agent, TrainerBuilder},
     env::py_gym_env::{
+        AtariWrapper, PyVecGymEnv, PyVecGymEnvBuilder, Shape,
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
-        framestack::FrameStackFilter,
         obs::PyGymEnvObs,
+        framestack::FrameStackFilter,
         tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
-        PyVecGymEnv, Shape,
     },
 };
 
 const N_PROCS: usize = 4;
 const N_STACK: usize = 4;
 const DIM_OBS: [usize; 4] = [4, 1, 84, 84];
-const DIM_ACT: usize = 6;
-
 const LR_QNET: f64 = 1e-4;
 const DISCOUNT_FACTOR: f64 = 0.99;
 const BATCH_SIZE: usize = 32;
 const N_TRANSITIONS_WARMUP: usize = 2500;
 const N_UPDATES_PER_OPT: usize = 1;
 const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
-const SOFT_UPDATE_INTERVAL: usize = 1_000;
+const SOFT_UPDATE_INTERVAL: usize = 10_000;
 const TAU: f64 = 1.0;
-const MAX_OPTS: usize = 3_000_000;
+const MAX_OPTS: usize = 5_000_000;
 const EVAL_INTERVAL: usize = 10_000;
-const REPLAY_BUFFER_CAPACITY: usize = 10_000;
+const REPLAY_BUFFER_CAPACITY: usize = 200_000;
 const N_EPISODES_PER_EVAL: usize = 1;
+const EPS_FINAL_STEP: usize = 1_000_000;
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -63,10 +62,10 @@ fn stride(s: i64) -> nn::ConvConfig {
     }
 }
 
-fn create_critic(device: tch::Device) -> Model1_1 {
+fn create_critic(dim_act: usize, device: tch::Device) -> Model1_1 {
     let network_fn = |p: &nn::Path, _in_shape: &[usize], out_dim| {
         nn::seq()
-            .add_fn(|xs| xs.squeeze1(2).internal_cast_float(true))
+            .add_fn(|xs| xs.squeeze1(2).internal_cast_float(true) / 255)
             .add(nn::conv2d(p / "c1", N_STACK as i64, 32, 8, stride(4)))
             .add_fn(|xs| xs.relu())
             .add(nn::conv2d(p / "c2", 32, 64, 4, stride(2)))
@@ -77,12 +76,12 @@ fn create_critic(device: tch::Device) -> Model1_1 {
             .add_fn(|xs| xs.relu())
             .add(nn::linear(p / "l2", 512, out_dim as _, Default::default()))
     };
-    Model1_1::new(&DIM_OBS, DIM_ACT, LR_QNET, network_fn, device)
+    Model1_1::new(&DIM_OBS, dim_act, LR_QNET, network_fn, device)
 }
 
-fn create_agent() -> impl Agent<Env> {
+fn create_agent(dim_act: usize) -> impl Agent<Env> {
     let device = tch::Device::cuda_if_available();
-    let qnet = create_critic(device);
+    let qnet = create_critic(dim_act, device);
     let replay_buffer = ReplayBuffer::new(REPLAY_BUFFER_CAPACITY, N_PROCS);
 
     DQNBuilder::new()
@@ -93,39 +92,53 @@ fn create_agent() -> impl Agent<Env> {
         .discount_factor(DISCOUNT_FACTOR)
         .soft_update_interval(SOFT_UPDATE_INTERVAL)
         .tau(TAU)
-        .explorer(DQNExplorer::EpsilonGreedy(EpsilonGreedy::new()))
+        .explorer(EpsilonGreedy::with_final_step(EPS_FINAL_STEP))
         .build(qnet, replay_buffer, device)
 }
 
-fn create_env(n_procs: usize) -> Env {
-    let obs_filter = ObsFilter::vectorized(N_PROCS as i64, N_STACK as i64);
+fn create_env(name: &str, mode: AtariWrapper) -> Result<Env> {
+    let obs_filter = ObsFilter::vectorized(N_PROCS as _, N_STACK as _);
     let act_filter = ActFilter::vectorized();
-    Env::new("PongNoFrameskip-v4", n_procs, obs_filter, act_filter, true).unwrap()
+    PyVecGymEnvBuilder::default()
+        .atari_wrapper(Some(mode))
+        .n_procs(N_PROCS)
+        .build(name, obs_filter, act_filter)
+        .context("Failed to create vecenv")
 }
 
-fn main() {
-    env_logger::init();
+fn main() -> Result<()> {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
 
-    let agent = create_agent();
-    let env = create_env(N_PROCS);
-    let env_eval = create_env(1);
+    let matches = App::new("dqn_atari_vec")
+        .version("0.1.0")
+        .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
+        .arg(
+            Arg::with_name("name")
+                .long("name")
+                .takes_value(true)
+                .required(true)
+                .index(1)
+                .help("The name of the atari environment (e.g., PongNoFrameskip-v4)"),
+        )
+        .get_matches();
+
+    let name = matches.value_of("name").unwrap();
+    let env_eval = create_env(name, AtariWrapper::Eval)?;
+    let dim_act = env_eval.get_num_actions_atari();
+    let agent = create_agent(dim_act as _);
+
+    let env_train = create_env(name, AtariWrapper::Train)?;
+    let saving_model_dir = format!("./examples/model/dqn_{}_vec", name);
 
     let mut trainer = TrainerBuilder::default()
         .max_opts(MAX_OPTS)
         .eval_interval(EVAL_INTERVAL)
         .n_episodes_per_eval(N_EPISODES_PER_EVAL)
-        .build(env, env_eval, agent);
-    let mut recorder = TensorboardRecorder::new("./examples/model/dqn_pong_vecenv");
-
+        .model_dir(saving_model_dir)
+        .build(env_train, env_eval, agent);
+    let mut recorder = TensorboardRecorder::new(format!("./examples/model/dqn_{}_vec", name));
     trainer.train(&mut recorder);
-    trainer
-        .get_agent()
-        .save("./examples/model/dqn_pong_vecenv")
-        .unwrap(); // TODO: define appropriate error
 
-    trainer.get_env().close();
-    trainer.get_env_eval().close();
-
-    // Ok(())
+    Ok(())
 }

@@ -11,4 +11,4 @@ pub mod tch;
 pub mod vec;
 pub use atari::AtariWrapper;
 pub use base::{PyGymEnv, PyGymEnvActFilter, PyGymEnvBuilder, PyGymEnvObsFilter, PyGymInfo, Shape};
-pub use vec::PyVecGymEnv;
+pub use vec::{PyVecGymEnv, PyVecGymEnvBuilder};
