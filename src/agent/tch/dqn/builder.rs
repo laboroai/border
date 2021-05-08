@@ -1,15 +1,15 @@
 //! Constructs DQN agent.
 // use log::trace;
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use std::{
-    default::Default,
     cell::RefCell,
+    default::Default,
     fs::File,
     io::{BufReader, Write},
     marker::PhantomData,
     path::Path,
 };
-use serde::{Deserialize, Serialize};
-use anyhow::Result;
 use tch::Tensor;
 
 use crate::{
@@ -30,15 +30,7 @@ use crate::{
 #[allow(clippy::upper_case_acronyms)]
 /// Constructs [DQN].
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
-pub struct DQNBuilder<E, M, O, A>
-where
-    E: Env,
-    M: Model1<Input = Tensor, Output = Tensor> + Clone,
-    E::Obs: Into<M::Input>,
-    E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
-{
+pub struct DQNBuilder {
     opt_interval_counter: OptIntervalCounter,
     soft_update_interval: usize,
     n_updates_per_opt: usize,
@@ -48,18 +40,9 @@ where
     discount_factor: f64,
     tau: f64,
     explorer: DQNExplorer,
-    phantom: PhantomData<(E, M, O, A)>,
 }
 
-impl<E, M, O, A> Default for DQNBuilder<E, M, O, A>
-where
-    E: Env,
-    M: Model1<Input = Tensor, Output = Tensor> + Clone,
-    E::Obs: Into<M::Input>,
-    E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
-{
+impl Default for DQNBuilder {
     fn default() -> Self {
         Self {
             opt_interval_counter: OptInterval::Steps(1).counter(),
@@ -71,20 +54,11 @@ where
             tau: 0.005,
             train: false,
             explorer: DQNExplorer::Softmax(Softmax::new()),
-            phantom: PhantomData,
         }
     }
 }
 
-impl<E, M, O, A> DQNBuilder<E, M, O, A>
-where
-    E: Env,
-    M: Model1<Input = Tensor, Output = Tensor> + Clone,
-    E::Obs: Into<M::Input>,
-    E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
-{
+impl DQNBuilder {
     /// Constructs DQN builder with default parameters.
     pub fn new() -> Self {
         Self {
@@ -97,20 +71,11 @@ where
             tau: 0.005,
             train: false,
             explorer: DQNExplorer::Softmax(Softmax::new()),
-            phantom: PhantomData,
         }
     }
 }
 
-impl<E, M, O, A> DQNBuilder<E, M, O, A>
-where
-    E: Env,
-    M: Model1<Input = Tensor, Output = Tensor> + Clone,
-    E::Obs: Into<M::Input>,
-    E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
-{
+impl DQNBuilder {
     /// Set optimization interval.
     pub fn opt_interval(mut self, v: OptInterval) -> Self {
         self.opt_interval_counter = v.counter();
@@ -154,7 +119,7 @@ where
     }
 
     /// Set explorer.
-    pub fn explorer(mut self, v: DQNExplorer) -> DQNBuilder<E, M, O, A> where {
+    pub fn explorer(mut self, v: DQNExplorer) -> DQNBuilder where {
         self.explorer = v;
         self
     }
@@ -175,12 +140,20 @@ where
     }
 
     /// Constructs DQN.
-    pub fn build(
+    pub fn build<E, M, O, A>(
         self,
         qnet: M,
         replay_buffer: ReplayBuffer<E, O, A>,
         device: tch::Device,
-    ) -> DQN<E, M, O, A> {
+    ) -> DQN<E, M, O, A>
+    where
+        E: Env,
+        M: Model1<Input = Tensor, Output = Tensor> + Clone,
+        E::Obs: Into<M::Input>,
+        E::Act: From<Tensor>,
+        O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
+        A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
+    {
         let qnet_tgt = qnet.clone();
 
         DQN {
@@ -204,52 +177,38 @@ where
     }
 }
 
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//     use tempdir::TempDir;
+#[cfg(test)]
+mod test {
+    use super::*;
+    use tempdir::TempDir;
 
-//     use crate::{
-//         agent::{
-//             tch::{
-//                 dqn::explorer::{DQNExplorer, EpsilonGreedy},
-//                 model::Model1_1,
-//                 DQNBuilder, ReplayBuffer,
-//             },
-//             OptInterval,
-//         },
-//         core::{
-//             record::{BufferedRecorder, Record, TensorboardRecorder},
-//             util, Agent, TrainerBuilder,
-//         },
-//         env::py_gym_env::{
-//             act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
-//             obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-//             tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
-//             PyGymEnv, Shape,
-//         },
-//     };
+    use crate::agent::{
+        tch::{dqn::explorer::EpsilonGreedy, DQNBuilder},
+        OptInterval,
+    };
 
-//     const DIM_OBS: usize = 4;
+    #[test]
+    fn test_serde_dqn_builder() -> Result<()> {
+        let builder = DQNBuilder::default()
+            .opt_interval(OptInterval::Steps(50))
+            .n_updates_per_opt(1)
+            .min_transitions_warmup(100)
+            .batch_size(32)
+            .discount_factor(0.99)
+            .tau(0.005)
+            .explorer(EpsilonGreedy::with_final_step(1000));
 
-//     #[derive(Debug, Clone)]
-//     struct ObsShape {}
+        let dir = TempDir::new("dqn_builder")?;
+        let path = dir.path().join("dqn_builder.yaml");
+        println!("{:?}", path);
 
-//     impl Shape for ObsShape {
-//         fn shape() -> &'static [usize] {
-//             &[DIM_OBS]
-//         }
-//     }
+        builder.save(&path)?;
+        let builder_ = DQNBuilder::load(&path)?;
+        assert_eq!(builder, builder_);
 
-//     type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64, f32>;
-//     type ActFilter = PyGymEnvDiscreteActRawFilter;
-//     type Obs = PyGymEnvObs<ObsShape, f64, f32>;
-//     type Act = PyGymEnvDiscreteAct;
-//     type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+        let yaml = serde_yaml::to_string(&builder)?;
+        println!("{}", yaml);
 
-//     #[test]
-//     fn test_serde_dqn_builder() -> Result<()> {
-//         let builder = DQNBuilder::<Env, Model1_1, Obs, Act>::default();
-//         Ok(())
-//     }
-// }
+        Ok(())
+    }
+}

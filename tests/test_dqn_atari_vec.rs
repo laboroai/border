@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use clap::{App, Arg};
 use tch::nn;
 
 use border::{

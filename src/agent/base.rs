@@ -1,6 +1,8 @@
 //! Utilities used by agents.
+use serde::{Deserialize, Serialize};
 
 /// Interval between optimization steps.
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub enum OptInterval {
     /// Optimization interval specified as interaction steps.
     Steps(usize),
@@ -19,6 +21,7 @@ impl OptInterval {
 }
 
 /// The counter for optimization.
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct OptIntervalCounter {
     opt_interval: OptInterval,
     count: usize,

@@ -1,10 +1,12 @@
 //! Exploration strategies of DQN.
+use serde::{Deserialize, Serialize};
 use tch::Tensor;
 
 use crate::agent::tch::model::Model1;
 
 #[allow(clippy::upper_case_acronyms)]
 /// Explorers for DQN.
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub enum DQNExplorer {
     /// Softmax action selection.
     Softmax(Softmax),
@@ -14,6 +16,7 @@ pub enum DQNExplorer {
 }
 
 /// Softmax explorer for DQN.
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct Softmax {}
 
 #[allow(clippy::new_without_default)]
@@ -34,6 +37,7 @@ impl Softmax {
 }
 
 /// Epsilon-greedy explorer for DQN.
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct EpsilonGreedy {
     n_opts: usize,
     eps_start: f64,

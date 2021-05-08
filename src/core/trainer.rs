@@ -114,7 +114,7 @@ mod test {
 
     #[test]
     fn test_serde_trainer_builder() -> Result<()> {
-        let trainer = TrainerBuilder::default()
+        let builder = TrainerBuilder::default()
             .max_opts(100)
             .eval_interval(10000)
             .n_episodes_per_eval(5)
@@ -124,9 +124,9 @@ mod test {
         let path = dir.path().join("trainer_builder.yaml");
         println!("{:?}", path);
 
-        trainer.save(&path)?;
-        let trainer_ = TrainerBuilder::load(&path)?;
-        assert_eq!(trainer, trainer_);
+        builder.save(&path)?;
+        let builder_ = TrainerBuilder::load(&path)?;
+        assert_eq!(builder, builder_);
         // let yaml = serde_yaml::to_string(&trainer)?;
         // println!("{}", yaml);
         // assert_eq!(
