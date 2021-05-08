@@ -1,43 +1,41 @@
 use anyhow::Result;
 use clap::{App, Arg};
-use std::time::Duration;
+use std::{time::Duration, path::Path};
 use tch::nn;
 
-use border::{
-    agent::{
+use border::{agent::{
         tch::{
             dqn::explorer::EpsilonGreedy, model::Model1_1, DQNBuilder,
             ReplayBuffer as ReplayBuffer_,
         },
         OptInterval,
-    },
-    core::{record::TensorboardRecorder, util, Agent, TrainerBuilder},
-    env::py_gym_env::{
-        act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
-        framestack::FrameStackFilter,
-        obs::PyGymEnvObs,
-        tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
-        AtariWrapper, PyGymEnv, PyGymEnvBuilder, Shape,
-    },
-    util::url::get_model_from_url,
-};
+    }, core::{Agent, Trainer, TrainerBuilder, record::TensorboardRecorder, util}, env::{
+        self,
+        py_gym_env::{
+            act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
+            framestack::FrameStackFilter,
+            obs::PyGymEnvObs,
+            tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
+            AtariWrapper, PyGymEnv, PyGymEnvBuilder, Shape,
+        },
+    }, util::url::get_model_from_url};
 
-const N_PROCS: usize = 1;
+// const N_PROCS: usize = 1;
 const N_STACK: usize = 4;
 const DIM_OBS: [usize; 4] = [4, 1, 84, 84];
 const LR_QNET: f64 = 1e-4;
-const DISCOUNT_FACTOR: f64 = 0.99;
-const BATCH_SIZE: usize = 32;
-const N_TRANSITIONS_WARMUP: usize = 2500;
-const N_UPDATES_PER_OPT: usize = 1;
-const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
-const SOFT_UPDATE_INTERVAL: usize = 10_000;
-const TAU: f64 = 1.0;
-const MAX_OPTS: usize = 3_000_000;
-const EVAL_INTERVAL: usize = 10_000;
-const REPLAY_BUFFER_CAPACITY: usize = 50_000;
-const N_EPISODES_PER_EVAL: usize = 1;
-const EPS_FINAL_STEP: usize = 1_000_000;
+// const DISCOUNT_FACTOR: f64 = 0.99;
+// const BATCH_SIZE: usize = 32;
+// const N_TRANSITIONS_WARMUP: usize = 2500;
+// const N_UPDATES_PER_OPT: usize = 1;
+// const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
+// const SOFT_UPDATE_INTERVAL: usize = 10_000;
+// const TAU: f64 = 1.0;
+// const MAX_OPTS: usize = 3_000_000;
+// const EVAL_INTERVAL: usize = 10_000;
+// const REPLAY_BUFFER_CAPACITY: usize = 50_000;
+// const N_EPISODES_PER_EVAL: usize = 1;
+// const EPS_FINAL_STEP: usize = 1_000_000;
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -81,21 +79,23 @@ fn create_critic(dim_act: usize, device: tch::Device) -> Model1_1 {
     Model1_1::new(&DIM_OBS, dim_act, LR_QNET, network_fn, device)
 }
 
-fn create_agent(dim_act: usize) -> impl Agent<Env> {
+fn create_agent(dim_act: usize, env_name: impl Into<String>) -> Result<impl Agent<Env>> {
     let device = tch::Device::cuda_if_available();
     let qnet = create_critic(dim_act, device);
-    let replay_buffer = ReplayBuffer::new(REPLAY_BUFFER_CAPACITY, N_PROCS);
+    let agent_cfg = format!("./examples/model/dqn_{}/agent.yaml", env_name.into());
 
-    DQNBuilder::default()
-        .opt_interval(OPT_INTERVAL)
-        .n_updates_per_opt(N_UPDATES_PER_OPT)
-        .min_transitions_warmup(N_TRANSITIONS_WARMUP)
-        .batch_size(BATCH_SIZE)
-        .discount_factor(DISCOUNT_FACTOR)
-        .soft_update_interval(SOFT_UPDATE_INTERVAL)
-        .tau(TAU)
-        .explorer(EpsilonGreedy::with_final_step(EPS_FINAL_STEP))
-        .build_with_replay_buffer(qnet, replay_buffer, device)
+    let agent = DQNBuilder::load(Path::new(&agent_cfg))?
+        // .opt_interval(OPT_INTERVAL)
+        // .n_updates_per_opt(N_UPDATES_PER_OPT)
+        // .min_transitions_warmup(N_TRANSITIONS_WARMUP)
+        // .batch_size(BATCH_SIZE)
+        // .discount_factor(DISCOUNT_FACTOR)
+        // .soft_update_interval(SOFT_UPDATE_INTERVAL)
+        // .tau(TAU)
+        // .explorer(EpsilonGreedy::with_final_step(EPS_FINAL_STEP))
+        .build::<_, _, ObsBuffer, ActBuffer>(qnet, device);
+
+    Ok(agent)
 }
 
 fn create_env(name: &str, mode: AtariWrapper) -> Env {
@@ -146,16 +146,18 @@ fn main() -> Result<()> {
     let name = matches.value_of("name").unwrap();
     let mut env_eval = create_env(name, AtariWrapper::Eval);
     let dim_act = env_eval.get_num_actions_atari();
-    let mut agent = create_agent(dim_act as _);
+    let mut agent = create_agent(dim_act as _, name)?;
 
     if !(matches.is_present("play") || matches.is_present("play-gdrive")) {
         let env_train = create_env(name, AtariWrapper::Train);
         let saving_model_dir = format!("./examples/model/dqn_{}", name);
-        let mut trainer = TrainerBuilder::default()
-            .max_opts(MAX_OPTS)
-            .eval_interval(EVAL_INTERVAL)
-            .n_episodes_per_eval(N_EPISODES_PER_EVAL)
-            .model_dir(saving_model_dir)
+        let trainer_cfg = Path::new(&saving_model_dir).join("trainer.yaml");
+        // let mut trainer = TrainerBuilder::default()
+        //     .max_opts(MAX_OPTS)
+        //     .eval_interval(EVAL_INTERVAL)
+        //     .n_episodes_per_eval(N_EPISODES_PER_EVAL)
+        //     .model_dir(saving_model_dir)
+        let mut trainer = TrainerBuilder::load(trainer_cfg)?
             .build(env_train, env_eval, agent);
         let mut recorder = TensorboardRecorder::new(format!("./examples/model/dqn_{}", name));
         trainer.train(&mut recorder);
@@ -183,3 +185,54 @@ fn main() -> Result<()> {
 
     Ok(())
 }
+
+// #[cfg(test)]
+// mod test {
+//     use std::path::Path;
+//     use anyhow::Result;
+//     use super::{DQNBuilder, OptInterval, EpsilonGreedy, TrainerBuilder};
+
+//     // DQN agent parameters
+//     const DISCOUNT_FACTOR: f64 = 0.99;
+//     const BATCH_SIZE: usize = 32;
+//     const N_TRANSITIONS_WARMUP: usize = 2500;
+//     const N_UPDATES_PER_OPT: usize = 1;
+//     const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
+//     const SOFT_UPDATE_INTERVAL: usize = 10_000;
+//     const TAU: f64 = 1.0;
+
+//     // Training parameters
+//     const MAX_OPTS: usize = 3_000_000;
+//     const EVAL_INTERVAL: usize = 10_000;
+//     const REPLAY_BUFFER_CAPACITY: usize = 50_000;
+//     const N_EPISODES_PER_EVAL: usize = 1;
+//     const EPS_FINAL_STEP: usize = 1_000_000;
+
+//     #[test]
+//     fn save_configs() -> Result<()> {
+//         let env_name = "PongNoFrameskip-v4";
+//         let saving_model_dir = format!("./examples/model/dqn_{}", env_name);
+//         let agent_cfg = Path::new(&saving_model_dir).join("agent.yaml");
+//         let trainer_cfg = Path::new(&saving_model_dir).join("trainer.yaml");
+//         println!("{:?}", agent_cfg);
+
+//         let builder = DQNBuilder::default()
+//             .opt_interval(OPT_INTERVAL)
+//             .n_updates_per_opt(N_UPDATES_PER_OPT)
+//             .min_transitions_warmup(N_TRANSITIONS_WARMUP)
+//             .batch_size(BATCH_SIZE)
+//             .discount_factor(DISCOUNT_FACTOR)
+//             .soft_update_interval(SOFT_UPDATE_INTERVAL)
+//             .tau(TAU)
+//             .explorer(EpsilonGreedy::with_final_step(EPS_FINAL_STEP));
+//         builder.save(agent_cfg);
+
+//         let builder = TrainerBuilder::default()
+//             .max_opts(MAX_OPTS)
+//             .eval_interval(EVAL_INTERVAL)
+//             .n_episodes_per_eval(N_EPISODES_PER_EVAL)
+//             .model_dir(saving_model_dir);
+//         builder.save(trainer_cfg);
+//     Ok(())
+//     }
+// }
