@@ -1,6 +1,15 @@
-//! DQN builder.
+//! Constructs DQN agent.
 // use log::trace;
-use std::{cell::RefCell, marker::PhantomData};
+use std::{
+    default::Default,
+    cell::RefCell,
+    fs::File,
+    io::{BufReader, Write},
+    marker::PhantomData,
+    path::Path,
+};
+use serde::{Deserialize, Serialize};
+use anyhow::Result;
 use tch::Tensor;
 
 use crate::{
@@ -19,7 +28,8 @@ use crate::{
 };
 
 #[allow(clippy::upper_case_acronyms)]
-/// DQN builder.
+/// Constructs [DQN].
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct DQNBuilder<E, M, O, A>
 where
     E: Env,
@@ -41,7 +51,31 @@ where
     phantom: PhantomData<(E, M, O, A)>,
 }
 
-#[allow(clippy::new_without_default)]
+impl<E, M, O, A> Default for DQNBuilder<E, M, O, A>
+where
+    E: Env,
+    M: Model1<Input = Tensor, Output = Tensor> + Clone,
+    E::Obs: Into<M::Input>,
+    E::Act: From<Tensor>,
+    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
+    A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
+{
+    fn default() -> Self {
+        Self {
+            opt_interval_counter: OptInterval::Steps(1).counter(),
+            soft_update_interval: 1,
+            n_updates_per_opt: 1,
+            min_transitions_warmup: 1,
+            batch_size: 1,
+            discount_factor: 0.99,
+            tau: 0.005,
+            train: false,
+            explorer: DQNExplorer::Softmax(Softmax::new()),
+            phantom: PhantomData,
+        }
+    }
+}
+
 impl<E, M, O, A> DQNBuilder<E, M, O, A>
 where
     E: Env,
@@ -125,6 +159,21 @@ where
         self
     }
 
+    /// Constructs [TrainerBuilder] from YAML file.
+    pub fn load(path: impl AsRef<Path>) -> Result<Self> {
+        let file = File::open(path)?;
+        let rdr = BufReader::new(file);
+        let b = serde_yaml::from_reader(rdr)?;
+        Ok(b)
+    }
+
+    /// Saves [TrainerBuilder].
+    pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
+        let mut file = File::create(path)?;
+        file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;
+        Ok(())
+    }
+
     /// Constructs DQN.
     pub fn build(
         self,
@@ -154,3 +203,53 @@ where
         }
     }
 }
+
+// #[cfg(test)]
+// mod test {
+//     use super::*;
+//     use tempdir::TempDir;
+
+//     use crate::{
+//         agent::{
+//             tch::{
+//                 dqn::explorer::{DQNExplorer, EpsilonGreedy},
+//                 model::Model1_1,
+//                 DQNBuilder, ReplayBuffer,
+//             },
+//             OptInterval,
+//         },
+//         core::{
+//             record::{BufferedRecorder, Record, TensorboardRecorder},
+//             util, Agent, TrainerBuilder,
+//         },
+//         env::py_gym_env::{
+//             act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
+//             obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
+//             tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
+//             PyGymEnv, Shape,
+//         },
+//     };
+
+//     const DIM_OBS: usize = 4;
+
+//     #[derive(Debug, Clone)]
+//     struct ObsShape {}
+
+//     impl Shape for ObsShape {
+//         fn shape() -> &'static [usize] {
+//             &[DIM_OBS]
+//         }
+//     }
+
+//     type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64, f32>;
+//     type ActFilter = PyGymEnvDiscreteActRawFilter;
+//     type Obs = PyGymEnvObs<ObsShape, f64, f32>;
+//     type Act = PyGymEnvDiscreteAct;
+//     type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+
+//     #[test]
+//     fn test_serde_dqn_builder() -> Result<()> {
+//         let builder = DQNBuilder::<Env, Model1_1, Obs, Act>::default();
+//         Ok(())
+//     }
+// }
