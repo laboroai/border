@@ -31,6 +31,8 @@ reqwest = { version = "0.11.3", features = ["blocking"]}
 dirs = "3.0.2"
 anyhow = "1.0.38"
 zip = "0.5.12"
+serde = { version = "1.0.117", features = ["derive"] }
+serde_yaml = "0.8.7"
 
 [[example]]
 name = "random_cartpole"
@@ -71,7 +73,8 @@ name = "dqn_pong_eval"
 [dev-dependencies]
 clap = "2.33.3"
 csv = "1.1.5"
-serde = { version = "1.0.117", features = ["derive"] }
+# serde = { version = "1.0.117", features = ["derive"] }
+tempdir = "0.3.7"
 
 [package.metadata.docs.rs]
 features = [ "doc-only" ]

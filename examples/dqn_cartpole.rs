@@ -152,6 +152,7 @@ fn main() -> Result<()> {
         let env = create_env();
         let env_eval = create_env();
         let agent = create_agent(matches.is_present("egreddy"));
+        // let mut trainer = TrainerBuilder::load("./examples/model/dqn_cartpole/trainer.yaml")?;
         let mut trainer = TrainerBuilder::default()
             .max_opts(MAX_OPTS)
             .eval_interval(EVAL_INTERVAL)

@@ -1,7 +1,14 @@
 //! Trainer.
+use anyhow::Result;
 use chrono::Local;
 use log::info;
-use std::cell::RefCell;
+use serde::{Deserialize, Serialize};
+use std::{
+    cell::RefCell,
+    fs::File,
+    io::{BufReader, Write},
+    path::Path,
+};
 
 #[allow(unused_imports)]
 use crate::core::{
@@ -10,7 +17,8 @@ use crate::core::{
     Agent, Env, Policy, Step,
 };
 
-/// Builder of [crate::core::trainer::Trainer].
+/// Constructs [Trainer].
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct TrainerBuilder {
     max_opts: usize,
     eval_interval: usize,
@@ -62,6 +70,21 @@ impl TrainerBuilder {
         self
     }
 
+    /// Constructs [TrainerBuilder] from YAML file.
+    pub fn load(path: impl AsRef<Path>) -> Result<Self> {
+        let file = File::open(path)?;
+        let rdr = BufReader::new(file);
+        let b = serde_yaml::from_reader(rdr)?;
+        Ok(b)
+    }
+
+    /// Saves [TrainerBuilder].
+    pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
+        let mut file = File::create(path)?;
+        file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;
+        Ok(())
+    }
+
     ///Constructs a trainer.
     pub fn build<E, A>(self, env: E, env_eval: E, agent: A) -> Trainer<E, A>
     where
@@ -81,6 +104,42 @@ impl TrainerBuilder {
             count_opts: 0,
             count_steps: 0,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use tempdir::TempDir;
+
+    #[test]
+    fn test_serde_trainer_builder() -> Result<()> {
+        let trainer = TrainerBuilder::default()
+            .max_opts(100)
+            .eval_interval(10000)
+            .n_episodes_per_eval(5)
+            .model_dir("some/directory");
+
+        let dir = TempDir::new("trainer_builder")?;
+        let path = dir.path().join("trainer_builder.yaml");
+        println!("{:?}", path);
+
+        trainer.save(&path)?;
+        let trainer_ = TrainerBuilder::load(&path)?;
+        assert_eq!(trainer, trainer_);
+        // let yaml = serde_yaml::to_string(&trainer)?;
+        // println!("{}", yaml);
+        // assert_eq!(
+        //     yaml,
+        //     "---\n\
+        //      max_opts: 100\n\
+        //      eval_interval: 10000\n\
+        //      n_episodes_per_eval: 5\n\
+        //      eval_threshold: ~\n\
+        //      model_dir: some/directory\n\
+        // "
+        // );
+        Ok(())
     }
 }
 
