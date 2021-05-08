@@ -86,7 +86,7 @@ fn create_agent(dim_act: usize) -> impl Agent<Env> {
     let qnet = create_critic(dim_act, device);
     let replay_buffer = ReplayBuffer::new(REPLAY_BUFFER_CAPACITY, N_PROCS);
 
-    DQNBuilder::new()
+    DQNBuilder::default()
         .opt_interval(OPT_INTERVAL)
         .n_updates_per_opt(N_UPDATES_PER_OPT)
         .min_transitions_warmup(N_TRANSITIONS_WARMUP)
@@ -95,7 +95,7 @@ fn create_agent(dim_act: usize) -> impl Agent<Env> {
         .soft_update_interval(SOFT_UPDATE_INTERVAL)
         .tau(TAU)
         .explorer(EpsilonGreedy::with_final_step(EPS_FINAL_STEP))
-        .build(qnet, replay_buffer, device)
+        .build_with_replay_buffer(qnet, replay_buffer, device)
 }
 
 fn create_env(name: &str, mode: AtariWrapper) -> Env {

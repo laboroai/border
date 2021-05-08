@@ -68,7 +68,7 @@ fn create_agent() -> impl Agent<Env> {
     let qnet = create_critic(device);
     let replay_buffer = ReplayBuffer::new(REPLAY_BUFFER_CAPACITY, 1);
 
-    DQNBuilder::new().build(qnet, replay_buffer, device)
+    DQNBuilder::default().build_with_replay_buffer(qnet, replay_buffer, device)
 }
 
 fn create_env() -> Env {

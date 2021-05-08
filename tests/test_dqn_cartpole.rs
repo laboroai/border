@@ -10,7 +10,7 @@ use border::{
         tch::{
             dqn::explorer::{DQNExplorer, EpsilonGreedy},
             model::Model1_1,
-            DQNBuilder, ReplayBuffer,
+            DQNBuilder,
         },
         OptInterval,
     },
@@ -75,21 +75,22 @@ fn create_critic(device: tch::Device) -> Model1_1 {
 fn create_agent(epsilon_greedy: bool) -> impl Agent<Env> {
     let device = tch::Device::cuda_if_available();
     let qnet = create_critic(device);
-    let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
-    let builder = DQNBuilder::new()
+    // let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
+    let builder = DQNBuilder::default()
         .opt_interval(OPT_INTERVAL)
         .n_updates_per_opt(N_UPDATES_PER_OPT)
         .min_transitions_warmup(N_TRANSITIONS_WARMUP)
         .batch_size(BATCH_SIZE)
         .discount_factor(DISCOUNT_FACTOR)
-        .tau(TAU);
+        .tau(TAU)
+        .replay_burffer_capacity(REPLAY_BUFFER_CAPACITY);
 
     if epsilon_greedy {
         builder.explorer(DQNExplorer::EpsilonGreedy(EpsilonGreedy::new()))
     } else {
         builder
     }
-    .build(qnet, replay_buffer, device)
+    .build::<_, _, ObsBuffer, ActBuffer>(qnet, device)
 }
 
 fn create_env() -> Env {

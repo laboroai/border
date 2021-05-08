@@ -39,10 +39,12 @@ pub struct DQNBuilder {
     train: bool,
     discount_factor: f64,
     tau: f64,
+    replay_burffer_capacity: usize,
     explorer: DQNExplorer,
 }
 
 impl Default for DQNBuilder {
+    /// Constructs DQN builder with default parameters.
     fn default() -> Self {
         Self {
             opt_interval_counter: OptInterval::Steps(1).counter(),
@@ -53,27 +55,28 @@ impl Default for DQNBuilder {
             discount_factor: 0.99,
             tau: 0.005,
             train: false,
+            replay_burffer_capacity: 100,
             explorer: DQNExplorer::Softmax(Softmax::new()),
         }
     }
 }
 
-impl DQNBuilder {
-    /// Constructs DQN builder with default parameters.
-    pub fn new() -> Self {
-        Self {
-            opt_interval_counter: OptInterval::Steps(1).counter(),
-            soft_update_interval: 1,
-            n_updates_per_opt: 1,
-            min_transitions_warmup: 1,
-            batch_size: 1,
-            discount_factor: 0.99,
-            tau: 0.005,
-            train: false,
-            explorer: DQNExplorer::Softmax(Softmax::new()),
-        }
-    }
-}
+// impl DQNBuilder {
+//     /// Constructs DQN builder with default parameters.
+//     pub fn new() -> Self {
+//         Self {
+//             opt_interval_counter: OptInterval::Steps(1).counter(),
+//             soft_update_interval: 1,
+//             n_updates_per_opt: 1,
+//             min_transitions_warmup: 1,
+//             batch_size: 1,
+//             discount_factor: 0.99,
+//             tau: 0.005,
+//             train: false,
+//             explorer: DQNExplorer::Softmax(Softmax::new()),
+//         }
+//     }
+// }
 
 impl DQNBuilder {
     /// Set optimization interval.
@@ -119,8 +122,14 @@ impl DQNBuilder {
     }
 
     /// Set explorer.
-    pub fn explorer(mut self, v: DQNExplorer) -> DQNBuilder where {
+    pub fn explorer(mut self, v: DQNExplorer) -> DQNBuilder {
         self.explorer = v;
+        self
+    }
+
+    /// Replay buffer capacity.
+    pub fn replay_burffer_capacity(mut self, v: usize) -> DQNBuilder {
+        self.replay_burffer_capacity = v;
         self
     }
 
@@ -139,8 +148,43 @@ impl DQNBuilder {
         Ok(())
     }
 
-    /// Constructs DQN.
-    pub fn build<E, M, O, A>(
+    /// Constructs DQN agent.
+    ///
+    /// This is used with non-vectorized environments.
+    pub fn build<E, M, O, A>(self, qnet: M, device: tch::Device) -> DQN<E, M, O, A>
+    where
+        E: Env,
+        M: Model1<Input = Tensor, Output = Tensor> + Clone,
+        E::Obs: Into<M::Input>,
+        E::Act: From<Tensor>,
+        O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
+        A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
+    {
+        let qnet_tgt = qnet.clone();
+        let replay_buffer = ReplayBuffer::new(self.replay_burffer_capacity, 1);
+
+        DQN {
+            qnet,
+            qnet_tgt,
+            replay_buffer,
+            prev_obs: RefCell::new(None),
+            opt_interval_counter: self.opt_interval_counter,
+            soft_update_interval: self.soft_update_interval,
+            soft_update_counter: 0,
+            n_updates_per_opt: self.n_updates_per_opt,
+            min_transitions_warmup: self.min_transitions_warmup,
+            batch_size: self.batch_size,
+            discount_factor: self.discount_factor,
+            tau: self.tau,
+            train: self.train,
+            explorer: self.explorer,
+            device,
+            phantom: PhantomData,
+        }
+    }
+
+    /// Constructs DQN agent with the given replay buffer.
+    pub fn build_with_replay_buffer<E, M, O, A>(
         self,
         qnet: M,
         replay_buffer: ReplayBuffer<E, O, A>,
