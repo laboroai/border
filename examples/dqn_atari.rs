@@ -17,9 +17,9 @@ use border::{
 };
 
 // const N_PROCS: usize = 1;
+const LR_QNET: f64 = 1e-4;
 const N_STACK: usize = 4;
 const DIM_OBS: [usize; 4] = [4, 1, 84, 84];
-const LR_QNET: f64 = 1e-4;
 // const DISCOUNT_FACTOR: f64 = 0.99;
 // const BATCH_SIZE: usize = 32;
 // const N_TRANSITIONS_WARMUP: usize = 2500;
@@ -217,13 +217,13 @@ fn main() -> Result<()> {
 //     const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
 //     const SOFT_UPDATE_INTERVAL: usize = 10_000;
 //     const TAU: f64 = 1.0;
+//     const EPS_FINAL_STEP: usize = 1_000_000;
 
 //     // Training parameters
 //     const MAX_OPTS: usize = 3_000_000;
 //     const EVAL_INTERVAL: usize = 10_000;
 //     const REPLAY_BUFFER_CAPACITY: usize = 50_000;
 //     const N_EPISODES_PER_EVAL: usize = 1;
-//     const EPS_FINAL_STEP: usize = 1_000_000;
 
 //     #[test]
 //     fn save_configs() -> Result<()> {

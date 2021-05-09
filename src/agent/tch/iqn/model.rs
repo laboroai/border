@@ -1,8 +1,17 @@
 //! IQN model.
 use super::super::model::{ModelBase, SubModel};
+use anyhow::{Context, Result};
 use log::{info, trace};
-use serde::{Deserialize, Serialize};
-use std::{default::Default, error::Error, f64::consts::PI, marker::PhantomData, path::Path};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::{
+    default::Default,
+    error::Error,
+    f64::consts::PI,
+    fs::File,
+    io::{BufReader, Write},
+    marker::PhantomData,
+    path::Path,
+};
 use tch::{
     nn,
     nn::{Module, OptimizerConfig, VarStore},
@@ -11,7 +20,17 @@ use tch::{
     Tensor,
 };
 
+/// Returns the dimension of output vectors, i.e., the number of discrete outputs.
+pub trait OutDim {
+    /// Returns the dimension of output vectors, i.e., the number of discrete outputs.
+    fn get_out_dim(&self) -> i64;
+
+    /// Sets the  output dimension.
+    fn set_out_dim(&mut self, v: i64);
+}
+
 #[allow(clippy::upper_case_acronyms)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 /// Constructs [IQNModel].
 ///
 /// The type parameter `F` represents a submodel for a feature extractor,
@@ -22,11 +41,14 @@ pub struct IQNModelBuilder<F, M>
 where
     F: SubModel,
     M: SubModel,
+    F::Config: DeserializeOwned + Serialize,
+    M::Config: DeserializeOwned + Serialize,
 {
     feature_dim: i64,
     embed_dim: i64,
-    out_dim: i64,
     learning_rate: f64,
+    f_config: Option<F::Config>,
+    m_config: Option<M::Config>,
     phantom: PhantomData<(F, M)>,
 }
 
@@ -37,13 +59,16 @@ impl<F, M> Default for IQNModelBuilder<F, M>
 where
     F: SubModel,
     M: SubModel,
+    F::Config: DeserializeOwned + Serialize,
+    M::Config: DeserializeOwned + Serialize,
 {
     fn default() -> Self {
         Self {
             feature_dim: 0,
             embed_dim: 0,
-            out_dim: 0,
             learning_rate: 0.0,
+            f_config: None,
+            m_config: None,
             phantom: PhantomData,
         }
     }
@@ -53,6 +78,8 @@ impl<F, M> IQNModelBuilder<F, M>
 where
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
+    F::Config: DeserializeOwned + Serialize,
+    M::Config: DeserializeOwned + Serialize + OutDim,
 {
     /// Sets the dimension of cos-embedding of percent points.
     pub fn embed_dim(mut self, v: i64) -> Self {
@@ -66,33 +93,104 @@ where
         self
     }
 
-    /// Sets the dimension of output vectors, i.e., the number of discrete outputs.
-    pub fn out_dim(mut self, v: i64) -> Self {
-        self.out_dim = v;
-        self
-    }
-
     /// Sets the learning rate.
     pub fn learning_rate(mut self, v: f64) -> Self {
         self.learning_rate = v;
         self
     }
 
-    /// Constructs [IQNModel].
-    pub fn build(
+    /// Sets configurations for feature extractor.
+    pub fn f_config(mut self, v: F::Config) -> Self {
+        self.f_config = Some(v);
+        self
+    }
+
+    /// Sets configurations for output model.
+    pub fn m_config(mut self, v: M::Config) -> Self {
+        self.m_config = Some(v);
+        self
+    }
+
+    /// Sets output dimension of the model.
+    pub fn out_dim(mut self, v: i64) -> Self {
+        match &mut self.m_config {
+            None => {}
+            Some(m_config) => m_config.set_out_dim(v),
+        };
+        self
+    }
+
+    /// Constructs [IQNModelBuilder] from YAML file.
+    pub fn load(path: impl AsRef<Path>) -> Result<Self> {
+        let file = File::open(path)?;
+        let rdr = BufReader::new(file);
+        let b = serde_yaml::from_reader(rdr)?;
+        Ok(b)
+    }
+
+    /// Saves [IQNModelBuilder].
+    pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
+        let mut file = File::create(path)?;
+        file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;
+        Ok(())
+    }
+
+    /// Constructs [IQNModel] with the given configurations of sub models.
+    pub fn build(self, device: Device) -> Result<IQNModel<F, M>> {
+        let f_config = self.f_config.context("f_config is not set.")?;
+        let m_config = self.m_config.context("m_config is not set.")?;
+        let feature_dim = self.feature_dim;
+        let embed_dim = self.embed_dim;
+        let out_dim = m_config.get_out_dim();
+        let learning_rate = self.learning_rate;
+        let var_store = nn::VarStore::new(device);
+
+        // Feature extractor
+        let psi = F::build(&var_store, f_config);
+
+        // Cosine embedding
+        let phi = IQNModel::<F, M>::cos_embed_nn(&var_store, feature_dim, embed_dim);
+
+        // Merge
+        let f = M::build(&var_store, m_config);
+
+        // let mut adam = nn::Adam::default();
+        // adam.eps = 0.01 / 32.0;
+        // let opt = adam.build(&var_store, learning_rate).unwrap();
+        let opt = nn::Adam::default()
+            .build(&var_store, learning_rate)
+            .unwrap();
+
+        Ok(IQNModel {
+            device,
+            var_store,
+            feature_dim,
+            embed_dim,
+            out_dim,
+            psi,
+            phi,
+            f,
+            learning_rate,
+            opt,
+            phantom: PhantomData,
+        })
+    }
+
+    /// Constructs [IQNModel] with the given configurations of sub models.
+    pub fn build_with_submodel_configs(
         &self,
-        fe_config: F::Config,
+        f_config: F::Config,
         m_config: M::Config,
         device: Device,
     ) -> IQNModel<F, M> {
         let feature_dim = self.feature_dim;
         let embed_dim = self.embed_dim;
-        let out_dim = self.out_dim;
+        let out_dim = m_config.get_out_dim();
         let learning_rate = self.learning_rate;
         let var_store = nn::VarStore::new(device);
 
         // Feature extractor
-        let psi = F::build(&var_store, fe_config);
+        let psi = F::build(&var_store, f_config);
 
         // Cosine embedding
         let phi = IQNModel::<F, M>::cos_embed_nn(&var_store, feature_dim, embed_dim);
@@ -414,12 +512,13 @@ mod test {
     use std::default::Default;
     use tch::{nn, Device, Tensor};
 
-    struct IdentityConfig {}
+    #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
+    struct FeatureExtractorConfig {}
 
-    struct Identity {}
+    struct FeatureExtractor {}
 
-    impl SubModel for Identity {
-        type Config = IdentityConfig;
+    impl SubModel for FeatureExtractor {
+        type Config = FeatureExtractorConfig;
         type Input = Tensor;
         type Output = Tensor;
 
@@ -436,18 +535,56 @@ mod test {
         }
     }
 
-    fn iqn_model(feature_dim: i64, embed_dim: i64, out_dim: i64) -> IQNModel<Identity, Identity> {
-        let fe_config = IdentityConfig {};
-        let m_config = IdentityConfig {};
+    #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
+    struct MergeConfig {
+        out_dim: i64,
+    }
+
+    impl OutDim for MergeConfig {
+        fn get_out_dim(&self) -> i64 {
+            self.out_dim
+        }
+
+        fn set_out_dim(&mut self, v: i64) {
+            self.out_dim = v;
+        }
+    }
+
+    struct Merge {}
+
+    impl SubModel for Merge {
+        type Config = MergeConfig;
+        type Input = Tensor;
+        type Output = Tensor;
+
+        fn clone_with_var_store(&self, _var_store: &nn::VarStore) -> Self {
+            Self {}
+        }
+
+        fn build(_var_store: &VarStore, _config: Self::Config) -> Self {
+            Self {}
+        }
+
+        fn forward(&self, input: &Self::Input) -> Self::Output {
+            input.copy()
+        }
+    }
+
+    fn iqn_model(
+        feature_dim: i64,
+        embed_dim: i64,
+        out_dim: i64,
+    ) -> IQNModel<FeatureExtractor, Merge> {
+        let fe_config = FeatureExtractorConfig {};
+        let m_config = MergeConfig { out_dim };
         let device = Device::Cpu;
         let learning_rate = 1e-4;
 
         IQNModelBuilder::default()
             .feature_dim(feature_dim)
             .embed_dim(embed_dim)
-            .out_dim(out_dim)
             .learning_rate(learning_rate)
-            .build(fe_config, m_config, device)
+            .build_with_submodel_configs(fe_config, m_config, device)
     }
 
     #[test]

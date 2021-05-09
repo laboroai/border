@@ -1,5 +1,4 @@
 //! Constructs DQN agent.
-// use log::trace;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -60,23 +59,6 @@ impl Default for DQNBuilder {
         }
     }
 }
-
-// impl DQNBuilder {
-//     /// Constructs DQN builder with default parameters.
-//     pub fn new() -> Self {
-//         Self {
-//             opt_interval_counter: OptInterval::Steps(1).counter(),
-//             soft_update_interval: 1,
-//             n_updates_per_opt: 1,
-//             min_transitions_warmup: 1,
-//             batch_size: 1,
-//             discount_factor: 0.99,
-//             tau: 0.005,
-//             train: false,
-//             explorer: DQNExplorer::Softmax(Softmax::new()),
-//         }
-//     }
-// }
 
 impl DQNBuilder {
     /// Set optimization interval.

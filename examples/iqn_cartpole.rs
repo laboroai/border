@@ -64,16 +64,28 @@ type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 
 mod iqn_model {
     use border::agent::tch::{
-        iqn::{IQNModel, IQNModelBuilder},
+        iqn::{model::OutDim, IQNModel, IQNModelBuilder},
         model::SubModel,
     };
+    use serde::{Deserialize, Serialize};
     use tch::{nn, nn::Module, Device, Tensor};
 
     #[allow(clippy::upper_case_acronyms)]
+    #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
     pub struct FCConfig {
         in_dim: i64,
         out_dim: i64,
         relu: bool,
+    }
+
+    impl OutDim for FCConfig {
+        fn get_out_dim(&self) -> i64 {
+            self.out_dim
+        }
+
+        fn set_out_dim(&mut self, v: i64) {
+            self.out_dim = v;
+        }
     }
 
     impl FCConfig {
@@ -168,9 +180,8 @@ mod iqn_model {
         IQNModelBuilder::default()
             .feature_dim(feature_dim)
             .embed_dim(embed_dim)
-            .out_dim(out_dim)
             .learning_rate(learning_rate)
-            .build(fe_config, m_config, device)
+            .build_with_submodel_configs(fe_config, m_config, device)
     }
 }
 
@@ -188,7 +199,7 @@ fn create_agent() -> impl Agent<Env> {
         .tau(TAU)
         .soft_update_interval(SOFT_UPDATE_INTERVAL)
         .explorer(EpsilonGreedy::with_params(EPS_START, EPS_FINAL, FINAL_STEP))
-        .build(iqn_model, replay_buffer, device)
+        .build_with_replay_bufferbuild(iqn_model, replay_buffer, device)
 }
 
 fn create_env() -> Env {

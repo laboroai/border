@@ -41,6 +41,7 @@ pub struct IQNBuilder {
     sample_percents_act: IQNSample,
     train: bool,
     explorer: IQNExplorer,
+    replay_buffer_capacity: usize,
 }
 
 impl Default for IQNBuilder {
@@ -58,6 +59,7 @@ impl Default for IQNBuilder {
             sample_percents_act: IQNSample::Uniform32, // Const10,
             train: false,
             explorer: IQNExplorer::EpsilonGreedy(EpsilonGreedy::default()),
+            replay_buffer_capacity: 1,
         }
     }
 }
@@ -106,7 +108,7 @@ impl IQNBuilder {
     }
 
     /// Set explorer.
-    pub fn explorer(mut self, v: IQNExplorer) -> Self where {
+    pub fn explorer(mut self, v: IQNExplorer) -> Self {
         self.explorer = v;
         self
     }
@@ -129,6 +131,12 @@ impl IQNBuilder {
         self
     }
 
+    /// Replay buffer capacity.
+    pub fn replay_buffer_capacity(mut self, v: usize) -> Self {
+        self.replay_buffer_capacity = v;
+        self
+    }
+
     /// Constructs [IQNBuilder] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let file = File::open(path)?;
@@ -146,6 +154,48 @@ impl IQNBuilder {
 
     /// Constructs [IQN] agent.
     pub fn build<E, F, M, O, A>(
+        self,
+        iqn_model: IQNModel<F, M>,
+        device: Device,
+    ) -> IQN<E, F, M, O, A>
+    where
+        E: Env,
+        F: SubModel<Output = Tensor>,
+        M: SubModel<Input = Tensor, Output = Tensor>,
+        E::Obs: Into<F::Input>,
+        E::Act: From<Tensor>,
+        O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
+        A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
+    {
+        let iqn = iqn_model;
+        let iqn_tgt = iqn.clone();
+        let replay_buffer = ReplayBuffer::new(self.replay_buffer_capacity, 1);
+
+        IQN {
+            iqn,
+            iqn_tgt,
+            replay_buffer,
+            prev_obs: RefCell::new(None),
+            opt_interval_counter: self.opt_interval_counter,
+            soft_update_interval: self.soft_update_interval,
+            soft_update_counter: 0,
+            n_updates_per_opt: self.n_updates_per_opt,
+            min_transitions_warmup: self.min_transitions_warmup,
+            batch_size: self.batch_size,
+            discount_factor: self.discount_factor,
+            tau: self.tau,
+            sample_percents_pred: self.sample_percents_pred,
+            sample_percents_tgt: self.sample_percents_tgt,
+            sample_percents_act: self.sample_percents_act,
+            train: self.train,
+            explorer: self.explorer,
+            device,
+            phantom: PhantomData,
+        }
+    }
+
+    /// Constructs [IQN] agent with the given replay buffer.
+    pub fn build_with_replay_bufferbuild<E, F, M, O, A>(
         self,
         iqn_model: IQNModel<F, M>,
         replay_buffer: ReplayBuffer<E, O, A>,

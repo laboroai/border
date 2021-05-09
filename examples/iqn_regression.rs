@@ -1,9 +1,10 @@
 //! Example of using IQNModel for quantile regression.
 use border::agent::tch::{
-    iqn::{IQNModel, IQNModelBuilder},
+    iqn::{model::OutDim, IQNModel, IQNModelBuilder},
     model::{ModelBase, SubModel},
     util::quantile_huber_loss,
 };
+use serde::{Deserialize, Serialize};
 use std::default::Default;
 use tch::{
     kind::FLOAT_CPU,
@@ -19,9 +20,20 @@ const N_PERCENT_POINTS: i64 = 5;
 const FEATURE_DIM: i64 = 8;
 const EMBED_DIM: i64 = 64;
 
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 struct LinearConfig {
     in_dim: i64,
     out_dim: i64,
+}
+
+impl OutDim for LinearConfig {
+    fn get_out_dim(&self) -> i64 {
+        self.out_dim
+    }
+
+    fn set_out_dim(&mut self, v: i64) {
+        self.out_dim = v;
+    }
 }
 
 impl LinearConfig {
@@ -97,9 +109,8 @@ fn create_iqn_model() -> IQNModel<Linear, Linear> {
     IQNModelBuilder::default()
         .feature_dim(FEATURE_DIM)
         .embed_dim(EMBED_DIM)
-        .out_dim(1)
         .learning_rate(1e-4)
-        .build(fe_config, m_config, tch::Device::Cpu)
+        .build_with_submodel_configs(fe_config, m_config, tch::Device::Cpu)
 }
 
 fn main() {
