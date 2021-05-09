@@ -1,24 +1,20 @@
 use anyhow::Result;
 use clap::{App, Arg};
-use std::{time::Duration, path::Path};
+use std::{path::Path, time::Duration};
 use tch::nn;
 
-use border::{agent::{
-        tch::{
-            dqn::explorer::EpsilonGreedy, model::Model1_1, DQNBuilder,
-            ReplayBuffer as ReplayBuffer_,
-        },
-        OptInterval,
-    }, core::{Agent, Trainer, TrainerBuilder, record::TensorboardRecorder, util}, env::{
-        self,
-        py_gym_env::{
-            act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
-            framestack::FrameStackFilter,
-            obs::PyGymEnvObs,
-            tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
-            AtariWrapper, PyGymEnv, PyGymEnvBuilder, Shape,
-        },
-    }, util::url::get_model_from_url};
+use border::{
+    agent::tch::{model::Model1_1, DQNBuilder},
+    core::{record::TensorboardRecorder, util, Agent, TrainerBuilder},
+    env::py_gym_env::{
+        act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
+        framestack::FrameStackFilter,
+        obs::PyGymEnvObs,
+        tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
+        AtariWrapper, PyGymEnv, PyGymEnvBuilder, Shape,
+    },
+    util::url::get_model_from_url,
+};
 
 // const N_PROCS: usize = 1;
 const N_STACK: usize = 4;
@@ -53,7 +49,7 @@ type Act = PyGymEnvDiscreteAct;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8, u8>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer;
-type ReplayBuffer = ReplayBuffer_<Env, ObsBuffer, ActBuffer>;
+// type ReplayBuffer = ReplayBuffer_<Env, ObsBuffer, ActBuffer>;
 
 fn stride(s: i64) -> nn::ConvConfig {
     nn::ConvConfig {
@@ -79,23 +75,28 @@ fn create_critic(dim_act: usize, device: tch::Device) -> Model1_1 {
     Model1_1::new(&DIM_OBS, dim_act, LR_QNET, network_fn, device)
 }
 
-fn create_agent(dim_act: usize, env_name: impl Into<String>) -> Result<impl Agent<Env>> {
+fn create_agent(
+    dim_act: usize,
+    env_name: impl Into<String>,
+) -> Result<(impl Agent<Env>, DQNBuilder)> {
     let device = tch::Device::cuda_if_available();
     let qnet = create_critic(dim_act, device);
     let agent_cfg = format!("./examples/model/dqn_{}/agent.yaml", env_name.into());
 
-    let agent = DQNBuilder::load(Path::new(&agent_cfg))?
-        // .opt_interval(OPT_INTERVAL)
-        // .n_updates_per_opt(N_UPDATES_PER_OPT)
-        // .min_transitions_warmup(N_TRANSITIONS_WARMUP)
-        // .batch_size(BATCH_SIZE)
-        // .discount_factor(DISCOUNT_FACTOR)
-        // .soft_update_interval(SOFT_UPDATE_INTERVAL)
-        // .tau(TAU)
-        // .explorer(EpsilonGreedy::with_final_step(EPS_FINAL_STEP))
+    let agent_cfg = DQNBuilder::load(Path::new(&agent_cfg))?;
+    // .opt_interval(OPT_INTERVAL)
+    // .n_updates_per_opt(N_UPDATES_PER_OPT)
+    // .min_transitions_warmup(N_TRANSITIONS_WARMUP)
+    // .batch_size(BATCH_SIZE)
+    // .discount_factor(DISCOUNT_FACTOR)
+    // .soft_update_interval(SOFT_UPDATE_INTERVAL)
+    // .tau(TAU)
+    // .explorer(EpsilonGreedy::with_final_step(EPS_FINAL_STEP))
+    let agent = agent_cfg
+        .clone()
         .build::<_, _, ObsBuffer, ActBuffer>(qnet, device);
 
-    Ok(agent)
+    Ok((agent, agent_cfg))
 }
 
 fn create_env(name: &str, mode: AtariWrapper) -> Env {
@@ -141,12 +142,20 @@ fn main() -> Result<()> {
                 .default_value("25")
                 .help("Waiting time in milliseconds between frames when playing"),
         )
+        .arg(
+            Arg::with_name("show-config")
+                .long("show-config")
+                .takes_value(false)
+                .help("Showing configuration loaded from files"),
+        )
         .get_matches();
 
     let name = matches.value_of("name").unwrap();
     let mut env_eval = create_env(name, AtariWrapper::Eval);
     let dim_act = env_eval.get_num_actions_atari();
-    let mut agent = create_agent(dim_act as _, name)?;
+    let agent = create_agent(dim_act as _, name)?;
+    let agent_cfg = agent.1;
+    let mut agent = agent.0;
 
     if !(matches.is_present("play") || matches.is_present("play-gdrive")) {
         let env_train = create_env(name, AtariWrapper::Train);
@@ -157,9 +166,17 @@ fn main() -> Result<()> {
         //     .eval_interval(EVAL_INTERVAL)
         //     .n_episodes_per_eval(N_EPISODES_PER_EVAL)
         //     .model_dir(saving_model_dir)
-        let mut trainer = TrainerBuilder::load(trainer_cfg)?
-            .build(env_train, env_eval, agent);
+        let trainer_cfg = TrainerBuilder::load(&trainer_cfg)?;
+        let mut trainer = trainer_cfg.clone().build(env_train, env_eval, agent);
         let mut recorder = TensorboardRecorder::new(format!("./examples/model/dqn_{}", name));
+
+        if matches.is_present("show-config") {
+            println!("Device: {:?}", tch::Device::cuda_if_available());
+            println!("{:?}", trainer_cfg);
+            println!("{:?}", agent_cfg);
+            return Ok(());
+        }
+
         trainer.train(&mut recorder);
     } else {
         if matches.is_present("play") {

@@ -6,7 +6,7 @@ use crate::agent::tch::model::Model1;
 
 #[allow(clippy::upper_case_acronyms)]
 /// Explorers for DQN.
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub enum DQNExplorer {
     /// Softmax action selection.
     Softmax(Softmax),
@@ -16,7 +16,7 @@ pub enum DQNExplorer {
 }
 
 /// Softmax explorer for DQN.
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct Softmax {}
 
 #[allow(clippy::new_without_default)]
@@ -37,7 +37,7 @@ impl Softmax {
 }
 
 /// Epsilon-greedy explorer for DQN.
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct EpsilonGreedy {
     n_opts: usize,
     eps_start: f64,

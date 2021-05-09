@@ -29,7 +29,7 @@ use crate::{
 
 #[allow(clippy::upper_case_acronyms)]
 /// Constructs [DQN].
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct DQNBuilder {
     opt_interval_counter: OptIntervalCounter,
     soft_update_interval: usize,

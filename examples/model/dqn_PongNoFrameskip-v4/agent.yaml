@@ -10,7 +10,7 @@ batch_size: 32
 train: false
 discount_factor: 0.99
 tau: 1.0
-replay_burffer_capacity: 100
+replay_burffer_capacity: 50000
 explorer:
   EpsilonGreedy:
     n_opts: 0

@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Interval between optimization steps.
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub enum OptInterval {
     /// Optimization interval specified as interaction steps.
     Steps(usize),
@@ -21,7 +21,7 @@ impl OptInterval {
 }
 
 /// The counter for optimization.
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct OptIntervalCounter {
     opt_interval: OptInterval,
     count: usize,

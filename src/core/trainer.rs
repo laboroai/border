@@ -18,7 +18,7 @@ use crate::core::{
 };
 
 /// Constructs [Trainer].
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct TrainerBuilder {
     max_opts: usize,
     eval_interval: usize,
