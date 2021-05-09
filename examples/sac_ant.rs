@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::{App, Arg};
 use std::time::Duration;
+use log::info;
 use tch::nn;
 
 use border::{
@@ -190,6 +191,7 @@ fn main() -> Result<()> {
             let url =
                 "https://drive.google.com/uc?export=download&id=1XvFi2nJD5OhpTvs-Et3YREuoqy8c3Vkq";
             let model_dir = get_model_from_url(url, file_base)?;
+            info!("Download the model in {:?}", model_dir.as_ref().to_str());
             agent.load(model_dir).unwrap(); // TODO: define appropriate error
         };
 
