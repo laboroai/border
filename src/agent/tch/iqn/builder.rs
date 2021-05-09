@@ -1,5 +1,14 @@
-//! Builder of IQN agent
-use std::{cell::RefCell, default::Default, marker::PhantomData};
+//! Constructs IQN agent.
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
+use std::{
+    cell::RefCell,
+    default::Default,
+    fs::File,
+    io::{BufReader, Write},
+    marker::PhantomData,
+    path::Path,
+};
 use tch::{Device, Tensor};
 
 use crate::{
@@ -17,17 +26,9 @@ use crate::{
 use super::model::IQNSample;
 
 #[allow(clippy::clippy::upper_case_acronyms)]
-/// IQN builder.
-pub struct IQNBuilder<E, F, M, O, A>
-where
-    E: Env,
-    F: SubModel,
-    M: SubModel,
-    E::Obs: Into<F::Input>,
-    E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
-{
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
+/// Constructs IQN agent.
+pub struct IQNBuilder {
     opt_interval_counter: OptIntervalCounter,
     soft_update_interval: usize,
     n_updates_per_opt: usize,
@@ -40,19 +41,9 @@ where
     sample_percents_act: IQNSample,
     train: bool,
     explorer: IQNExplorer,
-    phantom: PhantomData<(E, F, M, O, A)>,
 }
 
-impl<E, F, M, O, A> Default for IQNBuilder<E, F, M, O, A>
-where
-    E: Env,
-    F: SubModel,
-    M: SubModel,
-    E::Obs: Into<F::Input>,
-    E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
-{
+impl Default for IQNBuilder {
     fn default() -> Self {
         Self {
             opt_interval_counter: OptInterval::Steps(1).counter(),
@@ -67,21 +58,11 @@ where
             sample_percents_act: IQNSample::Uniform32, // Const10,
             train: false,
             explorer: IQNExplorer::EpsilonGreedy(EpsilonGreedy::default()),
-            phantom: PhantomData,
         }
     }
 }
 
-impl<E, F, M, O, A> IQNBuilder<E, F, M, O, A>
-where
-    E: Env,
-    F: SubModel<Output = Tensor>,
-    M: SubModel<Input = Tensor, Output = Tensor>,
-    E::Obs: Into<F::Input>,
-    E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
-{
+impl IQNBuilder {
     /// Set optimization interval.
     pub fn opt_interval(mut self, v: OptInterval) -> Self {
         self.opt_interval_counter = v.counter();
@@ -148,13 +129,37 @@ where
         self
     }
 
+    /// Constructs [IQNBuilder] from YAML file.
+    pub fn load(path: impl AsRef<Path>) -> Result<Self> {
+        let file = File::open(path)?;
+        let rdr = BufReader::new(file);
+        let b = serde_yaml::from_reader(rdr)?;
+        Ok(b)
+    }
+
+    /// Saves [IQNBuilder].
+    pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
+        let mut file = File::create(path)?;
+        file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;
+        Ok(())
+    }
+
     /// Constructs [IQN] agent.
-    pub fn build(
+    pub fn build<E, F, M, O, A>(
         self,
         iqn_model: IQNModel<F, M>,
         replay_buffer: ReplayBuffer<E, O, A>,
         device: Device,
-    ) -> IQN<E, F, M, O, A> {
+    ) -> IQN<E, F, M, O, A>
+    where
+        E: Env,
+        F: SubModel<Output = Tensor>,
+        M: SubModel<Input = Tensor, Output = Tensor>,
+        E::Obs: Into<F::Input>,
+        E::Act: From<Tensor>,
+        O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
+        A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
+    {
         let iqn = iqn_model;
         let iqn_tgt = iqn.clone();
 

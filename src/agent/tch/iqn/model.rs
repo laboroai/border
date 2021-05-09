@@ -1,6 +1,7 @@
 //! IQN model.
 use super::super::model::{ModelBase, SubModel};
 use log::{info, trace};
+use serde::{Deserialize, Serialize};
 use std::{default::Default, error::Error, f64::consts::PI, marker::PhantomData, path::Path};
 use tch::{
     nn,
@@ -324,6 +325,7 @@ where
 }
 
 #[allow(clippy::upper_case_acronyms)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 /// The way of taking percent points.
 pub enum IQNSample {
     /// Samples over percent points `0.05:0.1:0.95`.

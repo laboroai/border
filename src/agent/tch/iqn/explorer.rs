@@ -1,8 +1,10 @@
 //! Exploration strategies of IQN.
+use serde::{Deserialize, Serialize};
 use std::default::Default;
 use tch::Tensor;
 
 #[allow(clippy::upper_case_acronyms)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 /// Explorers for IQN.
 pub enum IQNExplorer {
     // /// Softmax action selection.
@@ -28,6 +30,7 @@ pub enum IQNExplorer {
 //     }
 // }
 
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 /// Epsilon-greedy explorer for IQN.
 pub struct EpsilonGreedy {
     n_opts: usize,

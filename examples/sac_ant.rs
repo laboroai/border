@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{App, Arg};
-use std::time::Duration;
 use log::info;
+use std::time::Duration;
 use tch::nn;
 
 use border::{
