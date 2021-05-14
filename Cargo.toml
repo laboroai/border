@@ -73,7 +73,6 @@ name = "dqn_pong_eval"
 [dev-dependencies]
 clap = "2.33.3"
 csv = "1.1.5"
-# serde = { version = "1.0.117", features = ["derive"] }
 tempdir = "0.3.7"
 
 [package.metadata.docs.rs]

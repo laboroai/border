@@ -1,16 +1,16 @@
 ---
 opt_interval_counter:
   opt_interval:
-    Steps: 1
+    Steps: 4
   count: 0
-soft_update_interval: 10000
+soft_update_interval: 2500
 n_updates_per_opt: 1
-min_transitions_warmup: 2500
+min_transitions_warmup: 10000
 batch_size: 32
 discount_factor: 0.99
 tau: 1.0
-sample_percents_pred: Uniform8
-sample_percents_tgt: Uniform8
+sample_percents_pred: Uniform64
+sample_percents_tgt: Uniform64
 sample_percents_act: Uniform32
 train: false
 explorer:
