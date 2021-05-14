@@ -3,6 +3,7 @@ pub mod ddpg;
 pub mod dqn;
 pub mod iqn;
 pub mod model;
+pub mod opt;
 pub mod pg;
 pub mod ppo;
 pub mod replay_buffer;

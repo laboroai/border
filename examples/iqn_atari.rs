@@ -3,13 +3,7 @@ use clap::{App, Arg};
 use std::{path::Path, time::Duration};
 
 use border::{
-    agent::{
-        tch::{
-            iqn::{model::IQNSample, EpsilonGreedy, IQNBuilder, IQNModelBuilder},
-            ReplayBuffer as ReplayBuffer_,
-        },
-        OptInterval,
-    },
+    agent::tch::iqn::{IQNBuilder, IQNModelBuilder},
     core::{record::TensorboardRecorder, util, Agent, TrainerBuilder},
     env::py_gym_env::{
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
@@ -64,10 +58,7 @@ type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8, u8>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 
 mod iqn_model {
-    use border::agent::tch::{
-        iqn::{model::OutDim, IQNModel, IQNModelBuilder},
-        model::SubModel,
-    };
+    use border::agent::tch::{iqn::model::OutDim, model::SubModel};
     use serde::{Deserialize, Serialize};
     use tch::{nn, nn::Module, nn::VarStore, Device, Tensor};
 
@@ -395,96 +386,108 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-// #[cfg(test)]
-// mod test {
-//     use std::path::Path;
-//     use anyhow::Result;
-//     use super::iqn_model::{ConvNetConfig, ConvNet, MLPConfig, MLP};
-//     use border::agent::tch::iqn::{IQNModelBuilder, model::IQNSample};
+#[cfg(test)]
+mod test {
+    use anyhow::Result;
+    use std::path::Path;
+    // use border::agent::tch::iqn::{model::IQNSample, IQNModelBuilder};
+    use super::iqn_model::{ConvNet, ConvNetConfig, MLPConfig, MLP};
+    use border::{
+        agent::{
+            tch::{
+                iqn::{model::IQNSample, EpsilonGreedy, IQNBuilder, IQNModelBuilder},
+                opt::OptimizerConfig
+            },
+            OptInterval,
+        },
+        core::TrainerBuilder,
+    };
 
-//     use super::{IQNBuilder, OptInterval, EpsilonGreedy, TrainerBuilder};
+    // super::{IQNBuilder, OptInterval, EpsilonGreedy, TrainerBuilder};
 
-//     // IQN model parameters
-//     const LR_QNET: f64 = 1e-4;
-//     const N_STACK: i64 = 4;
-//     const FEATURE_DIM: i64 = 3136;
-//     const EMBED_DIM: i64 = 64;
-//     const HIDDEN_DIM: i64 = 512;
+    // IQN model parameters
+    const LR_QNET: f64 = 1e-4;
+    const N_STACK: i64 = 4;
+    const FEATURE_DIM: i64 = 3136;
+    const EMBED_DIM: i64 = 64;
+    const HIDDEN_DIM: i64 = 512;
 
-//     fn iqn_model_builder() -> IQNModelBuilder<ConvNet, MLP> {
-//         let out_dim = 0;
-//         let f_config = ConvNetConfig::new(N_STACK, FEATURE_DIM);
-//         let m_config = MLPConfig::new(FEATURE_DIM, HIDDEN_DIM, out_dim);
-//         IQNModelBuilder::default()
-//             .feature_dim(FEATURE_DIM)
-//             .embed_dim(EMBED_DIM)
-//             .learning_rate(LR_QNET)
-//             .f_config(f_config)
-//             .m_config(m_config)
-//     }
+    fn iqn_model_builder() -> IQNModelBuilder<ConvNet, MLP> {
+        let out_dim = 0;
+        let f_config = ConvNetConfig::new(N_STACK, FEATURE_DIM);
+        let m_config = MLPConfig::new(FEATURE_DIM, HIDDEN_DIM, out_dim);
+        IQNModelBuilder::default()
+            .feature_dim(FEATURE_DIM)
+            .embed_dim(EMBED_DIM)
+            // .learning_rate(LR_QNET)
+            .opt_config(OptimizerConfig::AdamEps { lr: 5e-5, eps: 0.01 / 32.0 } )
+            .f_config(f_config)
+            .m_config(m_config)
+    }
 
-//     // IQN agent parameters
-//     const DISCOUNT_FACTOR: f64 = 0.99;
-//     const BATCH_SIZE: usize = 32;
-//     const N_TRANSITIONS_WARMUP: usize = 2500;
-//     const N_UPDATES_PER_OPT: usize = 1;
-//     const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
-//     const SOFT_UPDATE_INTERVAL: usize = 10_000;
-//     const TAU: f64 = 1.0;
-//     const REPLAY_BUFFER_CAPACITY: usize = 50_000;
-//     const SAMPLE_PERCENTS_PRED: IQNSample = IQNSample::Uniform8;
-//     const SAMPLE_PERCENTS_TGT: IQNSample = IQNSample::Uniform8;
-//     const SAMPLE_PERCENTS_ACT: IQNSample = IQNSample::Uniform32;
-//     const EPS_START: f64 = 1.0;
-//     const EPS_FINAL: f64 = 0.02;
-//     const EPS_FINAL_STEP: usize = 1_000_000;
+    // IQN agent parameters
+    const DISCOUNT_FACTOR: f64 = 0.99;
+    const BATCH_SIZE: usize = 32;
+    const N_TRANSITIONS_WARMUP: usize = 2500;
+    const N_UPDATES_PER_OPT: usize = 1;
+    const OPT_INTERVAL: OptInterval = OptInterval::Steps(4);
+    const SOFT_UPDATE_INTERVAL: usize = 2_500;
+    const TAU: f64 = 1.0;
+    const REPLAY_BUFFER_CAPACITY: usize = 1_000_000;
+    const SAMPLE_PERCENTS_PRED: IQNSample = IQNSample::Uniform64;
+    const SAMPLE_PERCENTS_TGT: IQNSample = IQNSample::Uniform64;
+    const SAMPLE_PERCENTS_ACT: IQNSample = IQNSample::Uniform32;
+    const EPS_START: f64 = 1.0;
+    const EPS_FINAL: f64 = 0.02;
+    const EPS_FINAL_STEP: usize = 1_000_000;
 
-//     fn iqn_agent_builder() -> IQNBuilder {
-//         IQNBuilder::default()
-//             .opt_interval(OPT_INTERVAL)
-//             .n_updates_per_opt(N_UPDATES_PER_OPT)
-//             .min_transitions_warmup(N_TRANSITIONS_WARMUP)
-//             .batch_size(BATCH_SIZE)
-//             .discount_factor(DISCOUNT_FACTOR)
-//             .soft_update_interval(SOFT_UPDATE_INTERVAL)
-//             .tau(TAU)
-//             .explorer(EpsilonGreedy::with_params(
-//                 EPS_START,
-//                 EPS_FINAL,
-//                 EPS_FINAL_STEP,
-//             ))
-//             .sample_percent_pred(SAMPLE_PERCENTS_PRED)
-//             .sample_percent_tgt(SAMPLE_PERCENTS_TGT)
-//             .sample_percent_act(SAMPLE_PERCENTS_ACT)
-//             .replay_buffer_capacity(REPLAY_BUFFER_CAPACITY)
-//     }
+    fn iqn_agent_builder() -> IQNBuilder {
+        IQNBuilder::default()
+            .opt_interval(OPT_INTERVAL)
+            .n_updates_per_opt(N_UPDATES_PER_OPT)
+            .min_transitions_warmup(N_TRANSITIONS_WARMUP)
+            .batch_size(BATCH_SIZE)
+            .discount_factor(DISCOUNT_FACTOR)
+            .soft_update_interval(SOFT_UPDATE_INTERVAL)
+            .tau(TAU)
+            .explorer(EpsilonGreedy::with_params(
+                EPS_START,
+                EPS_FINAL,
+                EPS_FINAL_STEP,
+            ))
+            .sample_percent_pred(SAMPLE_PERCENTS_PRED)
+            .sample_percent_tgt(SAMPLE_PERCENTS_TGT)
+            .sample_percent_act(SAMPLE_PERCENTS_ACT)
+            .replay_buffer_capacity(REPLAY_BUFFER_CAPACITY)
+    }
 
-//     // Training parameters
-//     const MAX_OPTS: usize = 5_000_000;
-//     const EVAL_INTERVAL: usize = 10_000;
-//     const N_EPISODES_PER_EVAL: usize = 1;
+    // Training parameters
+    const MAX_OPTS: usize = 50_000_000;
+    const EVAL_INTERVAL: usize = 10_000;
+    const N_EPISODES_PER_EVAL: usize = 1;
 
-//     fn trainer_builder(saving_model_dir: &String) -> TrainerBuilder {
-//         TrainerBuilder::default()
-//             .max_opts(MAX_OPTS)
-//             .eval_interval(EVAL_INTERVAL)
-//             .n_episodes_per_eval(N_EPISODES_PER_EVAL)
-//             .model_dir(saving_model_dir)
-//     }
+    fn trainer_builder(saving_model_dir: &String) -> TrainerBuilder {
+        TrainerBuilder::default()
+            .max_opts(MAX_OPTS)
+            .eval_interval(EVAL_INTERVAL)
+            .n_episodes_per_eval(N_EPISODES_PER_EVAL)
+            .model_dir(saving_model_dir)
+    }
 
-//     #[test]
-//     fn save_configs() -> Result<()> {
-//         let env_name = "PongNoFrameskip-v4";
-//         let saving_model_dir = format!("./examples/model/iqn_{}", env_name);
-//         let model_cfg = Path::new(&saving_model_dir).join("model.yaml");
-//         let agent_cfg = Path::new(&saving_model_dir).join("agent.yaml");
-//         let trainer_cfg = Path::new(&saving_model_dir).join("trainer.yaml");
-//         println!("{:?}", agent_cfg);
+    #[test]
+    fn save_configs() -> Result<()> {
+        // let env_name = "PongNoFrameskip-v4";
+        let env_name = "SeaquestNoFrameskip-v4";
+        let saving_model_dir = format!("./examples/model/iqn_{}", env_name);
+        let model_cfg = Path::new(&saving_model_dir).join("model.yaml");
+        let agent_cfg = Path::new(&saving_model_dir).join("agent.yaml");
+        let trainer_cfg = Path::new(&saving_model_dir).join("trainer.yaml");
+        println!("{:?}", agent_cfg);
 
-//         iqn_model_builder().save(model_cfg)?;
-//         iqn_agent_builder().save(agent_cfg)?;
-//         trainer_builder(&saving_model_dir).save(trainer_cfg)?;
+        iqn_model_builder().save(model_cfg)?;
+        iqn_agent_builder().save(agent_cfg)?;
+        trainer_builder(&saving_model_dir).save(trainer_cfg)?;
 
-//         Ok(())
-//     }
-// }
+        Ok(())
+    }
+}

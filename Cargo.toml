@@ -14,8 +14,8 @@ autoexamples = false
 
 [dependencies]
 ndarray = { version = "0.14", features = ["serde"] }
-tch = "0.4.0"
-# tch = { git = "https://github.com/taku-y/tch-rs", branch = "adam_eps" }
+# tch = "0.4.0"
+tch = { git = "https://github.com/taku-y/tch-rs", branch = "adam_eps" }
 numpy = "0.13"
 pyo3 = { version = "0.13", default-features = false }
 fastrand = "1.4.0"
@@ -54,6 +54,7 @@ name = "dqn_atari"
 
 [[example]]
 name = "iqn_atari"
+# required_features = [ "adam_eps" ]
 
 [[example]]
 name = "iqn_regression"
@@ -79,4 +80,9 @@ tempdir = "0.3.7"
 features = [ "doc-only" ]
 
 [features]
+default = [ "adam_eps" ]
 doc-only = ["tch/doc-only"]
+adam_eps = []
+
+#[target.'cfg(feature="adam_eps")'.patch.crates-io]
+#tch = { git = "https://github.com/taku-y/tch-rs", branch = "adam_eps" }

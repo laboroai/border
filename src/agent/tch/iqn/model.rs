@@ -1,5 +1,8 @@
 //! IQN model.
-use super::super::model::{ModelBase, SubModel};
+use super::super::{
+    model::{ModelBase, SubModel},
+    opt::{Optimizer, OptimizerConfig},
+};
 use anyhow::{Context, Result};
 use log::{info, trace};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -10,11 +13,12 @@ use std::{
     fs::File,
     io::{BufReader, Write},
     marker::PhantomData,
+    // ops::Sub,
     path::Path,
 };
 use tch::{
     nn,
-    nn::{Module, OptimizerConfig, VarStore},
+    nn::{Module, VarStore},
     Device,
     Kind::Float,
     Tensor,
@@ -27,6 +31,37 @@ pub trait OutDim {
 
     /// Sets the  output dimension.
     fn set_out_dim(&mut self, v: i64);
+}
+
+#[cfg(not(feature="adam_eps"))]
+impl<F: SubModel, M: SubModel> IQNModelBuilder<F, M>
+where
+    F::Config: DeserializeOwned + Serialize,
+    M::Config: DeserializeOwned + Serialize,
+{
+    /// Sets the learning rate.
+    pub fn learning_rate(mut self, v: f64) -> Self {
+        match &self.opt_config {
+            OptimizerConfig::Adam { lr: _ } => self.opt_config = OptimizerConfig::Adam { lr: v },
+        };
+        self
+    }
+}
+
+#[cfg(feature="adam_eps")]
+impl<F: SubModel, M: SubModel> IQNModelBuilder<F, M>
+where
+    F::Config: DeserializeOwned + Serialize,
+    M::Config: DeserializeOwned + Serialize,
+{
+    /// Sets the learning rate.
+    pub fn learning_rate(mut self, v: f64) -> Self {
+        match &self.opt_config {
+            OptimizerConfig::Adam { lr: _ } => self.opt_config = OptimizerConfig::Adam { lr: v },
+            _ => unimplemented!(),
+        };
+        self
+    }
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -46,15 +81,12 @@ where
 {
     feature_dim: i64,
     embed_dim: i64,
-    learning_rate: f64,
     f_config: Option<F::Config>,
     m_config: Option<M::Config>,
+    opt_config: OptimizerConfig,
     phantom: PhantomData<(F, M)>,
 }
 
-// impl<F, T, M> Default for IQNModelBuilder<F, T, M> where
-//     F: SubModel<Input = T, Output = Tensor>,
-//     M: SubModel<Input = Tensor, Output = Tensor>,
 impl<F, M> Default for IQNModelBuilder<F, M>
 where
     F: SubModel,
@@ -66,9 +98,9 @@ where
         Self {
             feature_dim: 0,
             embed_dim: 0,
-            learning_rate: 0.0,
             f_config: None,
             m_config: None,
+            opt_config: OptimizerConfig::Adam { lr: 0.0 },
             phantom: PhantomData,
         }
     }
@@ -93,12 +125,6 @@ where
         self
     }
 
-    /// Sets the learning rate.
-    pub fn learning_rate(mut self, v: f64) -> Self {
-        self.learning_rate = v;
-        self
-    }
-
     /// Sets configurations for feature extractor.
     pub fn f_config(mut self, v: F::Config) -> Self {
         self.f_config = Some(v);
@@ -117,6 +143,12 @@ where
             None => {}
             Some(m_config) => m_config.set_out_dim(v),
         };
+        self
+    }
+
+    /// Sets optimizer configuration.
+    pub fn opt_config(mut self, v: OptimizerConfig) -> Self {
+        self.opt_config = v;
         self
     }
 
@@ -142,7 +174,7 @@ where
         let feature_dim = self.feature_dim;
         let embed_dim = self.embed_dim;
         let out_dim = m_config.get_out_dim();
-        let learning_rate = self.learning_rate;
+        let opt_config = self.opt_config;
         let var_store = nn::VarStore::new(device);
 
         // Feature extractor
@@ -154,12 +186,15 @@ where
         // Merge
         let f = M::build(&var_store, m_config);
 
-        // let mut adam = nn::Adam::default();
-        // adam.eps = 0.01 / 32.0;
-        // let opt = adam.build(&var_store, learning_rate).unwrap();
-        let opt = nn::Adam::default()
-            .build(&var_store, learning_rate)
-            .unwrap();
+        // Optimizer
+        let opt = opt_config.build(&var_store)?;
+
+        // // let mut adam = nn::Adam::default();
+        // // adam.eps = 0.01 / 32.0;
+        // // let opt = adam.build(&var_store, learning_rate).unwrap();
+        // let opt = nn::Adam::default()
+        //     .build(&var_store, learning_rate)
+        //     .unwrap();
 
         Ok(IQNModel {
             device,
@@ -170,7 +205,7 @@ where
             psi,
             phi,
             f,
-            learning_rate,
+            opt_config,
             opt,
             phantom: PhantomData,
         })
@@ -186,7 +221,7 @@ where
         let feature_dim = self.feature_dim;
         let embed_dim = self.embed_dim;
         let out_dim = m_config.get_out_dim();
-        let learning_rate = self.learning_rate;
+        let opt_config = self.opt_config.clone();
         let var_store = nn::VarStore::new(device);
 
         // Feature extractor
@@ -198,12 +233,16 @@ where
         // Merge
         let f = M::build(&var_store, m_config);
 
+        // Optimizer
+        // TODO: remove unwrap()
+        let opt = opt_config.build(&var_store).unwrap();
+
         // let mut adam = nn::Adam::default();
         // adam.eps = 0.01 / 32.0;
         // let opt = adam.build(&var_store, learning_rate).unwrap();
-        let opt = nn::Adam::default()
-            .build(&var_store, learning_rate)
-            .unwrap();
+        // let opt = nn::Adam::default()
+        //     .build(&var_store, learning_rate)
+        //     .unwrap();
 
         IQNModel {
             device,
@@ -214,7 +253,7 @@ where
             psi,
             phi,
             f,
-            learning_rate,
+            opt_config,
             opt,
             phantom: PhantomData,
         }
@@ -252,8 +291,8 @@ where
     f: M,
 
     // Optimizer
-    learning_rate: f64,
-    opt: nn::Optimizer<nn::Adam>,
+    opt_config: OptimizerConfig,
+    opt: Optimizer,
 
     phantom: PhantomData<(F, M)>,
 }
@@ -306,7 +345,7 @@ where
         let feature_dim = self.feature_dim;
         let embed_dim = self.embed_dim;
         let out_dim = self.out_dim;
-        let learning_rate = self.learning_rate;
+        let opt_config = self.opt_config.clone();
         let mut var_store = nn::VarStore::new(device);
 
         // Feature extractor
@@ -318,12 +357,15 @@ where
         // Merge
         let f = self.f.clone_with_var_store(&var_store);
 
+        // Optimizer
+        let opt = opt_config.build(&var_store).unwrap();
+
         // let mut adam = nn::Adam::default();
         // adam.eps = 0.01 / 32.0;
         // let opt = adam.build(&var_store, learning_rate).unwrap();
-        let opt = nn::Adam::default()
-            .build(&var_store, learning_rate)
-            .unwrap();
+        // let opt = nn::Adam::default()
+        //     .build(&var_store, learning_rate)
+        //     .unwrap();
 
         var_store.copy(&self.var_store).unwrap();
 
@@ -336,7 +378,7 @@ where
             psi,
             phi,
             f,
-            learning_rate,
+            opt_config,
             opt,
             phantom: PhantomData,
         }
