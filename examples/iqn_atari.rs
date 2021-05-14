@@ -15,30 +15,8 @@ use border::{
     util::url::get_model_from_url,
 };
 
-// const N_PROCS: usize = 1;
-// const LR_QNET: f64 = 1e-4;
 const DIM_OBS: [usize; 4] = [4, 1, 84, 84];
 const N_STACK: usize = 4;
-// const DIM_FEATURE: i64 = 3136;
-// const DIM_EMBED: i64 = 64;
-// const DIM_HIDDEN: i64 = 512;
-// const SAMPLE_PERCENTS_PRED: IQNSample = IQNSample::Uniform8;
-// const SAMPLE_PERCENTS_TGT: IQNSample = IQNSample::Uniform8;
-// const SAMPLE_PERCENTS_ACT: IQNSample = IQNSample::Uniform32;
-// const DISCOUNT_FACTOR: f64 = 0.99;
-// const BATCH_SIZE: usize = 32;
-// const N_TRANSITIONS_WARMUP: usize = 2500;
-// const N_UPDATES_PER_OPT: usize = 1;
-// const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
-// const SOFT_UPDATE_INTERVAL: usize = 10_000;
-// const TAU: f64 = 1.0;
-// const MAX_OPTS: usize = 5_000_000;
-// const EVAL_INTERVAL: usize = 10_000;
-// const REPLAY_BUFFER_CAPACITY: usize = 50_000;
-// const N_EPISODES_PER_EVAL: usize = 1;
-// const EPS_START: f64 = 1.0;
-// const EPS_FINAL: f64 = 0.02;
-// const EPS_FINAL_STEP: usize = 1_000_000;
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -214,25 +192,6 @@ mod iqn_model {
             Self::_build(var_store, self.in_dim, self.hidden_dim, self.out_dim)
         }
     }
-
-    // IQN model
-    pub fn create_iqn_model(
-        n_stack: i64,
-        feature_dim: i64,
-        embed_dim: i64,
-        hidden_dim: i64,
-        out_dim: i64,
-        learning_rate: f64,
-        device: Device,
-    ) -> IQNModel<ConvNet, MLP> {
-        let fe_config = ConvNetConfig::new(n_stack, feature_dim);
-        let m_config = MLPConfig::new(feature_dim, hidden_dim, out_dim);
-        IQNModelBuilder::default()
-            .feature_dim(feature_dim)
-            .embed_dim(embed_dim)
-            .learning_rate(learning_rate)
-            .build_with_submodel_configs(fe_config, m_config, device)
-    }
 }
 
 use iqn_model::{ConvNet, MLP};
@@ -246,15 +205,6 @@ fn create_agent(
     let model_cfg = format!("./examples/model/iqn_{}/model.yaml", &env_name);
     let model_cfg = IQNModelBuilder::<ConvNet, MLP>::load(Path::new(&model_cfg))?;
     let iqn = model_cfg.out_dim(dim_act).build(device)?;
-    // let iqn = iqn_model::create_iqn_model(
-    //     N_STACK as i64,
-    //     DIM_FEATURE,
-    //     DIM_EMBED,
-    //     DIM_HIDDEN,
-    //     dim_act,
-    //     LR_QNET,
-    //     device,
-    // );
     let agent_cfg = format!("./examples/model/iqn_{}/agent.yaml", &env_name);
     let agent_cfg = IQNBuilder::load(Path::new(&agent_cfg))?;
     let agent = agent_cfg
@@ -262,24 +212,6 @@ fn create_agent(
         .build::<_, _, _, ObsBuffer, ActBuffer>(iqn, device);
 
     Ok((agent, agent_cfg))
-    // let replay_buffer = ReplayBuffer::new(REPLAY_BUFFER_CAPACITY, N_PROCS);
-    // IQNBuilder::default()
-    //     .opt_interval(OPT_INTERVAL)
-    //     .n_updates_per_opt(N_UPDATES_PER_OPT)
-    //     .min_transitions_warmup(N_TRANSITIONS_WARMUP)
-    //     .batch_size(BATCH_SIZE)
-    //     .discount_factor(DISCOUNT_FACTOR)
-    //     .soft_update_interval(SOFT_UPDATE_INTERVAL)
-    //     .tau(TAU)
-    //     .explorer(EpsilonGreedy::with_params(
-    //         EPS_START,
-    //         EPS_FINAL,
-    //         EPS_FINAL_STEP,
-    //     ))
-    //     .sample_percent_pred(SAMPLE_PERCENTS_PRED)
-    //     .sample_percent_tgt(SAMPLE_PERCENTS_TGT)
-    //     .sample_percent_act(SAMPLE_PERCENTS_ACT)
-    //     .build(iqn_model, replay_buffer, device)
 }
 
 fn create_env(name: &str, mode: AtariWrapper) -> Env {
@@ -344,11 +276,6 @@ fn main() -> Result<()> {
         let env_train = create_env(name, AtariWrapper::Train);
         let saving_model_dir = format!("./examples/model/iqn_{}", name);
         let trainer_cfg = Path::new(&saving_model_dir).join("trainer.yaml");
-        // let mut trainer = TrainerBuilder::default()
-        //     .max_opts(MAX_OPTS)
-        //     .eval_interval(EVAL_INTERVAL)
-        //     .n_episodes_per_eval(N_EPISODES_PER_EVAL)
-        //     .model_dir(saving_model_dir)
         let trainer_cfg = TrainerBuilder::load(&trainer_cfg)?;
         let mut trainer = trainer_cfg.clone().build(env_train, env_eval, agent);
         let mut recorder = TensorboardRecorder::new(format!("./examples/model/iqn_{}", name));
@@ -388,22 +315,19 @@ fn main() -> Result<()> {
 
 #[cfg(test)]
 mod test {
-    use anyhow::Result;
-    use std::path::Path;
-    // use border::agent::tch::iqn::{model::IQNSample, IQNModelBuilder};
     use super::iqn_model::{ConvNet, ConvNetConfig, MLPConfig, MLP};
+    use anyhow::Result;
     use border::{
         agent::{
             tch::{
                 iqn::{model::IQNSample, EpsilonGreedy, IQNBuilder, IQNModelBuilder},
-                opt::OptimizerConfig
+                opt::OptimizerConfig,
             },
             OptInterval,
         },
         core::TrainerBuilder,
     };
-
-    // super::{IQNBuilder, OptInterval, EpsilonGreedy, TrainerBuilder};
+    use std::path::Path;
 
     // IQN model parameters
     const LR_QNET: f64 = 1e-4;
@@ -420,7 +344,10 @@ mod test {
             .feature_dim(FEATURE_DIM)
             .embed_dim(EMBED_DIM)
             // .learning_rate(LR_QNET)
-            .opt_config(OptimizerConfig::AdamEps { lr: 5e-5, eps: 0.01 / 32.0 } )
+            .opt_config(OptimizerConfig::AdamEps {
+                lr: 5e-5,
+                eps: 0.01 / 32.0,
+            })
             .f_config(f_config)
             .m_config(m_config)
     }

@@ -33,7 +33,7 @@ pub trait OutDim {
     fn set_out_dim(&mut self, v: i64);
 }
 
-#[cfg(not(feature="adam_eps"))]
+#[cfg(not(feature = "adam_eps"))]
 impl<F: SubModel, M: SubModel> IQNModelBuilder<F, M>
 where
     F::Config: DeserializeOwned + Serialize,
@@ -48,7 +48,7 @@ where
     }
 }
 
-#[cfg(feature="adam_eps")]
+#[cfg(feature = "adam_eps")]
 impl<F: SubModel, M: SubModel> IQNModelBuilder<F, M>
 where
     F::Config: DeserializeOwned + Serialize,

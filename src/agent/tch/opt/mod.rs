@@ -9,7 +9,7 @@ use tch::{
 };
 
 /// Configures an optimizer for training neural networks in an RL agent.
-#[cfg(not(feature="adam_eps"))]
+#[cfg(not(feature = "adam_eps"))]
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub enum OptimizerConfig {
     /// Adam optimizer.
@@ -20,13 +20,13 @@ pub enum OptimizerConfig {
 }
 
 /// Configures an optimizer for training neural networks in an RL agent.
-#[cfg(feature="adam_eps")]
+#[cfg(feature = "adam_eps")]
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub enum OptimizerConfig {
     /// Adam optimizer.
     Adam {
         /// Learning rate.
-        lr: f64
+        lr: f64,
     },
 
     /// Adam optimizer with the epsilon parameter.
@@ -34,11 +34,11 @@ pub enum OptimizerConfig {
         /// Learning rate.
         lr: f64,
         /// Epsilon parameter.
-        eps: f64
+        eps: f64,
     },
 }
 
-#[cfg(not(feature="adam_eps"))]
+#[cfg(not(feature = "adam_eps"))]
 impl OptimizerConfig {
     /// Constructs an optimizer.
     pub fn build(&self, vs: &VarStore) -> Result<Optimizer> {
@@ -51,7 +51,7 @@ impl OptimizerConfig {
     }
 }
 
-#[cfg(feature="adam_eps")]
+#[cfg(feature = "adam_eps")]
 impl OptimizerConfig {
     /// Constructs an optimizer.
     pub fn build(&self, vs: &VarStore) -> Result<Optimizer> {
