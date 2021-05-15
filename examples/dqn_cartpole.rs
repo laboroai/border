@@ -109,11 +109,10 @@ mod dqn_model {
             out_dim: i64,
         ) -> nn::Sequential {
             let p = &var_store.root();
-            let seq = nn::seq()
+            nn::seq()
                 .add(nn::linear(p / "cl1", in_dim, 256, Default::default()))
                 .add_fn(|xs| xs.relu())
-                .add(nn::linear(p / "cl2", 256, out_dim, Default::default()));
-            seq
+                .add(nn::linear(p / "cl2", 256, out_dim, Default::default()))
         }
     }
 
