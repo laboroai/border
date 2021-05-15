@@ -2,6 +2,7 @@
 use super::super::{
     model::{ModelBase, SubModel},
     opt::{Optimizer, OptimizerConfig},
+    util::OutDim,
 };
 use anyhow::{Context, Result};
 use log::{info, trace};
@@ -13,7 +14,6 @@ use std::{
     fs::File,
     io::{BufReader, Write},
     marker::PhantomData,
-    // ops::Sub,
     path::Path,
 };
 use tch::{
@@ -23,15 +23,6 @@ use tch::{
     Kind::Float,
     Tensor,
 };
-
-/// Returns the dimension of output vectors, i.e., the number of discrete outputs.
-pub trait OutDim {
-    /// Returns the dimension of output vectors, i.e., the number of discrete outputs.
-    fn get_out_dim(&self) -> i64;
-
-    /// Sets the  output dimension.
-    fn set_out_dim(&mut self, v: i64);
-}
 
 #[cfg(not(feature = "adam_eps"))]
 impl<F: SubModel, M: SubModel> IQNModelBuilder<F, M>

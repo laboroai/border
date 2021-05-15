@@ -1,8 +1,9 @@
 //! Example of using IQNModel for quantile regression.
 use border::agent::tch::{
-    iqn::{model::OutDim, IQNModel, IQNModelBuilder},
+    iqn::{IQNModel, IQNModelBuilder},
     model::{ModelBase, SubModel},
     util::quantile_huber_loss,
+    util::OutDim,
 };
 use serde::{Deserialize, Serialize};
 use std::default::Default;

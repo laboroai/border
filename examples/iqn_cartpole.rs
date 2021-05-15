@@ -64,8 +64,9 @@ type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 
 mod iqn_model {
     use border::agent::tch::{
-        iqn::{model::OutDim, IQNModel, IQNModelBuilder},
+        iqn::{IQNModel, IQNModelBuilder},
         model::SubModel,
+        util::OutDim,
     };
     use serde::{Deserialize, Serialize};
     use tch::{nn, nn::Module, Device, Tensor};

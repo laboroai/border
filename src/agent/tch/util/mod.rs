@@ -31,3 +31,12 @@ pub fn concat_slices(s1: &[i64], s2: &[i64]) -> Vec<i64> {
     v.append(&mut Vec::from(s2));
     v
 }
+
+/// Returns the dimension of output vectors, i.e., the number of discrete outputs.
+pub trait OutDim {
+    /// Returns the dimension of output vectors, i.e., the number of discrete outputs.
+    fn get_out_dim(&self) -> i64;
+
+    /// Sets the  output dimension.
+    fn set_out_dim(&mut self, v: i64);
+}

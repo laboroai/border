@@ -36,7 +36,7 @@ type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8, u8>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 
 mod iqn_model {
-    use border::agent::tch::{iqn::model::OutDim, model::SubModel};
+    use border::agent::tch::{model::SubModel, util::OutDim};
     use serde::{Deserialize, Serialize};
     use tch::{nn, nn::Module, nn::VarStore, Device, Tensor};
 
