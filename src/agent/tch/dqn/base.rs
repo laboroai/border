@@ -6,8 +6,10 @@ use tch::{no_grad, Device, Tensor};
 use crate::{
     agent::{
         tch::{
-            dqn::explorer::DQNExplorer, model::Model1, util::track, ReplayBuffer, TchBatch,
-            TchBuffer,
+            dqn::{explorer::DQNExplorer, model::DQNModel},
+            model::{ModelBase, SubModel},
+            util::track,
+            ReplayBuffer, TchBatch, TchBuffer,
         },
         OptIntervalCounter,
     },
@@ -19,14 +21,14 @@ use crate::{
 
 #[allow(clippy::upper_case_acronyms)]
 /// DQN agent implemented with tch-rs.
-pub struct DQN<E, M, O, A>
+pub struct DQN<E, Q, O, A>
 where
     E: Env,
-    M: Model1 + Clone,
-    E::Obs: Into<M::Input>,
+    Q: SubModel<Output = Tensor>,
+    E::Obs: Into<Q::Input>,
     E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
+    O: TchBuffer<Item = E::Obs, SubBatch = Q::Input>,
+    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
     // TODO: Consider making it visible only from dqn.builder module.
     pub(crate) opt_interval_counter: OptIntervalCounter,
@@ -35,8 +37,8 @@ where
     pub(crate) n_updates_per_opt: usize,
     pub(crate) min_transitions_warmup: usize,
     pub(crate) batch_size: usize,
-    pub(crate) qnet: M,
-    pub(crate) qnet_tgt: M,
+    pub(crate) qnet: DQNModel<Q>,
+    pub(crate) qnet_tgt: DQNModel<Q>,
     pub(crate) train: bool,
     pub(crate) phantom: PhantomData<E>,
     pub(crate) prev_obs: RefCell<Option<E::Obs>>,
@@ -47,14 +49,14 @@ where
     pub(crate) device: Device,
 }
 
-impl<E, M, O, A> DQN<E, M, O, A>
+impl<E, Q, O, A> DQN<E, Q, O, A>
 where
     E: Env,
-    M: Model1<Input = Tensor, Output = Tensor> + Clone,
-    E::Obs: Into<M::Input>,
+    Q: SubModel<Output = Tensor>,
+    E::Obs: Into<Q::Input>,
     E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
+    O: TchBuffer<Item = E::Obs, SubBatch = Q::Input>,
+    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
     fn push_transition(&mut self, step: Step<E>) {
         trace!("DQN::push_transition()");
@@ -71,10 +73,10 @@ where
     fn update_critic(&mut self, batch: TchBatch<E, O, A>) -> f32 {
         trace!("DQN::update_critic()");
 
-        let obs = batch.obs.to(self.device);
+        let obs = &batch.obs;
         let a = batch.actions.to(self.device);
         let r = batch.rewards.to(self.device);
-        let next_obs = batch.next_obs.to(self.device);
+        let next_obs = batch.next_obs;
         let not_done = batch.not_dones.to(self.device);
 
         let loss = {
@@ -102,25 +104,24 @@ where
     }
 }
 
-impl<E, M, O, A> Policy<E> for DQN<E, M, O, A>
+impl<E, Q, O, A> Policy<E> for DQN<E, Q, O, A>
 where
     E: Env,
-    M: Model1<Input = Tensor, Output = Tensor> + Clone,
-    E::Obs: Into<M::Input>,
+    Q: SubModel<Output = Tensor>,
+    E::Obs: Into<Q::Input>,
     E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
+    O: TchBuffer<Item = E::Obs, SubBatch = Q::Input>,
+    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
     fn sample(&mut self, obs: &E::Obs) -> E::Act {
-        let obs = obs.clone().into().to(self.device);
         no_grad(|| {
+            let a = self.qnet.forward(&obs.clone().into());
             let a = if self.train {
                 match &mut self.explorer {
-                    DQNExplorer::Softmax(softmax) => softmax.action(&self.qnet, &obs),
-                    DQNExplorer::EpsilonGreedy(egreedy) => egreedy.action(&self.qnet, &obs),
+                    DQNExplorer::Softmax(softmax) => softmax.action(&a),
+                    DQNExplorer::EpsilonGreedy(egreedy) => egreedy.action(&a),
                 }
             } else {
-                let a = self.qnet.forward(&obs);
                 a.argmax(-1, true)
             };
             a.into()
@@ -128,14 +129,14 @@ where
     }
 }
 
-impl<E, M, O, A> Agent<E> for DQN<E, M, O, A>
+impl<E, Q, O, A> Agent<E> for DQN<E, Q, O, A>
 where
     E: Env,
-    M: Model1<Input = Tensor, Output = Tensor> + Clone,
-    E::Obs: Into<M::Input>,
+    Q: SubModel<Output = Tensor>,
+    E::Obs: Into<Q::Input>,
     E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
+    O: TchBuffer<Item = E::Obs, SubBatch = Q::Input>,
+    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
     fn train(&mut self) {
         self.train = true;

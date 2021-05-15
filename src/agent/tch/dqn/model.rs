@@ -1,9 +1,10 @@
 //! DQN model.
 use super::super::{
+    util::OutDim,
     model::{ModelBase, SubModel},
     opt::{Optimizer, OptimizerConfig},
 };
-use anyhow::Result;
+use anyhow::{Context, Result};
 use log::{info, trace};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
@@ -18,34 +19,33 @@ use tch::{nn, Device, Tensor};
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 /// Constructs [DQNModel].
-pub struct DQNModelBuilder<F>
+pub struct DQNModelBuilder<Q: SubModel<Output = Tensor>>
 where
-    F: SubModel,
-    F::Config: DeserializeOwned + Serialize,
+    Q::Config: DeserializeOwned + Serialize + OutDim,
 {
     feature_dim: i64,
-    f_config: Option<F::Config>,
+    q_config: Option<Q::Config>,
     opt_config: OptimizerConfig,
-    phantom: PhantomData<F>,
+    phantom: PhantomData<Q>,
 }
 
-impl<F: SubModel> Default for DQNModelBuilder<F>
+impl<Q: SubModel<Output = Tensor>> Default for DQNModelBuilder<Q>
 where
-    F::Config: DeserializeOwned + Serialize,
+    Q::Config: DeserializeOwned + Serialize + OutDim,
 {
     fn default() -> Self {
         Self {
             feature_dim: 0,
-            f_config: None,
+            q_config: None,
             opt_config: OptimizerConfig::Adam { lr: 0.0 },
             phantom: PhantomData,
         }
     }
 }
 
-impl<F: SubModel> DQNModelBuilder<F>
+impl<Q: SubModel<Output = Tensor>> DQNModelBuilder<Q>
 where
-    F::Config: DeserializeOwned + Serialize,
+    Q::Config: DeserializeOwned + Serialize + OutDim,
 {
     /// Sets the dimension of feature vectors.
     pub fn feature_dim(mut self, v: i64) -> Self {
@@ -53,9 +53,9 @@ where
         self
     }
 
-    /// Sets configurations for feature extractor.
-    pub fn f_config(mut self, v: F::Config) -> Self {
-        self.f_config = Some(v);
+    /// Sets configurations for action-value function.
+    pub fn q_config(mut self, v: Q::Config) -> Self {
+        self.q_config = Some(v);
         self
     }
 
@@ -78,6 +78,29 @@ where
         let mut file = File::create(path)?;
         file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;
         Ok(())
+    }
+
+    /// Constructs [DQNModel] with the given configurations of sub models.
+    pub fn build(self, device: Device) -> Result<DQNModel<Q>> {
+        let q_config = self.q_config.context("q_config is not set.")?;
+        let feature_dim = self.feature_dim;
+        let out_dim = q_config.get_out_dim();
+        let opt_config = self.opt_config;
+        let var_store = nn::VarStore::new(device);
+        let q = Q::build(&var_store, q_config);
+
+        Ok(DQNModel::_build(device, feature_dim, out_dim, opt_config, q, var_store, None))
+    }
+
+    /// Constructs [IQNModel] with the given configurations of sub models.
+    pub fn build_with_submodel_configs(&self, q_config: Q::Config, device: Device) -> Result<DQNModel<Q>> {
+        let feature_dim = self.feature_dim;
+        let out_dim = q_config.get_out_dim();
+        let opt_config = self.opt_config.clone();
+        let var_store = nn::VarStore::new(device);
+        let q = Q::build(&var_store, q_config);
+
+        Ok(DQNModel::_build(device, feature_dim, out_dim, opt_config, q, var_store, None))
     }
 }
 
@@ -112,20 +135,21 @@ where
     Q: SubModel<Output = Tensor>,
 {
     fn _build(
-        &self,
         device: Device,
         feature_dim: i64,
         out_dim: i64,
         opt_config: OptimizerConfig,
+        q: Q,
         mut var_store: nn::VarStore,
+        var_store_src: Option<&nn::VarStore>
     ) -> Self {
-        // Action value function
-        let q = self.q.clone_with_var_store(&var_store);
-
         // Optimizer
         let opt = opt_config.build(&var_store).unwrap();
 
-        var_store.copy(&self.var_store).unwrap();
+        // Copy var_store
+        if let Some(var_store_src) = var_store_src {
+            var_store.copy(var_store_src).unwrap();
+        }
 
         Self {
             device,
@@ -157,8 +181,9 @@ where
         let out_dim = self.out_dim;
         let opt_config = self.opt_config.clone();
         let var_store = nn::VarStore::new(device);
+        let q = self.q.clone_with_var_store(&var_store);
 
-        self._build(device, feature_dim, out_dim, opt_config, var_store)
+        Self::_build(device, feature_dim, out_dim, opt_config, q, var_store, Some(&self.var_store))
     }
 }
 

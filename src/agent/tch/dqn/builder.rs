@@ -17,8 +17,9 @@ use crate::{
             dqn::{
                 explorer::{DQNExplorer, Softmax},
                 DQN,
+                model::DQNModel,
             },
-            model::Model1,
+            model::SubModel,
             ReplayBuffer, TchBuffer,
         },
         OptInterval, OptIntervalCounter,
@@ -35,11 +36,11 @@ pub struct DQNBuilder {
     n_updates_per_opt: usize,
     min_transitions_warmup: usize,
     batch_size: usize,
-    train: bool,
     discount_factor: f64,
     tau: f64,
-    replay_burffer_capacity: usize,
+    train: bool,
     explorer: DQNExplorer,
+    replay_burffer_capacity: usize,
 }
 
 impl Default for DQNBuilder {
@@ -133,13 +134,13 @@ impl DQNBuilder {
     /// Constructs DQN agent.
     ///
     /// This is used with non-vectorized environments.
-    pub fn build<E, M, O, A>(self, qnet: M, device: tch::Device) -> DQN<E, M, O, A>
+    pub fn build<E, Q, O, A>(self, qnet: DQNModel<Q>, device: tch::Device) -> DQN<E, Q, O, A>
     where
         E: Env,
-        M: Model1<Input = Tensor, Output = Tensor> + Clone,
-        E::Obs: Into<M::Input>,
+        Q: SubModel<Output = Tensor>,
+        E::Obs: Into<Q::Input>,
         E::Act: From<Tensor>,
-        O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
+        O: TchBuffer<Item = E::Obs, SubBatch = Q::Input>,
         A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
     {
         let qnet_tgt = qnet.clone();
@@ -166,19 +167,19 @@ impl DQNBuilder {
     }
 
     /// Constructs DQN agent with the given replay buffer.
-    pub fn build_with_replay_buffer<E, M, O, A>(
+    pub fn build_with_replay_buffer<E, Q, O, A>(
         self,
-        qnet: M,
+        qnet: DQNModel<Q>,
         replay_buffer: ReplayBuffer<E, O, A>,
         device: tch::Device,
-    ) -> DQN<E, M, O, A>
+    ) -> DQN<E, Q, O, A>
     where
         E: Env,
-        M: Model1<Input = Tensor, Output = Tensor> + Clone,
-        E::Obs: Into<M::Input>,
+        Q: SubModel<Output = Tensor>,
+        E::Obs: Into<Q::Input>,
         E::Act: From<Tensor>,
-        O: TchBuffer<Item = E::Obs, SubBatch = M::Input>,
-        A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
+        O: TchBuffer<Item = E::Obs, SubBatch = Q::Input>,
+        A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
     {
         let qnet_tgt = qnet.clone();
 
