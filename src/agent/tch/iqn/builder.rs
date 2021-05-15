@@ -36,12 +36,12 @@ pub struct IQNBuilder {
     batch_size: usize,
     discount_factor: f64,
     tau: f64,
-    sample_percents_pred: IQNSample,
-    sample_percents_tgt: IQNSample,
-    sample_percents_act: IQNSample,
     train: bool,
     explorer: IQNExplorer,
     replay_buffer_capacity: usize,
+    sample_percents_pred: IQNSample,
+    sample_percents_tgt: IQNSample,
+    sample_percents_act: IQNSample,
 }
 
 impl Default for IQNBuilder {

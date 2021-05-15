@@ -30,7 +30,7 @@ const DIM_EMBED: i64 = 64;
 const DIM_ACT: i64 = 2;
 const LR_CRITIC: f64 = 0.001;
 const DISCOUNT_FACTOR: f64 = 0.99;
-const BATCH_SIZE: usize = 64; // 32;
+const BATCH_SIZE: usize = 64;
 const N_TRANSITIONS_WARMUP: usize = 100;
 const N_UPDATES_PER_OPT: usize = 1;
 const TAU: f64 = 0.1;
@@ -204,7 +204,7 @@ fn create_agent() -> impl Agent<Env> {
 }
 
 fn create_env() -> Env {
-    let obs_filter = ObsFilter::default(); //::new();
+    let obs_filter = ObsFilter::default();
     let act_filter = ActFilter::default();
     Env::new("CartPole-v0", obs_filter, act_filter, None).unwrap()
 }
@@ -259,7 +259,7 @@ fn main() -> Result<()> {
             .n_episodes_per_eval(N_EPISODES_PER_EVAL)
             .model_dir(MODEL_DIR)
             .build(env, env_eval, agent);
-        let mut recorder = TensorboardRecorder::new("./examples/model/iqn_cartpole");
+        let mut recorder = TensorboardRecorder::new(MODEL_DIR);
 
         trainer.train(&mut recorder);
     }

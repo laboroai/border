@@ -158,7 +158,7 @@ where
         Ok(())
     }
 
-    /// Constructs [IQNModel] with the given configurations of sub models.
+    /// Constructs [IQNModel].
     pub fn build(self, device: Device) -> Result<IQNModel<F, M>> {
         let f_config = self.f_config.context("f_config is not set.")?;
         let m_config = self.m_config.context("m_config is not set.")?;
