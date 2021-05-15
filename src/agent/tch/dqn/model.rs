@@ -23,7 +23,6 @@ pub struct DQNModelBuilder<Q: SubModel<Output = Tensor>>
 where
     Q::Config: DeserializeOwned + Serialize + OutDim,
 {
-    feature_dim: i64,
     q_config: Option<Q::Config>,
     opt_config: OptimizerConfig,
     phantom: PhantomData<Q>,
@@ -35,7 +34,6 @@ where
 {
     fn default() -> Self {
         Self {
-            feature_dim: 0,
             q_config: None,
             opt_config: OptimizerConfig::Adam { lr: 0.0 },
             phantom: PhantomData,
@@ -47,15 +45,18 @@ impl<Q: SubModel<Output = Tensor>> DQNModelBuilder<Q>
 where
     Q::Config: DeserializeOwned + Serialize + OutDim,
 {
-    /// Sets the dimension of feature vectors.
-    pub fn feature_dim(mut self, v: i64) -> Self {
-        self.feature_dim = v;
-        self
-    }
-
     /// Sets configurations for action-value function.
     pub fn q_config(mut self, v: Q::Config) -> Self {
         self.q_config = Some(v);
+        self
+    }
+
+    /// Sets output dimension of the model.
+    pub fn out_dim(mut self, v: i64) -> Self {
+        match &mut self.q_config {
+            None => {}
+            Some(q_config) => q_config.set_out_dim(v),
+        };
         self
     }
 
@@ -83,24 +84,22 @@ where
     /// Constructs [DQNModel] with the given configurations of sub models.
     pub fn build(self, device: Device) -> Result<DQNModel<Q>> {
         let q_config = self.q_config.context("q_config is not set.")?;
-        let feature_dim = self.feature_dim;
         let out_dim = q_config.get_out_dim();
         let opt_config = self.opt_config;
         let var_store = nn::VarStore::new(device);
         let q = Q::build(&var_store, q_config);
 
-        Ok(DQNModel::_build(device, feature_dim, out_dim, opt_config, q, var_store, None))
+        Ok(DQNModel::_build(device, out_dim, opt_config, q, var_store, None))
     }
 
     /// Constructs [IQNModel] with the given configurations of sub models.
     pub fn build_with_submodel_configs(&self, q_config: Q::Config, device: Device) -> Result<DQNModel<Q>> {
-        let feature_dim = self.feature_dim;
         let out_dim = q_config.get_out_dim();
         let opt_config = self.opt_config.clone();
         let var_store = nn::VarStore::new(device);
         let q = Q::build(&var_store, q_config);
 
-        Ok(DQNModel::_build(device, feature_dim, out_dim, opt_config, q, var_store, None))
+        Ok(DQNModel::_build(device, out_dim, opt_config, q, var_store, None))
     }
 }
 
@@ -112,10 +111,6 @@ where
 {
     device: Device,
     var_store: nn::VarStore,
-
-    // Dimension of the input (feature) vector.
-    // The `size()[-1]` of F::Output (Tensor) is feature_dim.
-    feature_dim: i64,
 
     // Dimension of the output vector (equal to the number of actions).
     pub(super) out_dim: i64,
@@ -136,7 +131,6 @@ where
 {
     fn _build(
         device: Device,
-        feature_dim: i64,
         out_dim: i64,
         opt_config: OptimizerConfig,
         q: Q,
@@ -153,7 +147,6 @@ where
 
         Self {
             device,
-            feature_dim,
             out_dim,
             opt_config,
             var_store,
@@ -177,13 +170,12 @@ where
 {
     fn clone(&self) -> Self {
         let device = self.device;
-        let feature_dim = self.feature_dim;
         let out_dim = self.out_dim;
         let opt_config = self.opt_config.clone();
         let var_store = nn::VarStore::new(device);
         let q = self.q.clone_with_var_store(&var_store);
 
-        Self::_build(device, feature_dim, out_dim, opt_config, q, var_store, Some(&self.var_store))
+        Self::_build(device, out_dim, opt_config, q, var_store, Some(&self.var_store))
     }
 }
 
