@@ -1,5 +1,6 @@
 //! Constructs DQN agent.
 use anyhow::Result;
+use log::info;
 use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
@@ -116,18 +117,27 @@ impl DQNBuilder {
         self
     }
 
+    /// Replay buffer capacity.
+    pub fn get_replay_burffer_capacity(&self) -> usize {
+        self.replay_burffer_capacity
+    }
+
     /// Constructs [DQNBuilder] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
+        let path_ = path.as_ref().to_owned();
         let file = File::open(path)?;
         let rdr = BufReader::new(file);
         let b = serde_yaml::from_reader(rdr)?;
+        info!("Load config of DQN agent from {}", path_.to_str().unwrap());
         Ok(b)
     }
 
     /// Saves [DQNBuilder].
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
+        let path_ = path.as_ref().to_owned();
         let mut file = File::create(path)?;
         file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;
+        info!("Save config of DQN agent into {}", path_.to_str().unwrap());
         Ok(())
     }
 

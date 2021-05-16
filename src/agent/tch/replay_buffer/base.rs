@@ -1,5 +1,5 @@
 //! Replay buffer.
-use log::trace;
+use log::{trace, info};
 use std::marker::PhantomData;
 use tch::{
     kind::{FLOAT_CPU, INT64_CPU},
@@ -94,6 +94,11 @@ where
         }
 
         let capacity = capacity / n_procs;
+
+        info!("Construct replay buffer");
+        info!("Capacity       = {}", capacity);
+        info!("Num. of procs  = {}", n_procs);
+        info!("Total capacity = {}", capacity * n_procs);
 
         Self {
             obs: O::new(capacity, n_procs),

@@ -26,7 +26,6 @@ use dqn_atari_model::CNN;
 const N_PROCS: usize = 4;
 const N_STACK: usize = 4;
 const DIM_OBS: [usize; 4] = [4, 1, 84, 84];
-const REPLAY_BUFFER_CAPACITY: usize = 1_000_000;
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -51,13 +50,13 @@ fn create_agent(
     env_name: impl Into<String>,
 ) -> Result<impl Agent<Env>> {
     let device = tch::Device::cuda_if_available();
-    let replay_buffer = ReplayBuffer::new(REPLAY_BUFFER_CAPACITY, N_PROCS);
     let env_name = env_name.into();
     let model_cfg = format!("./examples/model/dqn_{}_vec/model.yaml", &env_name);
     let model_cfg = DQNModelBuilder::<CNN>::load(Path::new(&model_cfg))?;
     let qnet = model_cfg.out_dim(dim_act).build(device)?;
     let agent_cfg = format!("./examples/model/dqn_{}_vec/agent.yaml", &env_name);
     let agent_cfg = DQNBuilder::load(Path::new(&agent_cfg))?;
+    let replay_buffer = ReplayBuffer::new(agent_cfg.get_replay_burffer_capacity(), N_PROCS);
     let agent = agent_cfg
         .build_with_replay_buffer(qnet, replay_buffer, device);
 
