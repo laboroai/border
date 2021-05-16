@@ -1,14 +1,14 @@
 use anyhow::{Context, Result};
 use clap::{App, Arg};
-use tch::nn;
+use std::path::Path;
 
 use border::{
     agent::{
         tch::{
-            dqn::explorer::EpsilonGreedy, model::Model1_1, DQNBuilder,
+            dqn::model::{DQNModelBuilder},
+            DQNBuilder,
             ReplayBuffer as ReplayBuffer_,
         },
-        OptInterval,
     },
     core::{record::TensorboardRecorder, Agent, TrainerBuilder},
     env::py_gym_env::{
@@ -20,22 +20,13 @@ use border::{
     },
 };
 
+mod dqn_atari_model;
+use dqn_atari_model::CNN;
+
 const N_PROCS: usize = 4;
 const N_STACK: usize = 4;
 const DIM_OBS: [usize; 4] = [4, 1, 84, 84];
-const LR_QNET: f64 = 1e-4;
-const DISCOUNT_FACTOR: f64 = 0.99;
-const BATCH_SIZE: usize = 32;
-const N_TRANSITIONS_WARMUP: usize = 2500;
-const N_UPDATES_PER_OPT: usize = 1;
-const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
-const SOFT_UPDATE_INTERVAL: usize = 10_000;
-const TAU: f64 = 1.0;
-const MAX_OPTS: usize = 5_000_000;
-const EVAL_INTERVAL: usize = 10_000;
-const REPLAY_BUFFER_CAPACITY: usize = 200_000;
-const N_EPISODES_PER_EVAL: usize = 1;
-const EPS_FINAL_STEP: usize = 1_000_000;
+const REPLAY_BUFFER_CAPACITY: usize = 1_000_000;
 
 #[derive(Debug, Clone)]
 struct ObsShape {}
@@ -55,45 +46,22 @@ type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8, u8>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 type ReplayBuffer = ReplayBuffer_<Env, ObsBuffer, ActBuffer>;
 
-fn stride(s: i64) -> nn::ConvConfig {
-    nn::ConvConfig {
-        stride: s,
-        ..Default::default()
-    }
-}
-
-fn create_critic(dim_act: usize, device: tch::Device) -> Model1_1 {
-    let network_fn = |p: &nn::Path, _in_shape: &[usize], out_dim| {
-        nn::seq()
-            .add_fn(|xs| xs.squeeze1(2).internal_cast_float(true) / 255)
-            .add(nn::conv2d(p / "c1", N_STACK as i64, 32, 8, stride(4)))
-            .add_fn(|xs| xs.relu())
-            .add(nn::conv2d(p / "c2", 32, 64, 4, stride(2)))
-            .add_fn(|xs| xs.relu())
-            .add(nn::conv2d(p / "c3", 64, 64, 3, stride(1)))
-            .add_fn(|xs| xs.relu().flat_view())
-            .add(nn::linear(p / "l1", 3136, 512, Default::default()))
-            .add_fn(|xs| xs.relu())
-            .add(nn::linear(p / "l2", 512, out_dim as _, Default::default()))
-    };
-    Model1_1::new(&DIM_OBS, dim_act, LR_QNET, network_fn, device)
-}
-
-fn create_agent(dim_act: usize) -> impl Agent<Env> {
+fn create_agent(
+    dim_act: i64,
+    env_name: impl Into<String>,
+) -> Result<impl Agent<Env>> {
     let device = tch::Device::cuda_if_available();
-    let qnet = create_critic(dim_act, device);
     let replay_buffer = ReplayBuffer::new(REPLAY_BUFFER_CAPACITY, N_PROCS);
+    let env_name = env_name.into();
+    let model_cfg = format!("./examples/model/dqn_{}_vec/model.yaml", &env_name);
+    let model_cfg = DQNModelBuilder::<CNN>::load(Path::new(&model_cfg))?;
+    let qnet = model_cfg.out_dim(dim_act).build(device)?;
+    let agent_cfg = format!("./examples/model/dqn_{}_vec/agent.yaml", &env_name);
+    let agent_cfg = DQNBuilder::load(Path::new(&agent_cfg))?;
+    let agent = agent_cfg
+        .build_with_replay_buffer(qnet, replay_buffer, device);
 
-    DQNBuilder::default()
-        .opt_interval(OPT_INTERVAL)
-        .n_updates_per_opt(N_UPDATES_PER_OPT)
-        .min_transitions_warmup(N_TRANSITIONS_WARMUP)
-        .batch_size(BATCH_SIZE)
-        .discount_factor(DISCOUNT_FACTOR)
-        .soft_update_interval(SOFT_UPDATE_INTERVAL)
-        .tau(TAU)
-        .explorer(EpsilonGreedy::with_final_step(EPS_FINAL_STEP))
-        .build_with_replay_buffer(qnet, replay_buffer, device)
+    Ok(agent)
 }
 
 fn create_env(name: &str, mode: AtariWrapper) -> Result<Env> {
@@ -126,18 +94,16 @@ fn main() -> Result<()> {
     let name = matches.value_of("name").unwrap();
     let env_eval = create_env(name, AtariWrapper::Eval)?;
     let dim_act = env_eval.get_num_actions_atari();
-    let agent = create_agent(dim_act as _);
+    let agent = create_agent(dim_act as _, name)?;
 
     let env_train = create_env(name, AtariWrapper::Train)?;
-    let saving_model_dir = format!("./examples/model/dqn_{}_vec", name);
 
-    let mut trainer = TrainerBuilder::default()
-        .max_opts(MAX_OPTS)
-        .eval_interval(EVAL_INTERVAL)
-        .n_episodes_per_eval(N_EPISODES_PER_EVAL)
-        .model_dir(saving_model_dir)
-        .build(env_train, env_eval, agent);
+    let saving_model_dir = format!("./examples/model/dqn_{}_vec", name);
+    let trainer_cfg = Path::new(&saving_model_dir).join("trainer.yaml");
+    let trainer_cfg = TrainerBuilder::load(&trainer_cfg)?;
+    let mut trainer = trainer_cfg.build(env_train, env_eval, agent);
     let mut recorder = TensorboardRecorder::new(format!("./examples/model/dqn_{}_vec", name));
+
     trainer.train(&mut recorder);
 
     Ok(())
