@@ -1,16 +1,6 @@
 use anyhow::{Context, Result};
-use clap::{App, Arg};
-use std::path::Path;
-
 use border::{
-    agent::{
-        tch::{
-            dqn::model::{DQNModelBuilder},
-            DQNBuilder,
-            ReplayBuffer as ReplayBuffer_,
-        },
-    },
-    core::{record::TensorboardRecorder, Agent, TrainerBuilder},
+    agent::tch::{dqn::model::DQNModelBuilder, DQNBuilder, ReplayBuffer as ReplayBuffer_},
     env::py_gym_env::{
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
         framestack::FrameStackFilter,
@@ -19,6 +9,9 @@ use border::{
         AtariWrapper, PyVecGymEnv, PyVecGymEnvBuilder, Shape,
     },
 };
+use border_core::{record::TensorboardRecorder, Agent, TrainerBuilder};
+use clap::{App, Arg};
+use std::path::Path;
 
 mod dqn_atari_model;
 use dqn_atari_model::CNN;
@@ -45,10 +38,7 @@ type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8, u8>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 type ReplayBuffer = ReplayBuffer_<Env, ObsBuffer, ActBuffer>;
 
-fn create_agent(
-    dim_act: i64,
-    env_name: impl Into<String>,
-) -> Result<impl Agent<Env>> {
+fn create_agent(dim_act: i64, env_name: impl Into<String>) -> Result<impl Agent<Env>> {
     let device = tch::Device::cuda_if_available();
     let env_name = env_name.into();
     let model_cfg = format!("./examples/model/dqn_{}_vec/model.yaml", &env_name);
@@ -57,8 +47,7 @@ fn create_agent(
     let agent_cfg = format!("./examples/model/dqn_{}_vec/agent.yaml", &env_name);
     let agent_cfg = DQNBuilder::load(Path::new(&agent_cfg))?;
     let replay_buffer = ReplayBuffer::new(agent_cfg.get_replay_burffer_capacity(), N_PROCS);
-    let agent = agent_cfg
-        .build_with_replay_buffer(qnet, replay_buffer, device);
+    let agent = agent_cfg.build_with_replay_buffer(qnet, replay_buffer, device);
 
     Ok(agent)
 }

@@ -1,14 +1,13 @@
 //! Wrapper of gym environments implemented in Python.
 #![allow(clippy::float_cmp)]
+use super::AtariWrapper;
+use border_core::{record::Record, Act, Env, Info, Obs, Step};
 use log::trace;
 use pyo3::types::{IntoPyDict, PyTuple};
 use pyo3::{types::PyModule, PyObject, PyResult, Python, ToPyObject};
 use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::{error::Error, fmt::Debug, time::Duration};
-
-use super::AtariWrapper;
-use crate::core::{record::Record, Act, Env, Info, Obs, Step};
 
 /// Information given at every step of the interaction with the environment.
 ///

@@ -1,8 +1,8 @@
 //! DQN model.
 use super::super::{
-    util::OutDim,
     model::{ModelBase, SubModel},
     opt::{Optimizer, OptimizerConfig},
+    util::OutDim,
 };
 use anyhow::{Context, Result};
 use log::{info, trace};
@@ -89,17 +89,25 @@ where
         let var_store = nn::VarStore::new(device);
         let q = Q::build(&var_store, q_config);
 
-        Ok(DQNModel::_build(device, out_dim, opt_config, q, var_store, None))
+        Ok(DQNModel::_build(
+            device, out_dim, opt_config, q, var_store, None,
+        ))
     }
 
     /// Constructs [IQNModel] with the given configurations of sub models.
-    pub fn build_with_submodel_configs(&self, q_config: Q::Config, device: Device) -> Result<DQNModel<Q>> {
+    pub fn build_with_submodel_configs(
+        &self,
+        q_config: Q::Config,
+        device: Device,
+    ) -> Result<DQNModel<Q>> {
         let out_dim = q_config.get_out_dim();
         let opt_config = self.opt_config.clone();
         let var_store = nn::VarStore::new(device);
         let q = Q::build(&var_store, q_config);
 
-        Ok(DQNModel::_build(device, out_dim, opt_config, q, var_store, None))
+        Ok(DQNModel::_build(
+            device, out_dim, opt_config, q, var_store, None,
+        ))
     }
 }
 
@@ -135,7 +143,7 @@ where
         opt_config: OptimizerConfig,
         q: Q,
         mut var_store: nn::VarStore,
-        var_store_src: Option<&nn::VarStore>
+        var_store_src: Option<&nn::VarStore>,
     ) -> Self {
         // Optimizer
         let opt = opt_config.build(&var_store).unwrap();
@@ -175,7 +183,14 @@ where
         let var_store = nn::VarStore::new(device);
         let q = self.q.clone_with_var_store(&var_store);
 
-        Self::_build(device, out_dim, opt_config, q, var_store, Some(&self.var_store))
+        Self::_build(
+            device,
+            out_dim,
+            opt_config,
+            q,
+            var_store,
+            Some(&self.var_store),
+        )
     }
 }
 

@@ -1,12 +1,11 @@
 //! Replay buffer.
-use log::{trace, info};
+use border_core::Env;
+use log::{info, trace};
 use std::marker::PhantomData;
 use tch::{
     kind::{FLOAT_CPU, INT64_CPU},
     Tensor,
 };
-
-use crate::core::Env;
 
 /// Return binary tensor, one where reward is not zero.
 ///

@@ -1,15 +1,12 @@
 use std::time::Duration;
 // use anyhow::Result;
-use ndarray::Array;
-
-use border::{
-    core::{util, Policy},
-    env::py_gym_env::{
-        act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter},
-        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-        PyGymEnv, PyGymEnvBuilder, Shape,
-    },
+use border::env::py_gym_env::{
+    act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter},
+    obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
+    PyGymEnv, PyGymEnvBuilder, Shape,
 };
+use border_core::{util, Policy};
+use ndarray::Array;
 
 #[derive(Debug, Clone)]
 struct ObsShape {}

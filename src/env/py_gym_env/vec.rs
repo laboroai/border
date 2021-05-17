@@ -1,5 +1,8 @@
 //! Vectorized environment using multiprocess module in Python.
 #![allow(unused_variables, unreachable_code)]
+use super::AtariWrapper;
+use crate::env::py_gym_env::{PyGymEnvActFilter, PyGymEnvObsFilter, PyGymInfo};
+use border_core::{record::Record, Act, Env, Obs, Step};
 use log::trace;
 use pyo3::{
     types::{IntoPyDict, PyTuple},
@@ -7,12 +10,6 @@ use pyo3::{
 };
 use std::marker::PhantomData;
 use std::{error::Error, fmt::Debug};
-
-use super::AtariWrapper;
-use crate::{
-    core::{record::Record, Act, Env, Obs, Step},
-    env::py_gym_env::{PyGymEnvActFilter, PyGymEnvObsFilter, PyGymInfo},
-};
 
 /// Constructs [PyVecGymEnv]
 pub struct PyVecGymEnvBuilder<O, A, OF, AF> {

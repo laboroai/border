@@ -1,5 +1,18 @@
 //! Constructs DQN agent.
+use crate::agent::{
+    tch::{
+        dqn::{
+            explorer::{DQNExplorer, Softmax},
+            model::DQNModel,
+            DQN,
+        },
+        model::SubModel,
+        ReplayBuffer, TchBuffer,
+    },
+    OptInterval, OptIntervalCounter,
+};
 use anyhow::Result;
+use border_core::Env;
 use log::info;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -11,22 +24,6 @@ use std::{
     path::Path,
 };
 use tch::Tensor;
-
-use crate::{
-    agent::{
-        tch::{
-            dqn::{
-                explorer::{DQNExplorer, Softmax},
-                DQN,
-                model::DQNModel,
-            },
-            model::SubModel,
-            ReplayBuffer, TchBuffer,
-        },
-        OptInterval, OptIntervalCounter,
-    },
-    core::Env,
-};
 
 #[allow(clippy::upper_case_acronyms)]
 /// Constructs [DQN].

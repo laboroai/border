@@ -1,10 +1,6 @@
 use anyhow::Result;
-use clap::{App, Arg};
-use std::{path::Path, time::Duration};
-
 use border::{
     agent::tch::iqn::{IQNBuilder, IQNModelBuilder},
-    core::{record::TensorboardRecorder, util, Agent, TrainerBuilder},
     env::py_gym_env::{
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
         framestack::FrameStackFilter,
@@ -14,6 +10,9 @@ use border::{
     },
     util::url::get_model_from_url,
 };
+use border_core::{record::TensorboardRecorder, util, Agent, TrainerBuilder};
+use clap::{App, Arg};
+use std::{path::Path, time::Duration};
 
 const DIM_OBS: [usize; 4] = [4, 1, 84, 84];
 const N_STACK: usize = 4;
@@ -317,16 +316,14 @@ fn main() -> Result<()> {
 mod test {
     use super::iqn_model::{ConvNet, ConvNetConfig, MLPConfig, MLP};
     use anyhow::Result;
-    use border::{
-        agent::{
-            tch::{
-                iqn::{model::IQNSample, EpsilonGreedy, IQNBuilder, IQNModelBuilder},
-                opt::OptimizerConfig,
-            },
-            OptInterval,
+    use border::agent::{
+        tch::{
+            iqn::{model::IQNSample, EpsilonGreedy, IQNBuilder, IQNModelBuilder},
+            opt::OptimizerConfig,
         },
-        core::TrainerBuilder,
+        OptInterval,
     };
+    use border_core::TrainerBuilder;
     use std::path::Path;
 
     // IQN model parameters

@@ -1,9 +1,4 @@
 use anyhow::Result;
-use clap::{App, Arg};
-use log::info;
-use std::time::Duration;
-use tch::nn;
-
 use border::{
     agent::{
         tch::{
@@ -13,7 +8,6 @@ use border::{
         },
         CriticLoss, OptInterval,
     },
-    core::{record::TensorboardRecorder, util, Agent, TrainerBuilder},
     env::py_gym_env::{
         act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter},
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
@@ -22,6 +16,11 @@ use border::{
     },
     util::url::get_model_from_url,
 };
+use border_core::{record::TensorboardRecorder, util, Agent, TrainerBuilder};
+use clap::{App, Arg};
+use log::info;
+use std::time::Duration;
+use tch::nn;
 
 const DIM_OBS: usize = 28;
 const DIM_ACT: usize = 8;

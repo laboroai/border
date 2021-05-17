@@ -1,9 +1,4 @@
 use anyhow::Result;
-use pyo3::PyObject;
-use serde::Serialize;
-use std::{convert::TryFrom, fs::File};
-use tch::nn;
-
 use border::{
     agent::{
         tch::{
@@ -13,11 +8,6 @@ use border::{
         },
         OptInterval,
     },
-    core::{
-        record::{BufferedRecorder, Record, RecordValue, TensorboardRecorder},
-        util::eval_with_recorder,
-        Agent, TrainerBuilder,
-    },
     env::py_gym_env::{
         act_c::{to_pyobj, PyGymEnvContinuousAct},
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
@@ -25,6 +15,15 @@ use border::{
         PyGymEnv, PyGymEnvActFilter, Shape,
     },
 };
+use border_core::{
+    record::{BufferedRecorder, Record, RecordValue, TensorboardRecorder},
+    util::eval_with_recorder,
+    Agent, TrainerBuilder,
+};
+use pyo3::PyObject;
+use serde::Serialize;
+use std::{convert::TryFrom, fs::File};
+use tch::nn;
 
 const DIM_OBS: usize = 3;
 const DIM_ACT: usize = 1;

@@ -1,9 +1,4 @@
 use anyhow::Result;
-use clap::{App, Arg};
-use csv::WriterBuilder;
-use serde::Serialize;
-use std::{convert::TryFrom, default::Default, fs::File};
-
 use border::{
     agent::{
         tch::{
@@ -12,10 +7,6 @@ use border::{
         },
         OptInterval,
     },
-    core::{
-        record::{BufferedRecorder, Record, TensorboardRecorder},
-        util, Agent, TrainerBuilder,
-    },
     env::py_gym_env::{
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
@@ -23,6 +14,14 @@ use border::{
         PyGymEnv, Shape,
     },
 };
+use border_core::{
+    record::{BufferedRecorder, Record, TensorboardRecorder},
+    util, Agent, TrainerBuilder,
+};
+use clap::{App, Arg};
+use csv::WriterBuilder;
+use serde::Serialize;
+use std::{convert::TryFrom, default::Default, fs::File};
 
 const DIM_OBS: i64 = 4;
 const DIM_FEATURE: i64 = 256;

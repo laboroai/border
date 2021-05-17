@@ -1,14 +1,11 @@
 //! An observation filter with staking observations (frames).
+use crate::env::py_gym_env::{obs::PyGymEnvObs, PyGymEnvObsFilter, Shape};
+use border_core::record::Record;
 use ndarray::{stack, ArrayD, Axis, IxDyn, SliceInfo, SliceOrIndex};
 use num_traits::cast::AsPrimitive;
 use numpy::{Element, PyArrayDyn};
 use pyo3::{types::PyList, Py, PyAny, PyObject};
 use std::{fmt::Debug, marker::PhantomData};
-
-use crate::{
-    core::record::Record,
-    env::py_gym_env::{obs::PyGymEnvObs, PyGymEnvObsFilter, Shape},
-};
 
 /// An observation filter with stacking sequence of original observations.
 ///

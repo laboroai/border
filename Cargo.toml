@@ -33,6 +33,7 @@ anyhow = "1.0.38"
 zip = "0.5.12"
 serde = { version = "1.0.117", features = ["derive"] }
 serde_yaml = "0.8.7"
+border-core = { version = "0.0.2", path = "border-core" }
 
 [[example]]
 name = "random_cartpole"

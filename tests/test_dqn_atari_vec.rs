@@ -1,6 +1,4 @@
 use anyhow::{Context, Result};
-use tch::nn;
-
 use border::{
     agent::{
         tch::{
@@ -9,7 +7,6 @@ use border::{
         },
         OptInterval,
     },
-    core::{record::TensorboardRecorder, Agent, TrainerBuilder},
     env::py_gym_env::{
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
         framestack::FrameStackFilter,
@@ -18,6 +15,8 @@ use border::{
         AtariWrapper, PyVecGymEnv, PyVecGymEnvBuilder, Shape,
     },
 };
+use border_core::{record::TensorboardRecorder, Agent, TrainerBuilder};
+use tch::nn;
 
 const N_PROCS: usize = 4;
 const N_STACK: usize = 4;

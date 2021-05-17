@@ -11,17 +11,15 @@ use std::{
 };
 use tch::{Device, Tensor};
 
-use crate::{
-    agent::{
-        tch::{
-            iqn::{EpsilonGreedy, IQNExplorer, IQNModel, IQN},
-            model::SubModel,
-            ReplayBuffer, TchBuffer,
-        },
-        OptInterval, OptIntervalCounter,
+use crate::agent::{
+    tch::{
+        iqn::{EpsilonGreedy, IQNExplorer, IQNModel, IQN},
+        model::SubModel,
+        ReplayBuffer, TchBuffer,
     },
-    core::Env,
+    OptInterval, OptIntervalCounter,
 };
+use border_core::Env;
 
 use super::model::IQNSample;
 

@@ -1,9 +1,6 @@
 // use anyhow::Result;
-use tch::nn;
-
 use border::{
     agent::tch::{model::Model1_1, DQNBuilder, ReplayBuffer as ReplayBuffer_},
-    core::Agent,
     env::py_gym_env::{
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
         atari::AtariWrapper,
@@ -13,6 +10,8 @@ use border::{
         PyGymEnv, Shape,
     },
 };
+use border_core::Agent;
+use tch::nn;
 
 const N_STACK: usize = 4;
 const DIM_OBS: [usize; 4] = [4, 1, 84, 84];
@@ -97,7 +96,7 @@ fn main() {
         .load("./examples/model/dqn_pong_vecenv_20210307_ec2")
         .unwrap(); // TODO: define appropriate error
     agent.eval();
-    let reward = border::core::util::eval(&mut env_eval, &mut agent, 5);
+    let reward = border_core::util::eval(&mut env_eval, &mut agent, 5);
     println!("{:?}", reward);
 
     // Ok(())

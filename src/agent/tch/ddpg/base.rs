@@ -1,22 +1,19 @@
 //! DDPG agent.
+use crate::agent::{
+    tch::{
+        model::{Model1, Model2},
+        util::track,
+        ReplayBuffer, TchBatch, TchBuffer,
+    },
+    OptInterval, OptIntervalCounter,
+};
+use border_core::{
+    record::{Record, RecordValue},
+    Agent, Env, Policy, Step,
+};
 use log::trace;
 use std::{cell::RefCell, error::Error, fs, marker::PhantomData, path::Path};
 use tch::{no_grad, Tensor};
-
-use crate::{
-    agent::{
-        tch::{
-            model::{Model1, Model2},
-            util::track,
-            ReplayBuffer, TchBatch, TchBuffer,
-        },
-        OptInterval, OptIntervalCounter,
-    },
-    core::{
-        record::{Record, RecordValue},
-        Agent, Env, Policy, Step,
-    },
-};
 
 type ActionValue = Tensor;
 

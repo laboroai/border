@@ -1,14 +1,18 @@
 use anyhow::Result;
-use clap::{App, Arg};
-use std::{path::Path, time::Duration};
-
-use border::{agent::tch::{DQNBuilder, dqn::DQNModelBuilder}, core::{record::TensorboardRecorder, util, Agent, TrainerBuilder}, env::py_gym_env::{
+use border::{
+    agent::tch::{dqn::DQNModelBuilder, DQNBuilder},
+    env::py_gym_env::{
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
         framestack::FrameStackFilter,
         obs::PyGymEnvObs,
         tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
         AtariWrapper, PyGymEnv, PyGymEnvBuilder, Shape,
-    }, util::url::get_model_from_url};
+    },
+    util::url::get_model_from_url,
+};
+use border_core::{record::TensorboardRecorder, util, Agent, TrainerBuilder};
+use clap::{App, Arg};
+use std::{path::Path, time::Duration};
 
 const N_STACK: i64 = 4;
 const DIM_OBS: [usize; 4] = [4, 1, 84, 84];
@@ -31,10 +35,7 @@ type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8, u8>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 
 mod dqn_model {
-    use border::agent::tch::{
-        model::SubModel,
-        util::OutDim,
-    };
+    use border::agent::tch::{model::SubModel, util::OutDim};
     use serde::{Deserialize, Serialize};
     use tch::{nn, nn::Module, Device, Tensor};
 
@@ -57,10 +58,7 @@ mod dqn_model {
 
     impl CNNConfig {
         pub fn new(n_stack: i64, out_dim: i64) -> Self {
-            Self {
-                n_stack,
-                out_dim,
-            }
+            Self { n_stack, out_dim }
         }
     }
 
@@ -79,25 +77,21 @@ mod dqn_model {
                 stride: s,
                 ..Default::default()
             }
-        }    
-    
-        fn create_net(
-            var_store: &nn::VarStore,
-            n_stack: i64,
-            out_dim: i64
-        ) -> nn::Sequential {
+        }
+
+        fn create_net(var_store: &nn::VarStore, n_stack: i64, out_dim: i64) -> nn::Sequential {
             let p = &var_store.root();
             nn::seq()
-            .add_fn(|xs| xs.squeeze1(2).internal_cast_float(true) / 255)
-            .add(nn::conv2d(p / "c1", n_stack, 32, 8, Self::stride(4)))
-            .add_fn(|xs| xs.relu())
-            .add(nn::conv2d(p / "c2", 32, 64, 4, Self::stride(2)))
-            .add_fn(|xs| xs.relu())
-            .add(nn::conv2d(p / "c3", 64, 64, 3, Self::stride(1)))
-            .add_fn(|xs| xs.relu().flat_view())
-            .add(nn::linear(p / "l1", 3136, 512, Default::default()))
-            .add_fn(|xs| xs.relu())
-            .add(nn::linear(p / "l2", 512, out_dim as _, Default::default()))
+                .add_fn(|xs| xs.squeeze1(2).internal_cast_float(true) / 255)
+                .add(nn::conv2d(p / "c1", n_stack, 32, 8, Self::stride(4)))
+                .add_fn(|xs| xs.relu())
+                .add(nn::conv2d(p / "c2", 32, 64, 4, Self::stride(2)))
+                .add_fn(|xs| xs.relu())
+                .add(nn::conv2d(p / "c3", 64, 64, 3, Self::stride(1)))
+                .add_fn(|xs| xs.relu().flat_view())
+                .add(nn::linear(p / "l1", 3136, 512, Default::default()))
+                .add_fn(|xs| xs.relu())
+                .add(nn::linear(p / "l2", 512, out_dim as _, Default::default()))
         }
     }
 
@@ -261,10 +255,18 @@ fn main() -> Result<()> {
 
 #[cfg(test)]
 mod test {
-    use std::{path::Path, default::Default};
+    use super::{
+        dqn_model::{CNNConfig, CNN},
+        N_STACK,
+    };
     use anyhow::Result;
-    use border::{agent::{tch::opt::OptimizerConfig, OptInterval, tch::dqn::{DQNBuilder, DQNModelBuilder, explorer::EpsilonGreedy}}, core::TrainerBuilder};
-    use super::{N_STACK, dqn_model::{CNN, CNNConfig}};
+    use border::agent::{
+        tch::dqn::{explorer::EpsilonGreedy, DQNBuilder, DQNModelBuilder},
+        tch::opt::OptimizerConfig,
+        OptInterval,
+    };
+    use border_core::TrainerBuilder;
+    use std::{default::Default, path::Path};
 
     // DQN agent parameters
     const DISCOUNT_FACTOR: f64 = 0.99;
@@ -318,6 +320,6 @@ mod test {
             .n_episodes_per_eval(N_EPISODES_PER_EVAL)
             .model_dir(saving_model_dir);
         let _ = builder.save(trainer_cfg);
-    Ok(())
+        Ok(())
     }
 }

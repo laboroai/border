@@ -1,9 +1,4 @@
 use anyhow::Result;
-use csv::WriterBuilder;
-use serde::Serialize;
-use std::{convert::TryFrom, fs::File};
-use tempdir::TempDir;
-
 use border::{
     agent::{
         tch::{
@@ -12,10 +7,6 @@ use border::{
         },
         OptInterval,
     },
-    core::{
-        record::{BufferedRecorder, Record, TensorboardRecorder},
-        util, Agent, TrainerBuilder,
-    },
     env::py_gym_env::{
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
@@ -23,6 +14,14 @@ use border::{
         PyGymEnv, Shape,
     },
 };
+use border_core::{
+    record::{BufferedRecorder, Record, TensorboardRecorder},
+    util, Agent, TrainerBuilder,
+};
+use csv::WriterBuilder;
+use serde::Serialize;
+use std::{convert::TryFrom, fs::File};
+use tempdir::TempDir;
 
 const DIM_OBS: i64 = 4;
 const DIM_ACT: i64 = 2;
@@ -66,7 +65,6 @@ mod dqn_model {
     use serde::{Deserialize, Serialize};
     use tch::{nn, nn::Module, Device, Tensor};
 
-
     #[allow(clippy::upper_case_acronyms)]
     #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
     pub struct MLPConfig {
@@ -86,10 +84,7 @@ mod dqn_model {
 
     impl MLPConfig {
         fn new(in_dim: i64, out_dim: i64) -> Self {
-            Self {
-                in_dim,
-                out_dim,
-            }
+            Self { in_dim, out_dim }
         }
     }
 
@@ -103,11 +98,7 @@ mod dqn_model {
     }
 
     impl MLP {
-        fn create_net(
-            var_store: &nn::VarStore,
-            in_dim: i64,
-            out_dim: i64,
-        ) -> nn::Sequential {
+        fn create_net(var_store: &nn::VarStore, in_dim: i64, out_dim: i64) -> nn::Sequential {
             let p = &var_store.root();
             nn::seq()
                 .add(nn::linear(p / "cl1", in_dim, 256, Default::default()))
@@ -161,10 +152,10 @@ mod dqn_model {
         learning_rate: f64,
         device: Device,
     ) -> Result<DQNModel<MLP>> {
-    let q_config = MLPConfig::new(in_dim, out_dim);
-    DQNModelBuilder::default()
-        .opt_config(border::agent::tch::opt::OptimizerConfig::Adam { lr: learning_rate } )
-        .build_with_submodel_configs(q_config, device)
+        let q_config = MLPConfig::new(in_dim, out_dim);
+        DQNModelBuilder::default()
+            .opt_config(border::agent::tch::opt::OptimizerConfig::Adam { lr: learning_rate })
+            .build_with_submodel_configs(q_config, device)
     }
 }
 
@@ -180,14 +171,12 @@ fn create_agent(epsilon_greedy: bool) -> Result<impl Agent<Env>> {
         .tau(TAU)
         .replay_burffer_capacity(REPLAY_BUFFER_CAPACITY);
 
-    Ok(
-        if epsilon_greedy {
-            builder.explorer(DQNExplorer::EpsilonGreedy(EpsilonGreedy::new()))
-        } else {
-            builder
-        }
-        .build::<_, _, ObsBuffer, ActBuffer>(qnet, device)    
-    )
+    Ok(if epsilon_greedy {
+        builder.explorer(DQNExplorer::EpsilonGreedy(EpsilonGreedy::new()))
+    } else {
+        builder
+    }
+    .build::<_, _, ObsBuffer, ActBuffer>(qnet, device))
 }
 
 fn create_env() -> Env {

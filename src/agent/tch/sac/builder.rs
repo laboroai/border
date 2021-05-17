@@ -1,21 +1,18 @@
 //! Builder of SAC agent.
+use crate::agent::{
+    tch::{
+        model::{Model1, Model2},
+        sac::{
+            ent_coef::{EntCoef, EntCoefMode},
+            SAC,
+        },
+        ReplayBuffer, TchBuffer,
+    },
+    CriticLoss, OptInterval, OptIntervalCounter,
+};
+use border_core::Env;
 use std::{cell::RefCell, marker::PhantomData};
 use tch::Tensor;
-
-use crate::{
-    agent::{
-        tch::{
-            model::{Model1, Model2},
-            sac::{
-                ent_coef::{EntCoef, EntCoefMode},
-                SAC,
-            },
-            ReplayBuffer, TchBuffer,
-        },
-        CriticLoss, OptInterval, OptIntervalCounter,
-    },
-    core::Env,
-};
 
 type ActionValue = Tensor;
 type ActMean = Tensor;
