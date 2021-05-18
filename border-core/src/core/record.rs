@@ -25,6 +25,12 @@ pub enum RecordValue {
 
     /// A 1-dimensional array
     Array1(Vec<f32>),
+
+    /// A 2-dimensional array
+    Array2(Vec<f32>),
+
+    /// A 3-dimensional array
+    Array3(Vec<f32>),
 }
 
 #[derive(Debug)]
@@ -99,6 +105,30 @@ impl Record {
             Err(LrrError::RecordKeyError(k.to_string()))
         }
     }
+
+    /// Get Array2 value.
+    pub fn get_array2(&self, k: &str) -> Result<Vec<f32>, LrrError> {
+        if let Some(v) = self.0.get(k) {
+            match v {
+                RecordValue::Array2(v) => Ok(v.clone()),
+                _ => Err(LrrError::RecordValueTypeError("Array2".to_string())),
+            }
+        } else {
+            Err(LrrError::RecordKeyError(k.to_string()))
+        }
+    }
+
+    /// Get Array3 value.
+    pub fn get_array3(&self, k: &str) -> Result<Vec<f32>, LrrError> {
+        if let Some(v) = self.0.get(k) {
+            match v {
+                RecordValue::Array3(v) => Ok(v.clone()),
+                _ => Err(LrrError::RecordValueTypeError("Array3".to_string())),
+            }
+        } else {
+            Err(LrrError::RecordKeyError(k.to_string()))
+        }
+    }
 }
 
 /// Process records provided with [`Recorder::write`]
@@ -138,7 +168,7 @@ impl TensorboardRecorder {
 impl Recorder for TensorboardRecorder {
     /// Write a given [`Record`] into a TFRecord.
     ///
-    /// It ignores [`RecordValue::Array1`]
+    /// It ignores [RecordValue::Array*]
     fn write(&mut self, record: Record) {
         // TODO: handle error
         let step = match record.get(&self.step_key).unwrap() {
