@@ -5,7 +5,7 @@ pub mod error;
 pub use crate::core::{
     base::{Act, Agent, Env, Obs, Policy, Step, Info},
     trainer::{Trainer, TrainerBuilder},
-    util::eval,
+    util::eval, util::eval_with_recorder,
     util,
     record,
 };
