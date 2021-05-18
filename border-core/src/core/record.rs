@@ -27,10 +27,10 @@ pub enum RecordValue {
     Array1(Vec<f32>),
 
     /// A 2-dimensional array
-    Array2(Vec<f32>),
+    Array2(Vec<f32>, [usize; 2]),
 
     /// A 3-dimensional array
-    Array3(Vec<f32>),
+    Array3(Vec<f32>, [usize; 3]),
 }
 
 #[derive(Debug)]
@@ -107,10 +107,10 @@ impl Record {
     }
 
     /// Get Array2 value.
-    pub fn get_array2(&self, k: &str) -> Result<Vec<f32>, LrrError> {
+    pub fn get_array2(&self, k: &str) -> Result<(Vec<f32>, [usize; 2]), LrrError> {
         if let Some(v) = self.0.get(k) {
             match v {
-                RecordValue::Array2(v) => Ok(v.clone()),
+                RecordValue::Array2(v, s) => Ok((v.clone(), s.clone())),
                 _ => Err(LrrError::RecordValueTypeError("Array2".to_string())),
             }
         } else {
@@ -119,10 +119,10 @@ impl Record {
     }
 
     /// Get Array3 value.
-    pub fn get_array3(&self, k: &str) -> Result<Vec<f32>, LrrError> {
+    pub fn get_array3(&self, k: &str) -> Result<(Vec<f32>, [usize; 3]), LrrError> {
         if let Some(v) = self.0.get(k) {
             match v {
-                RecordValue::Array3(v) => Ok(v.clone()),
+                RecordValue::Array3(v, s) => Ok((v.clone(), s.clone())),
                 _ => Err(LrrError::RecordValueTypeError("Array3".to_string())),
             }
         } else {
