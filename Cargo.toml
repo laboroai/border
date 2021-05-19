@@ -17,7 +17,7 @@ ndarray = { version = "0.14", features = ["serde"] }
 # tch = "0.4.0"
 tch = { git = "https://github.com/taku-y/tch-rs", branch = "adam_eps" }
 numpy = "0.13"
-pyo3 = { version = "0.13", default-features = false }
+pyo3 = { version = "0.13.2", default-features = false }
 fastrand = "1.4.0"
 log = "0.4"
 env_logger = "0.8.2"
