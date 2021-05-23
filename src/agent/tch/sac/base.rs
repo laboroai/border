@@ -1,8 +1,8 @@
 //! SAC agent.
 use crate::agent::{
     tch::{
-        model::{Model1, Model2},
-        sac::ent_coef::EntCoef,
+        model::{Model1, SubModel2},
+        sac::{ent_coef::EntCoef, critic::Critic, actor::Actor},
         util::track,
         ReplayBuffer, TchBatch, TchBuffer,
     },
@@ -33,9 +33,10 @@ where
     E: Env,
     O: TchBuffer<Item = E::Obs>,
     A: TchBuffer<Item = E::Act>,
+    Q: SubModel2<Output = ActionValue>,
 {
-    pub(in crate::agent::tch::sac) qnets: Vec<Q>,
-    pub(in crate::agent::tch::sac) qnets_tgt: Vec<Q>,
+    pub(in crate::agent::tch::sac) qnets: Vec<Critic<Q>>,
+    pub(in crate::agent::tch::sac) qnets_tgt: Vec<Critic<Q>>,
     pub(in crate::agent::tch::sac) pi: P,
     pub(in crate::agent::tch::sac) replay_buffer: ReplayBuffer<E, O, A>,
     pub(in crate::agent::tch::sac) gamma: f64,
@@ -59,7 +60,7 @@ where
 impl<E, Q, P, O, A> SAC<E, Q, P, O, A>
 where
     E: Env,
-    Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
+    Q: SubModel2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
     P: Model1<Input = Tensor, Output = (ActMean, ActStd)> + Clone,
     E::Obs: Into<O::SubBatch>,
     E::Act: From<Tensor>,
@@ -197,7 +198,7 @@ where
 impl<E, Q, P, O, A> Policy<E> for SAC<E, Q, P, O, A>
 where
     E: Env,
-    Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
+    Q: SubModel2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
     P: Model1<Input = Tensor, Output = (ActMean, ActStd)> + Clone,
     E::Obs: Into<O::SubBatch>,
     E::Act: From<Tensor>,
@@ -220,7 +221,7 @@ where
 impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A>
 where
     E: Env,
-    Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
+    Q: SubModel2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
     P: Model1<Input = Tensor, Output = (ActMean, ActStd)> + Clone,
     E::Obs: Into<O::SubBatch>,
     E::Act: From<Tensor>,
