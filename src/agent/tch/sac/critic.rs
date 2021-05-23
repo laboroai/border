@@ -75,9 +75,7 @@ where
         let var_store = nn::VarStore::new(device);
         let q = Q::build(&var_store, q_config);
 
-        Ok(Critic::_build(
-            device, opt_config, q, var_store, None,
-        ))
+        Ok(Critic::_build(device, opt_config, q, var_store, None))
     }
 
     /// Constructs [IQNModel] with the given configurations of sub models.
@@ -90,12 +88,9 @@ where
         let var_store = nn::VarStore::new(device);
         let q = Q::build(&var_store, q_config);
 
-        Ok(Critic::_build(
-            device, opt_config, q, var_store, None,
-        ))
+        Ok(Critic::_build(device, opt_config, q, var_store, None))
     }
 }
-
 
 #[allow(clippy::upper_case_acronyms)]
 /// Represents soft critic for SAC agents.
@@ -159,14 +154,8 @@ where
         let opt_config = self.opt_config.clone();
         let var_store = nn::VarStore::new(device);
         let q = self.q.clone_with_var_store(&var_store);
-    
-        Self::_build(
-            device,
-            opt_config,
-            q,
-            var_store,
-            Some(&self.var_store),
-        )    
+
+        Self::_build(device, opt_config, q, var_store, Some(&self.var_store))
     }
 }
 

@@ -3,9 +3,10 @@ use crate::agent::{
     tch::{
         model::{SubModel, SubModel2},
         sac::{
+            actor::Actor,
+            critic::Critic,
             ent_coef::{EntCoef, EntCoefMode},
             SAC,
-            actor::Actor, critic::Critic,
         },
         ReplayBuffer, TchBuffer,
     },
@@ -15,7 +16,12 @@ use anyhow::Result;
 use border_core::Env;
 use log::info;
 use serde::{Deserialize, Serialize};
-use std::{cell::RefCell, marker::PhantomData, fs::File, io::{BufReader, Write},     path::Path,
+use std::{
+    cell::RefCell,
+    fs::File,
+    io::{BufReader, Write},
+    marker::PhantomData,
+    path::Path,
 };
 use tch::Tensor;
 

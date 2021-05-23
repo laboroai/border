@@ -2,7 +2,7 @@
 use crate::agent::{
     tch::{
         model::{ModelBase, SubModel, SubModel2},
-        sac::{ent_coef::EntCoef, critic::Critic, actor::Actor},
+        sac::{actor::Actor, critic::Critic, ent_coef::EntCoef},
         util::track,
         ReplayBuffer, TchBatch, TchBuffer,
     },
