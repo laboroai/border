@@ -60,6 +60,7 @@ impl OptIntervalCounter {
 
 /// Critic loss type.
 #[allow(clippy::upper_case_acronyms)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub enum CriticLoss {
     /// Mean squared error.
     MSE,

@@ -60,19 +60,19 @@ impl Default for DQNBuilder {
 }
 
 impl DQNBuilder {
-    /// Set optimization interval.
+    /// Sets optimization interval.
     pub fn opt_interval(mut self, v: OptInterval) -> Self {
         self.opt_interval_counter = v.counter();
         self
     }
 
-    /// Set soft update interval.
+    /// Sets soft update interval.
     pub fn soft_update_interval(mut self, v: usize) -> Self {
         self.soft_update_interval = v;
         self
     }
 
-    /// Set numper of parameter update steps per optimization step.
+    /// Sets the numper of parameter update steps per optimization step.
     pub fn n_updates_per_opt(mut self, v: usize) -> Self {
         self.n_updates_per_opt = v;
         self
