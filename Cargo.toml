@@ -69,9 +69,6 @@ name = "sac_ant"
 [[example]]
 name = "dqn_atari_vec"
 
-[[example]]
-name = "dqn_pong_eval"
-
 [dev-dependencies]
 clap = "2.33.3"
 csv = "1.1.5"
