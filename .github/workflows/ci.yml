@@ -17,10 +17,6 @@ jobs:
           rust: [stable, nightly]
           python-version: [3.7]
       steps:
-        - if: matrix.os == 'windows-latest'
-          name: Set pythonpath (Windows only)
-          run: echo "PYTHONPATH=.\examples" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
-
         - uses: actions/checkout@v2
 
         - name: Set up Python ${{ matrix.python-version }}
@@ -44,12 +40,12 @@ jobs:
         - name: Install gym
           run: pip install gym[atari]
 
-        - name: Set pythonpath
+        - name: Set PYTHONPATH
           run: echo "PYTHONPATH=./examples" >> $GITHUB_ENV
 
         - if: matrix.os == 'windows-latest'
-          name: Set pythonpath (Windows only)
-          run: echo "PYTHONPATH=.\examples" >> $GITHUB_ENV
+          name: Set PYTHONPATH (Windows)
+          run: echo "PYTHONPATH=.\examples" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
 
         - name: Test
           run: cargo test --no-default-features
