@@ -41,7 +41,7 @@ jobs:
           run: pip install gym[atari]
 
         - name: Set pythonpath
-          run: echo PYTHONPATH=${PYTHONPATH}:/home/runner/work/border/examples
+          run: echo PYTHONPATH=${PYTHONPATH}:/home/runner/work/border/examples >> $GITHUB_ENV
 
         - name: Test
           run: cargo test --no-default-features
