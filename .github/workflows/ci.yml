@@ -17,6 +17,9 @@ jobs:
           rust: [stable, nightly]
           python-version: [3.7]
       steps:
+        - name: Set pythonpath
+          run: echo "PYTHONPATH=./examples" >> $GITHUB_ENV
+
         - uses: actions/checkout@v2
 
         - name: Set up Python ${{ matrix.python-version }}
@@ -41,7 +44,7 @@ jobs:
           run: pip install gym[atari]
 
         - name: Set pythonpath
-          run: echo PYTHONPATH=./examples >> $GITHUB_ENV
+          run: echo "PYTHONPATH=./examples" >> $GITHUB_ENV
 
         - name: Test
           run: cargo test --no-default-features
