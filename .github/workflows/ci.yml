@@ -33,6 +33,9 @@ jobs:
             profile: minimal
             default: true
 
+        - name: ls
+          run: ls $HOME
+
         - if: matrix.platform.os == 'ubuntu-latest'
           name: Prepare LD_LIBRARY_PATH (Ubuntu only)
           run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
@@ -45,9 +48,6 @@ jobs:
 
         - name: pwd
           run: pwd
-
-        - name: ls
-          run: ls /home/runner/work/border/border
 
         - name: Test
           run: cargo test --no-default-features
