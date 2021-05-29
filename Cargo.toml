@@ -68,6 +68,7 @@ name = "sac_ant"
 
 [[example]]
 name = "dqn_atari_vec"
+test = true
 
 [[example]]
 name = "sac_lunarlander_cont"

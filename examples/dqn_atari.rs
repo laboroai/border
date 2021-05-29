@@ -57,6 +57,7 @@ mod dqn_model {
     }
 
     impl CNNConfig {
+        #[allow(dead_code)]
         pub fn new(n_stack: i64, out_dim: i64) -> Self {
             Self { n_stack, out_dim }
         }
