@@ -46,5 +46,8 @@ jobs:
         - name: pwd
           run: pwd
 
+        - name: ls
+          run: ls /home/runner/work/border/border
+
         - name: Test
           run: cargo test --no-default-features
