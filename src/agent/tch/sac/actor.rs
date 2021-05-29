@@ -11,7 +11,6 @@ use std::{
     error::Error,
     fs::File,
     io::{BufReader, Write},
-    marker::PhantomData,
     path::Path,
 };
 use tch::{nn, Device, Tensor};
