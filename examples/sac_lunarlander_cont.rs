@@ -1,11 +1,10 @@
 use anyhow::Result;
-use clap::{App, Arg};
 use border::{
     agent::{
         tch::{
             sac::EntCoefMode,
+            util::mlp::{create_actor, create_critic},
             ReplayBuffer, SACBuilder,
-            util::mlp::{create_critic, create_actor}
         },
         CriticLoss, OptInterval,
     },
@@ -21,6 +20,7 @@ use border_core::{
     util::eval_with_recorder,
     Agent, TrainerBuilder,
 };
+use clap::{App, Arg};
 use serde::Serialize;
 use std::{convert::TryFrom, fs::File};
 
@@ -77,17 +77,18 @@ type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f32, f32>;
 type ActBuffer = TchPyGymEnvContinuousActBuffer<ActShape>;
 
-fn create_agent() -> Result<impl Agent<Env>>
-{
+fn create_agent() -> Result<impl Agent<Env>> {
     let device = tch::Device::cuda_if_available();
     let actor = create_actor(OBS_DIM, ACT_DIM, LR_ACTOR, vec![64, 64], device)?;
-    let critics = (0..N_CRITICS).map(|_| create_critic(OBS_DIM + ACT_DIM, 1, LR_CRITIC, vec![64, 64], device)
-        .expect("Cannot create critic"))
+    let critics = (0..N_CRITICS)
+        .map(|_| {
+            create_critic(OBS_DIM + ACT_DIM, 1, LR_CRITIC, vec![64, 64], device)
+                .expect("Cannot create critic")
+        })
         .collect::<Vec<_>>();
     let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
 
-    Ok(
-        SACBuilder::default()
+    Ok(SACBuilder::default()
         .opt_interval(OPT_INTERVAL)
         .n_updates_per_opt(N_UPDATES_PER_OPT)
         .min_transitions_warmup(N_TRANSITIONS_WARMUP)
@@ -98,8 +99,7 @@ fn create_agent() -> Result<impl Agent<Env>>
         .ent_coef_mode(EntCoefMode::Fix(ALPHA))
         .reward_scale(REWARD_SCALE)
         .critic_loss(CRITIC_LOSS)
-        .build(critics, actor, replay_buffer, device)
-    )
+        .build(critics, actor, replay_buffer, device))
 }
 
 fn create_env() -> Env {
@@ -140,13 +140,15 @@ fn main() -> Result<()> {
     fastrand::seed(42);
 
     let matches = App::new("sac_lunarlander_cont")
-    .version("0.1.0")
-    .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
-    .arg(Arg::with_name("skip training")
-        .long("skip_training")
-        .takes_value(false)
-        .help("Skip training"))
-    .get_matches();
+        .version("0.1.0")
+        .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
+        .arg(
+            Arg::with_name("skip training")
+                .long("skip_training")
+                .takes_value(false)
+                .help("Skip training"),
+        )
+        .get_matches();
 
     if !matches.is_present("skip training") {
         let env = create_env();
@@ -159,7 +161,7 @@ fn main() -> Result<()> {
             .model_dir(MODEL_DIR)
             .build(env, env_eval, agent);
         let mut recorder = TensorboardRecorder::new(MODEL_DIR);
-    
+
         trainer.train(&mut recorder);
     }
 
@@ -173,7 +175,8 @@ fn main() -> Result<()> {
     eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);
 
     // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
-    let mut wtr = csv::WriterBuilder::new().has_headers(false)
+    let mut wtr = csv::WriterBuilder::new()
+        .has_headers(false)
         .from_writer(File::create("examples/model/sac_lunarlander_eval.csv")?);
     for record in recorder.iter() {
         wtr.serialize(LunarlanderRecord::try_from(record)?)?;

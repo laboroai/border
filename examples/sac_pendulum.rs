@@ -3,10 +3,10 @@ use border::{
     agent::{
         tch::{
             model::{SubModel, SubModel2},
-            sac::{EntCoefMode, Actor, ActorBuilder, Critic, CriticBuilder},
-            ReplayBuffer, SACBuilder,
             opt::OptimizerConfig,
+            sac::{Actor, ActorBuilder, Critic, CriticBuilder, EntCoefMode},
             util::OutDim,
+            ReplayBuffer, SACBuilder,
         },
         CriticLoss, OptInterval,
     },
@@ -14,7 +14,7 @@ use border::{
         act_c::{to_pyobj, PyGymEnvContinuousAct},
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
         tch::{act_c::TchPyGymEnvContinuousActBuffer, obs::TchPyGymEnvObsBuffer},
-        PyGymEnv, PyGymEnvBuilder, PyGymEnvActFilter, Shape,
+        PyGymEnv, PyGymEnvActFilter, PyGymEnvBuilder, Shape,
     },
 };
 use border_core::{
@@ -25,7 +25,10 @@ use border_core::{
 use pyo3::PyObject;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fs::File};
-use tch::{Tensor, nn::{self, Module}, Device};
+use tch::{
+    nn::{self, Module},
+    Device, Tensor,
+};
 
 const OBS_DIM: i64 = 3;
 const ACT_DIM: i64 = 1;
@@ -83,7 +86,9 @@ pub struct MLPConfig {
 impl MLPConfig {
     fn new(in_dim: i64, units: Vec<i64>, out_dim: i64) -> Self {
         Self {
-            in_dim, units, out_dim
+            in_dim,
+            units,
+            out_dim,
         }
     }
 }
@@ -113,7 +118,12 @@ pub fn mlp(var_store: &nn::VarStore, config: &MLPConfig) -> nn::Sequential {
     let p = &var_store.root();
 
     for (i, &n) in config.units.iter().enumerate() {
-        seq = seq.add(nn::linear(p / format!("l{}", i), in_dim, n, Default::default()));
+        seq = seq.add(nn::linear(
+            p / format!("l{}", i),
+            in_dim,
+            n,
+            Default::default(),
+        ));
         seq = seq.add_fn(|x| x.relu());
         in_dim = n;
     }
@@ -137,24 +147,31 @@ impl SubModel2 for MLP {
         let in_dim = *units.last().unwrap_or(&config.in_dim);
         let out_dim = config.out_dim;
         let p = &var_store.root();
-        let seq = mlp(var_store, &config)
-            .add(nn::linear(p / format!("l{}", units.len()), in_dim, out_dim, Default::default()));
+        let seq = mlp(var_store, &config).add(nn::linear(
+            p / format!("l{}", units.len()),
+            in_dim,
+            out_dim,
+            Default::default(),
+        ));
 
         Self {
             in_dim: config.in_dim,
             units: config.units,
             out_dim: config.out_dim,
             device: var_store.device(),
-            seq
+            seq,
         }
     }
 
     fn clone_with_var_store(&self, var_store: &nn::VarStore) -> Self {
-        Self::build(var_store, Self::Config {
-            in_dim: self.in_dim,
-            units: self.units.clone(),
-            out_dim: self.out_dim,
-        })
+        Self::build(
+            var_store,
+            Self::Config {
+                in_dim: self.in_dim,
+                units: self.units.clone(),
+                out_dim: self.out_dim,
+            },
+        )
     }
 }
 
@@ -190,7 +207,12 @@ impl SubModel for MLP2 {
         let p = &var_store.root();
 
         for (i, &n) in units.iter().enumerate() {
-            seq = seq.add(nn::linear(p / format!("l{}", i), in_dim, n, Default::default()));
+            seq = seq.add(nn::linear(
+                p / format!("l{}", i),
+                in_dim,
+                n,
+                Default::default(),
+            ));
             seq = seq.add_fn(|x| x.relu());
             in_dim = n;
         }
@@ -222,17 +244,29 @@ impl SubModel for MLP2 {
     }
 }
 
-pub fn create_actor(in_dim: i64, out_dim: i64, lr_actor: f64, units: Vec<i64>, device: Device) -> Result<Actor<MLP2>> {
+pub fn create_actor(
+    in_dim: i64,
+    out_dim: i64,
+    lr_actor: f64,
+    units: Vec<i64>,
+    device: Device,
+) -> Result<Actor<MLP2>> {
     ActorBuilder::default()
         .pi_config(MLPConfig::new(in_dim, units, out_dim))
-        .opt_config(OptimizerConfig::Adam { lr: lr_actor})
+        .opt_config(OptimizerConfig::Adam { lr: lr_actor })
         .build(device)
 }
 
-pub fn create_critic(in_dim: i64, out_dim: i64, lr_critic: f64, units: Vec<i64>, device: Device) -> Result<Critic<MLP>> {
+pub fn create_critic(
+    in_dim: i64,
+    out_dim: i64,
+    lr_critic: f64,
+    units: Vec<i64>,
+    device: Device,
+) -> Result<Critic<MLP>> {
     CriticBuilder::default()
         .q_config(MLPConfig::new(in_dim, units, out_dim))
-        .opt_config(OptimizerConfig::Adam { lr: lr_critic})
+        .opt_config(OptimizerConfig::Adam { lr: lr_critic })
         .build(device)
 }
 
@@ -268,13 +302,15 @@ impl PyGymEnvActFilter<Act> for ActFilter {
 fn create_agent() -> Result<impl Agent<Env>> {
     let device = tch::Device::cuda_if_available();
     let actor = create_actor(OBS_DIM, ACT_DIM, LR_ACTOR, vec![64, 64], device)?;
-    let critics = (0..N_CRITICS).map(|_| create_critic(OBS_DIM + ACT_DIM, 1, LR_CRITIC, vec![64, 64], device)
-        .expect("Cannot create critic"))
+    let critics = (0..N_CRITICS)
+        .map(|_| {
+            create_critic(OBS_DIM + ACT_DIM, 1, LR_CRITIC, vec![64, 64], device)
+                .expect("Cannot create critic")
+        })
         .collect::<Vec<_>>();
     let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
 
-    Ok(
-        SACBuilder::default()
+    Ok(SACBuilder::default()
         .opt_interval(OPT_INTERVAL)
         .n_updates_per_opt(N_UPDATES_PER_OPT)
         .min_transitions_warmup(N_TRANSITIONS_WARMUP)
@@ -285,8 +321,7 @@ fn create_agent() -> Result<impl Agent<Env>> {
         .ent_coef_mode(EntCoefMode::Fix(ALPHA))
         .reward_scale(REWARD_SCALE)
         .critic_loss(CRITIC_LOSS)
-        .build(critics, actor, replay_buffer, device)
-    )
+        .build(critics, actor, replay_buffer, device))
 }
 
 fn create_env() -> Env {

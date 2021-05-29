@@ -1,13 +1,13 @@
 //! Utilities for using multilayer perceptron.
 use crate::agent::tch::{
-    util::OutDim,
     model::{SubModel, SubModel2},
+    opt::OptimizerConfig,
     sac::{Actor, ActorBuilder, Critic, CriticBuilder},
-    opt::OptimizerConfig
+    util::OutDim,
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use tch::{Tensor, nn, nn::Module, Device};
+use tch::{nn, nn::Module, Device, Tensor};
 
 #[allow(unused_imports)]
 use crate::agent::tch::sac::SAC;
@@ -24,7 +24,9 @@ pub struct MLPConfig {
 impl MLPConfig {
     fn new(in_dim: i64, units: Vec<i64>, out_dim: i64) -> Self {
         Self {
-            in_dim, units, out_dim
+            in_dim,
+            units,
+            out_dim,
         }
     }
 }
@@ -55,7 +57,12 @@ fn mlp(var_store: &nn::VarStore, config: &MLPConfig) -> nn::Sequential {
     let p = &var_store.root();
 
     for (i, &n) in config.units.iter().enumerate() {
-        seq = seq.add(nn::linear(p / format!("l{}", i), in_dim, n, Default::default()));
+        seq = seq.add(nn::linear(
+            p / format!("l{}", i),
+            in_dim,
+            n,
+            Default::default(),
+        ));
         seq = seq.add_fn(|x| x.relu());
         in_dim = n;
     }
@@ -79,24 +86,31 @@ impl SubModel2 for MLP {
         let in_dim = *units.last().unwrap_or(&config.in_dim);
         let out_dim = config.out_dim;
         let p = &var_store.root();
-        let seq = mlp(var_store, &config)
-            .add(nn::linear(p / format!("l{}", units.len()), in_dim, out_dim, Default::default()));
+        let seq = mlp(var_store, &config).add(nn::linear(
+            p / format!("l{}", units.len()),
+            in_dim,
+            out_dim,
+            Default::default(),
+        ));
 
         Self {
             in_dim: config.in_dim,
             units: config.units,
             out_dim: config.out_dim,
             device: var_store.device(),
-            seq
+            seq,
         }
     }
 
     fn clone_with_var_store(&self, var_store: &nn::VarStore) -> Self {
-        Self::build(var_store, Self::Config {
-            in_dim: self.in_dim,
-            units: self.units.clone(),
-            out_dim: self.out_dim,
-        })
+        Self::build(
+            var_store,
+            Self::Config {
+                in_dim: self.in_dim,
+                units: self.units.clone(),
+                out_dim: self.out_dim,
+            },
+        )
     }
 }
 
@@ -133,7 +147,12 @@ impl SubModel for MLP2 {
         let p = &var_store.root();
 
         for (i, &n) in units.iter().enumerate() {
-            seq = seq.add(nn::linear(p / format!("l{}", i), in_dim, n, Default::default()));
+            seq = seq.add(nn::linear(
+                p / format!("l{}", i),
+                in_dim,
+                n,
+                Default::default(),
+            ));
             seq = seq.add_fn(|x| x.relu());
             in_dim = n;
         }
@@ -166,17 +185,29 @@ impl SubModel for MLP2 {
 }
 
 /// Create an actor for [SAC]. It is represented by [MLP].
-pub fn create_actor(in_dim: i64, out_dim: i64, lr_actor: f64, units: Vec<i64>, device: Device) -> Result<Actor<MLP2>> {
+pub fn create_actor(
+    in_dim: i64,
+    out_dim: i64,
+    lr_actor: f64,
+    units: Vec<i64>,
+    device: Device,
+) -> Result<Actor<MLP2>> {
     ActorBuilder::default()
         .pi_config(MLPConfig::new(in_dim, units, out_dim))
-        .opt_config(OptimizerConfig::Adam { lr: lr_actor})
+        .opt_config(OptimizerConfig::Adam { lr: lr_actor })
         .build(device)
 }
 
 /// Create a cricit for [SAC]. It is represented by [MLP2].
-pub fn create_critic(in_dim: i64, out_dim: i64, lr_critic: f64, units: Vec<i64>, device: Device) -> Result<Critic<MLP>> {
+pub fn create_critic(
+    in_dim: i64,
+    out_dim: i64,
+    lr_critic: f64,
+    units: Vec<i64>,
+    device: Device,
+) -> Result<Critic<MLP>> {
     CriticBuilder::default()
         .q_config(MLPConfig::new(in_dim, units, out_dim))
-        .opt_config(OptimizerConfig::Adam { lr: lr_critic})
+        .opt_config(OptimizerConfig::Adam { lr: lr_critic })
         .build(device)
 }
