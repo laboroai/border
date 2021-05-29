@@ -104,26 +104,26 @@ mod test {
 
     #[test]
     fn test_dqn_atari_vec() -> Result<()> {
-        // tch::manual_seed(42);
+        tch::manual_seed(42);
     
-        // let name = "PongNoFrameskip-v4";
-        // let saving_model_dir_test = TempDir::new("dqn_PongNoFrameskip-v4_vec")?;
-        // let saving_model_dir_test = saving_model_dir_test.path().to_str().unwrap();
-        // let saving_model_dir = format!("./examples/model/dqn_{}_vec", name);
+        let name = "PongNoFrameskip-v4";
+        let saving_model_dir_test = TempDir::new("dqn_PongNoFrameskip-v4_vec")?;
+        let saving_model_dir_test = saving_model_dir_test.path().to_str().unwrap();
+        let saving_model_dir = format!("./examples/model/dqn_{}_vec", name);
 
-        // let env_eval = create_env(name, AtariWrapper::Eval)?;
-        // let dim_act = env_eval.get_num_actions_atari();
-        // let agent = create_agent(dim_act as _, name)?;
-        // let env_train = create_env(name, AtariWrapper::Train)?;
+        let env_eval = create_env(name, AtariWrapper::Eval)?;
+        let dim_act = env_eval.get_num_actions_atari();
+        let agent = create_agent(dim_act as _, name)?;
+        let env_train = create_env(name, AtariWrapper::Train)?;
 
-        // let trainer_cfg = Path::new(&saving_model_dir).join("trainer.yaml");
-        // let trainer_cfg = TrainerBuilder::load(&trainer_cfg)?
-        //     .max_opts(10)
-        //     .model_dir(saving_model_dir_test);
-        // let mut trainer = trainer_cfg.build(env_train, env_eval, agent);
-        // let mut recorder = TensorboardRecorder::new(saving_model_dir_test);
+        let trainer_cfg = Path::new(&saving_model_dir).join("trainer.yaml");
+        let trainer_cfg = TrainerBuilder::load(&trainer_cfg)?
+            .max_opts(5)
+            .model_dir(saving_model_dir_test);
+        let mut trainer = trainer_cfg.build(env_train, env_eval, agent);
+        let mut recorder = TensorboardRecorder::new(saving_model_dir_test);
     
-        // trainer.train(&mut recorder);
+        trainer.train(&mut recorder);
     
         Ok(())
     }        
