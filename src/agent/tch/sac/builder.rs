@@ -154,8 +154,8 @@ impl SACBuilder {
     ) -> SAC<E, Q, P, O, A>
     where
         E: Env,
-        Q: SubModel2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
-        P: SubModel<Input = O::SubBatch, Output = (ActMean, ActStd)> + Clone,
+        Q: SubModel2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue>,
+        P: SubModel<Input = O::SubBatch, Output = (ActMean, ActStd)>,
         E::Obs: Into<O::SubBatch>,
         E::Act: From<Tensor>,
         O: TchBuffer<Item = E::Obs>,
