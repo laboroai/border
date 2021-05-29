@@ -40,5 +40,8 @@ jobs:
         - name: Install gym
           run: pip install gym[atari]
 
+        - name: Set pythonpath
+          run: echo PYTHONPATH=$PYTHONPATH:/home/runner/work/border/examples
+
         - name: Test
           run: cargo test --no-default-features
