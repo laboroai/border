@@ -17,6 +17,10 @@ jobs:
           rust: [stable, nightly]
           python-version: [3.7]
       steps:
+        - if: matrix.os == 'windows-latest'
+          name: Set pythonpath (Windows only)
+          run: echo "PYTHONPATH=.\examples" >> $GITHUB_ENV
+
         - uses: actions/checkout@v2
 
         - name: Set up Python ${{ matrix.python-version }}
@@ -43,7 +47,7 @@ jobs:
         - name: Set pythonpath
           run: echo "PYTHONPATH=./examples" >> $GITHUB_ENV
 
-        - if: matrix.platform.os == 'windows-latest'
+        - if: matrix.os == 'windows-latest'
           name: Set pythonpath (Windows only)
           run: echo "PYTHONPATH=.\examples" >> $GITHUB_ENV
 
