@@ -43,5 +43,8 @@ jobs:
         - name: Set pythonpath
           run: echo PYTHONPATH=${PYTHONPATH}:/home/runner/work/border/examples >> $GITHUB_ENV
 
+        - name: pwd
+          run: pwd
+
         - name: Test
           run: cargo test --no-default-features
