@@ -4,7 +4,9 @@ use log::trace;
 use crate::agent::tch::model::ModelBase;
 
 pub mod quantile_loss;
+pub mod mlp;
 pub use quantile_loss::quantile_huber_loss;
+pub use mlp::{MLPConfig, MLP, MLP2, create_actor, create_critic};
 
 /// Apply soft update on a model.
 ///
