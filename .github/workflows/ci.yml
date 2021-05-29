@@ -33,9 +33,6 @@ jobs:
             profile: minimal
             default: true
 
-        - name: ls
-          run: ls ./
-
         - if: matrix.platform.os == 'ubuntu-latest'
           name: Prepare LD_LIBRARY_PATH (Ubuntu only)
           run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
@@ -44,10 +41,7 @@ jobs:
           run: pip install gym[atari]
 
         - name: Set pythonpath
-          run: echo PYTHONPATH=${PYTHONPATH}:/home/runner/work/border/examples >> $GITHUB_ENV
-
-        - name: pwd
-          run: pwd
+          run: echo PYTHONPATH=./examples >> $GITHUB_ENV
 
         - name: Test
           run: cargo test --no-default-features
