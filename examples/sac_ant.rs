@@ -2,10 +2,8 @@ use anyhow::Result;
 use border::{
     agent::{
         tch::{
-            model::{SubModel, SubModel2},
-            opt::OptimizerConfig,
-            sac::{Actor, ActorBuilder, Critic, CriticBuilder, EntCoefMode},
-            util::OutDim,
+            sac::EntCoefMode,
+            util::{create_actor, create_critic},
             ReplayBuffer, SACBuilder,
         },
         CriticLoss, OptInterval,
@@ -21,15 +19,10 @@ use border::{
 use border_core::{record::TensorboardRecorder, util, Agent, TrainerBuilder};
 use clap::{App, Arg};
 use log::info;
-use serde::{Deserialize, Serialize};
 use std::{default::Default, time::Duration};
-use tch::{
-    nn::{self, Module},
-    Device, Tensor,
-};
 
-const OBS_DIM: usize = 28;
-const ACT_DIM: usize = 8;
+const OBS_DIM: i64 = 28;
+const ACT_DIM: i64 = 8;
 const LR_ACTOR: f64 = 3e-4;
 const LR_CRITIC: f64 = 3e-4;
 const N_CRITICS: usize = 2;
@@ -55,7 +48,7 @@ struct ObsShape {}
 
 impl Shape for ObsShape {
     fn shape() -> &'static [usize] {
-        &[OBS_DIM]
+        &[OBS_DIM as _]
     }
 }
 
@@ -64,230 +57,13 @@ struct ActShape {}
 
 impl Shape for ActShape {
     fn shape() -> &'static [usize] {
-        &[ACT_DIM]
+        &[ACT_DIM as _]
     }
 
     fn squeeze_first_dim() -> bool {
         true
     }
 }
-
-#[allow(clippy::clippy::upper_case_acronyms)]
-#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
-struct MLPConfig {
-    in_dim: i64,
-    units: Vec<i64>,
-    out_dim: i64,
-}
-
-impl MLPConfig {
-    fn new(in_dim: i64, units: Vec<i64>, out_dim: i64) -> Self {
-        Self {
-            in_dim,
-            units,
-            out_dim,
-        }
-    }
-}
-
-impl OutDim for MLPConfig {
-    fn get_out_dim(&self) -> i64 {
-        self.out_dim
-    }
-
-    fn set_out_dim(&mut self, out_dim: i64) {
-        self.out_dim = out_dim;
-    }
-}
-
-#[allow(clippy::clippy::upper_case_acronyms)]
-struct MLP {
-    in_dim: i64,
-    units: Vec<i64>,
-    out_dim: i64,
-    device: Device,
-    seq: nn::Sequential,
-}
-
-fn mlp(var_store: &nn::VarStore, config: &MLPConfig) -> nn::Sequential {
-    let mut seq = nn::seq();
-    let mut in_dim = config.in_dim;
-    let p = &var_store.root();
-
-    for (i, &n) in config.units.iter().enumerate() {
-        seq = seq.add(nn::linear(
-            p / format!("l{}", i),
-            in_dim,
-            n,
-            Default::default(),
-        ));
-        seq = seq.add_fn(|x| x.relu());
-        in_dim = n;
-    }
-
-    seq
-}
-
-impl SubModel2 for MLP {
-    type Config = MLPConfig;
-    type Input1 = Tensor;
-    type Input2 = Tensor;
-    type Output = Tensor;
-
-    fn forward(&self, input1: &Self::Input1, input2: &Self::Input2) -> Self::Output {
-        let input = Tensor::cat(&[input1, input2], -1).to(self.device);
-        self.seq.forward(&input.to(self.device))
-    }
-
-    fn build(var_store: &nn::VarStore, config: Self::Config) -> Self {
-        let units = &config.units;
-        let in_dim = *units.last().unwrap_or(&config.in_dim);
-        let out_dim = config.out_dim;
-        let p = &var_store.root();
-        let seq = mlp(var_store, &config).add(nn::linear(
-            p / format!("l{}", units.len()),
-            in_dim,
-            out_dim,
-            Default::default(),
-        ));
-
-        Self {
-            in_dim: config.in_dim,
-            units: config.units,
-            out_dim: config.out_dim,
-            device: var_store.device(),
-            seq,
-        }
-    }
-
-    fn clone_with_var_store(&self, var_store: &nn::VarStore) -> Self {
-        Self::build(
-            var_store,
-            Self::Config {
-                in_dim: self.in_dim,
-                units: self.units.clone(),
-                out_dim: self.out_dim,
-            },
-        )
-    }
-}
-
-#[allow(clippy::clippy::upper_case_acronyms)]
-struct MLP2 {
-    in_dim: i64,
-    units: Vec<i64>,
-    out_dim: i64,
-    device: Device,
-    head1: nn::Linear,
-    head2: nn::Linear,
-    seq: nn::Sequential,
-}
-
-impl SubModel for MLP2 {
-    type Config = MLPConfig;
-    type Input = Tensor;
-    type Output = (Tensor, Tensor);
-
-    fn forward(&self, input: &Self::Input) -> Self::Output {
-        let x = self.seq.forward(&input.to(self.device));
-        let mean = x.apply(&self.head1);
-        let std = x.apply(&self.head2).exp();
-        (mean, std)
-    }
-
-    fn build(var_store: &nn::VarStore, config: Self::Config) -> Self {
-        let units = config.units;
-        let out_dim = config.out_dim;
-        let device = var_store.device();
-        let mut seq = nn::seq();
-        let mut in_dim = config.in_dim;
-        let p = &var_store.root();
-
-        for (i, &n) in units.iter().enumerate() {
-            seq = seq.add(nn::linear(
-                p / format!("l{}", i),
-                in_dim,
-                n,
-                Default::default(),
-            ));
-            seq = seq.add_fn(|x| x.relu());
-            in_dim = n;
-        }
-
-        let head1 = nn::linear(p / "head1", in_dim, out_dim as _, Default::default());
-        let head2 = nn::linear(p / "head2", in_dim, out_dim as _, Default::default());
-
-        let in_dim = config.in_dim;
-
-        Self {
-            in_dim,
-            units,
-            out_dim,
-            device,
-            head1,
-            head2,
-            seq,
-        }
-    }
-
-    fn clone_with_var_store(&self, var_store: &nn::VarStore) -> Self {
-        let config = Self::Config {
-            in_dim: self.in_dim,
-            units: self.units.clone(),
-            out_dim: self.out_dim,
-        };
-
-        Self::build(var_store, config)
-    }
-}
-
-fn create_actor(device: Device) -> Result<Actor<MLP2>> {
-    let in_dim = 0;
-    let out_dim = 0;
-    let lr_actor = LR_ACTOR;
-    ActorBuilder::default()
-        .pi_config(MLPConfig::new(in_dim, vec![400, 300], out_dim))
-        .opt_config(OptimizerConfig::Adam { lr: lr_actor })
-        .build(device)
-}
-
-fn create_critic(device: Device) -> Result<Critic<MLP>> {
-    let in_dim = 0;
-    let out_dim = 1;
-    let lr_critic = LR_CRITIC;
-    CriticBuilder::default()
-        .q_config(MLPConfig::new(in_dim, vec![400, 300], out_dim))
-        .opt_config(OptimizerConfig::Adam { lr: lr_critic })
-        .build(device)
-}
-
-// fn create_actor(device: tch::Device) -> Model1_2 {
-//     let network_fn = |p: &nn::Path, in_dim, hidden_dim| {
-//         nn::seq()
-//             .add(nn::linear(p / "al1", in_dim as _, 400, Default::default()))
-//             .add_fn(|xs| xs.relu())
-//             .add(nn::linear(
-//                 p / "al2",
-//                 400,
-//                 hidden_dim as _,
-//                 Default::default(),
-//             ))
-//             .add_fn(|xs| xs.relu())
-//     };
-//     Model1_2::new(DIM_OBS, 300, DIM_ACT, LR_ACTOR, network_fn, device)
-// }
-
-// fn create_critic(device: tch::Device) -> Model2_1 {
-//     let network_fn = |p: &nn::Path, in_dim, out_dim| {
-//         nn::seq()
-//             .add(nn::linear(p / "cl1", in_dim as _, 400, Default::default()))
-//             .add_fn(|xs| xs.relu())
-//             .add(nn::linear(p / "cl2", 400, 300, Default::default()))
-//             .add_fn(|xs| xs.relu())
-//             .add(nn::linear(p / "cl3", 300, out_dim as _, Default::default()))
-//     };
-//     Model2_1::new(DIM_OBS + DIM_ACT, 1, LR_CRITIC, network_fn, device)
-// }
 
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f32, f32>;
 type ActFilter = PyGymEnvContinuousActRawFilter;
@@ -299,9 +75,12 @@ type ActBuffer = TchPyGymEnvContinuousActBuffer<ActShape>;
 
 fn create_agent() -> Result<impl Agent<Env>> {
     let device = tch::Device::cuda_if_available();
-    let actor = create_actor(device)?;
+    let actor = create_actor(OBS_DIM, ACT_DIM, LR_ACTOR, vec![400, 300], device)?;
     let critics = (0..N_CRITICS)
-        .map(|_| create_critic(device).expect("Cannot create critic"))
+        .map(|_| {
+            create_critic(OBS_DIM + ACT_DIM, 1, LR_CRITIC, vec![400, 300], device)
+                .expect("Failed to create critic")
+        })
         .collect::<Vec<_>>();
     let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
 

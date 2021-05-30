@@ -51,14 +51,14 @@ pub struct MLP {
     seq: nn::Sequential,
 }
 
-fn mlp(var_store: &nn::VarStore, config: &MLPConfig) -> nn::Sequential {
+fn mlp(prefix: &str, var_store: &nn::VarStore, config: &MLPConfig) -> nn::Sequential {
     let mut seq = nn::seq();
     let mut in_dim = config.in_dim;
     let p = &var_store.root();
 
     for (i, &n) in config.units.iter().enumerate() {
         seq = seq.add(nn::linear(
-            p / format!("l{}", i),
+            p / format!("{}{}", prefix, i + 1),
             in_dim,
             n,
             Default::default(),
@@ -86,8 +86,8 @@ impl SubModel2 for MLP {
         let in_dim = *units.last().unwrap_or(&config.in_dim);
         let out_dim = config.out_dim;
         let p = &var_store.root();
-        let seq = mlp(var_store, &config).add(nn::linear(
-            p / format!("l{}", units.len()),
+        let seq = mlp("cl", var_store, &config).add(nn::linear(
+            p / format!("cl{}", units.len() + 1),
             in_dim,
             out_dim,
             Default::default(),
@@ -115,7 +115,7 @@ impl SubModel2 for MLP {
 }
 
 #[allow(clippy::clippy::upper_case_acronyms)]
-/// Multilayer perceptron, taking two tensors.
+/// Multilayer perceptron, outputting two tensors.
 pub struct MLP2 {
     in_dim: i64,
     units: Vec<i64>,
@@ -139,34 +139,32 @@ impl SubModel for MLP2 {
     }
 
     fn build(var_store: &nn::VarStore, config: Self::Config) -> Self {
-        let units = config.units;
+        let seq = mlp("al", var_store, &config);
         let out_dim = config.out_dim;
-        let device = var_store.device();
-        let mut seq = nn::seq();
-        let mut in_dim = config.in_dim;
+        let in_dim = *config.units.last().unwrap();
         let p = &var_store.root();
 
-        for (i, &n) in units.iter().enumerate() {
-            seq = seq.add(nn::linear(
-                p / format!("l{}", i),
-                in_dim,
-                n,
-                Default::default(),
-            ));
-            seq = seq.add_fn(|x| x.relu());
-            in_dim = n;
-        }
+        // for (i, &n) in units.iter().enumerate() {
+        //     seq = seq.add(nn::linear(
+        //         p / format!("al{}", i),
+        //         in_dim,
+        //         n,
+        //         Default::default(),
+        //     ));
+        //     seq = seq.add_fn(|x| x.relu());
+        //     in_dim = n;
+        // }
 
-        let head1 = nn::linear(p / "head1", in_dim, out_dim as _, Default::default());
-        let head2 = nn::linear(p / "head2", in_dim, out_dim as _, Default::default());
-
-        let in_dim = config.in_dim;
+        // let head1 = nn::linear(p / "head1", in_dim, out_dim as _, Default::default());
+        // let head2 = nn::linear(p / "head2", in_dim, out_dim as _, Default::default());
+        let head1 = nn::linear(p / "ml", in_dim, out_dim as _, Default::default());
+        let head2 = nn::linear(p / "sl", in_dim, out_dim as _, Default::default());
 
         Self {
-            in_dim,
-            units,
-            out_dim,
-            device,
+            in_dim: config.in_dim,
+            units: config.units,
+            out_dim: config.out_dim,
+            device: var_store.device(),
             head1,
             head2,
             seq,
