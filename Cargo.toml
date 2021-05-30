@@ -46,6 +46,7 @@ name = "iqn_cartpole"
 
 [[example]]
 name = "sac_pendulum"
+test = true
 
 [[example]]
 name = "quantile_loss"
@@ -68,7 +69,7 @@ name = "sac_ant"
 
 [[example]]
 name = "dqn_atari_vec"
-test = true
+# test = true
 
 [[example]]
 name = "sac_lunarlander_cont"

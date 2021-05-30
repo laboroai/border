@@ -398,3 +398,42 @@ fn main() -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use tempdir::TempDir;
+
+    #[test]
+    fn test_sac_pendulum() -> Result<()> {
+        // env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+        tch::manual_seed(42);
+
+        let model_dir = TempDir::new("sac_pendulum")?;
+        let model_dir = model_dir.path().to_str().unwrap();
+
+        let env = create_env();
+        let env_eval = create_env();
+        let agent = create_agent()?;
+        let mut trainer = TrainerBuilder::default()
+            .max_opts(100)
+            .eval_interval(100)
+            .n_episodes_per_eval(N_EPISODES_PER_EVAL)
+            .model_dir(model_dir)
+            .build(env, env_eval, agent);
+        let mut recorder = TensorboardRecorder::new(model_dir);
+
+        trainer.train(&mut recorder);
+
+        let mut env = create_env();
+        let mut agent = create_agent()?;
+        let mut recorder = BufferedRecorder::new();
+        // env.set_render(true);
+        agent.load(model_dir).unwrap();
+        agent.eval();
+
+        eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);
+
+        Ok(())
+    }
+}

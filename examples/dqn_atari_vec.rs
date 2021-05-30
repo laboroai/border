@@ -99,13 +99,13 @@ fn main() -> Result<()> {
 
 #[cfg(test)]
 mod test {
-    use tempdir::TempDir;
     use super::*;
+    use tempdir::TempDir;
 
     #[test]
     fn test_dqn_atari_vec() -> Result<()> {
         tch::manual_seed(42);
-    
+
         let name = "PongNoFrameskip-v4";
         let saving_model_dir_test = TempDir::new("dqn_PongNoFrameskip-v4_vec")?;
         let saving_model_dir_test = saving_model_dir_test.path().to_str().unwrap();
@@ -122,9 +122,9 @@ mod test {
             .model_dir(saving_model_dir_test);
         let mut trainer = trainer_cfg.build(env_train, env_eval, agent);
         let mut recorder = TensorboardRecorder::new(saving_model_dir_test);
-    
+
         trainer.train(&mut recorder);
-    
+
         Ok(())
-    }        
+    }
 }

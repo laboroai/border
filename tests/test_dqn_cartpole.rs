@@ -215,8 +215,9 @@ impl TryFrom<&Record> for CartpoleRecord {
 
 #[test]
 fn main() -> Result<()> {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    // env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
+
     let dir = TempDir::new("test_dqn_cartpole")?;
     let model_dir = String::from(dir.path().join(MODEL_DIR).to_str().unwrap());
 
