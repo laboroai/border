@@ -1,6 +1,6 @@
 [package]
 name = "border"
-version = "0.0.2"
+version = "0.0.3"
 authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
 edition = "2018"
 
@@ -33,7 +33,7 @@ anyhow = "1.0.38"
 zip = "0.5.12"
 serde = { version = "1.0.117", features = ["derive"] }
 serde_yaml = "0.8.7"
-border-core = { version = "0.0.2", path = "border-core" }
+border-core = { version = "0.0.3", path = "border-core" }
 
 [[example]]
 name = "random_cartpole"
