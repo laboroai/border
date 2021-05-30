@@ -1,3 +1,37 @@
+## Atari
+
+### DQN
+
+* Training
+
+  ```bash
+  PYTHONPATH=./examples cargo run --release --example dqn_atari -- PongNoFrameskip-v4
+  ```
+
+* Evaluation
+
+  ```bash
+  PYTHONPATH=./examples cargo run --example dqn_atari -- PongNoFrameskip-v4 --play ./examples/model/dqn_PongNoFrameskip-v4
+  ```
+
+* Evaluation with pretrained models
+
+  ```bash
+  PYTHONPATH=./examples cargo run --example dqn_atari -- PongNoFrameskip-v4 --play-gdrive
+  ```
+
+### IQN
+
+* Evaluation with pretrained models
+
+  ```bash
+  PYTHONPATH=./examples cargo run --example iqn_atari -- PongNoFrameskip-v4 --play-gdrive
+  ```
+
+  ```bash
+  PYTHONPATH=./examples cargo run --example iqn_atari -- SeaquestNoFrameskip-v4 --play-gdrive
+  ```
+
 ## PyBullet Env Ant-v0
 
 * Training
