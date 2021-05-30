@@ -9,7 +9,9 @@ m_config:
   hidden_dim: 512
   out_dim: 0
 opt_config:
-  AdamEps:
+  Adam:
     lr: 0.00005
-    eps: 0.0003125
+  # AdamEps:
+  #   lr: 0.00005
+  #   eps: 0.0003125
 phantom: ~

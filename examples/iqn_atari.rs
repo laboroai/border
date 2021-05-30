@@ -222,6 +222,22 @@ fn create_env(name: &str, mode: AtariWrapper) -> Env {
         .unwrap()
 }
 
+fn get_info(name: &str) -> (&str, &str) {
+    match name {
+        "PongNoFrameskip-v4" => (
+            "iqn_PongNoFrameskip-v4_20210430_ec2",
+            "https://drive.google.com/uc?export=download&id=1Urq_gTRlhTRzELUZlz8V5W3J1twwUD5E",
+        ),
+        "SeaquestNoFrameskip-v4" => (
+            "iqn_SeaquestNoFrameskip-v4_20210530_adam_eps_tuned",
+            "https://drive.google.com/uc?export=download&id=1zDPd9ls0SewpmwlCd0Ui5OrcPt8Krld5",
+        ),
+        _ => {
+            panic!()
+        }
+    }
+}
+
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
@@ -294,10 +310,7 @@ fn main() -> Result<()> {
                 .expect("Failed to parse model directory");
             agent.load(model_dir).unwrap(); // TODO: define appropriate error
         } else {
-            // TODO: change file_base and url depending on the game
-            let file_base = "iqn_PongNoFrameskip-v4_20210430_ec2";
-            let url =
-                "https://drive.google.com/uc?export=download&id=1Urq_gTRlhTRzELUZlz8V5W3J1twwUD5E";
+            let (file_base, url) = get_info(name);
             let model_dir = get_model_from_url(url, file_base)?;
             agent.load(model_dir).unwrap(); // TODO: define appropriate error
         };
