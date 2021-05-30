@@ -14,7 +14,7 @@
   PYTHONPATH=./examples cargo run --example dqn_atari -- PongNoFrameskip-v4 --play ./examples/model/dqn_PongNoFrameskip-v4
   ```
 
-* Evaluation with pretrained models
+* Testing with pretrained models
 
   ```bash
   PYTHONPATH=./examples cargo run --example dqn_atari -- PongNoFrameskip-v4 --play-gdrive
@@ -22,7 +22,7 @@
 
 ### IQN
 
-* Evaluation with pretrained models
+* Testing with pretrained models
 
   ```bash
   PYTHONPATH=./examples cargo run --example iqn_atari -- PongNoFrameskip-v4 --play-gdrive
