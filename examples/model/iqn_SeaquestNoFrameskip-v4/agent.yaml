@@ -1,0 +1,22 @@
+---
+opt_interval_counter:
+  opt_interval:
+    Steps: 4
+  count: 0
+soft_update_interval: 2500
+n_updates_per_opt: 1
+min_transitions_warmup: 2500
+batch_size: 32
+discount_factor: 0.99
+tau: 1.0
+sample_percents_pred: Uniform64
+sample_percents_tgt: Uniform64
+sample_percents_act: Uniform32
+train: false
+explorer:
+  EpsilonGreedy:
+    n_opts: 0
+    eps_start: 1.0
+    eps_final: 0.02
+    final_step: 1000000
+replay_buffer_capacity: 1000000

@@ -1,18 +1,15 @@
 use anyhow::Result;
+use border::env::py_gym_env::{
+    act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
+    obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
+    PyGymEnv, PyGymEnvBuilder, Shape,
+};
+use border_core::{
+    record::{BufferedRecorder, Record},
+    util, Policy,
+};
 use serde::Serialize;
 use std::{convert::TryFrom, fs::File};
-
-use border::{
-    core::{
-        record::{BufferedRecorder, Record},
-        util, Policy,
-    },
-    env::py_gym_env::{
-        act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
-        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-        PyGymEnv, PyGymEnvBuilder, Shape,
-    },
-};
 
 #[derive(Debug, Clone)]
 struct ObsShape {}

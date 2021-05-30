@@ -1,6 +1,6 @@
 [package]
 name = "border"
-version = "0.0.2"
+version = "0.0.3"
 authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
 edition = "2018"
 
@@ -17,7 +17,7 @@ ndarray = { version = "0.14", features = ["serde"] }
 tch = "0.4.0"
 # tch = { git = "https://github.com/taku-y/tch-rs", branch = "adam_eps" }
 numpy = "0.13"
-pyo3 = "0.13"
+pyo3 = { version = "0.13.2", default-features = false }
 fastrand = "1.4.0"
 log = "0.4"
 env_logger = "0.8.2"
@@ -31,6 +31,9 @@ reqwest = { version = "0.11.3", features = ["blocking"]}
 dirs = "3.0.2"
 anyhow = "1.0.38"
 zip = "0.5.12"
+serde = { version = "1.0.117", features = ["derive"] }
+serde_yaml = "0.8.7"
+border-core = { version = "0.0.3", path = "border-core" }
 
 [[example]]
 name = "random_cartpole"
@@ -43,6 +46,7 @@ name = "iqn_cartpole"
 
 [[example]]
 name = "sac_pendulum"
+test = true
 
 [[example]]
 name = "quantile_loss"
@@ -52,6 +56,7 @@ name = "dqn_atari"
 
 [[example]]
 name = "iqn_atari"
+# required_features = [ "adam_eps" ]
 
 [[example]]
 name = "iqn_regression"
@@ -63,18 +68,24 @@ name = "random_ant"
 name = "sac_ant"
 
 [[example]]
-name = "dqn_pong_vecenv"
+name = "dqn_atari_vec"
+# test = true
 
 [[example]]
-name = "dqn_pong_eval"
+name = "sac_lunarlander_cont"
 
 [dev-dependencies]
 clap = "2.33.3"
 csv = "1.1.5"
-serde = { version = "1.0.117", features = ["derive"] }
+tempdir = "0.3.7"
 
 [package.metadata.docs.rs]
 features = [ "doc-only" ]
 
 [features]
+# default = [ "adam_eps" ]
 doc-only = ["tch/doc-only"]
+adam_eps = []
+
+#[target.'cfg(feature="adam_eps")'.patch.crates-io]
+#tch = { git = "https://github.com/taku-y/tch-rs", branch = "adam_eps" }

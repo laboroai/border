@@ -114,15 +114,17 @@ where
         let mut r_sum = 0.0;
         loop {
             let (step, mut record) = sample(env, policy, &obs_prev);
-            if step.is_done[0] == 1 {
-                break;
-            }
             r_sum += &step.reward[0];
 
             record.insert("reward", RecordValue::Scalar(step.reward[0] as _));
             record.insert("episode", RecordValue::Scalar(episode as _));
             record.insert("step", RecordValue::Scalar(count_step as _));
             recorder.write(record);
+
+            if step.is_done[0] == 1 {
+                break;
+            }
+
             count_step += 1;
         }
         rs.push(r_sum);

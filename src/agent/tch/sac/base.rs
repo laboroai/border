@@ -1,23 +1,20 @@
 //! SAC agent.
+use crate::agent::{
+    tch::{
+        model::{ModelBase, SubModel, SubModel2},
+        sac::{actor::Actor, critic::Critic, ent_coef::EntCoef},
+        util::track,
+        ReplayBuffer, TchBatch, TchBuffer,
+    },
+    CriticLoss, OptIntervalCounter,
+};
+use border_core::{
+    record::{Record, RecordValue},
+    Agent, Env, Policy, Step,
+};
 use log::trace;
 use std::{cell::RefCell, error::Error, fs, marker::PhantomData, path::Path};
 use tch::{no_grad, Tensor};
-
-use crate::{
-    agent::{
-        tch::{
-            model::{Model1, Model2},
-            sac::ent_coef::EntCoef,
-            util::track,
-            ReplayBuffer, TchBatch, TchBuffer,
-        },
-        CriticLoss, OptIntervalCounter,
-    },
-    core::{
-        record::{Record, RecordValue},
-        Agent, Env, Policy, Step,
-    },
-};
 
 type ActionValue = Tensor;
 type ActMean = Tensor;
@@ -34,12 +31,14 @@ fn normal_logp(x: &Tensor) -> Tensor {
 pub struct SAC<E, Q, P, O, A>
 where
     E: Env,
+    Q: SubModel2<Output = ActionValue>,
+    P: SubModel<Output = (ActMean, ActStd)>,
     O: TchBuffer<Item = E::Obs>,
     A: TchBuffer<Item = E::Act>,
 {
-    pub(in crate::agent::tch::sac) qnets: Vec<Q>,
-    pub(in crate::agent::tch::sac) qnets_tgt: Vec<Q>,
-    pub(in crate::agent::tch::sac) pi: P,
+    pub(in crate::agent::tch::sac) qnets: Vec<Critic<Q>>,
+    pub(in crate::agent::tch::sac) qnets_tgt: Vec<Critic<Q>>,
+    pub(in crate::agent::tch::sac) pi: Actor<P>,
     pub(in crate::agent::tch::sac) replay_buffer: ReplayBuffer<E, O, A>,
     pub(in crate::agent::tch::sac) gamma: f64,
     pub(in crate::agent::tch::sac) tau: f64,
@@ -62,11 +61,11 @@ where
 impl<E, Q, P, O, A> SAC<E, Q, P, O, A>
 where
     E: Env,
-    Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
-    P: Model1<Input = Tensor, Output = (ActMean, ActStd)> + Clone,
+    Q: SubModel2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue>,
+    P: SubModel<Input = O::SubBatch, Output = (ActMean, ActStd)>,
     E::Obs: Into<O::SubBatch>,
     E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
+    O: TchBuffer<Item = E::Obs>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
     // Adapted from dqn.rs
@@ -98,7 +97,7 @@ where
         (a, log_p)
     }
 
-    fn qvals(&self, qnets: &[Q], obs: &Tensor, act: &Tensor) -> Vec<Tensor> {
+    fn qvals(&self, qnets: &[Critic<Q>], obs: &Q::Input1, act: &Tensor) -> Vec<Tensor> {
         qnets
             .iter()
             .map(|qnet| qnet.forward(obs, act).squeeze())
@@ -106,7 +105,7 @@ where
     }
 
     /// Returns the minimum values of q values over critics
-    fn qvals_min(&self, qnets: &[Q], obs: &Tensor, act: &Tensor) -> Tensor {
+    fn qvals_min(&self, qnets: &[Critic<Q>], obs: &Q::Input1, act: &Tensor) -> Tensor {
         let qvals = self.qvals(qnets, obs, act);
         let qvals = Tensor::vstack(&qvals);
         let qvals_min = qvals.min2(0, false).0;
@@ -131,9 +130,9 @@ where
         trace!("SAC::update_critic()");
 
         let losses = {
-            let o = &batch.obs.to(self.device);
+            let o = &batch.obs;
             let a = &batch.actions.to(self.device);
-            let next_o = &batch.next_obs.to(self.device);
+            let next_o = &batch.next_obs;
             let r = &batch.rewards.to(self.device).squeeze();
             let not_done = &batch.not_dones.to(self.device).squeeze();
 
@@ -174,7 +173,7 @@ where
         trace!("SAC::update_actor()");
 
         let loss = {
-            let o = &batch.obs.to(self.device);
+            let o = &batch.obs;
             let (a, log_p) = self.action_logp(o);
 
             // Update the entropy coefficient
@@ -200,15 +199,15 @@ where
 impl<E, Q, P, O, A> Policy<E> for SAC<E, Q, P, O, A>
 where
     E: Env,
-    Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
-    P: Model1<Input = Tensor, Output = (ActMean, ActStd)> + Clone,
+    Q: SubModel2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue>,
+    P: SubModel<Input = O::SubBatch, Output = (ActMean, ActStd)>,
     E::Obs: Into<O::SubBatch>,
     E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
+    O: TchBuffer<Item = E::Obs>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
     fn sample(&mut self, obs: &E::Obs) -> E::Act {
-        let obs = obs.clone().into().to(self.device);
+        let obs = obs.clone().into();
         let (mean, lstd) = self.pi.forward(&obs);
         let std = lstd.clip(self.min_lstd, self.max_lstd).exp();
         let act = if self.train {
@@ -223,11 +222,11 @@ where
 impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A>
 where
     E: Env,
-    Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
-    P: Model1<Input = Tensor, Output = (ActMean, ActStd)> + Clone,
+    Q: SubModel2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue>,
+    P: SubModel<Input = O::SubBatch, Output = (ActMean, ActStd)>,
     E::Obs: Into<O::SubBatch>,
     E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
+    O: TchBuffer<Item = E::Obs>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
     fn train(&mut self) {

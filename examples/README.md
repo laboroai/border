@@ -1,21 +1,57 @@
+## Atari
+
+### DQN
+
+* Training
+
+  ```bash
+  PYTHONPATH=./examples cargo run --release --example dqn_atari -- PongNoFrameskip-v4
+  ```
+
+* Evaluation
+
+  ```bash
+  PYTHONPATH=./examples cargo run --example dqn_atari -- PongNoFrameskip-v4 --play ./examples/model/dqn_PongNoFrameskip-v4
+  ```
+
+* Testing with pretrained models
+
+  ```bash
+  PYTHONPATH=./examples cargo run --example dqn_atari -- PongNoFrameskip-v4 --play-gdrive
+  ```
+
+### IQN
+
+* Testing with pretrained models
+
+  ```bash
+  PYTHONPATH=./examples cargo run --example iqn_atari -- PongNoFrameskip-v4 --play-gdrive
+  ```
+
+  ```bash
+  PYTHONPATH=./examples cargo run --example iqn_atari -- SeaquestNoFrameskip-v4 --play-gdrive
+  ```
+
 ## PyBullet Env Ant-v0
 
 * Training
 
   ```bash
-  $ RUST_LOG=info cargo run --example sac_ant
+  $ cargo run --example sac_ant
   ```
 
-  <img src="https://drive.google.com/uc?id=1d9UJCtz31iX2XYo_FaqVx8ZSkRLa8eMI" width="512">
+  <img src="https://drive.google.com/uc?id=16TEKfby6twCP6PxYoSlBqzOPEwVk1o4Q" width="256">
 
 * Testing
 
   ```bash
-  $ cargo run --example sac_ane -- --play=$REPO/examples/model/sac_ant
+  $ cargo run --example sac_ant -- --play=$REPO/examples/model/sac_ant
   ```
 
-You can download a [pretrained model](https://drive.google.com/uc?export=download&id=1fdAVJLgFY2v0BDyE-xGt7mxpa8GXa9aX).
+* Testing with downloading a pretrained model
 
-## FreewayNoFrameskip-v4
+  ```bash
+  $ cargo run --example sac_ant -- --play-gdrive
+  ```
 
-<img src="https://drive.google.com/uc?export=view&id=1KUXN4GpL_lrwNJ4synSH9P1ROT3ljVAD" width="256">
+You can download a pretrained model from [here](https://drive.google.com/uc?export=download&id=1fdAVJLgFY2v0BDyE-xGt7mxpa8GXa9aX).

@@ -3,23 +3,21 @@ use log::trace;
 use std::{cell::RefCell, error::Error, fs, marker::PhantomData, path::Path};
 use tch::{no_grad, Device, Tensor};
 
-use crate::{
-    agent::{
-        tch::{
-            iqn::{
-                model::{average, IQNSample},
-                IQNExplorer, IQNModel,
-            },
-            model::{ModelBase, SubModel},
-            util::{quantile_huber_loss, track},
-            ReplayBuffer, TchBatch, TchBuffer,
+use crate::agent::{
+    tch::{
+        iqn::{
+            model::{average, IQNSample},
+            IQNExplorer, IQNModel,
         },
-        OptIntervalCounter,
+        model::{ModelBase, SubModel},
+        util::{quantile_huber_loss, track},
+        ReplayBuffer, TchBatch, TchBuffer,
     },
-    core::{
-        record::{Record, RecordValue},
-        Agent, Env, Obs, Policy, Step,
-    },
+    OptIntervalCounter,
+};
+use border_core::{
+    record::{Record, RecordValue},
+    Agent, Env, Obs, Policy, Step,
 };
 
 #[allow(clippy::upper_case_acronyms)]

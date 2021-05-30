@@ -1,0 +1,15 @@
+---
+feature_dim: 3136
+embed_dim: 64
+learning_rate: 0.0001
+f_config:
+  n_stack: 4
+  feature_dim: 3136
+m_config:
+  in_dim: 3136
+  hidden_dim: 512
+  out_dim: 0
+phantom: ~
+opt_config:
+  Adam:
+    lr: 0.001

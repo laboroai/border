@@ -1,28 +1,37 @@
 //! Builder of SAC agent.
-use std::{cell::RefCell, marker::PhantomData};
-use tch::Tensor;
-
-use crate::{
-    agent::{
-        tch::{
-            model::{Model1, Model2},
-            sac::{
-                ent_coef::{EntCoef, EntCoefMode},
-                SAC,
-            },
-            ReplayBuffer, TchBuffer,
+use crate::agent::{
+    tch::{
+        model::{SubModel, SubModel2},
+        sac::{
+            actor::Actor,
+            critic::Critic,
+            ent_coef::{EntCoef, EntCoefMode},
+            SAC,
         },
-        CriticLoss, OptInterval, OptIntervalCounter,
+        ReplayBuffer, TchBuffer,
     },
-    core::Env,
+    CriticLoss, OptInterval, OptIntervalCounter,
 };
+use anyhow::Result;
+use border_core::Env;
+use log::info;
+use serde::{Deserialize, Serialize};
+use std::{
+    cell::RefCell,
+    fs::File,
+    io::{BufReader, Write},
+    marker::PhantomData,
+    path::Path,
+};
+use tch::Tensor;
 
 type ActionValue = Tensor;
 type ActMean = Tensor;
 type ActStd = Tensor;
 
-/// SAC builder.
+/// Constructs [SAC].
 #[allow(clippy::upper_case_acronyms)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct SACBuilder {
     gamma: f64,
     tau: f64,
@@ -60,31 +69,13 @@ impl Default for SACBuilder {
 }
 
 impl SACBuilder {
-    /// Discount factor.
-    pub fn discount_factor(mut self, v: f64) -> Self {
-        self.gamma = v;
-        self
-    }
-
-    /// Soft update coefficient.
-    pub fn tau(mut self, v: f64) -> Self {
-        self.tau = v;
-        self
-    }
-
-    /// SAC-alpha.
-    pub fn ent_coef_mode(mut self, v: EntCoefMode) -> Self {
-        self.ent_coef_mode = v;
-        self
-    }
-
-    /// Set optimization interval.
+    /// Sets optimization interval.
     pub fn opt_interval(mut self, v: OptInterval) -> Self {
         self.opt_interval_counter = v.counter();
         self
     }
 
-    /// Set numper of parameter update steps per optimization step.
+    /// Sets the numper of parameter update steps per optimization step.
     pub fn n_updates_per_opt(mut self, v: usize) -> Self {
         self.n_updates_per_opt = v;
         self
@@ -102,6 +93,24 @@ impl SACBuilder {
         self
     }
 
+    /// Discount factor.
+    pub fn discount_factor(mut self, v: f64) -> Self {
+        self.gamma = v;
+        self
+    }
+
+    /// Sets soft update coefficient.
+    pub fn tau(mut self, v: f64) -> Self {
+        self.tau = v;
+        self
+    }
+
+    /// SAC-alpha.
+    pub fn ent_coef_mode(mut self, v: EntCoefMode) -> Self {
+        self.ent_coef_mode = v;
+        self
+    }
+
     /// Reward scale.
     ///
     /// It works for obtaining target values, not the values in logs.
@@ -116,21 +125,40 @@ impl SACBuilder {
         self
     }
 
+    /// Constructs [SACBuilder] from YAML file.
+    pub fn load(path: impl AsRef<Path>) -> Result<Self> {
+        let path_ = path.as_ref().to_owned();
+        let file = File::open(path)?;
+        let rdr = BufReader::new(file);
+        let b = serde_yaml::from_reader(rdr)?;
+        info!("Load config of SAC agent from {}", path_.to_str().unwrap());
+        Ok(b)
+    }
+
+    /// Saves [SACBuilder].
+    pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
+        let path_ = path.as_ref().to_owned();
+        let mut file = File::create(path)?;
+        file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;
+        info!("Save config of SAC agent into {}", path_.to_str().unwrap());
+        Ok(())
+    }
+
     /// Constructs SAC.
     pub fn build<E, Q, P, O, A>(
         self,
-        critics: Vec<Q>,
-        policy: P,
+        critics: Vec<Critic<Q>>,
+        policy: Actor<P>,
         replay_buffer: ReplayBuffer<E, O, A>,
         device: tch::Device,
     ) -> SAC<E, Q, P, O, A>
     where
         E: Env,
-        Q: Model2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue> + Clone,
-        P: Model1<Output = (ActMean, ActStd)> + Clone,
+        Q: SubModel2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue>,
+        P: SubModel<Input = O::SubBatch, Output = (ActMean, ActStd)>,
         E::Obs: Into<O::SubBatch>,
         E::Act: From<Tensor>,
-        O: TchBuffer<Item = E::Obs, SubBatch = P::Input>,
+        O: TchBuffer<Item = E::Obs>,
         A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
     {
         // let critics_tgt = critics.iter().map(|c| c.clone()).collect();

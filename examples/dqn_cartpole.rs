@@ -1,22 +1,11 @@
 use anyhow::Result;
-use clap::{App, Arg};
-use csv::WriterBuilder;
-use serde::Serialize;
-use std::{convert::TryFrom, fs::File};
-use tch::nn;
-
 use border::{
     agent::{
         tch::{
             dqn::explorer::{DQNExplorer, EpsilonGreedy},
-            model::Model1_1,
-            DQNBuilder, ReplayBuffer,
+            DQNBuilder,
         },
         OptInterval,
-    },
-    core::{
-        record::{BufferedRecorder, Record, TensorboardRecorder},
-        util, Agent, TrainerBuilder,
     },
     env::py_gym_env::{
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
@@ -25,10 +14,18 @@ use border::{
         PyGymEnv, Shape,
     },
 };
+use border_core::{
+    record::{BufferedRecorder, Record, TensorboardRecorder},
+    util, Agent, TrainerBuilder,
+};
+use clap::{App, Arg};
+use csv::WriterBuilder;
+use serde::Serialize;
+use std::{convert::TryFrom, fs::File};
 
-const DIM_OBS: usize = 4;
-const DIM_ACT: usize = 2;
-const LR_QNET: f64 = 0.001;
+const DIM_OBS: i64 = 4;
+const DIM_ACT: i64 = 2;
+const LR_CRITIC: f64 = 0.001;
 const DISCOUNT_FACTOR: f64 = 0.99;
 const BATCH_SIZE: usize = 64;
 const N_TRANSITIONS_WARMUP: usize = 100;
@@ -46,7 +43,7 @@ struct ObsShape {}
 
 impl Shape for ObsShape {
     fn shape() -> &'static [usize] {
-        &[DIM_OBS]
+        &[DIM_OBS as _]
     }
 }
 
@@ -58,43 +55,132 @@ type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64, f32>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 
-fn create_critic(device: tch::Device) -> Model1_1 {
-    let network_fn = |p: &nn::Path, in_dim: &[usize], out_dim| {
-        nn::seq()
-            .add(nn::linear(
-                p / "cl1",
-                in_dim[0] as _,
-                256,
-                Default::default(),
-            ))
-            .add_fn(|xs| xs.relu())
-            .add(nn::linear(p / "cl2", 256, out_dim as _, Default::default()))
+mod dqn_model {
+    use anyhow::Result;
+    use border::agent::tch::{
+        dqn::model::{DQNModel, DQNModelBuilder},
+        model::SubModel,
+        util::OutDim,
     };
-    Model1_1::new(&[DIM_OBS], DIM_ACT, LR_QNET, network_fn, device)
+    use serde::{Deserialize, Serialize};
+    use tch::{nn, nn::Module, Device, Tensor};
+
+    #[allow(clippy::upper_case_acronyms)]
+    #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
+    pub struct MLPConfig {
+        in_dim: i64,
+        out_dim: i64,
+    }
+
+    impl OutDim for MLPConfig {
+        fn get_out_dim(&self) -> i64 {
+            self.out_dim
+        }
+
+        fn set_out_dim(&mut self, v: i64) {
+            self.out_dim = v;
+        }
+    }
+
+    impl MLPConfig {
+        fn new(in_dim: i64, out_dim: i64) -> Self {
+            Self { in_dim, out_dim }
+        }
+    }
+
+    #[allow(clippy::upper_case_acronyms)]
+    // Two layer perceptron
+    pub struct MLP {
+        in_dim: i64,
+        out_dim: i64,
+        device: Device,
+        seq: nn::Sequential,
+    }
+
+    impl MLP {
+        fn create_net(var_store: &nn::VarStore, in_dim: i64, out_dim: i64) -> nn::Sequential {
+            let p = &var_store.root();
+            nn::seq()
+                .add(nn::linear(p / "cl1", in_dim, 256, Default::default()))
+                .add_fn(|xs| xs.relu())
+                .add(nn::linear(p / "cl2", 256, out_dim, Default::default()))
+        }
+    }
+
+    impl SubModel for MLP {
+        type Config = MLPConfig;
+        type Input = Tensor;
+        type Output = Tensor;
+
+        fn forward(&self, x: &Self::Input) -> Tensor {
+            self.seq.forward(&x.to(self.device))
+        }
+
+        fn build(var_store: &nn::VarStore, config: Self::Config) -> Self {
+            let in_dim = config.in_dim;
+            let out_dim = config.out_dim;
+            let device = var_store.device();
+            let seq = Self::create_net(var_store, in_dim, out_dim);
+
+            Self {
+                in_dim,
+                out_dim,
+                device,
+                seq,
+            }
+        }
+
+        fn clone_with_var_store(&self, var_store: &nn::VarStore) -> Self {
+            let in_dim = self.in_dim;
+            let out_dim = self.out_dim;
+            let device = var_store.device();
+            let seq = Self::create_net(&var_store, in_dim, out_dim);
+
+            Self {
+                in_dim,
+                out_dim,
+                device,
+                seq,
+            }
+        }
+    }
+
+    // DQN model
+    pub fn create_dqn_model(
+        in_dim: i64,
+        out_dim: i64,
+        learning_rate: f64,
+        device: Device,
+    ) -> Result<DQNModel<MLP>> {
+        let q_config = MLPConfig::new(in_dim, out_dim);
+        DQNModelBuilder::default()
+            .opt_config(border::agent::tch::opt::OptimizerConfig::Adam { lr: learning_rate })
+            .build_with_submodel_configs(q_config, device)
+    }
 }
 
-fn create_agent(epsilon_greedy: bool) -> impl Agent<Env> {
+fn create_agent(epsilon_greedy: bool) -> Result<impl Agent<Env>> {
     let device = tch::Device::cuda_if_available();
-    let qnet = create_critic(device);
-    let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
-    let builder = DQNBuilder::new()
+    let qnet = dqn_model::create_dqn_model(DIM_OBS, DIM_ACT, LR_CRITIC, device)?;
+    let builder = DQNBuilder::default()
         .opt_interval(OPT_INTERVAL)
         .n_updates_per_opt(N_UPDATES_PER_OPT)
         .min_transitions_warmup(N_TRANSITIONS_WARMUP)
         .batch_size(BATCH_SIZE)
         .discount_factor(DISCOUNT_FACTOR)
-        .tau(TAU);
+        .tau(TAU)
+        .replay_burffer_capacity(REPLAY_BUFFER_CAPACITY);
 
-    if epsilon_greedy {
+    Ok(if epsilon_greedy {
         builder.explorer(DQNExplorer::EpsilonGreedy(EpsilonGreedy::new()))
     } else {
         builder
     }
-    .build(qnet, replay_buffer, device)
+    .build::<_, _, ObsBuffer, ActBuffer>(qnet, device))
 }
 
 fn create_env() -> Env {
-    let obs_filter = ObsFilter::default(); //::new();
+    let obs_filter = ObsFilter::default();
     let act_filter = ActFilter::default();
     Env::new("CartPole-v0", obs_filter, act_filter, None).unwrap()
 }
@@ -151,20 +237,20 @@ fn main() -> Result<()> {
     if !matches.is_present("skip training") {
         let env = create_env();
         let env_eval = create_env();
-        let agent = create_agent(matches.is_present("egreddy"));
+        let agent = create_agent(matches.is_present("egreddy"))?;
         let mut trainer = TrainerBuilder::default()
             .max_opts(MAX_OPTS)
             .eval_interval(EVAL_INTERVAL)
             .n_episodes_per_eval(N_EPISODES_PER_EVAL)
             .model_dir(MODEL_DIR)
             .build(env, env_eval, agent);
-        let mut recorder = TensorboardRecorder::new("./examples/model/dqn_cartpole");
+        let mut recorder = TensorboardRecorder::new(MODEL_DIR);
 
         trainer.train(&mut recorder);
     }
 
     let mut env = create_env();
-    let mut agent = create_agent(matches.is_present("egreddy"));
+    let mut agent = create_agent(matches.is_present("egreddy"))?;
     let mut recorder = BufferedRecorder::new();
     env.set_render(true);
     agent.load(MODEL_DIR).unwrap(); // TODO: define appropriate error

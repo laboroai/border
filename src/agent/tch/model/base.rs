@@ -64,7 +64,7 @@ pub trait SubModel {
     /// Output of the [SubModel].
     type Output;
 
-    /// Builds [SubModel] with [VarStore] and [Self::Config].
+    /// Builds [SubModel] with [VarStore] and [SubModel::Config].
     fn build(var_store: &VarStore, config: Self::Config) -> Self;
 
     /// Clones [SubModel] with [VarStore].
@@ -72,4 +72,30 @@ pub trait SubModel {
 
     /// A generalized forward function.
     fn forward(&self, input: &Self::Input) -> Self::Output;
+}
+
+/// Neural network model that can be initialized with [VarStore] and configuration.
+///
+/// The difference from [SubModel] is that this trait takes two inputs.
+pub trait SubModel2 {
+    /// Configuration from which [SubModel2] is constructed.
+    type Config;
+
+    /// Input of the [SubModel2].
+    type Input1;
+
+    /// Input of the [SubModel2].
+    type Input2;
+
+    /// Output of the [SubModel2].
+    type Output;
+
+    /// Builds [SubModel2] with [VarStore] and [SubModel2::Config].
+    fn build(var_store: &VarStore, config: Self::Config) -> Self;
+
+    /// Clones [SubModel2] with [VarStore].
+    fn clone_with_var_store(&self, var_store: &VarStore) -> Self;
+
+    /// A generalized forward function.
+    fn forward(&self, input1: &Self::Input1, input2: &Self::Input2) -> Self::Output;
 }

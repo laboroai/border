@@ -1,4 +1,9 @@
 //! Observation for [`super::PyGymEnv`] and [`super::PyVecGymEnv`].
+use crate::env::py_gym_env::{PyGymEnvObsFilter, Shape};
+use border_core::{
+    record::{Record, RecordValue},
+    Obs,
+};
 use log::trace;
 use ndarray::{stack, ArrayD, Axis, IxDyn};
 use num_traits::cast::AsPrimitive;
@@ -7,14 +12,6 @@ use pyo3::{types::PyList, Py, PyObject};
 use std::default::Default;
 use std::fmt::Debug;
 use std::marker::PhantomData;
-
-use crate::{
-    core::{
-        record::{Record, RecordValue},
-        Obs,
-    },
-    env::py_gym_env::{PyGymEnvObsFilter, Shape},
-};
 
 fn any(is_done: &[i8]) -> bool {
     is_done.iter().fold(0, |x, v| x + *v as i32) > 0

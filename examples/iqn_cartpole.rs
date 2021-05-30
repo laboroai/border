@@ -1,9 +1,4 @@
 use anyhow::Result;
-use clap::{App, Arg};
-use csv::WriterBuilder;
-use serde::Serialize;
-use std::{convert::TryFrom, default::Default, fs::File};
-
 use border::{
     agent::{
         tch::{
@@ -12,10 +7,6 @@ use border::{
         },
         OptInterval,
     },
-    core::{
-        record::{BufferedRecorder, Record, TensorboardRecorder},
-        util, Agent, TrainerBuilder,
-    },
     env::py_gym_env::{
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
@@ -23,6 +14,14 @@ use border::{
         PyGymEnv, Shape,
     },
 };
+use border_core::{
+    record::{BufferedRecorder, Record, TensorboardRecorder},
+    util, Agent, TrainerBuilder,
+};
+use clap::{App, Arg};
+use csv::WriterBuilder;
+use serde::Serialize;
+use std::{convert::TryFrom, default::Default, fs::File};
 
 const DIM_OBS: i64 = 4;
 const DIM_FEATURE: i64 = 256;
@@ -30,7 +29,7 @@ const DIM_EMBED: i64 = 64;
 const DIM_ACT: i64 = 2;
 const LR_CRITIC: f64 = 0.001;
 const DISCOUNT_FACTOR: f64 = 0.99;
-const BATCH_SIZE: usize = 64; // 32;
+const BATCH_SIZE: usize = 64;
 const N_TRANSITIONS_WARMUP: usize = 100;
 const N_UPDATES_PER_OPT: usize = 1;
 const TAU: f64 = 0.1;
@@ -66,14 +65,27 @@ mod iqn_model {
     use border::agent::tch::{
         iqn::{IQNModel, IQNModelBuilder},
         model::SubModel,
+        util::OutDim,
     };
+    use serde::{Deserialize, Serialize};
     use tch::{nn, nn::Module, Device, Tensor};
 
     #[allow(clippy::upper_case_acronyms)]
+    #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
     pub struct FCConfig {
         in_dim: i64,
         out_dim: i64,
         relu: bool,
+    }
+
+    impl OutDim for FCConfig {
+        fn get_out_dim(&self) -> i64 {
+            self.out_dim
+        }
+
+        fn set_out_dim(&mut self, v: i64) {
+            self.out_dim = v;
+        }
     }
 
     impl FCConfig {
@@ -168,9 +180,8 @@ mod iqn_model {
         IQNModelBuilder::default()
             .feature_dim(feature_dim)
             .embed_dim(embed_dim)
-            .out_dim(out_dim)
             .learning_rate(learning_rate)
-            .build(fe_config, m_config, device)
+            .build_with_submodel_configs(fe_config, m_config, device)
     }
 }
 
@@ -188,11 +199,11 @@ fn create_agent() -> impl Agent<Env> {
         .tau(TAU)
         .soft_update_interval(SOFT_UPDATE_INTERVAL)
         .explorer(EpsilonGreedy::with_params(EPS_START, EPS_FINAL, FINAL_STEP))
-        .build(iqn_model, replay_buffer, device)
+        .build_with_replay_bufferbuild(iqn_model, replay_buffer, device)
 }
 
 fn create_env() -> Env {
-    let obs_filter = ObsFilter::default(); //::new();
+    let obs_filter = ObsFilter::default();
     let act_filter = ActFilter::default();
     Env::new("CartPole-v0", obs_filter, act_filter, None).unwrap()
 }
@@ -247,7 +258,7 @@ fn main() -> Result<()> {
             .n_episodes_per_eval(N_EPISODES_PER_EVAL)
             .model_dir(MODEL_DIR)
             .build(env, env_eval, agent);
-        let mut recorder = TensorboardRecorder::new("./examples/model/iqn_cartpole");
+        let mut recorder = TensorboardRecorder::new(MODEL_DIR);
 
         trainer.train(&mut recorder);
     }

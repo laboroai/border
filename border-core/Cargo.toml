@@ -1,0 +1,23 @@
+[package]
+name = "border-core"
+version = "0.0.3"
+authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
+edition = "2018"
+
+description = "Reinforcement learning library"
+repository = "https://github.com/taku-y/border"
+keywords = ["rl"]
+categories = ["science"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+autoexamples = false
+
+[dependencies]
+serde = { version = "1.0.117", features = ["derive"] }
+serde_yaml = "0.8.7"
+tensorboard-rs = "0.2.4"
+log = "0.4"
+thiserror = "1.0"
+anyhow = "1.0.38"
+chrono = "0.4"
+aquamarine = "0.1"

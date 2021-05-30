@@ -22,15 +22,20 @@ pub fn get_model_from_url<T: AsRef<Path>>(
     let mut path_zip = path_dir.clone();
     path_zip.push(&file_base);
     path_zip.set_extension("zip");
-    let mut zip_file = File::create(&path_zip.as_path())?;
+    let mut zip_file = File::create(&path_zip.as_path()).context(format!(
+        "Failed to create file {:?}\n\
+             You may need to create directory: \"mkdir ~/.border/model\"
+            ",
+        path_zip
+    ))?;
 
     // TODO: skip download when the zip file exists
-    info!("Download file as {:?}", path_zip.as_path());
+    info!("Downloaded file as {:?}", path_zip.as_path());
     let content = response.bytes()?;
     zip_file.write_all(&content)?;
     zip_file.flush()?;
 
-    info!("Extract zip file");
+    info!("Unzip the file");
     let zip_file = File::open(&path_zip.as_path())?;
     let mut archive = zip::ZipArchive::new(zip_file)?;
     archive.extract(&path_dir.as_path())?;

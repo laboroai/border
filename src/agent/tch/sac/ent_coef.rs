@@ -1,9 +1,11 @@
 //! Entropy coefficient of SAC.
 use log::{info, trace};
+use serde::{Deserialize, Serialize};
 use std::{borrow::Borrow, error::Error, path::Path};
 use tch::{nn, nn::OptimizerConfig, Tensor};
 
 /// Mode of the entropy coefficient of SAC.
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub enum EntCoefMode {
     /// Use a constant as alpha.
     Fix(f64),

@@ -1,18 +1,15 @@
 //! Policy gradient agent with discrete action.
+use crate::agent::{
+    tch::{model::Model1, ReplayBuffer, TchBatch, TchBuffer},
+    OptInterval, OptIntervalCounter,
+};
+use border_core::{
+    record::{Record, RecordValue},
+    Agent, Env, Policy, Step,
+};
 use log::trace;
 use std::{cell::RefCell, error::Error, fs, marker::PhantomData, path::Path};
 use tch::{Kind::Float, Tensor};
-
-use crate::{
-    agent::{
-        tch::{model::Model1, ReplayBuffer, TchBatch, TchBuffer},
-        OptInterval, OptIntervalCounter,
-    },
-    core::{
-        record::{Record, RecordValue},
-        Agent, Env, Policy, Step,
-    },
-};
 
 /// Policy gradient agent with discrete action.
 #[allow(clippy::upper_case_acronyms)]

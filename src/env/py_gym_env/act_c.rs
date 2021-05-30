@@ -1,20 +1,16 @@
 //! Continuous action for [`super::PyGymEnv`] and [`super::PyVecGymEnv`].
+use super::PyGymEnvActFilter;
+use crate::env::py_gym_env::Shape;
+use border_core::{
+    record::{Record, RecordValue},
+    Act,
+};
 use ndarray::{ArrayD, Axis};
 use numpy::PyArrayDyn;
 use pyo3::{IntoPy, PyObject};
 use std::default::Default;
 use std::fmt::Debug;
 use std::marker::PhantomData;
-
-use crate::{
-    core::{
-        record::{Record, RecordValue},
-        Act,
-    },
-    env::py_gym_env::Shape,
-};
-
-use super::PyGymEnvActFilter;
 
 /// Represents an action.
 #[derive(Clone, Debug)]

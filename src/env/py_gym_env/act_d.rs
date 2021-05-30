@@ -1,15 +1,12 @@
 //! Discrete action for [`super::PyGymEnv`] and [`super::PyVecGymEnv`].
+use crate::env::py_gym_env::PyGymEnvActFilter;
+use border_core::{
+    record::{Record, RecordValue},
+    Act,
+};
 use pyo3::{IntoPy, PyObject};
 use std::default::Default;
 use std::fmt::Debug;
-
-use crate::{
-    core::{
-        record::{Record, RecordValue},
-        Act,
-    },
-    env::py_gym_env::PyGymEnvActFilter,
-};
 
 /// Represents action.
 #[derive(Clone, Debug)]

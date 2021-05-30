@@ -187,14 +187,14 @@ def wrap_deepmind(env, episode_life=True, clip_rewards=True):
     return env
 
 # envs.py
-def make_env(env_id, img_dir, atari_wrapper, seed, rank):
+def make_env(env_id, img_dir, atari_wrapper, train, seed, rank):
     def _thunk():
         env = gym.make(env_id)
         env.seed(seed + rank)
         if img_dir is not None:
             env = ImageSaver(env, img_dir, rank)
         if atari_wrapper:
-            env = wrap_deepmind(env)
+            env = wrap_deepmind(env, episode_life=train, clip_rewards=train)
             env = WrapPyTorch(env)
         return env
 
@@ -285,8 +285,8 @@ class SubprocVecEnv(VecEnv):
         for p in self.ps:
             p.start()
 
-        # self.remotes[0].send(('get_spaces', None))
-        # self.action_space, self.observation_space = self.remotes[0].recv()
+        self.remotes[0].send(('get_spaces', None))
+        self.action_space, self.observation_space = self.remotes[0].recv()
 
     def step(self, actions):
         for remote, action in zip(self.remotes, actions):
@@ -330,9 +330,10 @@ class SubprocVecEnv(VecEnv):
         return len(self.remotes)
 
 # Create the environment.
-def make(env_name, img_dir, atari_wrapper, num_processes):
+def make(env_name, atari_wrapper, train, num_processes):
+    img_dir=None
     import cv2 # workaround for importing cv2 in subprocesses on mac
     envs = SubprocVecEnv([
-        make_env(env_name, img_dir, atari_wrapper, 42, i) for i in range(num_processes)
+        make_env(env_name, img_dir, atari_wrapper, train, 42, i) for i in range(num_processes)
     ])
     return envs

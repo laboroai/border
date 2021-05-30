@@ -1,10 +1,10 @@
 //! Exploration strategies of DQN.
+use serde::{Deserialize, Serialize};
 use tch::Tensor;
-
-use crate::agent::tch::model::Model1;
 
 #[allow(clippy::upper_case_acronyms)]
 /// Explorers for DQN.
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub enum DQNExplorer {
     /// Softmax action selection.
     Softmax(Softmax),
@@ -14,6 +14,7 @@ pub enum DQNExplorer {
 }
 
 /// Softmax explorer for DQN.
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct Softmax {}
 
 #[allow(clippy::new_without_default)]
@@ -24,16 +25,13 @@ impl Softmax {
     }
 
     /// Takes an action based on the observation and the critic.
-    pub fn action<M>(&mut self, qnet: &M, obs: &Tensor) -> Tensor
-    where
-        M: Model1<Input = Tensor, Output = Tensor>,
-    {
-        let a = qnet.forward(obs);
+    pub fn action(&mut self, a: &Tensor) -> Tensor {
         a.softmax(-1, tch::Kind::Float).multinomial(1, true)
     }
 }
 
 /// Epsilon-greedy explorer for DQN.
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct EpsilonGreedy {
     n_opts: usize,
     eps_start: f64,
@@ -66,10 +64,7 @@ impl EpsilonGreedy {
     }
 
     /// Takes an action based on the observation and the critic.
-    pub fn action<M>(&mut self, qnet: &M, obs: &Tensor) -> Tensor
-    where
-        M: Model1<Input = Tensor, Output = Tensor>,
-    {
+    pub fn action(&mut self, a: &Tensor) -> Tensor {
         let d = (self.eps_start - self.eps_final) / (self.final_step as f64);
         let eps = (self.eps_start - d * self.n_opts as f64).max(self.eps_final);
         let r = fastrand::f64();
@@ -77,8 +72,8 @@ impl EpsilonGreedy {
         self.n_opts += 1;
 
         if is_random {
-            let n_procs = obs.size()[0] as u32;
-            let n_actions = qnet.out_dim() as u32;
+            let n_procs = a.size()[0] as u32;
+            let n_actions = a.size()[1] as u32;
             Tensor::of_slice(
                 (0..n_procs)
                     .map(|_| fastrand::u32(..n_actions) as i32)
@@ -86,7 +81,6 @@ impl EpsilonGreedy {
                     .as_slice(),
             )
         } else {
-            let a = qnet.forward(&obs);
             a.argmax(-1, true)
         }
     }

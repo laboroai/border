@@ -24,18 +24,15 @@
 //! By providing some bridges, it is able to switch computational backends or internal implementation of
 //! environments and agents. This concept is illustrated in schematic diagram of [eval] and [Trainer].
 pub mod agent;
-pub mod core;
 pub mod env;
 pub mod error;
 pub mod util;
 
 #[allow(unused_imports)]
-use crate::{
-    agent::tch::{DQN, SAC},
-    core::{
-        base::{Act, Agent, Env, Obs, Policy},
-        trainer::Trainer,
-        util::eval,
+use {
+    crate::{
+        agent::tch::{DQN, SAC},
+        env::py_gym_env::{PyGymEnv, PyVecGymEnv},
     },
-    env::py_gym_env::{PyGymEnv, PyVecGymEnv},
+    border_core::{eval, Act, Agent, Env, Obs, Policy, Trainer},
 };
