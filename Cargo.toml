@@ -34,6 +34,7 @@ zip = "0.5.12"
 serde = { version = "1.0.117", features = ["derive"] }
 serde_yaml = "0.8.7"
 border-core = { version = "0.0.3", path = "border-core" }
+border-tch-agent = { version = "0.0.4", path = "border-tch-agent" }
 
 [[example]]
 name = "random_cartpole"
