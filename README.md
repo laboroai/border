@@ -94,7 +94,7 @@ The following command trains a DQN agent in an vectorized environment of Pong:
   * Support tensorboard using [tensorboard-rs](https://crates.io/crates/tensorboard-rs)
 * Vectorized environment using a tweaked [atari_wrapper.py](https://github.com/taku-y/border/blob/main/examples/atari_wrappers.py), adapted from the RL example in [tch](https://crates.io/crates/tch)
 * Agents based on [tch](https://crates.io/crates/tch)
-  * Currently including [DQN](https://arxiv.org/abs/1312.5602), [Deep deterministic policy gradient (DDPG)](https://arxiv.org/abs/1509.02971), [SAC](https://arxiv.org/abs/1801.01290), [Implicit quantile network (IQN)](https://arxiv.org/abs/1806.06923).
+  * Currently including [DQN](https://arxiv.org/abs/1312.5602), [SAC](https://arxiv.org/abs/1801.01290), [Implicit quantile network (IQN)](https://arxiv.org/abs/1806.06923).
 
 ## Roadmap
 
@@ -102,7 +102,7 @@ The following command trains a DQN agent in an vectorized environment of Pong:
 * More environments
   * [pybullet-gym](https://github.com/benelot/pybullet-gym), [rogue-gym](https://github.com/kngwyu/rogue-gym), [ViZDoom](https://github.com/mwydmuch/ViZDoom), [gym-minecraft](https://github.com/tambetm/gym-minecraft)
 * More RL algorithms
-  * [DDQN](https://arxiv.org/abs/1509.06461), [Dueling network](https://arxiv.org/abs/1511.06581), [PPO](https://arxiv.org/abs/1707.06347), [QRDQN](https://arxiv.org/abs/1710.10044), [TD3](https://arxiv.org/abs/1802.09477)
+  * [DDQN](https://arxiv.org/abs/1509.06461), [Dueling network](https://arxiv.org/abs/1511.06581), [PPO](https://arxiv.org/abs/1707.06347), [QRDQN](https://arxiv.org/abs/1710.10044), [TD3](https://arxiv.org/abs/1802.09477), [Deep deterministic policy gradient (DDPG)](https://arxiv.org/abs/1509.02971)
   * [Prioritized experience replay](https://arxiv.org/abs/1511.05952), [parameter noise](https://arxiv.org/abs/1706.01905)
 
 ## License
