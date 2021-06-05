@@ -8,6 +8,7 @@ use border::{
         tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
         AtariWrapper, PyVecGymEnv, PyVecGymEnvBuilder, Shape,
     },
+    shape,
 };
 use border_core::{record::TensorboardRecorder, Agent, TrainerBuilder};
 use clap::{App, Arg};
@@ -18,16 +19,7 @@ use dqn_atari_model::CNN;
 
 const N_PROCS: usize = 4;
 const N_STACK: usize = 4;
-const DIM_OBS: [usize; 4] = [4, 1, 84, 84];
-
-#[derive(Debug, Clone)]
-struct ObsShape {}
-
-impl Shape for ObsShape {
-    fn shape() -> &'static [usize] {
-        &DIM_OBS
-    }
-}
+shape!(ObsShape, [4, 1, 84, 84]);
 
 type ObsFilter = FrameStackFilter<ObsShape, u8, u8>;
 type ActFilter = PyGymEnvDiscreteActRawFilter;

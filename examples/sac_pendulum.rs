@@ -16,6 +16,7 @@ use border::{
         tch::{act_c::TchPyGymEnvContinuousActBuffer, obs::TchPyGymEnvObsBuffer},
         PyGymEnv, PyGymEnvActFilter, PyGymEnvBuilder, Shape,
     },
+    shape,
 };
 use border_core::{
     record::{BufferedRecorder, Record, RecordValue, TensorboardRecorder},
@@ -30,8 +31,6 @@ use tch::{
     Device, Tensor,
 };
 
-const OBS_DIM: i64 = 3;
-const ACT_DIM: i64 = 1;
 const LR_ACTOR: f64 = 3e-4;
 const LR_CRITIC: f64 = 3e-4;
 const N_CRITICS: usize = 1;
@@ -53,27 +52,8 @@ const N_EPISODES_PER_EVAL: usize = 5;
 const MAX_STEPS_IN_EPISODE: usize = 200;
 const MODEL_DIR: &str = "./examples/model/sac_pendulum";
 
-#[derive(Debug, Clone)]
-struct ObsShape {}
-
-impl Shape for ObsShape {
-    fn shape() -> &'static [usize] {
-        &[OBS_DIM as _]
-    }
-}
-
-#[derive(Debug, Clone)]
-struct ActShape {}
-
-impl Shape for ActShape {
-    fn shape() -> &'static [usize] {
-        &[ACT_DIM as _]
-    }
-
-    fn squeeze_first_dim() -> bool {
-        true
-    }
-}
+shape!(ObsShape, [3]);
+shape!(ActShape, [1], squeeze_first_dim);
 
 #[allow(clippy::clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
@@ -301,11 +281,23 @@ impl PyGymEnvActFilter<Act> for ActFilter {
 
 fn create_agent() -> Result<impl Agent<Env>> {
     let device = tch::Device::cuda_if_available();
-    let actor = create_actor(OBS_DIM, ACT_DIM, LR_ACTOR, vec![64, 64], device)?;
+    let actor = create_actor(
+        ObsShape::shape()[0] as _,
+        ActShape::shape()[0] as _,
+        LR_ACTOR,
+        vec![64, 64],
+        device,
+    )?;
     let critics = (0..N_CRITICS)
         .map(|_| {
-            create_critic(OBS_DIM + ACT_DIM, 1, LR_CRITIC, vec![64, 64], device)
-                .expect("Cannot create critic")
+            create_critic(
+                (ObsShape::shape()[0] + ActShape::shape()[0]) as _,
+                1,
+                LR_CRITIC,
+                vec![64, 64],
+                device,
+            )
+            .expect("Cannot create critic")
         })
         .collect::<Vec<_>>();
     let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);

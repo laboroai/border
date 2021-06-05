@@ -4,6 +4,7 @@ use border::env::py_gym_env::{
     obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
     PyGymEnv, PyGymEnvBuilder, Shape,
 };
+use border::shape;
 use border_core::{
     record::{BufferedRecorder, Record},
     util, Policy,
@@ -11,14 +12,7 @@ use border_core::{
 use serde::Serialize;
 use std::{convert::TryFrom, fs::File};
 
-#[derive(Debug, Clone)]
-struct ObsShape {}
-
-impl Shape for ObsShape {
-    fn shape() -> &'static [usize] {
-        &[4]
-    }
-}
+shape!(ObsShape, [4]);
 
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64, f32>;
 type ActFilter = PyGymEnvDiscreteActRawFilter;

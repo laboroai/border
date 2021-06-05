@@ -78,7 +78,7 @@ where
         Ok(Critic::_build(device, opt_config, q, var_store, None))
     }
 
-    /// Constructs [IQNModel] with the given configurations of sub models.
+    /// Constructs [Critic] with the given configurations of sub models.
     pub fn build_with_submodel_configs(
         &self,
         q_config: Q::Config,

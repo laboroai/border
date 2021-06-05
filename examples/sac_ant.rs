@@ -14,6 +14,7 @@ use border::{
         tch::{act_c::TchPyGymEnvContinuousActBuffer, obs::TchPyGymEnvObsBuffer},
         PyGymEnv, PyGymEnvBuilder, Shape,
     },
+    shape,
     util::url::get_model_from_url,
 };
 use border_core::{record::TensorboardRecorder, util, Agent, TrainerBuilder};
@@ -21,8 +22,6 @@ use clap::{App, Arg};
 use log::info;
 use std::{default::Default, time::Duration};
 
-const OBS_DIM: i64 = 28;
-const ACT_DIM: i64 = 8;
 const LR_ACTOR: f64 = 3e-4;
 const LR_CRITIC: f64 = 3e-4;
 const N_CRITICS: usize = 2;
@@ -32,6 +31,7 @@ const N_TRANSITIONS_WARMUP: usize = 10_000;
 const N_UPDATES_PER_OPT: usize = 1;
 const TAU: f64 = 0.02;
 // const ALPHA: f64 = 1.0;
+const ACT_DIM: i64 = 8;
 const TARGET_ENTROPY: f64 = -(ACT_DIM as f64);
 const LR_ENT_COEF: f64 = 3e-4;
 const REWARD_SCALE: f32 = 1.0;
@@ -43,27 +43,8 @@ const REPLAY_BUFFER_CAPACITY: usize = 300_000;
 const N_EPISODES_PER_EVAL: usize = 5;
 // const MAX_STEPS_IN_EPISODE: usize = 200;
 
-#[derive(Debug, Clone)]
-struct ObsShape {}
-
-impl Shape for ObsShape {
-    fn shape() -> &'static [usize] {
-        &[OBS_DIM as _]
-    }
-}
-
-#[derive(Debug, Clone)]
-struct ActShape {}
-
-impl Shape for ActShape {
-    fn shape() -> &'static [usize] {
-        &[ACT_DIM as _]
-    }
-
-    fn squeeze_first_dim() -> bool {
-        true
-    }
-}
+shape!(ObsShape, [28]);
+shape!(ActShape, [8], squeeze_first_dim);
 
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f32, f32>;
 type ActFilter = PyGymEnvContinuousActRawFilter;
@@ -75,11 +56,23 @@ type ActBuffer = TchPyGymEnvContinuousActBuffer<ActShape>;
 
 fn create_agent() -> Result<impl Agent<Env>> {
     let device = tch::Device::cuda_if_available();
-    let actor = create_actor(OBS_DIM, ACT_DIM, LR_ACTOR, vec![400, 300], device)?;
+    let actor = create_actor(
+        ObsShape::shape()[0] as _,
+        ActShape::shape()[0] as _,
+        LR_ACTOR,
+        vec![400, 300],
+        device,
+    )?;
     let critics = (0..N_CRITICS)
         .map(|_| {
-            create_critic(OBS_DIM + ACT_DIM, 1, LR_CRITIC, vec![400, 300], device)
-                .expect("Failed to create critic")
+            create_critic(
+                (ObsShape::shape()[0] + ActShape::shape()[0]) as _,
+                1,
+                LR_CRITIC,
+                vec![400, 300],
+                device,
+            )
+            .expect("Failed to create critic")
         })
         .collect::<Vec<_>>();
     let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);

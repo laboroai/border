@@ -8,6 +8,7 @@ use border::{
         tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
         AtariWrapper, PyGymEnv, PyGymEnvBuilder, Shape,
     },
+    shape,
     util::url::get_model_from_url,
 };
 use border_core::{record::TensorboardRecorder, util, Agent, TrainerBuilder};
@@ -15,16 +16,7 @@ use clap::{App, Arg};
 use std::{path::Path, time::Duration};
 
 const N_STACK: i64 = 4;
-const DIM_OBS: [usize; 4] = [4, 1, 84, 84];
-
-#[derive(Debug, Clone)]
-struct ObsShape {}
-
-impl Shape for ObsShape {
-    fn shape() -> &'static [usize] {
-        &DIM_OBS
-    }
-}
+shape!(ObsShape, [4, 1, 84, 84]);
 
 type ObsFilter = FrameStackFilter<ObsShape, u8, u8>;
 type ActFilter = PyGymEnvDiscreteActRawFilter;

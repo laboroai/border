@@ -33,6 +33,42 @@ pub trait Shape: Clone + Debug {
     }
 }
 
+/// Defines a struct that implements [Shape](crate::env::py_gym_env::base::Shape).
+///
+/// # Example
+///
+/// ```
+/// use border::{shape, env::py_gym_env::Shape};
+///
+/// shape!(ObsShape, [4, 2]);
+///
+/// println!("{:?}", ObsShape::shape());
+/// ```
+#[macro_export]
+macro_rules! shape {
+    ($struct_:ident, [$($elem_:expr),+]) => {
+        #[derive(Clone, Debug)]
+        struct $struct_ {}
+        impl Shape for $struct_ {
+            fn shape() -> &'static [usize] {
+                &[$($elem_),+]
+            }
+        }
+    };
+    ($struct_:ident, [$($elem_:expr),+], squeeze_first_dim) => {
+        #[derive(Clone, Debug)]
+        struct $struct_ {}
+        impl Shape for $struct_ {
+            fn shape() -> &'static [usize] {
+                &[$($elem_),+]
+            }
+            fn squeeze_first_dim() -> bool {
+                true
+            }
+        }
+    };
+}
+
 /// Convert PyObject to PyGymEnv::Obs.
 pub trait PyGymEnvObsFilter<O: Obs> {
     /// Convert PyObject into observation with filtering.

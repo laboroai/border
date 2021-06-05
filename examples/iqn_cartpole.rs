@@ -13,6 +13,7 @@ use border::{
         tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
         PyGymEnv, Shape,
     },
+    shape,
 };
 use border_core::{
     record::{BufferedRecorder, Record, TensorboardRecorder},
@@ -23,7 +24,6 @@ use csv::WriterBuilder;
 use serde::Serialize;
 use std::{convert::TryFrom, default::Default, fs::File};
 
-const DIM_OBS: i64 = 4;
 const DIM_FEATURE: i64 = 256;
 const DIM_EMBED: i64 = 64;
 const DIM_ACT: i64 = 2;
@@ -44,14 +44,7 @@ const EPS_FINAL: f64 = 0.1;
 const FINAL_STEP: usize = 5000; // MAX_OPTS;
 const MODEL_DIR: &str = "examples/model/iqn_cartpole";
 
-#[derive(Debug, Clone)]
-struct ObsShape {}
-
-impl Shape for ObsShape {
-    fn shape() -> &'static [usize] {
-        &[DIM_OBS as _]
-    }
-}
+shape!(ObsShape, [4]);
 
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64, f32>;
 type ActFilter = PyGymEnvDiscreteActRawFilter;
@@ -187,8 +180,14 @@ mod iqn_model {
 
 fn create_agent() -> impl Agent<Env> {
     let device = tch::Device::cuda_if_available();
-    let iqn_model =
-        iqn_model::create_iqn_model(DIM_OBS, DIM_FEATURE, DIM_EMBED, DIM_ACT, LR_CRITIC, device);
+    let iqn_model = iqn_model::create_iqn_model(
+        ObsShape::shape()[0] as _,
+        DIM_FEATURE,
+        DIM_EMBED,
+        DIM_ACT,
+        LR_CRITIC,
+        device,
+    );
     let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
     IQNBuilder::default()
         .opt_interval(OPT_INTERVAL)

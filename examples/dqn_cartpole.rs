@@ -13,6 +13,7 @@ use border::{
         tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
         PyGymEnv, Shape,
     },
+    shape,
 };
 use border_core::{
     record::{BufferedRecorder, Record, TensorboardRecorder},
@@ -38,14 +39,7 @@ const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const MODEL_DIR: &str = "./examples/model/dqn_cartpole";
 
-#[derive(Debug, Clone)]
-struct ObsShape {}
-
-impl Shape for ObsShape {
-    fn shape() -> &'static [usize] {
-        &[DIM_OBS as _]
-    }
-}
+shape!(ObsShape, [DIM_OBS as usize]);
 
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64, f32>;
 type ActFilter = PyGymEnvDiscreteActRawFilter;

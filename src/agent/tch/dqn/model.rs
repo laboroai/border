@@ -74,7 +74,7 @@ where
         Ok(b)
     }
 
-    /// Saves [IQNModelBuilder].
+    /// Saves [DQNModelBuilder].
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let mut file = File::create(path)?;
         file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;
@@ -94,7 +94,7 @@ where
         ))
     }
 
-    /// Constructs [IQNModel] with the given configurations of sub models.
+    /// Constructs [DQNModel] with the given configurations of sub models.
     pub fn build_with_submodel_configs(
         &self,
         q_config: Q::Config,
