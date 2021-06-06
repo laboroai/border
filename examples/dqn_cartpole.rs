@@ -1,23 +1,20 @@
 use anyhow::Result;
 use border_core::{
     record::{BufferedRecorder, Record, TensorboardRecorder},
-    util, Agent, TrainerBuilder,
+    util, Agent, TrainerBuilder, shape
 };
-use border_py_gym_env::{
-    PyGymEnv, Shape, shape, newtype_obs, newtype_act_d,
-    // PyGymEnvObs, PyGymEnvObsRawFilter,
-    // PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter,
-    // tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
-
-};
+use border_py_gym_env::{PyGymEnv, PyGymEnvDiscreteAct, newtype_act_d, newtype_obs};
 use border_tch_agent::{
     dqn::{DQNBuilder, DQNExplorer, EpsilonGreedy},
     util::OptInterval,
+    replay_buffer::TchTensorBuffer,
 };
+use border::try_from;
 use clap::{App, Arg};
 use csv::WriterBuilder;
 use serde::Serialize;
 use std::{convert::TryFrom, fs::File};
+use tch::Tensor;
 
 const DIM_OBS: i64 = 4;
 const DIM_ACT: i64 = 2;
@@ -35,16 +32,37 @@ const N_EPISODES_PER_EVAL: usize = 5;
 const MODEL_DIR: &str = "./examples/model/dqn_cartpole";
 
 shape!(ObsShape, [DIM_OBS as usize]);
+shape!(ActShape, [1]);
 newtype_obs!(Obs, ObsFilter, ObsShape, f64, f32);
 newtype_act_d!(Act, ActFilter);
 
-// type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64, f32>;
-// type ActFilter = PyGymEnvDiscreteActRawFilter;
-// type Obs = PyGymEnvObs<ObsShape, f64, f32>;
-// type Act = PyGymEnvDiscreteAct;
+impl From<Obs> for Tensor {
+    fn from(obs: Obs) -> Tensor {
+        try_from(obs.0.obs).unwrap()
+    }
+}
+
+impl From<Act> for Tensor {
+    fn from(act: Act) -> Tensor {
+        TryFrom::<Vec<i32>>::try_from(act.0.act).unwrap()
+    }
+}
+
+impl From<Tensor> for Act {
+    /// `t` must be a 1-dimentional tensor of `f32`.
+    fn from(t: Tensor) -> Self {
+        debug_assert_eq!(t.size().len(), 1);
+        let numel = t.size()[0] as usize;
+        let mut data: Vec<f32> = Vec::with_capacity(numel);
+        t.copy_data(data.as_mut_slice(), numel);
+        let data: Vec<_> = data.iter().map(|e| *e as i32).collect();
+        Act(PyGymEnvDiscreteAct::new(data))
+    }
+}
+
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
-type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64, f32>;
-type ActBuffer = TchPyGymEnvDiscreteActBuffer;
+type ObsBuffer = TchTensorBuffer<f32, ObsShape, Obs>;
+type ActBuffer = TchTensorBuffer<i32, ActShape, Act>;
 
 mod dqn_model {
     use anyhow::Result;

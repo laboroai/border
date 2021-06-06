@@ -1,8 +1,8 @@
 //! Observation for [`super::PyGymEnv`] and [`super::PyVecGymEnv`].
-use crate::base::{PyGymEnvObsFilter, Shape};
+use crate::base::PyGymEnvObsFilter;
 use border_core::{
     record::{Record, RecordValue},
-    Obs,
+    Obs, Shape
 };
 use log::trace;
 use ndarray::{stack, ArrayD, Axis, IxDyn};
@@ -67,17 +67,17 @@ where
     pub(crate) phantom: PhantomData<(S, T1)>,
 }
 
-// // TODO: consider remove this item.
 // impl<S, T1, T2> PyGymEnvObs<S, T1, T2> where
 //     S: Shape,
 //     T1: Element + Debug,
+//     T2: 'static + Copy,
 // {
-//     // pub fn new(obs: ArrayD<f32>) -> Self {
-//     //     Self {
-//     //         obs,
-//     //         phantom: PhantomData
-//     //     }
-//     // }
+//     pub fn new(obs: ArrayD<T2>) -> Self {
+//         Self {
+//             obs,
+//             phantom: PhantomData
+//         }
+//     }
 // }
 
 // impl<S, T1, T2> Obs for PyGymEnvObs<S, T1, T2> where
