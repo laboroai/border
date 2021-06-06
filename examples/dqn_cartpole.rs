@@ -1,22 +1,17 @@
 use anyhow::Result;
-use border::{
-    env::py_gym_env::{
-        act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
-        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-        tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
-        PyGymEnv, Shape,
-    },
-    shape,
-};
 use border_core::{
     record::{BufferedRecorder, Record, TensorboardRecorder},
     util, Agent, TrainerBuilder,
 };
+use border_py_gym_env::{
+    PyGymEnv, Shape, shape, newtype_obs, newtype_act_d,
+    // PyGymEnvObs, PyGymEnvObsRawFilter,
+    // PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter,
+    // tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
+
+};
 use border_tch_agent::{
-    dqn::{
-        DQNBuilder,
-        explorer::{DQNExplorer, EpsilonGreedy}
-    },
+    dqn::{DQNBuilder, DQNExplorer, EpsilonGreedy},
     util::OptInterval,
 };
 use clap::{App, Arg};
@@ -40,19 +35,21 @@ const N_EPISODES_PER_EVAL: usize = 5;
 const MODEL_DIR: &str = "./examples/model/dqn_cartpole";
 
 shape!(ObsShape, [DIM_OBS as usize]);
+newtype_obs!(Obs, ObsFilter, ObsShape, f64, f32);
+newtype_act_d!(Act, ActFilter);
 
-type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64, f32>;
-type ActFilter = PyGymEnvDiscreteActRawFilter;
-type Obs = PyGymEnvObs<ObsShape, f64, f32>;
-type Act = PyGymEnvDiscreteAct;
+// type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64, f32>;
+// type ActFilter = PyGymEnvDiscreteActRawFilter;
+// type Obs = PyGymEnvObs<ObsShape, f64, f32>;
+// type Act = PyGymEnvDiscreteAct;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64, f32>;
 type ActBuffer = TchPyGymEnvDiscreteActBuffer;
 
 mod dqn_model {
     use anyhow::Result;
-    use border::agent::tch::{
-        dqn::model::{DQNModel, DQNModelBuilder},
+    use border_tch_agent::{
+        dqn::{DQNModel, DQNModelBuilder},
         model::SubModel,
         util::OutDim,
     };
@@ -148,7 +145,7 @@ mod dqn_model {
     ) -> Result<DQNModel<MLP>> {
         let q_config = MLPConfig::new(in_dim, out_dim);
         DQNModelBuilder::default()
-            .opt_config(border::agent::tch::opt::OptimizerConfig::Adam { lr: learning_rate })
+            .opt_config(border_tch_agent::opt::OptimizerConfig::Adam { lr: learning_rate })
             .build_with_submodel_configs(q_config, device)
     }
 }

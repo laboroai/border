@@ -2,7 +2,6 @@
 use crate::PyGymEnvActFilter;
 use border_core::{
     record::{Record, RecordValue},
-    Act,
 };
 use pyo3::{IntoPy, PyObject};
 use std::default::Default;
@@ -11,7 +10,7 @@ use std::fmt::Debug;
 /// Represents action.
 #[derive(Clone, Debug)]
 pub struct PyGymEnvDiscreteAct {
-    pub(crate) act: Vec<i32>,
+    pub act: Vec<i32>,
 }
 
 impl PyGymEnvDiscreteAct {
@@ -21,7 +20,7 @@ impl PyGymEnvDiscreteAct {
     }
 }
 
-impl Act for PyGymEnvDiscreteAct {}
+impl border_core::Act for PyGymEnvDiscreteAct {}
 
 /// Raw filter for discrete actions.
 ///
@@ -62,4 +61,40 @@ impl PyGymEnvActFilter<PyGymEnvDiscreteAct> for PyGymEnvDiscreteActRawFilter {
         };
         (act, record)
     }
+}
+
+/// Defines newtypes of [PyGymEnvDiscreteAct] and [PyGymEnvDiscreteActRawFilter].
+///
+/// TODO: add example.
+#[macro_export]
+macro_rules! newtype_act_d {
+    ($struct_:ident) => {
+        #[derive(Clone, Debug)]
+        struct $struct_(border_py_gym_env::PyGymEnvDiscreteAct);
+
+        impl $struct_ {
+            fn new(act: Vec<i32>) -> Self {
+                $struct_(border_py_gym_env::PyGymEnvDiscreteAct::new(act))
+            }
+        }
+
+        impl border_core::Act for $struct_ {}
+    };
+    ($struct_:ident, $struct2_:ident) => {
+        newtype_act_d!($struct_);
+
+        struct $struct2_(border_py_gym_env::PyGymEnvDiscreteActRawFilter);
+
+        impl border_py_gym_env::PyGymEnvActFilter<$struct_> for $struct2_ {
+            fn filt(&mut self, act: $struct_) -> (pyo3::PyObject, border_core::record::Record) {
+                self.0.filt(act.0)
+            }
+        }
+
+        impl std::default::Default for $struct2_ {
+            fn default() -> Self {
+                Self(border_py_gym_env::PyGymEnvDiscreteActRawFilter::default())
+            }
+        }
+    };
 }
