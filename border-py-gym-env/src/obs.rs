@@ -242,11 +242,20 @@ where
 
 /// Defines a newtype of [PyGymEnvObs] and [PyGymEnvObsRawFilter].
 ///
+/// The example below defines `ObsShape` implementing [Shape](border_py_gym_env::Shape),
+/// `Obs` as a newtype of [PyGymEnvObs], and `ObsFilter` as a newtype of [PyGymEnvObsRawFilter].
+///
 /// ```no_run
 /// use border_py_gym_env::{newtype_obs, shape};
 ///
 /// shape!(ObsShape, [1, 2, 3]);
 /// newtype_obs!(Obs, ObsFilter, ObsShape, f32, f32);
+///
+/// fn func() {
+///    // TODO: run test
+///    let obs = Obs::new();
+///    let obs_filter = ObsFilter::new();
+/// }
 /// ```
 #[macro_export]
 macro_rules! newtype_obs {
@@ -278,7 +287,7 @@ macro_rules! newtype_obs {
 
         struct $struct2_(border_py_gym_env::PyGymEnvObsRawFilter<$shape_, $t1_, $t2_>);
 
-        impl border_py_gym_env::PyGymEnvObsFilter for $struct2_ {
+        impl<$shape_, $t1_, $t2_> border_py_gym_env::PyGymEnvObsFilter<$shape_, $t1_, $t2_> for $struct2_ {
             fn filt(&mut self, obs: pyo3::PyObject) -> ($struct_, border_core::record::Record) {
                 let (obs, record) = self.0.filt(obs);
                 ($struct_(obs), record)
