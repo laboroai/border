@@ -35,6 +35,7 @@ serde = { version = "1.0.117", features = ["derive"] }
 serde_yaml = "0.8.7"
 border-core = { version = "0.0.3", path = "border-core" }
 border-tch-agent = { version = "0.0.4", path = "border-tch-agent" }
+border-py-gym-env = { version = "0.0.4", path = "border-py-gym-env" }
 
 [[example]]
 name = "random_cartpole"
@@ -74,6 +75,9 @@ name = "dqn_atari_vec"
 
 [[example]]
 name = "sac_lunarlander_cont"
+
+[[example]]
+name = "macro"
 
 [dev-dependencies]
 clap = "2.33.3"

@@ -1,12 +1,5 @@
 use anyhow::Result;
 use border::{
-    agent::{
-        tch::{
-            dqn::explorer::{DQNExplorer, EpsilonGreedy},
-            DQNBuilder,
-        },
-        OptInterval,
-    },
     env::py_gym_env::{
         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
@@ -18,6 +11,13 @@ use border::{
 use border_core::{
     record::{BufferedRecorder, Record, TensorboardRecorder},
     util, Agent, TrainerBuilder,
+};
+use border_tch_agent::{
+    dqn::{
+        DQNBuilder,
+        explorer::{DQNExplorer, EpsilonGreedy}
+    },
+    util::OptInterval,
 };
 use clap::{App, Arg};
 use csv::WriterBuilder;

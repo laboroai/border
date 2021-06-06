@@ -1,5 +1,9 @@
 //! Gym environment on Python.
-pub mod atari;
-pub mod base;
-pub mod obs;
+mod atari;
+mod base;
+mod obs;
+mod act_d;
 pub use atari::AtariWrapper;
+pub use base::{PyGymEnv, PyGymEnvBuilder, PyGymEnvActFilter, PyGymEnvObsFilter, PyGymInfo, Shape};
+pub use obs::{PyGymEnvObs, PyGymEnvObsRawFilter, pyobj_to_arrayd};
+pub use act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter};

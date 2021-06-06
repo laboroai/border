@@ -49,7 +49,7 @@ macro_rules! shape {
     ($struct_:ident, [$($elem_:expr),+]) => {
         #[derive(Clone, Debug)]
         struct $struct_ {}
-        impl Shape for $struct_ {
+        impl border_py_gym_env::Shape for $struct_ {
             fn shape() -> &'static [usize] {
                 &[$($elem_),+]
             }
@@ -58,7 +58,7 @@ macro_rules! shape {
     ($struct_:ident, [$($elem_:expr),+], squeeze_first_dim) => {
         #[derive(Clone, Debug)]
         struct $struct_ {}
-        impl Shape for $struct_ {
+        impl border_py_gym_env::Shape for $struct_ {
             fn shape() -> &'static [usize] {
                 &[$($elem_),+]
             }

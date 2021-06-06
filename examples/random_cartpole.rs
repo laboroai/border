@@ -1,10 +1,14 @@
 use anyhow::Result;
-use border::env::py_gym_env::{
-    act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
-    obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-    PyGymEnv, PyGymEnvBuilder, Shape,
-};
-use border::shape;
+// use border::env::py_gym_env::{
+//     act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
+//     obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
+//     PyGymEnv, PyGymEnvBuilder, Shape,
+// };
+use border_py_gym_env::{
+    PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter,
+    PyGymEnvObs, PyGymEnvObsRawFilter,
+    PyGymEnv, PyGymEnvBuilder, Shape, shape
+};    
 use border_core::{
     record::{BufferedRecorder, Record},
     util, Policy,
@@ -58,7 +62,6 @@ impl TryFrom<&Record> for CartpoleRecord {
 
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-    tch::manual_seed(42);
     fastrand::seed(42);
 
     let obs_filter = ObsFilter::default();

@@ -63,7 +63,7 @@ where
     T1: Element + Debug,
     T2: 'static + Copy,
 {
-    pub(crate) obs: ArrayD<T2>,
+    pub obs: ArrayD<T2>,
     pub(crate) phantom: PhantomData<(S, T1)>,
 }
 
@@ -238,4 +238,51 @@ where
             (obs, record)
         }
     }
+}
+
+/// Defines a newtype of [PyGymEnvObs] and [PyGymEnvObsRawFilter].
+///
+/// ```no_run
+/// use border_py_gym_env::{newtype_obs, shape};
+///
+/// shape!(ObsShape, [1, 2, 3]);
+/// newtype_obs!(Obs, ObsFilter, ObsShape, f32, f32);
+/// ```
+#[macro_export]
+macro_rules! newtype_obs {
+    ($struct_:ident, $shape_:ty, $t1_:ty, $t2_:ty) => {
+        #[derive(Clone, Debug)]
+        struct $struct_(border_py_gym_env::PyGymEnvObs<$shape_, $t1_, $t2_>);
+
+        impl border_core::Obs for $struct_{
+            fn dummy(n_procs: usize) -> Self {
+                $struct_(border_py_gym_env::PyGymEnvObs::dummy(n_procs))
+            }
+
+            fn merge(mut self, obs_reset: Self, is_done: &[i8]) -> Self {
+                $struct_(self.0.merge(obs_reset.0, is_done))
+            }
+
+            fn n_procs(&self) -> usize {
+                unimplemented!();
+            }
+
+            fn batch_size(&self) -> usize {
+                self.0.batch_size()
+            }
+        }
+    };
+
+    ($struct_:ident, $struct2_:ident, $shape_:ty, $t1_:ty, $t2_:ty) => {
+        newtype_obs!($struct_, $shape_, $t1_, $t2_);
+
+        struct $struct2_(border_py_gym_env::PyGymEnvObsRawFilter<$shape_, $t1_, $t2_>);
+
+        impl border_py_gym_env::PyGymEnvObsFilter for $struct2_ {
+            fn filt(&mut self, obs: pyo3::PyObject) -> ($struct_, border_core::record::Record) {
+                let (obs, record) = self.0.filt(obs);
+                ($struct_(obs), record)
+            }
+        }
+    };
 }
