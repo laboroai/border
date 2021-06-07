@@ -1,7 +1,7 @@
 //! Discrete action for [`super::PyGymEnv`] and [`super::PyVecGymEnv`].
 use crate::PyGymEnvActFilter;
 use border_core::{
-    record::{Record, RecordValue},
+    Act, record::{Record, RecordValue},
 };
 use pyo3::{IntoPy, PyObject};
 use std::default::Default;
@@ -20,7 +20,7 @@ impl PyGymEnvDiscreteAct {
     }
 }
 
-impl border_core::Act for PyGymEnvDiscreteAct {}
+impl Act for PyGymEnvDiscreteAct {}
 
 /// Raw filter for discrete actions.
 ///
@@ -43,8 +43,6 @@ impl Default for PyGymEnvDiscreteActRawFilter {
         Self { vectorized: false }
     }
 }
-
-impl PyGymEnvDiscreteActRawFilter {}
 
 // TODO: support vecenv
 impl PyGymEnvActFilter<PyGymEnvDiscreteAct> for PyGymEnvDiscreteActRawFilter {
