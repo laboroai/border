@@ -44,17 +44,19 @@ impl From<Obs> for Tensor {
 
 impl From<Act> for Tensor {
     fn from(act: Act) -> Tensor {
-        TryFrom::<Vec<i32>>::try_from(act.0.act).unwrap()
+        let v = act.0.act.iter().map(|e| *e as i64).collect::<Vec<_>>();
+        let t: Tensor = TryFrom::<Vec<i64>>::try_from(v).unwrap();
+
+        // The first dimension of the action tensor is the number of processes (1 for non-vectorized environments).
+        // For discrete action, the last dimension is 1.
+        t.unsqueeze(1)
     }
 }
 
 impl From<Tensor> for Act {
     /// `t` must be a 1-dimentional tensor of `f32`.
     fn from(t: Tensor) -> Self {
-        debug_assert_eq!(t.size().len(), 1);
-        let numel = t.size()[0] as usize;
-        let mut data: Vec<f32> = Vec::with_capacity(numel);
-        t.copy_data(data.as_mut_slice(), numel);
+        let data: Vec<i64> = t.into();
         let data: Vec<_> = data.iter().map(|e| *e as i32).collect();
         Act(PyGymEnvDiscreteAct::new(data))
     }
@@ -62,7 +64,7 @@ impl From<Tensor> for Act {
 
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type ObsBuffer = TchTensorBuffer<f32, ObsShape, Obs>;
-type ActBuffer = TchTensorBuffer<i32, ActShape, Act>;
+type ActBuffer = TchTensorBuffer<i64, ActShape, Act>;
 
 mod dqn_model {
     use anyhow::Result;

@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use tch::{Tensor, Device};
 mod base;
 pub use base::{ReplayBuffer, TchBatch, TchBuffer};
-use log::trace;
 use border_core::Shape;
 
 /// Adds capability of constructing [Tensor] with a static method.
@@ -27,6 +26,12 @@ impl ZeroTensor for i32 {
 impl ZeroTensor for f32 {
     fn zeros(shape: &[i64]) -> Tensor {
         Tensor::zeros(&shape, tch::kind::FLOAT_CPU)
+    }
+}
+
+impl ZeroTensor for i64 {
+    fn zeros(shape: &[i64]) -> Tensor {
+        Tensor::zeros(&shape, (tch::kind::Kind::Int64, Device::Cpu))
     }
 }
 
@@ -70,10 +75,12 @@ where
     }
 
     fn push(&mut self, index: i64, item: &Self::Item) {
-        trace!("TchPyGymEnvObsBuffer::push()");
         let obs: Tensor = item.clone().into();
-        debug_assert_eq!(obs.size().as_slice(), &self.buf.size()[1..]);
-        self.buf.get(index).copy_(&obs);
+        debug_assert_eq!(&obs.size().as_slice()[1..], &self.buf.size()[1..]);
+
+        // Not support vectorized environment for now
+        debug_assert_eq!(obs.size()[0], 1);
+        self.buf.get(index).copy_(&obs.squeeze1(0));
     }
 
     /// Creates minibatch.
