@@ -1,15 +1,11 @@
 use anyhow::Result;
-// use border::env::py_gym_env::{
-//     act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
-//     obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-//     PyGymEnv, PyGymEnvBuilder, Shape,
-// };
 use border_py_gym_env::{
     PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter,
     PyGymEnvObs, PyGymEnvObsRawFilter,
-    PyGymEnv, PyGymEnvBuilder, Shape, shape
-};    
+    PyGymEnv, PyGymEnvBuilder,
+};
 use border_core::{
+    shape,
     record::{BufferedRecorder, Record},
     util, Policy,
 };

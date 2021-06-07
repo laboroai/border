@@ -79,6 +79,9 @@ name = "sac_lunarlander_cont"
 [[example]]
 name = "macro"
 
+[[example]]
+name = "random_lunarlander_cont"
+
 [dev-dependencies]
 clap = "2.33.3"
 csv = "1.1.5"
