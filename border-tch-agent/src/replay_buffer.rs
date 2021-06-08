@@ -1,6 +1,6 @@
 //! Replay buffer.
 use std::marker::PhantomData;
-use tch::{Tensor, Device};
+use tch::{Device, Tensor};
 mod base;
 pub use base::{ReplayBuffer, TchBatch, TchBuffer};
 use border_core::Shape;
@@ -75,12 +75,12 @@ where
     }
 
     fn push(&mut self, index: i64, item: &Self::Item) {
-        let obs: Tensor = item.clone().into();
-        debug_assert_eq!(&obs.size().as_slice()[1..], &self.buf.size()[1..]);
+        let val: Tensor = item.clone().into();
+        debug_assert_eq!(&val.size().as_slice()[1..], &self.buf.size()[1..]);
 
         // Not support vectorized environment for now
-        debug_assert_eq!(obs.size()[0], 1);
-        self.buf.get(index).copy_(&obs.squeeze1(0));
+        debug_assert_eq!(val.size()[0], 1);
+        self.buf.get(index).copy_(&val.squeeze1(0));
     }
 
     /// Creates minibatch.

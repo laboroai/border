@@ -1,13 +1,13 @@
 //! Builder of SAC agent.
 use crate::{
     model::{SubModel, SubModel2},
+    replay_buffer::{ReplayBuffer, TchBuffer},
     sac::{
         actor::Actor,
         critic::Critic,
         ent_coef::{EntCoef, EntCoefMode},
         SAC,
     },
-    replay_buffer::{ReplayBuffer, TchBuffer},
     util::{CriticLoss, OptInterval, OptIntervalCounter},
 };
 use anyhow::Result;
@@ -44,6 +44,7 @@ pub struct SACBuilder {
     train: bool,
     critic_loss: CriticLoss,
     reward_scale: f32,
+    replay_burffer_capacity: usize,
 }
 
 impl Default for SACBuilder {
@@ -62,6 +63,7 @@ impl Default for SACBuilder {
             train: false,
             critic_loss: CriticLoss::MSE,
             reward_scale: 1.0,
+            replay_burffer_capacity: 100,
         }
     }
 }
@@ -109,6 +111,12 @@ impl SACBuilder {
         self
     }
 
+    /// Replay buffer capacity.
+    pub fn replay_burffer_capacity(mut self, v: usize) -> SACBuilder {
+        self.replay_burffer_capacity = v;
+        self
+    }
+
     /// Reward scale.
     ///
     /// It works for obtaining target values, not the values in logs.
@@ -147,7 +155,6 @@ impl SACBuilder {
         self,
         critics: Vec<Critic<Q>>,
         policy: Actor<P>,
-        replay_buffer: ReplayBuffer<E, O, A>,
         device: tch::Device,
     ) -> SAC<E, Q, P, O, A>
     where
@@ -159,8 +166,8 @@ impl SACBuilder {
         O: TchBuffer<Item = E::Obs>,
         A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
     {
-        // let critics_tgt = critics.iter().map(|c| c.clone()).collect();
         let critics_tgt = critics.to_vec();
+        let replay_buffer = ReplayBuffer::new(self.replay_burffer_capacity, 1);
 
         SAC {
             qnets: critics,

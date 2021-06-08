@@ -1,20 +1,15 @@
 //! Continuous action for [`super::PyGymEnv`] and [`super::PyVecGymEnv`].
 use crate::PyGymEnvActFilter;
 use border_core::{
-    Act, Shape, record::{Record, RecordValue},
+    record::{Record, RecordValue},
+    Act, Shape,
 };
+use ndarray::{ArrayD, Axis};
+use numpy::PyArrayDyn;
 use pyo3::{IntoPy, PyObject};
 use std::default::Default;
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use ndarray::{ArrayD, Axis};
-use numpy::PyArrayDyn;
-
-// use crate::env::py_gym_env::Shape;
-// use border_core::{
-//     record::{Record, RecordValue},
-//     Act,
-// };
 
 /// Represents an action.
 #[derive(Clone, Debug)]
@@ -114,20 +109,22 @@ impl<S: Shape> PyGymEnvActFilter<PyGymEnvContinuousAct<S>> for PyGymEnvContinuou
 
 #[macro_export]
 macro_rules! newtype_act_c {
-    ($struct_:ident) => {
+    ($struct_:ident, $shape_:ty) => {
         #[derive(Clone, Debug)]
-        struct $struct_(border_py_gym_env::PyGymEnvContinuousAct);
+        struct $struct_(border_py_gym_env::PyGymEnvContinuousAct<$shape_>);
 
         impl $struct_ {
-            fn new(act: ArrayD<f32>) -> Self {
-                $struct_(border_py_gym_env::PyGymEnvContinuousAct::new(act))
+            fn new(act: ndarray::ArrayD<f32>) -> Self {
+                $struct_(border_py_gym_env::PyGymEnvContinuousAct::<$shape_>::new(
+                    act,
+                ))
             }
         }
 
         impl border_core::Act for $struct_ {}
     };
-    ($struct_:ident, $struct2_:ident) => {
-        newtype_act_c!($struct_);
+    ($struct_:ident, $struct2_:ident, $shape_:ty) => {
+        newtype_act_c!($struct_, $shape_);
 
         struct $struct2_(border_py_gym_env::PyGymEnvContinuousActRawFilter);
 
