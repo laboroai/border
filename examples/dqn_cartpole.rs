@@ -1,15 +1,15 @@
 use anyhow::Result;
+use border::try_from;
 use border_core::{
     record::{BufferedRecorder, Record, TensorboardRecorder},
-    util, Agent, TrainerBuilder, shape
+    shape, util, Agent, TrainerBuilder,
 };
-use border_py_gym_env::{PyGymEnv, PyGymEnvDiscreteAct, newtype_act_d, newtype_obs};
+use border_py_gym_env::{newtype_act_d, newtype_obs, PyGymEnv, PyGymEnvDiscreteAct};
 use border_tch_agent::{
     dqn::{DQNBuilder, DQNExplorer, EpsilonGreedy},
-    util::OptInterval,
     replay_buffer::TchTensorBuffer,
+    util::OptInterval,
 };
-use border::try_from;
 use clap::{App, Arg};
 use csv::WriterBuilder;
 use serde::Serialize;
@@ -47,9 +47,9 @@ impl From<Act> for Tensor {
         let v = act.0.act.iter().map(|e| *e as i64).collect::<Vec<_>>();
         let t: Tensor = TryFrom::<Vec<i64>>::try_from(v).unwrap();
 
-        // The first dimension of the action tensor is the number of processes (1 for non-vectorized environments).
-        // For discrete action, the last dimension is 1.
-        t.unsqueeze(1)
+        // The first dimension of the action tensor is the number of processes,
+        // which is 1 for the non-vectorized environment.
+        t.unsqueeze(0)
     }
 }
 
