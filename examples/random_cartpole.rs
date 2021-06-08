@@ -1,13 +1,11 @@
 use anyhow::Result;
-use border_py_gym_env::{
-    PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter,
-    PyGymEnvObs, PyGymEnvObsRawFilter,
-    PyGymEnv, PyGymEnvBuilder,
-};
 use border_core::{
-    shape,
     record::{BufferedRecorder, Record},
-    util, Policy,
+    shape, util, Policy,
+};
+use border_py_gym_env::{
+    PyGymEnv, PyGymEnvBuilder, PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter, PyGymEnvObs,
+    PyGymEnvObsRawFilter,
 };
 use serde::Serialize;
 use std::{convert::TryFrom, fs::File};

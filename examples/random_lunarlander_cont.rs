@@ -1,15 +1,13 @@
 use anyhow::Result;
-use ndarray::Array;
-use border_py_gym_env::{
-    PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter,
-    PyGymEnvObs, PyGymEnvObsRawFilter,
-    PyGymEnv, PyGymEnvBuilder,
-};
 use border_core::{
-    shape,
     record::{BufferedRecorder, Record},
-    util, Policy,
+    shape, util, Policy,
 };
+use border_py_gym_env::{
+    PyGymEnv, PyGymEnvBuilder, PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter, PyGymEnvObs,
+    PyGymEnvObsRawFilter,
+};
+use ndarray::Array;
 
 shape!(ObsShape, [8]);
 shape!(ActShape, [2]);
