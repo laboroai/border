@@ -1,5 +1,6 @@
 //! An observation filter with staking observations (frames).
-use crate::env::py_gym_env::{obs::PyGymEnvObs, PyGymEnvObsFilter, Shape};
+use border_core::Shape;
+use crate::{PyGymEnvObs, PyGymEnvObsFilter};
 use border_core::record::Record;
 use ndarray::{stack, ArrayD, Axis, IxDyn, SliceInfo, SliceOrIndex};
 use num_traits::cast::AsPrimitive;
@@ -9,7 +10,7 @@ use std::{fmt::Debug, marker::PhantomData};
 
 /// An observation filter with stacking sequence of original observations.
 ///
-/// This filter only supports vectorized environments ([`crate::env::py_gym_env::PyVecGymEnv`]).
+/// This filter supports vectorized environments ([`crate::env::py_gym_env::PyVecGymEnv`]).
 /// The first element of the shape `S` denotes the number of stacks (`n_stack`) and the following elements
 /// denote the shape of the partial observation, which is the observation of each environment
 /// in the vectorized environment.

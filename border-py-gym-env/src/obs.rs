@@ -165,7 +165,7 @@ where
     /// Convert `PyObject` to [ndarray::ArrayD].
     ///
     /// No filter is applied after conversion.
-    /// The shape of the observation is `S` in [crate::env::py_gym_env::PyGymEnv].
+    /// The shape of the observation is `S` in [PyGymEnv](border_py_gym_env::PyGymEnv).
     ///
     /// For [crate::env::py_gym_env::PyVecGymEnv], which is a vectorized environments,
     /// the shape becomes `[n_procs, S]`, where `n_procs` is the number of processes
@@ -242,13 +242,14 @@ where
 
 /// Defines newtypes of [PyGymEnvObs] and [PyGymEnvObsRawFilter].
 ///
-/// The example below defines `ObsShape` implementing [Shape](border_py_gym_env::Shape),
+/// The example below defines `ObsShape` implementing [Shape](border_core::Shape),
 /// `Obs` as a newtype of [PyGymEnvObs], and `ObsFilter` as a newtype of [PyGymEnvObsRawFilter].
 ///
 /// ```no_run
 /// use border_py_gym_env::{newtype_obs, shape};
 ///
 /// shape!(ObsShape, [1, 2, 3]);
+/// //comment
 /// newtype_obs!(Obs, ObsFilter, ObsShape, f32, f32);
 ///
 /// fn func() {

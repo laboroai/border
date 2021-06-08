@@ -166,9 +166,10 @@ impl TensorboardRecorder {
 }
 
 impl Recorder for TensorboardRecorder {
-    /// Write a given [`Record`] into a TFRecord.
+    /// Write a given [Record] into a TFRecord.
     ///
-    /// It ignores [RecordValue::Array*]
+    /// This method handles [RecordValue::Scalar] and [RecordValue::DateTime] in the [Record].
+    /// Other variants will be ignored.
     fn write(&mut self, record: Record) {
         // TODO: handle error
         let step = match record.get(&self.step_key).unwrap() {

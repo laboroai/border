@@ -2,22 +2,18 @@
 use core::fmt::Debug;
 /// Shape of observation or action.
 pub trait Shape: Clone + Debug {
-    /// Returns the shape of Shape of observation or action.
-    ///
-    /// This trait is used for conversion of PyObject in [`super::obs::pyobj_to_arrayd`] and
+    /// Returns the shape of Shape of an array.
     fn shape() -> &'static [usize];
 
     /// Returns `true` if you would like to squeeze the first dimension of the array
     /// before conversion into an numpy array in Python. The first dimension may
     /// correspond to process indices for vectorized environments.
-    /// This method is used in
-    /// [`super::act_c::to_pyobj`] and [`super::act_c::PyGymEnvContinuousActRawFilter::filt`].
     fn squeeze_first_dim() -> bool {
         false
     }
 }
 
-/// Defines a struct that implements [Shape](crate::env::py_gym_env::base::Shape).
+/// Defines a struct that implements [Shape].
 ///
 /// # Example
 ///
