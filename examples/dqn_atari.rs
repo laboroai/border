@@ -1,133 +1,69 @@
+mod dqn_atari_model;
 use anyhow::Result;
-use border::{
-    agent::tch::{dqn::DQNModelBuilder, DQNBuilder},
-    env::py_gym_env::{
-        act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
-        framestack::FrameStackFilter,
-        obs::PyGymEnvObs,
-        tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
-        AtariWrapper, PyGymEnv, PyGymEnvBuilder, Shape,
-    },
-    shape,
-    util::url::get_model_from_url,
+use border::{try_from, util::url::get_model_from_url};
+use border_core::{
+    record::{BufferedRecorder, Record, TensorboardRecorder},
+    shape, util, Agent, TrainerBuilder,
 };
-use border_core::{record::TensorboardRecorder, util, Agent, TrainerBuilder};
+use border_py_gym_env::{
+    newtype_act_d, newtype_obs, AtariWrapper, FrameStackFilter, PyGymEnv, PyGymEnvBuilder,
+    PyGymEnvDiscreteAct, PyGymEnvObs,
+};
+use border_tch_agent::{
+    dqn::{DQNBuilder, DQNModelBuilder},
+    replay_buffer::TchTensorBuffer,
+};
 use clap::{App, Arg};
-use std::{path::Path, time::Duration};
+use dqn_atari_model::CNN;
+use ndarray::ArrayD;
+use std::{convert::TryFrom, path::Path, time::Duration};
+use tch::Tensor;
 
 const N_STACK: i64 = 4;
-shape!(ObsShape, [4, 1, 84, 84]);
+shape!(ObsShape, [N_STACK as usize, 1, 84, 84]);
+shape!(ActShape, [1]);
+newtype_obs!(Obs, ObsShape, u8, u8);
+newtype_act_d!(Act, ActFilter);
 
-type ObsFilter = FrameStackFilter<ObsShape, u8, u8>;
-type ActFilter = PyGymEnvDiscreteActRawFilter;
-type Obs = PyGymEnvObs<ObsShape, u8, u8>;
-type Act = PyGymEnvDiscreteAct;
-type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
-type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8, u8>;
-type ActBuffer = TchPyGymEnvDiscreteActBuffer;
-
-mod dqn_model {
-    use border::agent::tch::{model::SubModel, util::OutDim};
-    use serde::{Deserialize, Serialize};
-    use tch::{nn, nn::Module, Device, Tensor};
-
-    #[allow(clippy::upper_case_acronyms)]
-    #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
-    pub struct CNNConfig {
-        n_stack: i64,
-        out_dim: i64,
-    }
-
-    impl OutDim for CNNConfig {
-        fn get_out_dim(&self) -> i64 {
-            self.out_dim
-        }
-
-        fn set_out_dim(&mut self, v: i64) {
-            self.out_dim = v;
-        }
-    }
-
-    impl CNNConfig {
-        #[allow(dead_code)]
-        pub fn new(n_stack: i64, out_dim: i64) -> Self {
-            Self { n_stack, out_dim }
-        }
-    }
-
-    #[allow(clippy::upper_case_acronyms)]
-    // Convolutional neural network
-    pub struct CNN {
-        n_stack: i64,
-        out_dim: i64,
-        device: Device,
-        seq: nn::Sequential,
-    }
-
-    impl CNN {
-        fn stride(s: i64) -> nn::ConvConfig {
-            nn::ConvConfig {
-                stride: s,
-                ..Default::default()
-            }
-        }
-
-        fn create_net(var_store: &nn::VarStore, n_stack: i64, out_dim: i64) -> nn::Sequential {
-            let p = &var_store.root();
-            nn::seq()
-                .add_fn(|xs| xs.squeeze1(2).internal_cast_float(true) / 255)
-                .add(nn::conv2d(p / "c1", n_stack, 32, 8, Self::stride(4)))
-                .add_fn(|xs| xs.relu())
-                .add(nn::conv2d(p / "c2", 32, 64, 4, Self::stride(2)))
-                .add_fn(|xs| xs.relu())
-                .add(nn::conv2d(p / "c3", 64, 64, 3, Self::stride(1)))
-                .add_fn(|xs| xs.relu().flat_view())
-                .add(nn::linear(p / "l1", 3136, 512, Default::default()))
-                .add_fn(|xs| xs.relu())
-                .add(nn::linear(p / "l2", 512, out_dim as _, Default::default()))
-        }
-    }
-
-    impl SubModel for CNN {
-        type Config = CNNConfig;
-        type Input = Tensor;
-        type Output = Tensor;
-
-        fn forward(&self, x: &Self::Input) -> Tensor {
-            self.seq.forward(&x.to(self.device))
-        }
-
-        fn build(var_store: &nn::VarStore, config: Self::Config) -> Self {
-            let n_stack = config.n_stack;
-            let out_dim = config.out_dim;
-            let device = var_store.device();
-            let seq = Self::create_net(var_store, n_stack, out_dim);
-
-            Self {
-                n_stack,
-                out_dim,
-                device,
-                seq,
-            }
-        }
-
-        fn clone_with_var_store(&self, var_store: &nn::VarStore) -> Self {
-            let n_stack = self.n_stack;
-            let out_dim = self.out_dim;
-            let device = var_store.device();
-            let seq = Self::create_net(&var_store, n_stack, out_dim);
-
-            Self {
-                n_stack,
-                out_dim,
-                device,
-                seq,
-            }
-        }
+impl From<Obs> for Tensor {
+    fn from(obs: Obs) -> Tensor {
+        try_from(obs.0.obs).unwrap()
     }
 }
 
-use dqn_model::CNN;
+impl From<Act> for Tensor {
+    fn from(act: Act) -> Tensor {
+        let v = act.0.act.iter().map(|e| *e as i64).collect::<Vec<_>>();
+        let t: Tensor = TryFrom::<Vec<i64>>::try_from(v).unwrap();
+
+        // The first dimension of the action tensor is the number of processes,
+        // which is 1 for the non-vectorized environment.
+        t.unsqueeze(0)
+    }
+}
+
+/// Converts Tensor to Act, called when applying actions estimated by DQN.
+/// DQN outputs Tensor, while PyGymEnv accepts Act as actions to the environment.
+impl From<Tensor> for Act {
+    /// `t` must be a 1-dimentional tensor of `f32`.
+    fn from(t: Tensor) -> Self {
+        let data: Vec<i64> = t.into();
+        let data: Vec<_> = data.iter().map(|e| *e as i32).collect();
+        Act(PyGymEnvDiscreteAct::new(data))
+    }
+}
+
+/// This implementation is required by FrameStackFilter.
+impl From<ArrayD<u8>> for Obs {
+    fn from(obs: ArrayD<u8>) -> Self {
+        Obs(PyGymEnvObs::from(obs))
+    }
+}
+
+type ObsFilter = FrameStackFilter<Obs, u8, u8>;
+type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+type ObsBuffer = TchTensorBuffer<u8, ObsShape, Obs>;
+type ActBuffer = TchTensorBuffer<i64, ActShape, Act>;
 
 fn create_agent(
     dim_act: i64,
@@ -249,16 +185,16 @@ fn main() -> Result<()> {
 #[cfg(test)]
 mod test {
     use super::{
-        dqn_model::{CNNConfig, CNN},
+        dqn_atari_model::{CNNConfig, CNN},
         N_STACK,
     };
     use anyhow::Result;
-    use border::agent::{
-        tch::dqn::{explorer::EpsilonGreedy, DQNBuilder, DQNModelBuilder},
-        tch::opt::OptimizerConfig,
-        OptInterval,
-    };
     use border_core::TrainerBuilder;
+    use border_tch_agent::{
+        dqn::{explorer::EpsilonGreedy, DQNBuilder, DQNModelBuilder},
+        opt::OptimizerConfig,
+        util::OptInterval,
+    };
     use std::{default::Default, path::Path};
 
     // DQN agent parameters

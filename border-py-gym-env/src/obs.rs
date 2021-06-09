@@ -80,6 +80,20 @@ where
 //     }
 // }
 
+impl<S, T1, T2> From<ArrayD<T2>> for PyGymEnvObs<S, T1, T2>
+where
+    S: Shape,
+    T1: Element + Debug,
+    T2: 'static + Copy,
+{
+    fn from(obs: ArrayD<T2>) -> Self {
+        Self {
+            obs,
+            phantom: PhantomData
+        }
+    }
+}
+
 // impl<S, T1, T2> Obs for PyGymEnvObs<S, T1, T2> where
 //     S: Shape,
 //     T1: Element + Debug + num_traits::identities::Zero,
@@ -279,6 +293,12 @@ macro_rules! newtype_obs {
 
             fn batch_size(&self) -> usize {
                 self.0.batch_size()
+            }
+        }
+
+        impl border_core::Shape for $struct_ {
+            fn shape() -> &'static [usize] {
+                <$shape_>::shape()
             }
         }
     };
