@@ -1,9 +1,9 @@
 //! SAC agent.
 use crate::{
     model::{ModelBase, SubModel, SubModel2},
-    sac::{actor::Actor, critic::Critic, ent_coef::EntCoef},
-    util::{CriticLoss, OptIntervalCounter, track},
     replay_buffer::{ReplayBuffer, TchBatch, TchBuffer},
+    sac::{actor::Actor, critic::Critic, ent_coef::EntCoef},
+    util::{track, CriticLoss, OptIntervalCounter},
 };
 use border_core::{
     record::{Record, RecordValue},

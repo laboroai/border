@@ -1,20 +1,20 @@
 //! IQN agent implemented with tch-rs.
-use log::trace;
-use std::{cell::RefCell, error::Error, fs, marker::PhantomData, path::Path};
-use tch::{no_grad, Device, Tensor};
 use crate::{
     iqn::{
         model::{average, IQNSample},
         IQNExplorer, IQNModel,
     },
     model::{ModelBase, SubModel},
-    util::{OptIntervalCounter, quantile_huber_loss, track},
     replay_buffer::{ReplayBuffer, TchBatch, TchBuffer},
+    util::{quantile_huber_loss, track, OptIntervalCounter},
 };
 use border_core::{
     record::{Record, RecordValue},
     Agent, Env, Obs, Policy, Step,
 };
+use log::trace;
+use std::{cell::RefCell, error::Error, fs, marker::PhantomData, path::Path};
+use tch::{no_grad, Device, Tensor};
 
 #[allow(clippy::upper_case_acronyms)]
 /// IQN agent implemented with tch-rs.

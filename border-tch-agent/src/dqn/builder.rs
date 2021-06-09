@@ -1,9 +1,9 @@
 //! Constructs DQN agent.
 use crate::{
     dqn::{
-        DQN,
         explorer::{DQNExplorer, Softmax},
         model::DQNModel,
+        DQN,
     },
     model::SubModel,
     replay_buffer::{ReplayBuffer, TchBuffer},

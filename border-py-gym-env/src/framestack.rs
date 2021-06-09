@@ -1,4 +1,4 @@
-//! An observation filter with staking observations (frames).
+//! An observation filter with stacking observations (frames).
 use border_core::Shape;
 use crate::{PyGymEnvObs, PyGymEnvObsFilter};
 use border_core::{Obs, record::Record};

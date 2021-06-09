@@ -1,7 +1,7 @@
 //! Utilities.
-use serde::{Deserialize, Serialize};
-use log::trace;
 use crate::model::ModelBase;
+use log::trace;
+use serde::{Deserialize, Serialize};
 mod mlp;
 mod quantile_loss;
 pub use mlp::{create_actor, create_critic, MLPConfig, MLP, MLP2};

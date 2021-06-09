@@ -2,8 +2,8 @@
 use crate::{
     dqn::{explorer::DQNExplorer, model::DQNModel},
     model::{ModelBase, SubModel},
-    util::{OptIntervalCounter, track},
     replay_buffer::{ReplayBuffer, TchBatch, TchBuffer},
+    util::{track, OptIntervalCounter},
 };
 use border_core::{
     record::{Record, RecordValue},
