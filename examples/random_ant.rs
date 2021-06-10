@@ -1,30 +1,14 @@
-use std::time::Duration;
 // use anyhow::Result;
-use border::env::py_gym_env::{
-    act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter},
-    obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-    PyGymEnv, PyGymEnvBuilder, Shape,
+use border_core::{shape, util, Policy};
+use border_py_gym_env::{
+    PyGymEnv, PyGymEnvBuilder, PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter, PyGymEnvObs,
+    PyGymEnvObsRawFilter,
 };
-use border_core::{util, Policy};
 use ndarray::Array;
+use std::{default::Default, time::Duration};
 
-#[derive(Debug, Clone)]
-struct ObsShape {}
-
-impl Shape for ObsShape {
-    fn shape() -> &'static [usize] {
-        &[28]
-    }
-}
-
-#[derive(Debug, Clone)]
-struct ActShape {}
-
-impl Shape for ActShape {
-    fn shape() -> &'static [usize] {
-        &[8]
-    }
-}
+shape!(ObsShape, [28]);
+shape!(ActShape, [8]);
 
 type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f32, f32>;
 type ActFilter = PyGymEnvContinuousActRawFilter;
