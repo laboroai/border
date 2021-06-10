@@ -81,31 +81,31 @@ impl<S: Shape> PyGymEnvActFilter<PyGymEnvContinuousAct<S>> for PyGymEnvContinuou
     }
 }
 
-// /// Convert [ArrayD<f32>] to [PyObject].
-// ///
-// /// The first element of the shape of `act` is batch dimension and
-// /// `act.size()[1..]` is equal to S::shape().
-// ///
-// /// TODO: explain how to handle the first dimension for vectorized environment.
-// pub fn to_pyobj<S: Shape>(act: ArrayD<f32>) -> PyObject {
-//     if S::squeeze_first_dim() {
-//         debug_assert_eq!(act.shape()[0], 1);
-//         debug_assert_eq!(&act.shape()[1..], S::shape());
-//         let act = act.remove_axis(ndarray::Axis(0));
-//         pyo3::Python::with_gil(|py| {
-//             let act = PyArrayDyn::<f32>::from_array(py, &act);
-//             act.into_py(py)
-//         })
-//     } else {
-//         // Interpret the first axis as processes in vectorized environments
-//         pyo3::Python::with_gil(|py| {
-//             act.axis_iter(Axis(0))
-//                 .map(|act| PyArrayDyn::<f32>::from_array(py, &act))
-//                 .collect::<Vec<_>>()
-//                 .into_py(py)
-//         })
-//     }
-// }
+/// Convert [ArrayD<f32>] to [PyObject].
+///
+/// The first element of the shape of `act` is batch dimension and
+/// `act.size()[1..]` is equal to S::shape().
+///
+/// TODO: explain how to handle the first dimension for vectorized environment.
+pub fn to_pyobj<S: Shape>(act: ArrayD<f32>) -> PyObject {
+    if S::squeeze_first_dim() {
+        debug_assert_eq!(act.shape()[0], 1);
+        debug_assert_eq!(&act.shape()[1..], S::shape());
+        let act = act.remove_axis(ndarray::Axis(0));
+        pyo3::Python::with_gil(|py| {
+            let act = PyArrayDyn::<f32>::from_array(py, &act);
+            act.into_py(py)
+        })
+    } else {
+        // Interpret the first axis as processes in vectorized environments
+        pyo3::Python::with_gil(|py| {
+            act.axis_iter(Axis(0))
+                .map(|act| PyArrayDyn::<f32>::from_array(py, &act))
+                .collect::<Vec<_>>()
+                .into_py(py)
+        })
+    }
+}
 
 #[macro_export]
 macro_rules! newtype_act_c {

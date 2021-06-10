@@ -1,35 +1,60 @@
 use anyhow::Result;
-use border::{
-    agent::{
-        tch::{
-            model::{SubModel, SubModel2},
-            opt::OptimizerConfig,
-            sac::{Actor, ActorBuilder, Critic, CriticBuilder, EntCoefMode},
-            util::OutDim,
-            ReplayBuffer, SACBuilder,
-        },
-        CriticLoss, OptInterval,
-    },
-    env::py_gym_env::{
-        act_c::{to_pyobj, PyGymEnvContinuousAct},
-        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-        tch::{act_c::TchPyGymEnvContinuousActBuffer, obs::TchPyGymEnvObsBuffer},
-        PyGymEnv, PyGymEnvActFilter, PyGymEnvBuilder, Shape,
-    },
-    shape,
-};
+use border::try_from;
 use border_core::{
     record::{BufferedRecorder, Record, RecordValue, TensorboardRecorder},
+    shape,
     util::eval_with_recorder,
-    Agent, TrainerBuilder,
+    Agent, Shape, TrainerBuilder,
 };
+use border_py_gym_env::{
+    newtype_act_c, newtype_obs, to_pyobj, PyGymEnv, PyGymEnvActFilter, PyGymEnvBuilder,
+    PyGymEnvContinuousAct,
+};
+use border_tch_agent::{
+    model::{SubModel, SubModel2},
+    opt::OptimizerConfig,
+    replay_buffer::TchTensorBuffer,
+    sac::{Actor, ActorBuilder, Critic, CriticBuilder, EntCoefMode, SACBuilder},
+    util::{CriticLoss, OptInterval, OutDim},
+};
+use ndarray::{Array1, IxDyn};
 use pyo3::PyObject;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fs::File};
-use tch::{
-    nn::{self, Module},
-    Device, Tensor,
-};
+use tch::{nn, nn::Module, Device, Tensor};
+
+// use anyhow::Result;
+// use border::{
+//     agent::{
+//         tch::{
+//             model::{SubModel, SubModel2},
+//             opt::OptimizerConfig,
+//             sac::{Actor, ActorBuilder, Critic, CriticBuilder, EntCoefMode},
+//             util::OutDim,
+//             ReplayBuffer, SACBuilder,
+//         },
+//         CriticLoss, OptInterval,
+//     },
+//     env::py_gym_env::{
+//         act_c::{to_pyobj, PyGymEnvContinuousAct},
+//         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
+//         tch::{act_c::TchPyGymEnvContinuousActBuffer, obs::TchPyGymEnvObsBuffer},
+//         PyGymEnv, PyGymEnvActFilter, PyGymEnvBuilder, Shape,
+//     },
+//     shape,
+// };
+// use border_core::{
+//     record::{BufferedRecorder, Record, RecordValue, TensorboardRecorder},
+//     util::eval_with_recorder,
+//     Agent, TrainerBuilder,
+// };
+// use pyo3::PyObject;
+// use serde::{Deserialize, Serialize};
+// use std::{convert::TryFrom, fs::File};
+// use tch::{
+//     nn::{self, Module},
+//     Device, Tensor,
+// };
 
 const LR_ACTOR: f64 = 3e-4;
 const LR_CRITIC: f64 = 3e-4;
@@ -53,7 +78,69 @@ const MAX_STEPS_IN_EPISODE: usize = 200;
 const MODEL_DIR: &str = "./examples/model/sac_pendulum";
 
 shape!(ObsShape, [3]);
-shape!(ActShape, [1], squeeze_first_dim);
+shape!(ActShape, [1]);
+newtype_obs!(Obs, ObsFilter, ObsShape, f64, f32);
+newtype_act_c!(Act, ActShape);
+
+impl From<Obs> for Tensor {
+    fn from(obs: Obs) -> Tensor {
+        try_from(obs.0.obs).unwrap()
+    }
+}
+
+impl From<Act> for Tensor {
+    fn from(act: Act) -> Tensor {
+        let v = act.0.act.iter().map(|e| *e as f32).collect::<Vec<_>>();
+        let t: Tensor = TryFrom::<Vec<f32>>::try_from(v).unwrap();
+
+        // The first dimension of the action tensor is the number of processes,
+        // which is 1 for the non-vectorized environment.
+        t.unsqueeze(0)
+    }
+}
+
+impl From<Tensor> for Act {
+    /// `t` must be a 1-dimentional tensor of `f32`.
+    fn from(t: Tensor) -> Self {
+        // In non-vectorized environment, the batch dimension is not required, thus dropped.
+        let shape = t.size()[1..]
+            .iter()
+            .map(|x| *x as usize)
+            .collect::<Vec<_>>();
+        let act: Vec<f32> = t.into();
+        let act = act.iter().map(|e| 2f32 * e).collect::<Vec<_>>();
+
+        let act = Array1::<f32>::from(act).into_shape(IxDyn(&shape)).unwrap();
+
+        Act(PyGymEnvContinuousAct::new(act))
+    }
+}
+
+// Custom activation filter
+#[derive(Clone, Debug)]
+struct ActFilter {}
+
+impl PyGymEnvActFilter<Act> for ActFilter {
+    fn filt(&mut self, act: Act) -> (PyObject, Record) {
+        let act_filt = 2f32 * &act.0.act;
+        let record = Record::from_slice(&[
+            (
+                "act_org",
+                RecordValue::Array1(act.0.act.iter().cloned().collect()),
+            ),
+            (
+                "act_filt",
+                RecordValue::Array1(act_filt.iter().cloned().collect()),
+            ), // ("act_org", RecordValue::Array1(Vec::from_iter(act.act.iter().cloned()))),
+               // ("act_filt", RecordValue::Array1(Vec::from_iter(act_filt.iter().cloned())))
+        ]);
+        (to_pyobj::<ActShape>(act_filt), record)
+    }
+}
+
+type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+type ObsBuffer = TchTensorBuffer<f32, ObsShape, Obs>;
+type ActBuffer = TchTensorBuffer<f32, ActShape, Act>;
 
 #[allow(clippy::clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
@@ -250,35 +337,6 @@ pub fn create_critic(
         .build(device)
 }
 
-type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64, f32>;
-type Obs = PyGymEnvObs<ObsShape, f64, f32>;
-type Act = PyGymEnvContinuousAct<ActShape>;
-type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
-type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64, f32>;
-type ActBuffer = TchPyGymEnvContinuousActBuffer<ActShape>;
-
-// Custom act filter
-#[derive(Clone, Debug)]
-struct ActFilter {}
-
-impl PyGymEnvActFilter<Act> for ActFilter {
-    fn filt(&mut self, act: Act) -> (PyObject, Record) {
-        let act_filt = 2f32 * &act.act;
-        let record = Record::from_slice(&[
-            (
-                "act_org",
-                RecordValue::Array1(act.act.iter().cloned().collect()),
-            ),
-            (
-                "act_filt",
-                RecordValue::Array1(act_filt.iter().cloned().collect()),
-            ), // ("act_org", RecordValue::Array1(Vec::from_iter(act.act.iter().cloned()))),
-               // ("act_filt", RecordValue::Array1(Vec::from_iter(act_filt.iter().cloned())))
-        ]);
-        (to_pyobj::<ActShape>(act_filt), record)
-    }
-}
-
 fn create_agent() -> Result<impl Agent<Env>> {
     let device = tch::Device::cuda_if_available();
     let actor = create_actor(
@@ -300,7 +358,6 @@ fn create_agent() -> Result<impl Agent<Env>> {
             .expect("Cannot create critic")
         })
         .collect::<Vec<_>>();
-    let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
 
     Ok(SACBuilder::default()
         .opt_interval(OPT_INTERVAL)
@@ -313,7 +370,8 @@ fn create_agent() -> Result<impl Agent<Env>> {
         .ent_coef_mode(EntCoefMode::Fix(ALPHA))
         .reward_scale(REWARD_SCALE)
         .critic_loss(CRITIC_LOSS)
-        .build(critics, actor, replay_buffer, device))
+        .replay_burffer_capacity(REPLAY_BUFFER_CAPACITY)
+        .build::<_, _, _, ObsBuffer, ActBuffer>(critics, actor, device))
 }
 
 fn create_env() -> Env {

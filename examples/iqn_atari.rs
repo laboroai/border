@@ -1,10 +1,7 @@
 mod dqn_atari_model;
 use anyhow::Result;
 use border::{try_from, util::url::get_model_from_url};
-use border_core::{
-    record::TensorboardRecorder,
-    shape, util, Agent, TrainerBuilder,
-};
+use border_core::{record::TensorboardRecorder, shape, util, Agent, TrainerBuilder};
 use border_py_gym_env::{
     newtype_act_d, newtype_obs, AtariWrapper, FrameStackFilter, PyGymEnv, PyGymEnvBuilder,
     PyGymEnvDiscreteAct, PyGymEnvObs,
@@ -360,12 +357,12 @@ fn main() -> Result<()> {
 mod test {
     use super::iqn_model::{ConvNet, ConvNetConfig, MLPConfig, MLP};
     use anyhow::Result;
+    use border_core::TrainerBuilder;
     use border_tch_agent::{
         iqn::{model::IQNSample, EpsilonGreedy, IQNBuilder, IQNModelBuilder},
         opt::OptimizerConfig,
         util::OptInterval,
     };
-    use border_core::TrainerBuilder;
     use std::path::Path;
 
     // IQN model parameters
