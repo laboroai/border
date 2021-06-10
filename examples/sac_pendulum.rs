@@ -23,39 +23,6 @@ use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fs::File};
 use tch::{nn, nn::Module, Device, Tensor};
 
-// use anyhow::Result;
-// use border::{
-//     agent::{
-//         tch::{
-//             model::{SubModel, SubModel2},
-//             opt::OptimizerConfig,
-//             sac::{Actor, ActorBuilder, Critic, CriticBuilder, EntCoefMode},
-//             util::OutDim,
-//             ReplayBuffer, SACBuilder,
-//         },
-//         CriticLoss, OptInterval,
-//     },
-//     env::py_gym_env::{
-//         act_c::{to_pyobj, PyGymEnvContinuousAct},
-//         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-//         tch::{act_c::TchPyGymEnvContinuousActBuffer, obs::TchPyGymEnvObsBuffer},
-//         PyGymEnv, PyGymEnvActFilter, PyGymEnvBuilder, Shape,
-//     },
-//     shape,
-// };
-// use border_core::{
-//     record::{BufferedRecorder, Record, RecordValue, TensorboardRecorder},
-//     util::eval_with_recorder,
-//     Agent, TrainerBuilder,
-// };
-// use pyo3::PyObject;
-// use serde::{Deserialize, Serialize};
-// use std::{convert::TryFrom, fs::File};
-// use tch::{
-//     nn::{self, Module},
-//     Device, Tensor,
-// };
-
 const LR_ACTOR: f64 = 3e-4;
 const LR_CRITIC: f64 = 3e-4;
 const N_CRITICS: usize = 1;
