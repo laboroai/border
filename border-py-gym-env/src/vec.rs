@@ -1,7 +1,7 @@
 //! Vectorized environment using multiprocess module in Python.
 #![allow(unused_variables, unreachable_code)]
 use super::AtariWrapper;
-use crate::env::py_gym_env::{PyGymEnvActFilter, PyGymEnvObsFilter, PyGymInfo};
+use crate::{PyGymEnvActFilter, PyGymEnvObsFilter, PyGymInfo};
 use border_core::{record::Record, Act, Env, Obs, Step};
 use log::trace;
 use pyo3::{

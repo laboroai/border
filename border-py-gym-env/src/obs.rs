@@ -2,7 +2,7 @@
 use crate::base::PyGymEnvObsFilter;
 use border_core::{
     record::{Record, RecordValue},
-    Obs, Shape
+    Obs, Shape,
 };
 use log::trace;
 use ndarray::{stack, ArrayD, Axis, IxDyn};
@@ -89,7 +89,7 @@ where
     fn from(obs: ArrayD<T2>) -> Self {
         Self {
             obs,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 }
@@ -278,7 +278,7 @@ macro_rules! newtype_obs {
         #[derive(Clone, Debug)]
         struct $struct_(border_py_gym_env::PyGymEnvObs<$shape_, $t1_, $t2_>);
 
-        impl border_core::Obs for $struct_{
+        impl border_core::Obs for $struct_ {
             fn dummy(n_procs: usize) -> Self {
                 $struct_(border_py_gym_env::PyGymEnvObs::dummy(n_procs))
             }
@@ -319,7 +319,7 @@ macro_rules! newtype_obs {
             fn default() -> Self {
                 $struct2_(
                     // border_py_gym_env::PyGymEnvObsRawFilter<$shape_, $t1_, $t2_>
-                    border_py_gym_env::PyGymEnvObsRawFilter::default()
+                    border_py_gym_env::PyGymEnvObsRawFilter::default(),
                 )
             }
         }

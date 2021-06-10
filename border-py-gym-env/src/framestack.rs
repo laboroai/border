@@ -1,7 +1,7 @@
 //! An observation filter with stacking observations (frames).
-use border_core::Shape;
 use crate::PyGymEnvObsFilter;
-use border_core::{Obs, record::Record};
+use border_core::Shape;
+use border_core::{record::Record, Obs};
 use ndarray::{stack, ArrayD, Axis, IxDyn, SliceInfo, SliceOrIndex};
 use num_traits::cast::AsPrimitive;
 use numpy::{Element, PyArrayDyn};

@@ -1,7 +1,8 @@
 //! Discrete action for [`super::PyGymEnv`] and [`super::PyVecGymEnv`].
 use crate::PyGymEnvActFilter;
 use border_core::{
-    Act, record::{Record, RecordValue},
+    record::{Record, RecordValue},
+    Act,
 };
 use pyo3::{IntoPy, PyObject};
 use std::default::Default;

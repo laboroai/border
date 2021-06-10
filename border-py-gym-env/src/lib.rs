@@ -1,13 +1,15 @@
 //! Gym environment on Python.
+mod act_c;
+mod act_d;
 mod atari;
 mod base;
-mod obs;
-mod act_d;
-mod act_c;
 mod framestack;
-pub use atari::AtariWrapper;
-pub use base::{PyGymEnv, PyGymEnvBuilder, PyGymEnvActFilter, PyGymEnvObsFilter, PyGymInfo};
-pub use obs::{PyGymEnvObs, PyGymEnvObsRawFilter, pyobj_to_arrayd};
+mod obs;
+mod vec;
+pub use act_c::{to_pyobj, PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter};
 pub use act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter};
-pub use act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter, to_pyobj};
+pub use atari::AtariWrapper;
+pub use base::{PyGymEnv, PyGymEnvActFilter, PyGymEnvBuilder, PyGymEnvObsFilter, PyGymInfo};
 pub use framestack::FrameStackFilter;
+pub use obs::{pyobj_to_arrayd, PyGymEnvObs, PyGymEnvObsRawFilter};
+pub use vec::{PyVecGymEnv, PyVecGymEnvBuilder};
