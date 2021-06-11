@@ -149,7 +149,7 @@ impl DQNBuilder {
         A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
     {
         let qnet_tgt = qnet.clone();
-        let replay_buffer = ReplayBuffer::new(self.replay_burffer_capacity, 1);
+        let replay_buffer = ReplayBuffer::new(self.replay_burffer_capacity);
 
         DQN {
             qnet,
@@ -213,11 +213,7 @@ impl DQNBuilder {
 mod test {
     use super::*;
     use tempdir::TempDir;
-
-    use crate::agent::{
-        tch::{dqn::explorer::EpsilonGreedy, DQNBuilder},
-        OptInterval,
-    };
+    use crate::{dqn::{EpsilonGreedy, DQNBuilder}, util::OptInterval};
 
     #[test]
     fn test_serde_dqn_builder() -> Result<()> {

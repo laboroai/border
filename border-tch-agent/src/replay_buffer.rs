@@ -47,6 +47,7 @@ where
     T: Into<Tensor>,
 {
     buf: Tensor,
+    capacity: i64,
     phantom: PhantomData<(D, S, T)>,
 }
 
@@ -63,24 +64,31 @@ where
     ///
     /// Input argument `_n_proc` is not used.
     /// TODO: remove n_procs
-    fn new(capacity: usize, _n_procs: usize) -> Self {
+    fn new(capacity: usize) -> Self {
+        let capacity = capacity as i64;
         let mut shape: Vec<_> = S::shape().to_vec().iter().map(|e| *e as i64).collect();
-        shape.insert(0, capacity as i64);
+        shape.insert(0, capacity);
         let buf = D::zeros(shape.as_slice());
 
         Self {
             buf,
+            capacity,
             phantom: PhantomData,
         }
     }
 
     fn push(&mut self, index: i64, item: &Self::Item) {
         let val: Tensor = item.clone().into();
-        debug_assert_eq!(&val.size().as_slice()[1..], &self.buf.size()[1..]);
+        let batch_size = val.size()[0];
+        debug_assert_eq!(&val.size()[1..], &self.buf.size()[1..]);
 
+        for i_ in 0..batch_size {
+            let i = (i_ + index) % self.capacity;
+            self.buf.get(i).copy_(&val.get(i_));
+
+        }
         // Not support vectorized environment for now
         debug_assert_eq!(val.size()[0], 1);
-        self.buf.get(index).copy_(&val.squeeze1(0));
     }
 
     /// Creates minibatch.

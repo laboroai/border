@@ -167,7 +167,7 @@ impl SACBuilder {
         A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
     {
         let critics_tgt = critics.to_vec();
-        let replay_buffer = ReplayBuffer::new(self.replay_burffer_capacity, 1);
+        let replay_buffer = ReplayBuffer::new(self.replay_burffer_capacity);
 
         SAC {
             qnets: critics,
