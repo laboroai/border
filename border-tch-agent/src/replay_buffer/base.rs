@@ -104,13 +104,13 @@ where
         }
     }
 
-    /// If set to `True`, non-zero reward is considered as the end of episodes.
-    #[deprecated]
-    pub fn nonzero_reward_as_done(mut self, v: bool) -> Self {
-        unimplemented!();
-        // self.nonzero_reward_as_done = v;
-        // self
-    }
+    // /// If set to `True`, non-zero reward is considered as the end of episodes.
+    // #[deprecated]
+    // pub fn nonzero_reward_as_done(mut self, _v: bool) -> Self {
+    //     unimplemented!();
+    //     // self.nonzero_reward_as_done = v;
+    //     // self
+    // }
 
     /// Clears the buffer.
     pub fn clear(&mut self) {
@@ -187,7 +187,7 @@ where
 
     /// Updates returns in the replay buffer.
     #[deprecated]
-    pub fn update_returns(&mut self, estimated_return: Tensor, gamma: f64) {
+    pub fn update_returns(&mut self, _estimated_return: Tensor, _gamma: f64) {
         unimplemented!();
         // trace!("Start update returns");
 

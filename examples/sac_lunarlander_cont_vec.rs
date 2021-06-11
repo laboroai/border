@@ -1,23 +1,16 @@
 use anyhow::Result;
 use border::try_from;
-use border_core::{
-    record::{BufferedRecorder, Record, TensorboardRecorder},
-    shape,
-    util::eval_with_recorder,
-    Agent, Shape, TrainerBuilder,
-};
+use border_core::{record::TensorboardRecorder, shape, Agent, Shape, TrainerBuilder};
 use border_py_gym_env::{
-    newtype_act_c, newtype_obs, PyVecGymEnv, PyVecGymEnvBuilder, PyGymEnvContinuousAct,
+    newtype_act_c, newtype_obs, PyGymEnvContinuousAct, PyVecGymEnv, PyVecGymEnvBuilder,
 };
 use border_tch_agent::{
     replay_buffer::TchTensorBuffer,
     sac::{EntCoefMode, SACBuilder},
     util::{create_actor, create_critic, CriticLoss, OptInterval},
 };
-use clap::{App, Arg};
 use ndarray::{Array1, IxDyn};
-use serde::Serialize;
-use std::{convert::TryFrom, fs::File};
+use std::convert::TryFrom;
 use tch::Tensor;
 
 const N_PROCS: usize = 4;
@@ -80,7 +73,7 @@ impl From<Tensor> for Act {
     }
 }
 
-type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+type Env = PyVecGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type ObsBuffer = TchTensorBuffer<f32, ObsShape, Obs>;
 type ActBuffer = TchTensorBuffer<f32, ActShape, Act>;
 
@@ -121,13 +114,14 @@ fn create_agent() -> Result<impl Agent<Env>> {
         .build::<_, _, _, ObsBuffer, ActBuffer>(critics, actor, device))
 }
 
-fn create_env() -> Env {
+fn create_env(n_procs: usize) -> Env {
     let obs_filter = ObsFilter::default();
     let act_filter = ActFilter::default();
     PyVecGymEnvBuilder::default()
+        .n_procs(n_procs)
+        .max_steps(Some(MAX_STEPS_IN_EPISODE))
         .build("LunarLanderContinuous-v2", obs_filter, act_filter)
         .unwrap()
-        .max_steps(Some(MAX_STEPS_IN_EPISODE)) // TODO: consider moving the method to the builder
 }
 
 // fn create_env(n_procs: usize) -> Env {
@@ -136,23 +130,22 @@ fn create_env() -> Env {
 //     Env::new("LunarLanderContinuous-v2", n_procs, obs_filter, act_filter).unwrap()
 // }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
     env_logger::init();
     tch::manual_seed(42);
 
     let env = create_env(N_PROCS);
     let env_eval = create_env(1);
-    let agent = create_agent();
-    let mut trainer = Trainer::new(
-        env,
-        env_eval,
-        agent)
+    let agent = create_agent()?;
+    let mut trainer = TrainerBuilder::default()
         .max_opts(MAX_OPTS)
         .eval_interval(EVAL_INTERVAL)
-        .n_episodes_per_eval(N_EPISODES_PER_EVAL);
+        .n_episodes_per_eval(N_EPISODES_PER_EVAL)
+        .model_dir(MODEL_DIR)
+        .build(env, env_eval, agent);
+    let mut recorder = TensorboardRecorder::new(MODEL_DIR);
 
-    trainer.train();
-    trainer.get_agent().save("./examples/model/sac_lunarlander_cont_vec")?;
+    trainer.train(&mut recorder);
 
     trainer.get_env().close();
     trainer.get_env_eval().close();

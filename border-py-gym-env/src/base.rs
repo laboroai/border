@@ -190,7 +190,7 @@ def update_camera_pos(env):
             env: env.into(),
             action_space,
             observation_space,
-            // TODO: consider remove RefCell, raw value instead
+            // TODO: consider to remove RefCell, use raw value instead
             obs_filter,
             act_filter,
             render: false,

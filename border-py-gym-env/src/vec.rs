@@ -13,6 +13,7 @@ use std::{error::Error, fmt::Debug};
 
 /// Constructs [PyVecGymEnv]
 pub struct PyVecGymEnvBuilder<O, A, OF, AF> {
+    max_steps: Option<usize>,
     atari_wrapper: Option<AtariWrapper>,
     n_procs: usize,
     phantom: PhantomData<(O, A, OF, AF)>,
@@ -21,6 +22,7 @@ pub struct PyVecGymEnvBuilder<O, A, OF, AF> {
 impl<O, A, OF, AF> Default for PyVecGymEnvBuilder<O, A, OF, AF> {
     fn default() -> Self {
         Self {
+            max_steps: None,
             atari_wrapper: None,
             n_procs: 1,
             phantom: PhantomData,
@@ -35,6 +37,12 @@ where
     OF: PyGymEnvObsFilter<O>,
     AF: PyGymEnvActFilter<A>,
 {
+    /// Sets the maximum number of steps in the environment.
+    pub fn max_steps(mut self, max_steps: Option<usize>) -> Self {
+        self.max_steps = max_steps;
+        self
+    }
+
     /// Sets `True` when using Atari wrapper.
     pub fn atari_wrapper(mut self, v: Option<AtariWrapper>) -> Self {
         self.atari_wrapper = v;
@@ -64,23 +72,19 @@ where
             let locals = [("sys", py.import("sys")?)].into_py_dict(py);
             let _ = py.eval("sys.argv.insert(0, 'PyGymEnv')", None, Some(&locals))?;
 
+            let gym = py.import("atari_wrappers")?;
             let env = if let Some(mode) = self.atari_wrapper {
                 let mode = match mode {
                     AtariWrapper::Train => true,
                     AtariWrapper::Eval => false,
                 };
-                let gym = py.import("atari_wrappers")?;
-                let env = gym.call("make", (name, true, mode, self.n_procs), None)?;
-                env
+                gym.call("make", (name, true, mode, self.n_procs), None)?
             } else {
-                unimplemented!();
-                // let gym = py.import("gym")?;
-                // let env = gym.call("make", (name,), None)?;
-                // env.call_method("seed", (42,), None)?;
-                // env
+                gym.call("make", (name, false, false, self.n_procs), None)?
             };
 
             Ok(PyVecGymEnv {
+                max_steps: self.max_steps,
                 env: env.into(),
                 n_procs: self.n_procs,
                 obs_filter,
@@ -96,6 +100,7 @@ where
 #[derive(Debug, Clone)]
 pub struct PyVecGymEnv<O, A, OF, AF> {
     env: PyObject,
+    max_steps: Option<usize>,
     n_procs: usize,
     obs_filter: OF,
     act_filter: AF,
@@ -109,49 +114,6 @@ where
     OF: PyGymEnvObsFilter<O>,
     AF: PyGymEnvActFilter<A>,
 {
-    // /// Constructs a vectorized environment.
-    // ///
-    // /// This function invl
-    // ///
-    // /// * `atari_wrapper` - If `true`, `wrap_deepmind()` is applied to the environment.
-    // ///   See `atari_wrapper.py`.
-    // pub fn new(
-    //     name: &str,
-    //     n_procs: usize,
-    //     obs_filter: OF,
-    //     act_filter: AF,
-    //     atari_wrapper: bool,
-    // ) -> PyResult<Self> {
-    //     pyo3::Python::with_gil(|py| {
-    //         // sys.argv is used by pyglet library, which is responsible for rendering.
-    //         // Depending on the python interpreter, however, sys.argv can be empty.
-    //         // For that case, sys argv is set here.
-    //         // See https://github.com/PyO3/pyo3/issues/1241#issuecomment-715952517
-    //         let locals = [("sys", py.import("sys")?)].into_py_dict(py);
-    //         let _ = py.eval("sys.argv.insert(0, 'PyGymEnv')", None, Some(&locals))?;
-
-    //         // TODO: Consider removing addition of pythonpath
-    //         let sys = py.import("sys")?;
-    //         let path = sys.get("path")?;
-    //         let _ = path.call_method("append", ("examples",), None)?;
-
-    //         let gym = py.import("atari_wrappers")?;
-    //         let env = gym.call(
-    //             "make",
-    //             (name, Option::<&str>::None, atari_wrapper, n_procs),
-    //             None,
-    //         )?;
-
-    //         Ok(PyVecGymEnv {
-    //             env: env.into(),
-    //             n_procs,
-    //             obs_filter,
-    //             act_filter,
-    //             phantom: PhantomData,
-    //         })
-    //     })
-    // }
-
     /// Get the number of available actions of atari environments
     pub fn get_num_actions_atari(&self) -> i64 {
         pyo3::Python::with_gil(|py| {
