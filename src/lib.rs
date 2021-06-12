@@ -145,9 +145,9 @@
 //! ## Agents ([border_tch_agent])
 //!
 //! * [DQN](border_tch_agent::dqn::DQN), [IQN](border_tch_agent::iqn::IQN) and [SAC](border_tch_agent::sac::SAC) agents
-//! * Flexible composition of neural networks using [SubModel](border_tch_agent::model::SubModel).
+//! * Flexible composition of neural networks using [SubModel](border_tch_agent::model::SubModel)
 //! * Model save/load
-//! * [serde] implemented on configurations (e.g., [DQNBuilder](border_tch_agent::dqn::DQNBuilder)).
+//! * [serde] implemented on configurations (e.g., [DQNBuilder](border_tch_agent::dqn::DQNBuilder))
 pub mod error;
 pub mod util;
 
