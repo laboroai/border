@@ -87,8 +87,6 @@ where
             self.buf.get(i).copy_(&val.get(i_));
 
         }
-        // Not support vectorized environment for now
-        debug_assert_eq!(val.size()[0], 1);
     }
 
     /// Creates minibatch.

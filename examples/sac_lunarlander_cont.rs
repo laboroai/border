@@ -40,6 +40,7 @@ const REPLAY_BUFFER_CAPACITY: usize = 100_000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const MAX_STEPS_IN_EPISODE: usize = 1000;
 const MODEL_DIR: &str = "./examples/model/sac_lunarlander_cont";
+const MODEL_DIR_VEC: &str = "./examples/model/sac_lunarlander_cont_vec";
 
 shape!(ObsShape, [8]);
 shape!(ActShape, [2]);
@@ -54,8 +55,14 @@ impl From<Obs> for Tensor {
 
 impl From<Act> for Tensor {
     fn from(act: Act) -> Tensor {
+        // Shape of action tensor ([ArrayD](ndarray::ArrayD)) in PyGymEnv is Act::shape(),
+        // not including a batch dimension.
+        debug_assert_eq!(act.0.act.shape(), ActShape::shape());
+
+        let shape = ActShape::shape().iter().map(|e| *e as i64).collect::<Vec<_>>();
         let v = act.0.act.iter().map(|e| *e as f32).collect::<Vec<_>>();
         let t: Tensor = TryFrom::<Vec<f32>>::try_from(v).unwrap();
+        let t = t.reshape(&shape[..]);
 
         // The first dimension of the action tensor is the number of processes,
         // which is 1 for the non-vectorized environment.
@@ -166,9 +173,15 @@ fn main() -> Result<()> {
                 .takes_value(false)
                 .help("Skip training"),
         )
+        .arg(
+            Arg::with_name("play-vec")
+                .long("play-vec")
+                .takes_value(false)
+                .help("Play the model pretrained by sac_lunarlander_cont_vec."),
+        )
         .get_matches();
 
-    if !matches.is_present("skip training") {
+    if !(matches.is_present("skip training") || matches.is_present("play-vec")) {
         let env = create_env();
         let env_eval = create_env();
         let agent = create_agent()?;
@@ -183,11 +196,17 @@ fn main() -> Result<()> {
         trainer.train(&mut recorder);
     }
 
+    let model_dir = if matches.is_present("play-vec") {
+        MODEL_DIR_VEC
+    } else {
+        MODEL_DIR
+    };
+
     let mut env = create_env();
     let mut agent = create_agent()?;
     let mut recorder = BufferedRecorder::new();
     env.set_render(true);
-    agent.load(MODEL_DIR).unwrap();
+    agent.load(model_dir).unwrap();
     agent.eval();
 
     eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);

@@ -67,19 +67,6 @@ where
     pub(crate) phantom: PhantomData<(S, T1)>,
 }
 
-// impl<S, T1, T2> PyGymEnvObs<S, T1, T2> where
-//     S: Shape,
-//     T1: Element + Debug,
-//     T2: 'static + Copy,
-// {
-//     pub fn new(obs: ArrayD<T2>) -> Self {
-//         Self {
-//             obs,
-//             phantom: PhantomData
-//         }
-//     }
-// }
-
 impl<S, T1, T2> From<ArrayD<T2>> for PyGymEnvObs<S, T1, T2>
 where
     S: Shape,
@@ -318,8 +305,15 @@ macro_rules! newtype_obs {
         impl std::default::Default for $struct2_ {
             fn default() -> Self {
                 $struct2_(
-                    // border_py_gym_env::PyGymEnvObsRawFilter<$shape_, $t1_, $t2_>
                     border_py_gym_env::PyGymEnvObsRawFilter::default(),
+                )
+            }
+        }
+
+        impl $struct2_ {
+            pub fn vectorized() -> Self {
+                $struct2_(
+                    border_py_gym_env::PyGymEnvObsRawFilter::vectorized(),
                 )
             }
         }

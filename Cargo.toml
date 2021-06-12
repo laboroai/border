@@ -85,6 +85,9 @@ name = "random_lunarlander_cont"
 [[example]]
 name = "sac_lunarlander_cont_vec"
 
+[[example]]
+name = "pyo3"
+
 [dev-dependencies]
 clap = "2.33.3"
 csv = "1.1.5"

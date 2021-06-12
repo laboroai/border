@@ -13,7 +13,7 @@ use ndarray::{Array1, IxDyn};
 use std::convert::TryFrom;
 use tch::Tensor;
 
-const N_PROCS: usize = 1;
+const N_PROCS: usize = 4;
 const LR_ACTOR: f64 = 3e-4;
 const LR_CRITIC: f64 = 3e-4;
 const N_CRITICS: usize = 1;
@@ -48,25 +48,25 @@ impl From<Obs> for Tensor {
 
 impl From<Act> for Tensor {
     fn from(act: Act) -> Tensor {
+        let shape = act
+            .0
+            .act
+            .shape()
+            .iter()
+            .map(|e| *e as i64)
+            .collect::<Vec<_>>();
         let v = act.0.act.iter().map(|e| *e as f32).collect::<Vec<_>>();
         let t: Tensor = TryFrom::<Vec<f32>>::try_from(v).unwrap();
-
-        // The first dimension of the action tensor is the number of processes,
-        // which is 1 for the non-vectorized environment.
-        t.unsqueeze(0)
+        t.reshape(&shape[..])
     }
 }
 
 impl From<Tensor> for Act {
     /// `t` must be a 1-dimentional tensor of `f32`.
     fn from(t: Tensor) -> Self {
-        // In non-vectorized environment, the batch dimension is not required, thus dropped.
-        let shape = t.size()[1..]
-            .iter()
-            .map(|x| *x as usize)
-            .collect::<Vec<_>>();
+        // The first dimension is batch size.
+        let shape = t.size().iter().map(|x| *x as usize).collect::<Vec<_>>();
         let act: Vec<f32> = t.into();
-
         let act = Array1::<f32>::from(act).into_shape(IxDyn(&shape)).unwrap();
 
         Act(PyGymEnvContinuousAct::new(act))
@@ -115,7 +115,7 @@ fn create_agent() -> Result<impl Agent<Env>> {
 }
 
 fn create_env(n_procs: usize) -> Env {
-    let obs_filter = ObsFilter::default();
+    let obs_filter = ObsFilter::vectorized();
     let act_filter = ActFilter::default();
     PyVecGymEnvBuilder::default()
         .n_procs(n_procs)
@@ -124,18 +124,11 @@ fn create_env(n_procs: usize) -> Env {
         .unwrap()
 }
 
-// fn create_env(n_procs: usize) -> Env {
-//     let obs_filter = ObsFilter { vectorized: true, ..ObsFilter::default() };
-//     let act_filter = ActFilter { vectorized: true };
-//     Env::new("LunarLanderContinuous-v2", n_procs, obs_filter, act_filter).unwrap()
-// }
-
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
 
     let env = create_env(N_PROCS);
-    panic!();
     let env_eval = create_env(1);
     let agent = create_agent()?;
     let mut trainer = TrainerBuilder::default()
@@ -150,12 +143,6 @@ fn main() -> Result<()> {
 
     trainer.get_env().close();
     trainer.get_env_eval().close();
-    // let mut env = create_env();
-    // let mut agent = create_agent();
-    // env.set_render(true);
-    // agent.load("./examples/model/sac_lunarlander_cont")?;
-    // agent.eval();
-    // util::eval(&env, &mut agent, 5, None);
 
     Ok(())
 }
