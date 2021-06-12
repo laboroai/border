@@ -13,7 +13,7 @@ use ndarray::{Array1, IxDyn};
 use std::convert::TryFrom;
 use tch::Tensor;
 
-const N_PROCS: usize = 4;
+const N_PROCS: usize = 1;
 const LR_ACTOR: f64 = 3e-4;
 const LR_CRITIC: f64 = 3e-4;
 const N_CRITICS: usize = 1;
@@ -131,10 +131,11 @@ fn create_env(n_procs: usize) -> Env {
 // }
 
 fn main() -> Result<()> {
-    env_logger::init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
 
     let env = create_env(N_PROCS);
+    panic!();
     let env_eval = create_env(1);
     let agent = create_agent()?;
     let mut trainer = TrainerBuilder::default()
