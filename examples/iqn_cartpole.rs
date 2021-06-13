@@ -1,28 +1,46 @@
+// use anyhow::Result;
+// use border::{
+//     agent::{
+//         tch::{
+//             iqn::{EpsilonGreedy, IQNBuilder},
+//             ReplayBuffer,
+//         },
+//         OptInterval,
+//     },
+//     env::py_gym_env::{
+//         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
+//         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
+//         tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
+//         PyGymEnv, Shape,
+//     },
+//     shape,
+// };
+// use border_core::{
+//     record::{BufferedRecorder, Record, TensorboardRecorder},
+//     util, Agent, TrainerBuilder,
+// };
+// use clap::{App, Arg};
+// use csv::WriterBuilder;
+// use serde::Serialize;
+// use std::{convert::TryFrom, default::Default, fs::File};
+
 use anyhow::Result;
-use border::{
-    agent::{
-        tch::{
-            iqn::{EpsilonGreedy, IQNBuilder},
-            ReplayBuffer,
-        },
-        OptInterval,
-    },
-    env::py_gym_env::{
-        act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
-        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-        tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
-        PyGymEnv, Shape,
-    },
-    shape,
-};
+use border::try_from;
 use border_core::{
     record::{BufferedRecorder, Record, TensorboardRecorder},
-    util, Agent, TrainerBuilder,
+    shape, util, Agent, Shape, TrainerBuilder,
+};
+use border_py_gym_env::{newtype_act_d, newtype_obs, PyGymEnv, PyGymEnvDiscreteAct};
+use border_tch_agent::{
+    iqn::{EpsilonGreedy, IQNBuilder},
+    replay_buffer::TchTensorBuffer,
+    util::OptInterval,
 };
 use clap::{App, Arg};
 use csv::WriterBuilder;
 use serde::Serialize;
-use std::{convert::TryFrom, default::Default, fs::File};
+use std::{convert::TryFrom, fs::File};
+use tch::Tensor;
 
 const DIM_FEATURE: i64 = 256;
 const DIM_EMBED: i64 = 64;
@@ -45,17 +63,42 @@ const FINAL_STEP: usize = 5000; // MAX_OPTS;
 const MODEL_DIR: &str = "examples/model/iqn_cartpole";
 
 shape!(ObsShape, [4]);
+shape!(ActShape, [1]);
+newtype_obs!(Obs, ObsFilter, ObsShape, f64, f32);
+newtype_act_d!(Act, ActFilter);
 
-type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64, f32>;
-type ActFilter = PyGymEnvDiscreteActRawFilter;
-type Obs = PyGymEnvObs<ObsShape, f64, f32>;
-type Act = PyGymEnvDiscreteAct;
+impl From<Obs> for Tensor {
+    fn from(obs: Obs) -> Tensor {
+        try_from(obs.0.obs).unwrap()
+    }
+}
+
+impl From<Act> for Tensor {
+    fn from(act: Act) -> Tensor {
+        let v = act.0.act.iter().map(|e| *e as i64).collect::<Vec<_>>();
+        let t: Tensor = TryFrom::<Vec<i64>>::try_from(v).unwrap();
+
+        // The first dimension of the action tensor is the number of processes,
+        // which is 1 for the non-vectorized environment.
+        t.unsqueeze(0)
+    }
+}
+
+impl From<Tensor> for Act {
+    /// `t` must be a 1-dimentional tensor of `f32`.
+    fn from(t: Tensor) -> Self {
+        let data: Vec<i64> = t.into();
+        let data: Vec<_> = data.iter().map(|e| *e as i32).collect();
+        Act(PyGymEnvDiscreteAct::new(data))
+    }
+}
+
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
-type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64, f32>;
-type ActBuffer = TchPyGymEnvDiscreteActBuffer;
+type ObsBuffer = TchTensorBuffer<f32, ObsShape, Obs>;
+type ActBuffer = TchTensorBuffer<i64, ActShape, Act>;
 
 mod iqn_model {
-    use border::agent::tch::{
+    use border_tch_agent::{
         iqn::{IQNModel, IQNModelBuilder},
         model::SubModel,
         util::OutDim,
@@ -188,7 +231,6 @@ fn create_agent() -> impl Agent<Env> {
         LR_CRITIC,
         device,
     );
-    let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
     IQNBuilder::default()
         .opt_interval(OPT_INTERVAL)
         .n_updates_per_opt(N_UPDATES_PER_OPT)
@@ -198,7 +240,8 @@ fn create_agent() -> impl Agent<Env> {
         .tau(TAU)
         .soft_update_interval(SOFT_UPDATE_INTERVAL)
         .explorer(EpsilonGreedy::with_params(EPS_START, EPS_FINAL, FINAL_STEP))
-        .build_with_replay_bufferbuild(iqn_model, replay_buffer, device)
+        .replay_buffer_capacity(REPLAY_BUFFER_CAPACITY)
+        .build::<_, _, _, ObsBuffer, ActBuffer>(iqn_model, device)
 }
 
 fn create_env() -> Env {
