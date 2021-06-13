@@ -248,7 +248,7 @@ fn main() -> Result<()> {
     if !matches.is_present("skip training") {
         let env = create_env();
         let env_eval = create_env();
-        let agent = create_agent(matches.is_present("egreddy"))?;
+        let agent = create_agent(matches.is_present("egreedy"))?;
         let mut trainer = TrainerBuilder::default()
             .max_opts(MAX_OPTS)
             .eval_interval(EVAL_INTERVAL)
@@ -261,7 +261,7 @@ fn main() -> Result<()> {
     }
 
     let mut env = create_env();
-    let mut agent = create_agent(matches.is_present("egreddy"))?;
+    let mut agent = create_agent(matches.is_present("egreedy"))?;
     let mut recorder = BufferedRecorder::new();
     env.set_render(true);
     agent.load(MODEL_DIR).unwrap(); // TODO: define appropriate error
