@@ -3,12 +3,12 @@
 //! a reference implementation of environments and RL agents, both of which are independent on each other.
 //! For this purpose, this library consists of crates below:
 //!
-//! * [border-core](border_core) provides base components in RL such as 
+//! * [border-core](border_core) provides base components in RL such as
 //!   [Env](border_core::Env), [Policy](border_core::Policy), [Agent](border_core::Agent),
 //!   [Trainer](border_core::Trainer), [eval](border_core::eval) (function for evaluation).
 //!   It also has utilities like [Record](border_core::record::Record).
 //! * [border-py-gym-env](border_py_gym_env) provides a wrapper of OpenAI gym implemented in Python.
-//!   Its observation ([PyGymEnvObs](border_py_gym_env::PyGymEnvObs)) action 
+//!   Its observation ([PyGymEnvObs](border_py_gym_env::PyGymEnvObs)) action
 //!   ([PyGymEnvDiscreteAct](border_py_gym_env::PyGymEnvDiscreteAct) or
 //!   [PyGymEnvContinuousAct](border_py_gym_env::PyGymEnvContinuousAct)) are based on [ndarray].
 //! * [border-tch-agent](border_tch_agent) is a set of RL agents implemented with [tch].
@@ -17,7 +17,7 @@
 //! observation and action data. In `dqn_cartpole` example in `example` directory, which uses [border_py_gym_env] and
 //! [border_tch_agent], the following conversions are defined:
 //!
-//! ```compile_fail
+//! ```rust
 //! # use border_core::{
 //! #     record::{BufferedRecorder, Record, TensorboardRecorder},
 //! #     shape, util, Agent, TrainerBuilder,
@@ -35,18 +35,18 @@
 //!         try_from(obs.0.obs).unwrap()
 //!     }
 //! }
-//! 
+//!
 //! impl From<Act> for Tensor {
 //!     fn from(act: Act) -> Tensor {
 //!         let v = act.0.act.iter().map(|e| *e as i64).collect::<Vec<_>>();
 //!         let t: Tensor = TryFrom::<Vec<i64>>::try_from(v).unwrap();
-//! 
+//!
 //!         // The first dimension of the action tensor is the number of processes,
 //!         // which is 1 for the non-vectorized environment.
 //!         t.unsqueeze(0)
 //!     }
 //! }
-//! 
+//!
 //! impl From<Tensor> for Act {
 //!     /// `t` must be a 1-dimentional tensor of `f32`.
 //!     fn from(t: Tensor) -> Self {
@@ -57,10 +57,13 @@
 //! }
 //! ```
 //!
-//! The first two lines of code defines the shape of observation and action. It is followed by macros to define
-//! tuple structs named `Obs` and `Act`, which wraps [PyGymEnvObs](border_py_gym_env::PyGymEnvObs) and
-//! [PyGymEnvDiscreteAct](border_py_gym_env::PyGymEnvDiscreteAct), respectively. `ObsFilter` and `ActFilter` are
-//! wrappers of [PyGymEnvObsRawFilter](border_py_gym_env::PyGymEnvObsRawFilter) and 
+//! The first two lines of code, following module import, defines the shape of observation and action.
+//! It is followed by macros [newtype_obs](border_py_gym_env::newtype_obs) and
+//! [newtype_act_d](border_py_gym_env::newtype_act_d). These macros define tuple structs named `Obs` and `Act`,
+//! which wraps [PyGymEnvObs](border_py_gym_env::PyGymEnvObs) and
+//! [PyGymEnvDiscreteAct](border_py_gym_env::PyGymEnvDiscreteAct), respectively. These tuple structs are required
+//! because we implement [From] traits on them. `ObsFilter` and `ActFilter` are
+//! wrappers of [PyGymEnvObsRawFilter](border_py_gym_env::PyGymEnvObsRawFilter) and
 //! [PyGymEnvDiscreteActRawFilter](border_py_gym_env::PyGymEnvDiscreteActRawFilter), which pass through
 //! observation and action without any processing. The 4-th argument of `newtype_obs!` macro, `f64`,
 //! means that the cartpole environment outputs its observation as `f64` array. Replacing it with `f32`
@@ -70,9 +73,22 @@
 //! Once `Obs` and `Act` are defined, some [From] traits are implemented on these types.
 //! These are conversions between `Obs`, `Act` and [Tensor]s, as [border_tch_agent] are based on [tch].
 //!
+//! Optionally, you may define type aliases for basic components of reinforcement learning:
+//!
+//! ```rust
+//! type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+//! type ObsBuffer = TchTensorBuffer<f32, ObsShape, Obs>;
+//! type ActBuffer = TchTensorBuffer<i64, ActShape, Act>;
+//! ```
+//!
+//! `Env` requires type parameters `Obs`, `Act`, `ObsFilter` and `ActFilter`, defined previously.
+//! `ObsBuffer` and `ActBuffer` are [TchTensorBuffer](border_tch_agent::replay_buffer::TchTensorBuffer), where
+//! whose data type of the buffer (`f32` or `i64`), shape (`ObsShape` or `ActShape`) are given as type parameters.
+//! The last type parameter (`Obs` or `Act`) are types of data those are converted and pushed into the buffer.
+//!
 //! Functions creating the agent and the environment look like below:
 //!
-//! ```compile_fail
+//! ```rust
 //! fn create_agent() -> Result<impl Agent<Env>> {
 //!     let device = tch::Device::cuda_if_available();
 //!     let qnet = dqn_model::create_dqn_model(DIM_OBS, DIM_ACT, LR_CRITIC, device)?;
@@ -87,7 +103,7 @@
 //!         .explorer(DQNExplorer::EpsilonGreedy(EpsilonGreedy::new()))
 //!         .build::<_, _, ObsBuffer, ActBuffer>(qnet, device)
 //! }
-//! 
+//!
 //! fn create_env() -> Env {
 //!     let obs_filter = ObsFilter::default();
 //!     let act_filter = ActFilter::default();
@@ -97,7 +113,7 @@
 //!
 //! Then training
 //!
-//! ```compile_fail
+//! ```rust
 //!     let env = create_env();
 //!     let env_eval = create_env();
 //!     let agent = create_agent(matches.is_present("egreddy"))?;
@@ -108,20 +124,20 @@
 //!         .model_dir(MODEL_DIR)
 //!         .build(env, env_eval, agent);
 //!     let mut recorder = TensorboardRecorder::new(MODEL_DIR);
-//! 
+//!
 //!     trainer.train(&mut recorder);
 //! ```
 //!
 //! and evaluation
 //!
-//! ```compile_fail
+//! ```rust
 //! let mut env = create_env();
 //! let mut agent = create_agent()?;
 //! let mut recorder = BufferedRecorder::new();
 //! env.set_render(true);
 //! agent.load(MODEL_DIR).unwrap(); // TODO: define appropriate error
 //! agent.eval();
-//! 
+//!
 //! util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);
 //! ```
 //!
@@ -148,6 +164,11 @@
 //! * Flexible composition of neural networks using [SubModel](border_tch_agent::model::SubModel)
 //! * Model save/load
 //! * [serde] implemented on configurations (e.g., [DQNBuilder](border_tch_agent::dqn::DQNBuilder))
+//!
+//! # License
+//!
+//! Border is primarily distributed under the terms of both the MIT license and the Apache License (Version 2.0).
+//!
 pub mod error;
 pub mod util;
 
