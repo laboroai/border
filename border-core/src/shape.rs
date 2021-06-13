@@ -11,6 +11,11 @@ pub trait Shape: Clone + Debug {
     fn squeeze_first_dim() -> bool {
         false
     }
+
+    /// Returns the shape as `Vec<i64>`.
+    fn shape_i64vec() -> Vec<i64> {
+        Self::shape().iter().map(|e| *e as i64).collect::<Vec<_>>()
+    }
 }
 
 /// Defines a struct that implements [Shape].
