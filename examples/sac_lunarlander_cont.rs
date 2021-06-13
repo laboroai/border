@@ -59,7 +59,10 @@ impl From<Act> for Tensor {
         // not including a batch dimension.
         debug_assert_eq!(act.0.act.shape(), ActShape::shape());
 
-        let shape = ActShape::shape().iter().map(|e| *e as i64).collect::<Vec<_>>();
+        let shape = ActShape::shape()
+            .iter()
+            .map(|e| *e as i64)
+            .collect::<Vec<_>>();
         let v = act.0.act.iter().map(|e| *e as f32).collect::<Vec<_>>();
         let t: Tensor = TryFrom::<Vec<f32>>::try_from(v).unwrap();
         let t = t.reshape(&shape[..]);

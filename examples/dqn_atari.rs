@@ -1,10 +1,7 @@
 mod dqn_atari_model;
 use anyhow::Result;
 use border::{try_from, util::url::get_model_from_url};
-use border_core::{
-    record::TensorboardRecorder,
-    shape, util, Agent, TrainerBuilder,
-};
+use border_core::{record::TensorboardRecorder, shape, util, Agent, TrainerBuilder};
 use border_py_gym_env::{
     newtype_act_d, newtype_obs, AtariWrapper, FrameStackFilter, PyGymEnv, PyGymEnvBuilder,
     PyGymEnvDiscreteAct, PyGymEnvObs,
