@@ -1,6 +1,6 @@
 use anyhow::Result;
 use border_core::{
-    record::{BufferedRecorder, Record},
+    record::{BufferedRecorder},
     shape, util, Policy,
 };
 use border_py_gym_env::{
