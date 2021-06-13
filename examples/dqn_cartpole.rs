@@ -224,6 +224,44 @@ impl TryFrom<&Record> for CartpoleRecord {
     }
 }
 
+fn train(max_opts: usize, model_dir: &str, egreedy: bool) -> Result<()> {
+    let env = create_env();
+    let env_eval = create_env();
+    let agent = create_agent(egreedy)?;
+    let mut trainer = TrainerBuilder::default()
+        .max_opts(max_opts)
+        .eval_interval(EVAL_INTERVAL)
+        .n_episodes_per_eval(N_EPISODES_PER_EVAL)
+        .model_dir(model_dir)
+        .build(env, env_eval, agent);
+    let mut recorder = TensorboardRecorder::new(model_dir);
+
+    trainer.train(&mut recorder);
+
+    Ok(())
+}
+
+fn eval(model_dir: &str, egreedy: bool) -> Result<()> {
+    let mut env = create_env();
+    let mut agent = create_agent(egreedy)?;
+    let mut recorder = BufferedRecorder::new();
+    env.set_render(true);
+    agent.load(model_dir).unwrap(); // TODO: define appropriate error
+    agent.eval();
+
+    util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);
+
+    // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
+    let mut wtr = WriterBuilder::new()
+        .has_headers(false)
+        .from_writer(File::create(model_dir.to_string() + "/eval.csv")?);
+    for record in recorder.iter() {
+        wtr.serialize(CartpoleRecord::try_from(record)?)?;
+    }
+
+    Ok(())
+}
+
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
@@ -246,36 +284,29 @@ fn main() -> Result<()> {
         .get_matches();
 
     if !matches.is_present("skip training") {
-        let env = create_env();
-        let env_eval = create_env();
-        let agent = create_agent(matches.is_present("egreedy"))?;
-        let mut trainer = TrainerBuilder::default()
-            .max_opts(MAX_OPTS)
-            .eval_interval(EVAL_INTERVAL)
-            .n_episodes_per_eval(N_EPISODES_PER_EVAL)
-            .model_dir(MODEL_DIR)
-            .build(env, env_eval, agent);
-        let mut recorder = TensorboardRecorder::new(MODEL_DIR);
-
-        trainer.train(&mut recorder);
+        train(MAX_OPTS, MODEL_DIR, matches.is_present("egreedy"))?;
     }
 
-    let mut env = create_env();
-    let mut agent = create_agent(matches.is_present("egreedy"))?;
-    let mut recorder = BufferedRecorder::new();
-    env.set_render(true);
-    agent.load(MODEL_DIR).unwrap(); // TODO: define appropriate error
-    agent.eval();
-
-    util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);
-
-    // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
-    let mut wtr = WriterBuilder::new()
-        .has_headers(false)
-        .from_writer(File::create("examples/model/dqn_cartpole_eval.csv")?);
-    for record in recorder.iter() {
-        wtr.serialize(CartpoleRecord::try_from(record)?)?;
-    }
+    eval(MODEL_DIR, matches.is_present("egreedy"))?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::train;
+    use anyhow::Result;
+    use tempdir::TempDir; //, eval};
+
+    #[test]
+    fn test_dqn_cartpole() -> Result<()> {
+        let tmp_dir = TempDir::new("dqn_cartpole")?;
+        let model_dir = match tmp_dir.as_ref().to_str() {
+            Some(s) => s,
+            None => panic!("Failed to get string of temporary directory"),
+        };
+        train(100, model_dir, false)?;
+        // eval(model_dir, false)?;
+        Ok(())
+    }
 }

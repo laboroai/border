@@ -17,7 +17,7 @@
 //! observation and action data. In `dqn_cartpole` example in `example` directory, which uses [border_py_gym_env] and
 //! [border_tch_agent], the following conversions are defined:
 //!
-//! ```rust
+//! ```text
 //! # use border_core::{
 //! #     record::{BufferedRecorder, Record, TensorboardRecorder},
 //! #     shape, util, Agent, TrainerBuilder,
@@ -75,7 +75,7 @@
 //!
 //! Optionally, you may define type aliases for basic components of reinforcement learning:
 //!
-//! ```rust
+//! ```text
 //! type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 //! type ObsBuffer = TchTensorBuffer<f32, ObsShape, Obs>;
 //! type ActBuffer = TchTensorBuffer<i64, ActShape, Act>;
@@ -88,7 +88,7 @@
 //!
 //! Functions creating the agent and the environment look like below:
 //!
-//! ```rust
+//! ```text
 //! fn create_agent() -> Result<impl Agent<Env>> {
 //!     let device = tch::Device::cuda_if_available();
 //!     let qnet = dqn_model::create_dqn_model(DIM_OBS, DIM_ACT, LR_CRITIC, device)?;
@@ -113,7 +113,7 @@
 //!
 //! Then training
 //!
-//! ```rust
+//! ```text
 //!     let env = create_env();
 //!     let env_eval = create_env();
 //!     let agent = create_agent(matches.is_present("egreddy"))?;
@@ -130,7 +130,7 @@
 //!
 //! and evaluation
 //!
-//! ```rust
+//! ```text
 //! let mut env = create_env();
 //! let mut agent = create_agent()?;
 //! let mut recorder = BufferedRecorder::new();

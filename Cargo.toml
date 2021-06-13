@@ -42,6 +42,7 @@ name = "random_cartpole"
 
 [[example]]
 name = "dqn_cartpole"
+test = true
 
 [[example]]
 name = "iqn_cartpole"
