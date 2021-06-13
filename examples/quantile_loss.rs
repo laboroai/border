@@ -1,4 +1,4 @@
-use border::agent::tch::util::quantile_huber_loss;
+use border_tch_agent::util::quantile_huber_loss;
 use std::io;
 use tch::{IndexOp, Tensor};
 
