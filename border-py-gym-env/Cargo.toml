@@ -14,15 +14,9 @@ autoexamples = false
 
 [dependencies]
 border-core = { version = "0.0.3", path = "../border-core" }
-numpy = "0.13"
-pyo3 = { version = "0.13.2", default-features = false }
+numpy = "=0.13.0"
+pyo3 = { version = "0.13.0", default-features = false }
 serde = { version = "1.0.117", features = ["derive"] }
-# serde_yaml = "0.8.7"
-# tensorboard-rs = "0.2.4"
 log = "0.4"
 num-traits = "0.2.14"
-ndarray = { version = "0.14", features = ["serde"] }
-# thiserror = "1.0"
-# anyhow = "1.0.38"
-# chrono = "0.4"
-# aquamarine = "0.1"
+ndarray = { version = "0.14.0", features = ["serde"] }
