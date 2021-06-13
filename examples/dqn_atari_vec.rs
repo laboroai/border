@@ -84,7 +84,7 @@ fn create_agent(
 
 fn create_env(name: &str, mode: AtariWrapper) -> Result<Env> {
     let obs_filter = ObsFilter::vectorized(N_PROCS as _, N_STACK as _);
-    let act_filter = ActFilter::default(); //vectorized();
+    let act_filter = ActFilter::vectorized();
     PyVecGymEnvBuilder::default()
         .atari_wrapper(Some(mode))
         .n_procs(N_PROCS as _)

@@ -95,5 +95,11 @@ macro_rules! newtype_act_d {
                 Self(border_py_gym_env::PyGymEnvDiscreteActRawFilter::default())
             }
         }
+
+        impl $struct2_ {
+            pub fn vectorized() -> Self {
+                Self(border_py_gym_env::PyGymEnvDiscreteActRawFilter::vectorized())
+            }
+        }
     };
 }
