@@ -166,9 +166,9 @@ where
     /// Convert `PyObject` to [ndarray::ArrayD].
     ///
     /// No filter is applied after conversion.
-    /// The shape of the observation is `S` in [PyGymEnv](border_py_gym_env::PyGymEnv).
+    /// The shape of the observation is `S` in [PyGymEnv](crate::PyGymEnv).
     ///
-    /// For [crate::env::py_gym_env::PyVecGymEnv], which is a vectorized environments,
+    /// For [crate::PyVecGymEnv], which is a vectorized environments,
     /// the shape becomes `[n_procs, S]`, where `n_procs` is the number of processes
     /// of the vectorized environment.
     ///
