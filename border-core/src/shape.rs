@@ -23,7 +23,7 @@ pub trait Shape: Clone + Debug {
 /// # Example
 ///
 /// ```
-/// use border_core::shape;
+/// use border_core::{shape, Shape};
 ///
 /// shape!(ObsShape, [4, 2]);
 ///
