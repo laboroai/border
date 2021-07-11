@@ -52,6 +52,9 @@ pub enum RecordValue {
 
     /// A 3-dimensional array
     Array3(Vec<f32>, [usize; 3]),
+
+    /// String
+    String(String),
 }
 
 #[derive(Debug)]
@@ -104,6 +107,8 @@ impl Record {
     }
 
     /// Get scalar value.
+    ///
+    /// * `key` - The key of an entry in the record.
     pub fn get_scalar(&self, k: &str) -> Result<f32, LrrError> {
         if let Some(v) = self.0.get(k) {
             match v {
@@ -150,6 +155,19 @@ impl Record {
             Err(LrrError::RecordKeyError(k.to_string()))
         }
     }
+
+    /// Get String value.
+    pub fn get_string(&self, k: &str) -> Result<String, LrrError> {
+        if let Some(v) = self.0.get(k) {
+            match v {
+                RecordValue::String(s) => Ok(s.clone()),
+                _ => Err(LrrError::RecordValueTypeError("String".to_string())),
+            }
+        }
+        else {
+            Err(LrrError::RecordKeyError(k.to_string()))
+        }
+    }
 }
 
 /// Process records provided with [`Recorder::write`]
@@ -172,6 +190,7 @@ impl Recorder for NullRecorder {
 pub struct TensorboardRecorder {
     writer: SummaryWriter,
     step_key: String,
+    ignore_unsupported_value: bool,
 }
 
 impl TensorboardRecorder {
@@ -182,6 +201,18 @@ impl TensorboardRecorder {
         Self {
             writer: SummaryWriter::new(logdir),
             step_key: "n_opts".to_string(),
+            ignore_unsupported_value: true
+        }
+    }
+
+    /// Construct a [`TensorboardRecorder`] with checking unsupported record value.
+    ///
+    /// TFRecord will be stored in `logdir`.
+    pub fn new_with_check_unsupported_value<P: AsRef<Path>>(logdir: P) -> Self {
+        Self {
+            writer: SummaryWriter::new(logdir),
+            step_key: "n_opts".to_string(),
+            ignore_unsupported_value: false
         }
     }
 }
@@ -206,7 +237,9 @@ impl Recorder for TensorboardRecorder {
                     RecordValue::Scalar(v) => self.writer.add_scalar(k, *v as f32, step),
                     RecordValue::DateTime(_) => {} // discard value
                     _ => {
-                        unimplemented!()
+                        if !self.ignore_unsupported_value {
+                            panic!("Unsupported value: {:?}", (k, v));
+                        }
                     }
                 };
             }
