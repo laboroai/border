@@ -247,7 +247,9 @@ where
 /// `Obs` as a newtype of [PyGymEnvObs], and `ObsFilter` as a newtype of [PyGymEnvObsRawFilter].
 ///
 /// ```no_run
-/// use border_py_gym_env::{newtype_obs, shape};
+/// use std::default::Default;
+/// use border_core::{Shape, shape};
+/// use border_py_gym_env::newtype_obs;
 ///
 /// shape!(ObsShape, [1, 2, 3]);
 /// //comment
@@ -255,8 +257,8 @@ where
 ///
 /// fn func() {
 ///    // TODO: run test
-///    let obs = Obs::new();
-///    let obs_filter = ObsFilter::new();
+///    let obs_shape = Obs::shape();
+///    let obs_filter = ObsFilter::default();
 /// }
 /// ```
 #[macro_export]
