@@ -76,6 +76,7 @@ mod iqn_model {
     }
 
     impl ConvNetConfig {
+        #[allow(dead_code)] // used in test
         pub fn new(n_stack: i64, feature_dim: i64) -> Self {
             Self {
                 n_stack,
@@ -148,6 +149,7 @@ mod iqn_model {
     }
 
     impl MLPConfig {
+        #[allow(dead_code)] // used in test
         pub fn new(in_dim: i64, hidden_dim: i64, out_dim: i64) -> Self {
             Self {
                 in_dim,
