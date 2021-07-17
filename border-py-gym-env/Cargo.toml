@@ -20,3 +20,4 @@ serde = { version = "1.0.117", features = ["derive"] }
 log = "0.4"
 num-traits = "0.2.14"
 ndarray = { version = "0.14.0", features = ["serde"] }
+anyhow = "1.0.38"

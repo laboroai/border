@@ -1,7 +1,8 @@
 //! Entropy coefficient of SAC.
+use anyhow::Result;
 use log::{info, trace};
 use serde::{Deserialize, Serialize};
-use std::{borrow::Borrow, error::Error, path::Path};
+use std::{borrow::Borrow, path::Path};
 use tch::{nn, nn::OptimizerConfig, Tensor};
 
 /// Mode of the entropy coefficient of SAC.
@@ -72,7 +73,7 @@ impl EntCoef {
     }
 
     /// Save the parameter into a file.
-    pub fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>> {
+    pub fn save<T: AsRef<Path>>(&self, path: T) -> Result<()> {
         self.var_store.save(&path)?;
         info!("Save entropy coefficient to {:?}", path.as_ref());
         let vs = self.var_store.variables();
@@ -83,7 +84,7 @@ impl EntCoef {
     }
 
     /// Save the parameter from a file.
-    pub fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<(), Box<dyn Error>> {
+    pub fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
         self.var_store.load(&path)?;
         info!("Load entropy coefficient from {:?}", path.as_ref());
         Ok(())

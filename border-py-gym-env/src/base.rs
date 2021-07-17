@@ -1,13 +1,14 @@
 //! Wrapper of gym environments implemented in Python.
 #![allow(clippy::float_cmp)]
 use crate::AtariWrapper;
+use anyhow::Result;
 use border_core::{record::Record, Act, Env, Info, Obs, Step};
 use log::trace;
 use pyo3::types::{IntoPyDict, PyTuple};
 use pyo3::{types::PyModule, PyObject, PyResult, Python, ToPyObject};
 use std::cell::RefCell;
 use std::marker::PhantomData;
-use std::{error::Error, fmt::Debug, time::Duration};
+use std::{fmt::Debug, time::Duration};
 
 /// Information given at every step of the interaction with the environment.
 ///
@@ -350,7 +351,7 @@ where
     /// In this environment, the length of `is_done` is assumed to be 1.
     ///
     /// TODO: defines appropriate error for the method and returns it.
-    fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<O, Box<dyn Error>> {
+    fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<O> {
         trace!("PyGymEnv::reset()");
 
         // Reset the action filter, required for stateful filters.

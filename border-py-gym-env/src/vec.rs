@@ -2,6 +2,7 @@
 #![allow(unused_variables, unreachable_code)]
 use super::AtariWrapper;
 use crate::{PyGymEnvActFilter, PyGymEnvObsFilter, PyGymInfo};
+use anyhow::Result;
 use border_core::{record::Record, Act, Env, Obs, Step};
 use log::trace;
 use pyo3::{
@@ -9,7 +10,7 @@ use pyo3::{
     PyObject, PyResult, ToPyObject,
 };
 use std::marker::PhantomData;
-use std::{error::Error, fmt::Debug};
+use std::{fmt::Debug};
 
 /// Constructs [PyVecGymEnv]
 pub struct PyVecGymEnvBuilder<O, A, OF, AF> {
@@ -147,7 +148,7 @@ where
     ///
     /// If `is_done` is None, all environemnts are resetted.
     /// Otherwise, `is_done` is `Vec<f32>` and environments with `is_done[i] == 1.0` are resetted.
-    fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<O, Box<dyn Error>> {
+    fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<O> {
         trace!("PyVecGymEnv::reset()");
 
         // Reset the action filter, required for stateful filters.

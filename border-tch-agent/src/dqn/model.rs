@@ -8,7 +8,6 @@ use anyhow::{Context, Result};
 use log::{info, trace};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
-    error::Error,
     fs::File,
     io::{BufReader, Write},
     marker::PhantomData,
@@ -206,7 +205,7 @@ where
         &mut self.var_store
     }
 
-    fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>> {
+    fn save<T: AsRef<Path>>(&self, path: T) -> Result<()> {
         self.var_store.save(&path)?;
         info!("Save DQN model to {:?}", path.as_ref());
         let vs = self.var_store.variables();
@@ -216,7 +215,7 @@ where
         Ok(())
     }
 
-    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<(), Box<dyn Error>> {
+    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
         self.var_store.load(&path)?;
         info!("Load DQN model from {:?}", path.as_ref());
         Ok(())

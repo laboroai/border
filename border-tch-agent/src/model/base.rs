@@ -1,6 +1,7 @@
 //! Definition of interfaces of neural networks.
-use std::{error::Error, path::Path};
+use std::path::Path;
 use tch::{nn, nn::VarStore, Tensor};
+use anyhow::Result;
 
 /// Base interface.
 pub trait ModelBase {
@@ -11,10 +12,10 @@ pub trait ModelBase {
     fn get_var_store(&mut self) -> &mut nn::VarStore;
 
     /// Save parameters of the neural network.
-    fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>>;
+    fn save<T: AsRef<Path>>(&self, path: T) -> Result<()>;
 
     /// Load parameters of the neural network.
-    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<(), Box<dyn Error>>;
+    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<()>;
 }
 
 /// Neural networks with a single input and a single output.

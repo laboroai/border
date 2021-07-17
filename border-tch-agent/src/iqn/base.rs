@@ -8,12 +8,13 @@ use crate::{
     replay_buffer::{ReplayBuffer, TchBatch, TchBuffer},
     util::{quantile_huber_loss, track, OptIntervalCounter},
 };
+use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
     Agent, Env, Obs, Policy, Step,
 };
 use log::trace;
-use std::{cell::RefCell, error::Error, fs, marker::PhantomData, path::Path};
+use std::{cell::RefCell, fs, marker::PhantomData, path::Path};
 use tch::{no_grad, Device, Tensor};
 
 #[allow(clippy::upper_case_acronyms)]
@@ -288,7 +289,7 @@ where
         }
     }
 
-    fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>> {
+    fn save<T: AsRef<Path>>(&self, path: T) -> Result<()> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
         self.iqn.save(&path.as_ref().join("iqn.pt").as_path())?;
@@ -297,7 +298,7 @@ where
         Ok(())
     }
 
-    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<(), Box<dyn Error>> {
+    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
         self.iqn.load(&path.as_ref().join("iqn.pt").as_path())?;
         self.iqn_tgt
             .load(&path.as_ref().join("iqn_tgt.pt").as_path())?;

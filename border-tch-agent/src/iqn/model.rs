@@ -9,7 +9,6 @@ use log::{info, trace};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
     default::Default,
-    error::Error,
     f64::consts::PI,
     fs::File,
     io::{BufReader, Write},
@@ -438,7 +437,7 @@ where
         &mut self.var_store
     }
 
-    fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>> {
+    fn save<T: AsRef<Path>>(&self, path: T) -> Result<()> {
         self.var_store.save(&path)?;
         info!("Save IQN model to {:?}", path.as_ref());
         let vs = self.var_store.variables();
@@ -448,7 +447,7 @@ where
         Ok(())
     }
 
-    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<(), Box<dyn Error>> {
+    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
         self.var_store.load(&path)?;
         info!("Load IQN model from {:?}", path.as_ref());
         Ok(())
