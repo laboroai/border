@@ -38,7 +38,6 @@ fn main() {
 
     let obs_filter = ObsFilter::default();
     let act_filter = ActFilter::default();
-    // TODO: Define appropriate error for failing to construct environment
     let mut env = PyGymEnvBuilder::default()
         .pybullet(true)
         .atari_wrapper(None)

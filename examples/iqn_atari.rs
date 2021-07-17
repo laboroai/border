@@ -338,11 +338,11 @@ fn main() -> Result<()> {
             let model_dir = matches
                 .value_of("play")
                 .expect("Failed to parse model directory");
-            agent.load(model_dir).unwrap(); // TODO: define appropriate error
+            agent.load(model_dir)?;
         } else {
             let (file_base, url) = get_info(name);
             let model_dir = get_model_from_url(url, file_base)?;
-            agent.load(model_dir).unwrap(); // TODO: define appropriate error
+            agent.load(model_dir)?;
         };
 
         let time = matches.value_of("wait").unwrap().parse::<u64>()?;

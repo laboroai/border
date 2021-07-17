@@ -159,14 +159,14 @@ fn main() -> Result<()> {
             let model_dir = matches
                 .value_of("play")
                 .expect("Failed to parse model directory");
-            agent.load(model_dir).unwrap(); // TODO: define appropriate error
+            agent.load(model_dir)?;
         } else {
             // TODO: change file_base and url depending on the game
             let file_base = "dqn_PongNoFrameskip-v4_20210428_ec2";
             let url =
                 "https://drive.google.com/uc?export=download&id=1TF5aN9fH5wd4APFHj9RP1JxuVNoi6lqJ";
             let model_dir = get_model_from_url(url, file_base)?;
-            agent.load(model_dir).unwrap(); // TODO: define appropriate error
+            agent.load(model_dir)?;
         };
 
         let time = matches.value_of("wait").unwrap().parse::<u64>()?;

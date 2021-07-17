@@ -246,7 +246,7 @@ fn eval(model_dir: &str, egreedy: bool) -> Result<()> {
     let mut agent = create_agent(egreedy)?;
     let mut recorder = BufferedRecorder::new();
     env.set_render(true);
-    agent.load(model_dir).unwrap(); // TODO: define appropriate error
+    agent.load(model_dir)?;
     agent.eval();
 
     util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);

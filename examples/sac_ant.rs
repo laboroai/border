@@ -177,14 +177,14 @@ fn main() -> Result<()> {
             let model_dir = matches
                 .value_of("play")
                 .expect("Failed to parse model directory");
-            agent.load(model_dir).unwrap(); // TODO: define appropriate error
+            agent.load(model_dir)?;
         } else {
             let file_base = "sac_ant_20210324_ec2_smoothl1";
             let url =
                 "https://drive.google.com/uc?export=download&id=1XvFi2nJD5OhpTvs-Et3YREuoqy8c3Vkq";
             let model_dir = get_model_from_url(url, file_base)?;
             info!("Download the model in {:?}", model_dir.as_ref().to_str());
-            agent.load(model_dir).unwrap(); // TODO: define appropriate error
+            agent.load(model_dir)?;
         };
 
         let time = matches.value_of("wait").unwrap().parse::<u64>()?;

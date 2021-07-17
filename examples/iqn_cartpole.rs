@@ -309,7 +309,7 @@ fn main() -> Result<()> {
     let mut agent = create_agent();
     let mut recorder = BufferedRecorder::new();
     env.set_render(true);
-    agent.load(MODEL_DIR).unwrap(); // TODO: define appropriate error
+    agent.load(MODEL_DIR)?;
     agent.eval();
 
     util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);
