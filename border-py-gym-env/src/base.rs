@@ -349,8 +349,6 @@ where
     /// Resets the environment, the obs/act filters and returns the observation tensor.
     ///
     /// In this environment, the length of `is_done` is assumed to be 1.
-    ///
-    /// TODO: defines appropriate error for the method and returns it.
     fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<O> {
         trace!("PyGymEnv::reset()");
 
