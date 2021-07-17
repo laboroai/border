@@ -2,6 +2,11 @@
 
 Border is a reinforcement learning library in Rust.
 
+[![Build Status](https://github.com/taku-y/border/workflows/Continuous%20integration/badge.svg)](https://github.com/taku-y/border/actions)
+[![Latest version](https://img.shields.io/crates/v/border.svg)](https://crates.io/crates/border)
+[![Documentation](https://docs.rs/border/badge.svg)](https://docs.rs/border)
+![License](https://img.shields.io/crates/l/border.svg)
+
 ## Status
 
 Border is currently under development.
