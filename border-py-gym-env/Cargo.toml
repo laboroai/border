@@ -13,7 +13,7 @@ readme = "README.md"
 autoexamples = false
 
 [dependencies]
-border-core = { version = "0.0.3", path = "../border-core" }
+border-core = { version = "0.0.4", path = "../border-core" }
 numpy = "=0.13.0"
 pyo3 = { version = "0.13.0", default-features = false }
 serde = { version = "1.0.117", features = ["derive"] }
