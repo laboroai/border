@@ -172,7 +172,7 @@ fn main() -> Result<()> {
         .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
         .arg(
             Arg::with_name("skip training")
-                .long("skip_training")
+                .long("skip-training")
                 .takes_value(false)
                 .help("Skip training"),
         )

@@ -1,6 +1,8 @@
 #![warn(missing_docs)]
-//! Border is a library for reinforcement learning (RL). The aim of the library is to provide
-//! a reference implementation of environments and RL agents, both of which are independent on each other.
+//! Border is a reinforcement learning library in Rust.
+//! For reusability of both RL environments and agents, this library provides
+//! a reference implementation of environments and agents,
+//! both of which are independent on each other.
 //! For this purpose, this library consists of crates below:
 //!
 //! * [border-core](border_core) provides base components in RL such as

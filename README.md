@@ -1,6 +1,6 @@
 # Border
 
-Border is a reinforcement learning library in Rust.
+Border is a reinforcement learning library in Rust. For reusability of both RL environments and agents, this library provides a reference implementation of environments and agents, both of which are independent on each other. [Documentation](https://docs.rs/border) provides more information about how this library is used.
 
 [![CI](https://github.com/taku-y/border/actions/workflows/ci.yml/badge.svg)](https://github.com/taku-y/border/actions/workflows/ci.yml)
 [![Latest version](https://img.shields.io/crates/v/border.svg)](https://crates.io/crates/border)
@@ -9,11 +9,11 @@ Border is a reinforcement learning library in Rust.
 
 ## Status
 
-Border is currently under development.
+Border is currently under development. API is unstable.
 
 ## Prerequisites
 
-In order to run examples, install python>=3.7 and [gym](https://gym.openai.com), for which the library provides a wrapper using [PyO3](https://crates.io/crates/pyo3).
+In order to run examples, install python>=3.7 and [gym](https://gym.openai.com), for which the library provides a wrapper using [PyO3](https://crates.io/crates/pyo3). As the agents used in the examples are based on [tch-rs](https://github.com/LaurentMazare/tch-rs), libtorch is required to be installed. Some examples requires [PyBullet Gym](https://github.com/benelot/pybullet-gym).
 
 ## Examples
 
