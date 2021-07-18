@@ -1,6 +1,7 @@
 //! Core functionalities.
 use crate::core::record::Record;
-use std::{error::Error, fmt::Debug, path::Path};
+use anyhow::Result;
+use std::{fmt::Debug, path::Path};
 
 /// Represents an observation of the environment.
 pub trait Obs: Clone + Debug {
@@ -79,7 +80,7 @@ pub trait Env {
 
     /// Reset the i-th environment if `is_done[i]==1.0`.
     /// Thei-th return value should be ignored if `is_done[i]==0.0`.
-    fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<Self::Obs, Box<dyn Error>>;
+    fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<Self::Obs>;
 }
 
 /// Represents a policy. on an environment. It is based on a mapping from an observation
@@ -113,10 +114,10 @@ pub trait Agent<E: Env>: Policy<E> {
 
     /// Save the agent in the given directory.
     /// This method commonly creates a number of files consisting the agent
-    /// into the given directory. For example, [`crate::agent::tch::dqn::DQN`] agent saves
+    /// into the given directory. For example, DQN agent in `border_tch_agent` crate saves
     /// two Q-networks corresponding to the original and target networks.
-    fn save<T: AsRef<Path>>(&self, path: T) -> Result<(), Box<dyn Error>>;
+    fn save<T: AsRef<Path>>(&self, path: T) -> Result<()>;
 
     /// Load the agent from the given directory.
-    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<(), Box<dyn Error>>;
+    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<()>;
 }

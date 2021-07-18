@@ -1,28 +1,20 @@
 use anyhow::Result;
-use border::{
-    agent::{
-        tch::{
-            dqn::explorer::{DQNExplorer, EpsilonGreedy},
-            DQNBuilder,
-        },
-        OptInterval,
-    },
-    env::py_gym_env::{
-        act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
-        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-        tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
-        PyGymEnv, Shape,
-    },
-    shape,
-};
+use border::try_from;
 use border_core::{
     record::{BufferedRecorder, Record, TensorboardRecorder},
-    util, Agent, TrainerBuilder,
+    shape, util, Agent, TrainerBuilder,
+};
+use border_py_gym_env::{newtype_act_d, newtype_obs, PyGymEnv, PyGymEnvDiscreteAct};
+use border_tch_agent::{
+    dqn::{DQNBuilder, DQNExplorer, EpsilonGreedy},
+    replay_buffer::TchTensorBuffer,
+    util::OptInterval,
 };
 use clap::{App, Arg};
 use csv::WriterBuilder;
 use serde::Serialize;
 use std::{convert::TryFrom, fs::File};
+use tch::Tensor;
 
 const DIM_OBS: i64 = 4;
 const DIM_ACT: i64 = 2;
@@ -40,19 +32,44 @@ const N_EPISODES_PER_EVAL: usize = 5;
 const MODEL_DIR: &str = "./examples/model/dqn_cartpole";
 
 shape!(ObsShape, [DIM_OBS as usize]);
+shape!(ActShape, [1]);
+newtype_obs!(Obs, ObsFilter, ObsShape, f64, f32);
+newtype_act_d!(Act, ActFilter);
 
-type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f64, f32>;
-type ActFilter = PyGymEnvDiscreteActRawFilter;
-type Obs = PyGymEnvObs<ObsShape, f64, f32>;
-type Act = PyGymEnvDiscreteAct;
+impl From<Obs> for Tensor {
+    fn from(obs: Obs) -> Tensor {
+        try_from(obs.0.obs).unwrap()
+    }
+}
+
+impl From<Act> for Tensor {
+    fn from(act: Act) -> Tensor {
+        let v = act.0.act.iter().map(|e| *e as i64).collect::<Vec<_>>();
+        let t: Tensor = TryFrom::<Vec<i64>>::try_from(v).unwrap();
+
+        // The first dimension of the action tensor is the number of processes,
+        // which is 1 for the non-vectorized environment.
+        t.unsqueeze(0)
+    }
+}
+
+impl From<Tensor> for Act {
+    /// `t` must be a 1-dimentional tensor of `f32`.
+    fn from(t: Tensor) -> Self {
+        let data: Vec<i64> = t.into();
+        let data: Vec<_> = data.iter().map(|e| *e as i32).collect();
+        Act(PyGymEnvDiscreteAct::new(data))
+    }
+}
+
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
-type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f64, f32>;
-type ActBuffer = TchPyGymEnvDiscreteActBuffer;
+type ObsBuffer = TchTensorBuffer<f32, ObsShape, Obs>;
+type ActBuffer = TchTensorBuffer<i64, ActShape, Act>;
 
 mod dqn_model {
     use anyhow::Result;
-    use border::agent::tch::{
-        dqn::model::{DQNModel, DQNModelBuilder},
+    use border_tch_agent::{
+        dqn::{DQNModel, DQNModelBuilder},
         model::SubModel,
         util::OutDim,
     };
@@ -148,7 +165,7 @@ mod dqn_model {
     ) -> Result<DQNModel<MLP>> {
         let q_config = MLPConfig::new(in_dim, out_dim);
         DQNModelBuilder::default()
-            .opt_config(border::agent::tch::opt::OptimizerConfig::Adam { lr: learning_rate })
+            .opt_config(border_tch_agent::opt::OptimizerConfig::Adam { lr: learning_rate })
             .build_with_submodel_configs(q_config, device)
     }
 }
@@ -207,6 +224,44 @@ impl TryFrom<&Record> for CartpoleRecord {
     }
 }
 
+fn train(max_opts: usize, model_dir: &str, egreedy: bool) -> Result<()> {
+    let env = create_env();
+    let env_eval = create_env();
+    let agent = create_agent(egreedy)?;
+    let mut trainer = TrainerBuilder::default()
+        .max_opts(max_opts)
+        .eval_interval(EVAL_INTERVAL)
+        .n_episodes_per_eval(N_EPISODES_PER_EVAL)
+        .model_dir(model_dir)
+        .build(env, env_eval, agent);
+    let mut recorder = TensorboardRecorder::new(model_dir);
+
+    trainer.train(&mut recorder);
+
+    Ok(())
+}
+
+fn eval(model_dir: &str, egreedy: bool) -> Result<()> {
+    let mut env = create_env();
+    let mut agent = create_agent(egreedy)?;
+    let mut recorder = BufferedRecorder::new();
+    env.set_render(true);
+    agent.load(model_dir)?;
+    agent.eval();
+
+    util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);
+
+    // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
+    let mut wtr = WriterBuilder::new()
+        .has_headers(false)
+        .from_writer(File::create(model_dir.to_string() + "/eval.csv")?);
+    for record in recorder.iter() {
+        wtr.serialize(CartpoleRecord::try_from(record)?)?;
+    }
+
+    Ok(())
+}
+
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
@@ -229,36 +284,29 @@ fn main() -> Result<()> {
         .get_matches();
 
     if !matches.is_present("skip training") {
-        let env = create_env();
-        let env_eval = create_env();
-        let agent = create_agent(matches.is_present("egreddy"))?;
-        let mut trainer = TrainerBuilder::default()
-            .max_opts(MAX_OPTS)
-            .eval_interval(EVAL_INTERVAL)
-            .n_episodes_per_eval(N_EPISODES_PER_EVAL)
-            .model_dir(MODEL_DIR)
-            .build(env, env_eval, agent);
-        let mut recorder = TensorboardRecorder::new(MODEL_DIR);
-
-        trainer.train(&mut recorder);
+        train(MAX_OPTS, MODEL_DIR, matches.is_present("egreedy"))?;
     }
 
-    let mut env = create_env();
-    let mut agent = create_agent(matches.is_present("egreddy"))?;
-    let mut recorder = BufferedRecorder::new();
-    env.set_render(true);
-    agent.load(MODEL_DIR).unwrap(); // TODO: define appropriate error
-    agent.eval();
-
-    util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);
-
-    // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
-    let mut wtr = WriterBuilder::new()
-        .has_headers(false)
-        .from_writer(File::create("examples/model/dqn_cartpole_eval.csv")?);
-    for record in recorder.iter() {
-        wtr.serialize(CartpoleRecord::try_from(record)?)?;
-    }
+    eval(MODEL_DIR, matches.is_present("egreedy"))?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::train;
+    use anyhow::Result;
+    use tempdir::TempDir; //, eval};
+
+    #[test]
+    fn test_dqn_cartpole() -> Result<()> {
+        let tmp_dir = TempDir::new("dqn_cartpole")?;
+        let model_dir = match tmp_dir.as_ref().to_str() {
+            Some(s) => s,
+            None => panic!("Failed to get string of temporary directory"),
+        };
+        train(100, model_dir, false)?;
+        // eval(model_dir, false)?;
+        Ok(())
+    }
 }

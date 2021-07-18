@@ -1,5 +1,5 @@
 //! Example of using IQNModel for quantile regression.
-use border::agent::tch::{
+use border_tch_agent::{
     iqn::{IQNModel, IQNModelBuilder},
     model::{ModelBase, SubModel},
     util::quantile_huber_loss,
@@ -171,9 +171,3 @@ fn main() {
         })
         .for_each(|v| wtr.write_record(&v).unwrap());
 }
-
-// fn main() {
-//     let a = Tensor::of_slice(&[1f32, 3.0, 4.0, 2.0, 5.0]);
-//     let lt = &a.lt(4.0);
-//     println!("{:?}", Tensor::where4(lt, 0., 1.));
-// }

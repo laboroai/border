@@ -1,3 +1,35 @@
+## Gym
+
+### Random policy
+
+```bash
+cargo run --example random_cartpole
+```
+
+```bash
+cargo run --example random_lunarlander_cont
+```
+
+```bash
+cargo run --example random_ant
+```
+
+### DQN
+
+```bash
+cargo run --example dqn_cartpole
+```
+
+### SAC
+
+```bash
+cargo run --example sac_pendulum
+```
+
+```bash
+cargo run --example sac_lunarlander_cont
+```
+
 ## Atari
 
 ### DQN
@@ -14,7 +46,7 @@
   PYTHONPATH=./examples cargo run --example dqn_atari -- PongNoFrameskip-v4 --play ./examples/model/dqn_PongNoFrameskip-v4
   ```
 
-* Testing with pretrained models
+* Evaluation with pretrained models, downloaded from google drive
 
   ```bash
   PYTHONPATH=./examples cargo run --example dqn_atari -- PongNoFrameskip-v4 --play-gdrive
@@ -22,7 +54,7 @@
 
 ### IQN
 
-* Testing with pretrained models
+* Evaluation with pretrained models
 
   ```bash
   PYTHONPATH=./examples cargo run --example iqn_atari -- PongNoFrameskip-v4 --play-gdrive
@@ -42,16 +74,14 @@
 
   <img src="https://drive.google.com/uc?id=16TEKfby6twCP6PxYoSlBqzOPEwVk1o4Q" width="256">
 
-* Testing
+* Evaluation
 
   ```bash
-  $ cargo run --example sac_ant -- --play=$REPO/examples/model/sac_ant
+  cargo run --example sac_ant -- --play=$REPO/examples/model/sac_ant
   ```
 
-* Testing with downloading a pretrained model
+* Evaluation with a pretrained model, downloaded from google drive
 
   ```bash
-  $ cargo run --example sac_ant -- --play-gdrive
+  cargo run --example sac_ant -- --play-gdrive
   ```
-
-You can download a pretrained model from [here](https://drive.google.com/uc?export=download&id=1fdAVJLgFY2v0BDyE-xGt7mxpa8GXa9aX).

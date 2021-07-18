@@ -1,4 +1,25 @@
-//! This module offers types for recording values obtained during training and evaluation.
+//! Types for recording various values obtained during training and evaluation.
+//!
+//! [Record] is a [HashMap], where its key and values represents various values obtained during training and
+//! evaluation. A record may contains multiple types of values.
+//!
+//! ```no_run
+//! use border_core::record::{Record, RecordValue};
+//!
+//! // following values are obtained with some process in reality
+//! let step = 1;
+//! let obs = vec![1f32, 2.0, 3.0, 4.0, 5.0];
+//! let reward = -1f32;
+//!
+//! let mut record = Record::empty();
+//! record.insert("Step", RecordValue::Scalar(step as f32));
+//! record.insert("Reward", RecordValue::Scalar(reward));
+//! record.insert("Obs", RecordValue::Array1(obs));
+//! ```
+//!
+//! A typical usecase is to record internal values obtained in training processes.
+//! [Trainer::train](crate::Trainer::train), which executes a training loop, writes a record
+//! in a [Recorder] given as an input argument.
 //!
 use chrono::prelude::{DateTime, Local};
 use std::{
@@ -31,6 +52,9 @@ pub enum RecordValue {
 
     /// A 3-dimensional array
     Array3(Vec<f32>, [usize; 3]),
+
+    /// String
+    String(String),
 }
 
 #[derive(Debug)]
@@ -83,6 +107,8 @@ impl Record {
     }
 
     /// Get scalar value.
+    ///
+    /// * `key` - The key of an entry in the record.
     pub fn get_scalar(&self, k: &str) -> Result<f32, LrrError> {
         if let Some(v) = self.0.get(k) {
             match v {
@@ -129,6 +155,19 @@ impl Record {
             Err(LrrError::RecordKeyError(k.to_string()))
         }
     }
+
+    /// Get String value.
+    pub fn get_string(&self, k: &str) -> Result<String, LrrError> {
+        if let Some(v) = self.0.get(k) {
+            match v {
+                RecordValue::String(s) => Ok(s.clone()),
+                _ => Err(LrrError::RecordValueTypeError("String".to_string())),
+            }
+        }
+        else {
+            Err(LrrError::RecordKeyError(k.to_string()))
+        }
+    }
 }
 
 /// Process records provided with [`Recorder::write`]
@@ -151,6 +190,7 @@ impl Recorder for NullRecorder {
 pub struct TensorboardRecorder {
     writer: SummaryWriter,
     step_key: String,
+    ignore_unsupported_value: bool,
 }
 
 impl TensorboardRecorder {
@@ -161,14 +201,27 @@ impl TensorboardRecorder {
         Self {
             writer: SummaryWriter::new(logdir),
             step_key: "n_opts".to_string(),
+            ignore_unsupported_value: true
+        }
+    }
+
+    /// Construct a [`TensorboardRecorder`] with checking unsupported record value.
+    ///
+    /// TFRecord will be stored in `logdir`.
+    pub fn new_with_check_unsupported_value<P: AsRef<Path>>(logdir: P) -> Self {
+        Self {
+            writer: SummaryWriter::new(logdir),
+            step_key: "n_opts".to_string(),
+            ignore_unsupported_value: false
         }
     }
 }
 
 impl Recorder for TensorboardRecorder {
-    /// Write a given [`Record`] into a TFRecord.
+    /// Write a given [Record] into a TFRecord.
     ///
-    /// It ignores [RecordValue::Array*]
+    /// This method handles [RecordValue::Scalar] and [RecordValue::DateTime] in the [Record].
+    /// Other variants will be ignored.
     fn write(&mut self, record: Record) {
         // TODO: handle error
         let step = match record.get(&self.step_key).unwrap() {
@@ -184,7 +237,9 @@ impl Recorder for TensorboardRecorder {
                     RecordValue::Scalar(v) => self.writer.add_scalar(k, *v as f32, step),
                     RecordValue::DateTime(_) => {} // discard value
                     _ => {
-                        unimplemented!()
+                        if !self.ignore_unsupported_value {
+                            panic!("Unsupported value: {:?}", (k, v));
+                        }
                     }
                 };
             }

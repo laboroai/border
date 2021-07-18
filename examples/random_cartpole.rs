@@ -1,13 +1,11 @@
 use anyhow::Result;
-use border::env::py_gym_env::{
-    act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
-    obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-    PyGymEnv, PyGymEnvBuilder, Shape,
-};
-use border::shape;
 use border_core::{
     record::{BufferedRecorder, Record},
-    util, Policy,
+    shape, util, Policy,
+};
+use border_py_gym_env::{
+    PyGymEnv, PyGymEnvBuilder, PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter, PyGymEnvObs,
+    PyGymEnvObsRawFilter,
 };
 use serde::Serialize;
 use std::{convert::TryFrom, fs::File};
@@ -58,13 +56,11 @@ impl TryFrom<&Record> for CartpoleRecord {
 
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-    tch::manual_seed(42);
     fastrand::seed(42);
 
     let obs_filter = ObsFilter::default();
     let act_filter = ActFilter::default();
     let mut recorder = BufferedRecorder::new();
-    // TODO: Define appropriate error for failing to construct environment
     let mut env = PyGymEnvBuilder::default()
         .build("CartPole-v0", obs_filter, act_filter)
         .unwrap();

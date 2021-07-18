@@ -1,6 +1,6 @@
 [package]
 name = "border"
-version = "0.0.3"
+version = "0.0.4"
 authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
 edition = "2018"
 
@@ -16,8 +16,8 @@ autoexamples = false
 ndarray = { version = "0.14", features = ["serde"] }
 tch = "0.4.0"
 # tch = { git = "https://github.com/taku-y/tch-rs", branch = "adam_eps" }
-numpy = "0.13"
-pyo3 = { version = "0.13.2", default-features = false }
+numpy = "0.13.0"
+pyo3 = { version = "=0.13.0", default-features = false }
 fastrand = "1.4.0"
 log = "0.4"
 env_logger = "0.8.2"
@@ -33,13 +33,16 @@ anyhow = "1.0.38"
 zip = "0.5.12"
 serde = { version = "1.0.117", features = ["derive"] }
 serde_yaml = "0.8.7"
-border-core = { version = "0.0.3", path = "border-core" }
+border-core = { version = "0.0.4", path = "border-core" }
+border-tch-agent = { version = "0.0.4", path = "border-tch-agent" }
+border-py-gym-env = { version = "0.0.4", path = "border-py-gym-env" }
 
 [[example]]
 name = "random_cartpole"
 
 [[example]]
 name = "dqn_cartpole"
+test = true
 
 [[example]]
 name = "iqn_cartpole"
@@ -73,6 +76,18 @@ name = "dqn_atari_vec"
 
 [[example]]
 name = "sac_lunarlander_cont"
+
+[[example]]
+name = "macro"
+
+[[example]]
+name = "random_lunarlander_cont"
+
+[[example]]
+name = "sac_lunarlander_cont_vec"
+
+[[example]]
+name = "pyo3"
 
 [dev-dependencies]
 clap = "2.33.3"

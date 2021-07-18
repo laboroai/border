@@ -1,26 +1,19 @@
 use anyhow::Result;
-use border::{
-    agent::{
-        tch::{
-            sac::EntCoefMode,
-            util::{create_actor, create_critic},
-            ReplayBuffer, SACBuilder,
-        },
-        CriticLoss, OptInterval,
-    },
-    env::py_gym_env::{
-        act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter},
-        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-        tch::{act_c::TchPyGymEnvContinuousActBuffer, obs::TchPyGymEnvObsBuffer},
-        PyGymEnv, PyGymEnvBuilder, Shape,
-    },
-    shape,
-    util::url::get_model_from_url,
+use border::{try_from, util::url::get_model_from_url};
+use border_core::{record::TensorboardRecorder, shape, util, Agent, Shape, TrainerBuilder};
+use border_py_gym_env::{
+    newtype_act_c, newtype_obs, PyGymEnv, PyGymEnvBuilder, PyGymEnvContinuousAct,
 };
-use border_core::{record::TensorboardRecorder, util, Agent, TrainerBuilder};
+use border_tch_agent::{
+    replay_buffer::TchTensorBuffer,
+    sac::{EntCoefMode, SACBuilder},
+    util::{create_actor, create_critic, CriticLoss, OptInterval},
+};
 use clap::{App, Arg};
 use log::info;
-use std::{default::Default, time::Duration};
+use ndarray::{Array1, IxDyn};
+use std::{convert::TryFrom, default::Default, time::Duration};
+use tch::Tensor;
 
 const LR_ACTOR: f64 = 3e-4;
 const LR_CRITIC: f64 = 3e-4;
@@ -44,15 +37,46 @@ const N_EPISODES_PER_EVAL: usize = 5;
 // const MAX_STEPS_IN_EPISODE: usize = 200;
 
 shape!(ObsShape, [28]);
-shape!(ActShape, [8], squeeze_first_dim);
+shape!(ActShape, [8]);
+newtype_obs!(Obs, ObsFilter, ObsShape, f32, f32);
+newtype_act_c!(Act, ActFilter, ActShape);
 
-type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f32, f32>;
-type ActFilter = PyGymEnvContinuousActRawFilter;
-type Obs = PyGymEnvObs<ObsShape, f32, f32>;
-type Act = PyGymEnvContinuousAct<ActShape>;
+impl From<Obs> for Tensor {
+    fn from(obs: Obs) -> Tensor {
+        try_from(obs.0.obs).unwrap()
+    }
+}
+
+impl From<Act> for Tensor {
+    fn from(act: Act) -> Tensor {
+        let v = act.0.act.iter().map(|e| *e as f32).collect::<Vec<_>>();
+        let t: Tensor = TryFrom::<Vec<f32>>::try_from(v).unwrap();
+
+        // The first dimension of the action tensor is the number of processes,
+        // which is 1 for the non-vectorized environment.
+        t.unsqueeze(0)
+    }
+}
+
+impl From<Tensor> for Act {
+    /// `t` must be a 1-dimentional tensor of `f32`.
+    fn from(t: Tensor) -> Self {
+        // In non-vectorized environment, the batch dimension is not required, thus dropped.
+        let shape = t.size()[1..]
+            .iter()
+            .map(|x| *x as usize)
+            .collect::<Vec<_>>();
+        let act: Vec<f32> = t.into();
+
+        let act = Array1::<f32>::from(act).into_shape(IxDyn(&shape)).unwrap();
+
+        Act(PyGymEnvContinuousAct::new(act))
+    }
+}
+
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
-type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, f32, f32>;
-type ActBuffer = TchPyGymEnvContinuousActBuffer<ActShape>;
+type ObsBuffer = TchTensorBuffer<f32, ObsShape, Obs>;
+type ActBuffer = TchTensorBuffer<f32, ActShape, Act>;
 
 fn create_agent() -> Result<impl Agent<Env>> {
     let device = tch::Device::cuda_if_available();
@@ -75,7 +99,6 @@ fn create_agent() -> Result<impl Agent<Env>> {
             .expect("Failed to create critic")
         })
         .collect::<Vec<_>>();
-    let replay_buffer = ReplayBuffer::<Env, ObsBuffer, ActBuffer>::new(REPLAY_BUFFER_CAPACITY, 1);
 
     Ok(SACBuilder::default()
         .opt_interval(OPT_INTERVAL)
@@ -87,7 +110,8 @@ fn create_agent() -> Result<impl Agent<Env>> {
         .ent_coef_mode(EntCoefMode::Auto(TARGET_ENTROPY, LR_ENT_COEF))
         .reward_scale(REWARD_SCALE)
         .critic_loss(CRITIC_LOSS)
-        .build(critics, actor, replay_buffer, device))
+        .replay_burffer_capacity(REPLAY_BUFFER_CAPACITY)
+        .build::<_, _, _, ObsBuffer, ActBuffer>(critics, actor, device))
 }
 
 fn create_env() -> Env {
@@ -153,14 +177,14 @@ fn main() -> Result<()> {
             let model_dir = matches
                 .value_of("play")
                 .expect("Failed to parse model directory");
-            agent.load(model_dir).unwrap(); // TODO: define appropriate error
+            agent.load(model_dir)?;
         } else {
             let file_base = "sac_ant_20210324_ec2_smoothl1";
             let url =
                 "https://drive.google.com/uc?export=download&id=1XvFi2nJD5OhpTvs-Et3YREuoqy8c3Vkq";
             let model_dir = get_model_from_url(url, file_base)?;
             info!("Download the model in {:?}", model_dir.as_ref().to_str());
-            agent.load(model_dir).unwrap(); // TODO: define appropriate error
+            agent.load(model_dir)?;
         };
 
         let time = matches.value_of("wait").unwrap().parse::<u64>()?;

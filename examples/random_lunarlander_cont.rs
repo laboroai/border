@@ -1,39 +1,20 @@
-use std::error::Error;
+use anyhow::Result;
+use border_core::{
+    record::{BufferedRecorder},
+    shape, util, Policy,
+};
+use border_py_gym_env::{
+    PyGymEnv, PyGymEnvBuilder, PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter, PyGymEnvObs,
+    PyGymEnvObsRawFilter,
+};
 use ndarray::Array;
 
-use lrr::{
-    core::{Policy, util},
-    env::py_gym_env::{
-        PyGymEnv,
-        obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-        act_c::{PyGymEnvContinuousAct, PyGymEnvContinuousActRawFilter}
-    },
-    agent::tch::Shape,
-};
+shape!(ObsShape, [8]);
+shape!(ActShape, [2]);
 
-#[derive(Debug, Clone)]
-struct ObsShape {}
-
-impl Shape for ObsShape {
-    fn shape() -> &'static [usize] {
-        &[8]
-    }
-}
-
-#[derive(Debug, Clone)]
-struct ActShape {}
-
-impl Shape for ActShape {
-    fn shape() -> &'static [usize] {
-        &[2]
-    }
-}
-
-type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f32>;
-type ActFilter = PyGymEnvContinuousActRawFilter; //<ActShape>;
-type Obs = PyGymEnvObs<ObsShape, f32>;
-// type O = TchPyGymEnvObs<ObsShape, f64>; // Results in a runtime error in conversion of
-// numpy array in lunarlander-cont-v2 environemnt beecause of type mismatch.
+type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f32, f32>;
+type ActFilter = PyGymEnvContinuousActRawFilter;
+type Obs = PyGymEnvObs<ObsShape, f32, f32>;
 type Act = PyGymEnvContinuousAct<ActShape>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 
@@ -45,17 +26,20 @@ impl Policy<Env> for RandomPolicy {
     }
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::init();
-    tch::manual_seed(42);
+fn main() -> Result<()> {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     fastrand::seed(42);
 
-    let obs_filter = ObsFilter::default(); //new();
-    let act_filter = ActFilter::default(); //new();
-    let mut env = Env::new("LunarLanderContinuous-v2", obs_filter, act_filter)?;
+    let obs_filter = ObsFilter::default();
+    let act_filter = ActFilter::default();
+    let mut recorder = BufferedRecorder::new();
+    let mut env = PyGymEnvBuilder::default()
+        .build("LunarLanderContinuous-v2", obs_filter, act_filter)
+        .unwrap();
     env.set_render(true);
-    let mut policy = RandomPolicy{};
-    util::eval(&mut env, &mut policy, 5, None);
+    let mut policy = RandomPolicy {};
+
+    util::eval_with_recorder(&mut env, &mut policy, 5, &mut recorder);
 
     Ok(())
 }

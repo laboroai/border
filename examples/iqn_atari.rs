@@ -1,33 +1,69 @@
+mod dqn_atari_model;
 use anyhow::Result;
-use border::{
-    agent::tch::iqn::{IQNBuilder, IQNModelBuilder},
-    env::py_gym_env::{
-        act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
-        framestack::FrameStackFilter,
-        obs::PyGymEnvObs,
-        tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
-        AtariWrapper, PyGymEnv, PyGymEnvBuilder, Shape,
-    },
-    shape,
-    util::url::get_model_from_url,
+use border::{try_from, util::url::get_model_from_url};
+use border_core::{record::TensorboardRecorder, shape, util, Agent, TrainerBuilder};
+use border_py_gym_env::{
+    newtype_act_d, newtype_obs, AtariWrapper, FrameStackFilter, PyGymEnv, PyGymEnvBuilder,
+    PyGymEnvDiscreteAct, PyGymEnvObs,
 };
-use border_core::{record::TensorboardRecorder, util, Agent, TrainerBuilder};
+use border_tch_agent::{
+    iqn::{IQNBuilder, IQNModelBuilder},
+    replay_buffer::TchTensorBuffer,
+};
 use clap::{App, Arg};
-use std::{path::Path, time::Duration};
+use ndarray::ArrayD;
+use std::{convert::TryFrom, path::Path, time::Duration};
+use tch::Tensor;
 
 const N_STACK: usize = 4;
 shape!(ObsShape, [4, 1, 84, 84]);
 
-type ObsFilter = FrameStackFilter<ObsShape, u8, u8>;
-type ActFilter = PyGymEnvDiscreteActRawFilter;
-type Obs = PyGymEnvObs<ObsShape, u8, u8>;
-type Act = PyGymEnvDiscreteAct;
+shape!(ActShape, [1]);
+newtype_obs!(Obs, ObsShape, u8, u8);
+newtype_act_d!(Act, ActFilter);
+
+impl From<Obs> for Tensor {
+    fn from(obs: Obs) -> Tensor {
+        try_from(obs.0.obs).unwrap()
+    }
+}
+
+impl From<Act> for Tensor {
+    fn from(act: Act) -> Tensor {
+        let v = act.0.act.iter().map(|e| *e as i64).collect::<Vec<_>>();
+        let t: Tensor = TryFrom::<Vec<i64>>::try_from(v).unwrap();
+
+        // The first dimension of the action tensor is the number of processes,
+        // which is 1 for the non-vectorized environment.
+        t.unsqueeze(0)
+    }
+}
+
+/// Converts Tensor to Act, called when applying actions estimated by DQN.
+/// DQN outputs Tensor, while PyGymEnv accepts Act as actions to the environment.
+impl From<Tensor> for Act {
+    /// `t` must be a 1-dimentional tensor of `f32`.
+    fn from(t: Tensor) -> Self {
+        let data: Vec<i64> = t.into();
+        let data: Vec<_> = data.iter().map(|e| *e as i32).collect();
+        Act(PyGymEnvDiscreteAct::new(data))
+    }
+}
+
+/// This implementation is required by FrameStackFilter.
+impl From<ArrayD<u8>> for Obs {
+    fn from(obs: ArrayD<u8>) -> Self {
+        Obs(PyGymEnvObs::from(obs))
+    }
+}
+
+type ObsFilter = FrameStackFilter<Obs, u8, u8>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
-type ObsBuffer = TchPyGymEnvObsBuffer<ObsShape, u8, u8>;
-type ActBuffer = TchPyGymEnvDiscreteActBuffer;
+type ObsBuffer = TchTensorBuffer<u8, ObsShape, Obs>;
+type ActBuffer = TchTensorBuffer<i64, ActShape, Act>;
 
 mod iqn_model {
-    use border::agent::tch::{model::SubModel, util::OutDim};
+    use border_tch_agent::{model::SubModel, util::OutDim};
     use serde::{Deserialize, Serialize};
     use tch::{nn, nn::Module, nn::VarStore, Device, Tensor};
 
@@ -40,6 +76,7 @@ mod iqn_model {
     }
 
     impl ConvNetConfig {
+        #[allow(dead_code)] // used in test
         pub fn new(n_stack: i64, feature_dim: i64) -> Self {
             Self {
                 n_stack,
@@ -112,6 +149,7 @@ mod iqn_model {
     }
 
     impl MLPConfig {
+        #[allow(dead_code)] // used in test
         pub fn new(in_dim: i64, hidden_dim: i64, out_dim: i64) -> Self {
             Self {
                 in_dim,
@@ -300,11 +338,11 @@ fn main() -> Result<()> {
             let model_dir = matches
                 .value_of("play")
                 .expect("Failed to parse model directory");
-            agent.load(model_dir).unwrap(); // TODO: define appropriate error
+            agent.load(model_dir)?;
         } else {
             let (file_base, url) = get_info(name);
             let model_dir = get_model_from_url(url, file_base)?;
-            agent.load(model_dir).unwrap(); // TODO: define appropriate error
+            agent.load(model_dir)?;
         };
 
         let time = matches.value_of("wait").unwrap().parse::<u64>()?;
@@ -321,14 +359,12 @@ fn main() -> Result<()> {
 mod test {
     use super::iqn_model::{ConvNet, ConvNetConfig, MLPConfig, MLP};
     use anyhow::Result;
-    use border::agent::{
-        tch::{
-            iqn::{model::IQNSample, EpsilonGreedy, IQNBuilder, IQNModelBuilder},
-            opt::OptimizerConfig,
-        },
-        OptInterval,
-    };
     use border_core::TrainerBuilder;
+    use border_tch_agent::{
+        iqn::{model::IQNSample, EpsilonGreedy, IQNBuilder, IQNModelBuilder},
+        opt::OptimizerConfig,
+        util::OptInterval,
+    };
     use std::path::Path;
 
     // IQN model parameters

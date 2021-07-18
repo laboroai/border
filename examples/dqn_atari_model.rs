@@ -1,4 +1,4 @@
-use border::agent::tch::{model::SubModel, util::OutDim};
+use border_tch_agent::{model::SubModel, util::OutDim};
 use serde::{Deserialize, Serialize};
 use tch::{nn, nn::Module, Device, Tensor};
 
