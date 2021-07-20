@@ -183,9 +183,7 @@ impl Recorder for TensorboardRecorder {
                 match v {
                     RecordValue::Scalar(v) => self.writer.add_scalar(k, *v as f32, step),
                     RecordValue::DateTime(_) => {} // discard value
-                    _ => {
-                        unimplemented!()
-                    }
+                    _ => {}
                 };
             }
         }
