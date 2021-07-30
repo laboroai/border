@@ -48,7 +48,7 @@ impl CNN {
     fn create_net(var_store: &nn::VarStore, n_stack: i64, out_dim: i64) -> nn::Sequential {
         let p = &var_store.root();
         nn::seq()
-            .add_fn(|xs| xs.squeeze1(2).internal_cast_float(true) / 255)
+            .add_fn(|xs| xs.squeeze_dim(2).internal_cast_float(true) / 255)
             .add(nn::conv2d(p / "c1", n_stack, 32, 8, Self::stride(4)))
             .add_fn(|xs| xs.relu())
             .add(nn::conv2d(p / "c2", 32, 64, 4, Self::stride(2)))

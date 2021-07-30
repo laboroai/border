@@ -104,7 +104,7 @@ mod iqn_model {
         fn _build(var_store: &VarStore, n_stack: i64, feature_dim: i64) -> Self {
             let p = &var_store.root();
             let seq = nn::seq()
-                .add_fn(|xs| xs.squeeze1(2).internal_cast_float(true) / 255)
+                .add_fn(|xs| xs.squeeze_dim(2).internal_cast_float(true) / 255)
                 .add(nn::conv2d(p / "c1", n_stack, 32, 8, stride(4)))
                 .add_fn(|xs| xs.relu())
                 .add(nn::conv2d(p / "c2", 32, 64, 4, stride(2)))

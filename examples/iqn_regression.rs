@@ -157,7 +157,7 @@ fn main() {
     let tau = Tensor::of_slice(&[0.1f32, 0.3, 0.5, 0.7, 0.9])
         .unsqueeze(0)
         .repeat(&[100, 1]);
-    let ys = model.forward(&xs, &tau).squeeze1(-1);
+    let ys = model.forward(&xs, &tau).squeeze_dim(-1);
     let data = Tensor::cat(&[xs, ys], 1);
     assert_eq!(data.size().as_slice(), &[100, 6]);
     let mut wtr = csv::Writer::from_path("examples/iqn_regression_pred.csv").unwrap();

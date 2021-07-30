@@ -21,7 +21,7 @@ type ActStd = Tensor;
 fn normal_logp(x: &Tensor) -> Tensor {
     let tmp: Tensor =
         Tensor::from(-0.5 * (2.0 * std::f32::consts::PI).ln() as f32) - 0.5 * x.pow(2);
-    tmp.sum1(&[-1], false, tch::Kind::Float)
+    tmp.sum_dim_intlist(&[-1], false, tch::Kind::Float)
 }
 
 /// Soft actor critic agent.
@@ -87,7 +87,7 @@ where
         let log_p = normal_logp(&z)
             - (Tensor::from(1f32) - a.pow(2.0) + Tensor::from(self.epsilon))
                 .log()
-                .sum1(&[-1], false, tch::Kind::Float);
+                .sum_dim_intlist(&[-1], false, tch::Kind::Float);
 
         debug_assert_eq!(a.size().as_slice()[0], self.batch_size as i64);
         debug_assert_eq!(log_p.size().as_slice(), [self.batch_size as i64]);
@@ -106,7 +106,7 @@ where
     fn qvals_min(&self, qnets: &[Critic<Q>], obs: &Q::Input1, act: &Tensor) -> Tensor {
         let qvals = self.qvals(qnets, obs, act);
         let qvals = Tensor::vstack(&qvals);
-        let qvals_min = qvals.min2(0, false).0;
+        let qvals_min = qvals.min_dim(0, false).0;
 
         debug_assert_eq!(qvals_min.size().as_slice(), [self.batch_size as i64]);
 

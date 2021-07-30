@@ -528,7 +528,7 @@ where
     M: SubModel<Input = Tensor, Output = Tensor>,
 {
     let tau = mode.sample(batch_size).to(device);
-    let averaged_action_value = iqn.forward(obs, &tau).mean1(&[1], false, Float);
+    let averaged_action_value = iqn.forward(obs, &tau).mean_dim(&[1], false, Float);
     let batch_size = averaged_action_value.size()[0];
     let n_action = iqn.out_dim;
     debug_assert_eq!(

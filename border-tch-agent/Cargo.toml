@@ -22,7 +22,7 @@ thiserror = "1.0"
 anyhow = "1.0.38"
 chrono = "0.4"
 aquamarine = "0.1"
-tch = "0.4.0"
+tch = "0.5.0"
 fastrand = "1.4.0"
 
 [dev-dependencies]

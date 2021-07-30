@@ -117,7 +117,7 @@ where
                 debug_assert_eq!(a.size().as_slice(), &[batch_size, n_percent_points, 1]);
 
                 // takes z(s, a) with a from minibatch
-                let pred = z.gather(-1, &a, false).squeeze1(-1).unsqueeze(1);
+                let pred = z.gather(-1, &a, false).squeeze_dim(-1).unsqueeze(1);
                 debug_assert_eq!(pred.size().as_slice(), &[batch_size, 1, n_percent_points]);
                 (pred, tau)
             };
@@ -141,7 +141,7 @@ where
                 );
 
                 // argmax_a z(s,a), where z are averaged over tau
-                let y = z.copy().mean1(&[1], false, tch::Kind::Float);
+                let y = z.copy().mean_dim(&[1], false, tch::Kind::Float);
                 let a = y.argmax(-1, false).unsqueeze(-1).unsqueeze(-1).repeat(&[
                     1,
                     n_percent_points,
@@ -150,7 +150,7 @@ where
                 debug_assert_eq!(a.size(), &[batch_size, n_percent_points, 1]);
 
                 // takes z(s, a)
-                let z = z.gather(2, &a, false).squeeze1(-1);
+                let z = z.gather(2, &a, false).squeeze_dim(-1);
                 debug_assert_eq!(z.size().as_slice(), &[batch_size, n_percent_points]);
 
                 // target value

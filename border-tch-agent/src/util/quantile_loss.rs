@@ -9,5 +9,5 @@ pub fn quantile_huber_loss(x: &Tensor, tau: &Tensor) -> Tensor {
 
     let lt_0 = &x.lt(0.0).detach();
     let loss = x.smooth_l1_loss(&Tensor::zeros_like(x), tch::Reduction::None, 1.0);
-    (tau - Tensor::where4(lt_0, 1., 0.)).abs() * loss
+    (tau - Tensor::where_scalar(lt_0, 1., 0.)).abs() * loss
 }
