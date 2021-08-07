@@ -1,4 +1,6 @@
 //! Replay buffer.
+use super::sum_tree::SumTree;
+use crate::replay_buffer::ExperienceSampling;
 use border_core::Env;
 use log::{info, trace};
 use std::marker::PhantomData;
@@ -54,6 +56,8 @@ where
     pub not_dones: Tensor,
     /// Cumulative rewards in an episode (deprecated).
     pub returns: Option<Tensor>,
+    /// Indices of samples in the replay buffer.
+    pub indices: Option<Tensor>,
     phantom: PhantomData<E>,
 }
 
@@ -74,6 +78,7 @@ where
     len: usize,
     i: usize,
     nonzero_reward_as_done: bool,
+    sum_tree: Option<SumTree>,
     phandom: PhantomData<E>,
 }
 
@@ -85,9 +90,13 @@ where
     A: TchBuffer<Item = E::Act>,
 {
     /// Constructs a replay buffer.
-    pub fn new(capacity: usize) -> Self {
+    pub fn new(capacity: usize, sampling: &ExperienceSampling) -> Self {
         info!("Construct replay buffer with capacity = {}", capacity);
         let capacity = capacity;
+        let sum_tree = match sampling {
+            ExperienceSampling::Uniform => None,
+            ExperienceSampling::TDerror { alpha } => Some(SumTree::new(capacity)),
+        };
 
         Self {
             obs: O::new(capacity),
@@ -100,6 +109,7 @@ where
             len: 0,
             i: 0,
             nonzero_reward_as_done: false,
+            sum_tree: None,
             phandom: PhantomData,
         }
     }
@@ -159,10 +169,22 @@ where
         }
     }
 
+    /// Take samples for creating minibatch.
+    fn sampling(&self, batch_size: usize) -> Tensor {
+        match &self.sum_tree {
+            None => {
+                let batch_size = batch_size.min(self.len - 1);
+                Tensor::randint((self.len - 2) as _, &[batch_size as _], INT64_CPU)        
+            }
+            Some(sum_tree) => {
+                panic!();
+            }
+        }
+    }
+
     /// Constructs random samples.
     pub fn random_batch(&self, batch_size: usize) -> Option<TchBatch<E, O, A>> {
-        let batch_size = batch_size.min(self.len - 1);
-        let batch_indexes = Tensor::randint((self.len - 2) as _, &[batch_size as _], INT64_CPU);
+        let batch_indexes = self.sampling(batch_size);
         let obs = self.obs.batch(&batch_indexes);
         let next_obs = self.next_obs.batch(&batch_indexes);
         let actions = self.actions.batch(&batch_indexes);
@@ -181,8 +203,16 @@ where
             next_obs,
             not_dones,
             returns,
+            indices: Some(batch_indexes),
             phantom,
         })
+    }
+
+    /// Updates priority of samples in the buffer.
+    pub fn update_priority(&mut self, indices: &Tensor, p: &Tensor) {
+        if self.sum_tree.is_none() {
+            panic!();
+        }
     }
 
     /// Updates returns in the replay buffer.

@@ -2,8 +2,10 @@
 use std::marker::PhantomData;
 use tch::{Device, Tensor};
 mod base;
+mod sum_tree;
 pub use base::{ReplayBuffer, TchBatch, TchBuffer};
 use border_core::Shape;
+use serde::{Deserialize, Serialize};
 
 /// Adds capability of constructing [Tensor] with a static method.
 pub trait ZeroTensor {
@@ -93,4 +95,16 @@ where
     fn batch(&self, batch_indexes: &Tensor) -> Tensor {
         self.buf.index_select(0, &batch_indexes)
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub enum ExperienceSampling {
+    /// Uniform sampling.
+    Uniform,
+
+    /// Sampling with probability proportional to TD-error.
+    #[allow(non_camel_case_types)]
+    TDerror {
+        alpha: f64,
+    },
 }

@@ -6,7 +6,7 @@ use crate::{
         DQN,
     },
     model::SubModel,
-    replay_buffer::{ReplayBuffer, TchBuffer},
+    replay_buffer::{ExperienceSampling, ReplayBuffer, TchBuffer},
     util::{OptInterval, OptIntervalCounter},
 };
 use anyhow::Result;
@@ -37,6 +37,7 @@ pub struct DQNBuilder {
     train: bool,
     explorer: DQNExplorer,
     replay_burffer_capacity: usize,
+    expr_sampling: ExperienceSampling,
 }
 
 impl Default for DQNBuilder {
@@ -53,6 +54,7 @@ impl Default for DQNBuilder {
             train: false,
             replay_burffer_capacity: 100,
             explorer: DQNExplorer::Softmax(Softmax::new()),
+            expr_sampling: ExperienceSampling::Uniform,
         }
     }
 }
@@ -149,7 +151,7 @@ impl DQNBuilder {
         A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
     {
         let qnet_tgt = qnet.clone();
-        let replay_buffer = ReplayBuffer::new(self.replay_burffer_capacity);
+        let replay_buffer = ReplayBuffer::new(self.replay_burffer_capacity, &self.expr_sampling);
 
         DQN {
             qnet,
@@ -166,6 +168,7 @@ impl DQNBuilder {
             tau: self.tau,
             train: self.train,
             explorer: self.explorer,
+            expr_sampling: self.expr_sampling,
             device,
             phantom: PhantomData,
         }
@@ -176,6 +179,7 @@ impl DQNBuilder {
         self,
         qnet: DQNModel<Q>,
         replay_buffer: ReplayBuffer<E, O, A>,
+        expr_sampling: ExperienceSampling,
         device: tch::Device,
     ) -> DQN<E, Q, O, A>
     where
@@ -203,6 +207,7 @@ impl DQNBuilder {
             tau: self.tau,
             train: self.train,
             explorer: self.explorer,
+            expr_sampling,
             device,
             phantom: PhantomData,
         }
@@ -212,8 +217,11 @@ impl DQNBuilder {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::{
+        dqn::{DQNBuilder, EpsilonGreedy},
+        util::OptInterval,
+    };
     use tempdir::TempDir;
-    use crate::{dqn::{EpsilonGreedy, DQNBuilder}, util::OptInterval};
 
     #[test]
     fn test_serde_dqn_builder() -> Result<()> {

@@ -14,7 +14,7 @@ use tch::{Device, Tensor};
 use crate::{
     iqn::{EpsilonGreedy, IQNExplorer, IQNModel, IQN},
     model::SubModel,
-    replay_buffer::{ReplayBuffer, TchBuffer},
+    replay_buffer::{ExperienceSampling, ReplayBuffer, TchBuffer},
     util::{OptInterval, OptIntervalCounter},
 };
 use border_core::Env;
@@ -38,6 +38,7 @@ pub struct IQNBuilder {
     sample_percents_pred: IQNSample,
     sample_percents_tgt: IQNSample,
     sample_percents_act: IQNSample,
+    expr_sampling: ExperienceSampling,
 }
 
 impl Default for IQNBuilder {
@@ -56,6 +57,7 @@ impl Default for IQNBuilder {
             train: false,
             explorer: IQNExplorer::EpsilonGreedy(EpsilonGreedy::default()),
             replay_buffer_capacity: 1,
+            expr_sampling: ExperienceSampling::Uniform,
         }
     }
 }
@@ -165,7 +167,7 @@ impl IQNBuilder {
     {
         let iqn = iqn_model;
         let iqn_tgt = iqn.clone();
-        let replay_buffer = ReplayBuffer::new(self.replay_buffer_capacity);
+        let replay_buffer = ReplayBuffer::new(self.replay_buffer_capacity, &self.expr_sampling);
 
         IQN {
             iqn,
@@ -185,6 +187,7 @@ impl IQNBuilder {
             sample_percents_act: self.sample_percents_act,
             train: self.train,
             explorer: self.explorer,
+            expr_sampling: self.expr_sampling,
             device,
             phantom: PhantomData,
         }
@@ -195,6 +198,7 @@ impl IQNBuilder {
         self,
         iqn_model: IQNModel<F, M>,
         replay_buffer: ReplayBuffer<E, O, A>,
+        expr_sampling: ExperienceSampling,
         device: Device,
     ) -> IQN<E, F, M, O, A>
     where
@@ -227,6 +231,7 @@ impl IQNBuilder {
             sample_percents_act: self.sample_percents_act,
             train: self.train,
             explorer: self.explorer,
+            expr_sampling,
             device,
             phantom: PhantomData,
         }

@@ -1,10 +1,5 @@
 //! DQN agent implemented with tch-rs.
-use crate::{
-    dqn::{explorer::DQNExplorer, model::DQNModel},
-    model::{ModelBase, SubModel},
-    replay_buffer::{ReplayBuffer, TchBatch, TchBuffer},
-    util::{track, OptIntervalCounter},
-};
+use crate::{dqn::{explorer::DQNExplorer, model::DQNModel}, model::{ModelBase, SubModel}, replay_buffer::{ExperienceSampling, ReplayBuffer, TchBatch, TchBuffer}, util::{track, OptIntervalCounter}};
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
@@ -41,6 +36,7 @@ where
     pub(crate) discount_factor: f64,
     pub(crate) tau: f64,
     pub(crate) explorer: DQNExplorer,
+    pub(super) expr_sampling: ExperienceSampling,
     pub(crate) device: Device,
 }
 

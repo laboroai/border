@@ -5,7 +5,7 @@ use crate::{
         IQNExplorer, IQNModel,
     },
     model::{ModelBase, SubModel},
-    replay_buffer::{ReplayBuffer, TchBatch, TchBuffer},
+    replay_buffer::{ExperienceSampling, ReplayBuffer, TchBatch, TchBuffer},
     util::{quantile_huber_loss, track, OptIntervalCounter},
 };
 use anyhow::Result;
@@ -50,6 +50,7 @@ where
     pub(super) sample_percents_tgt: IQNSample,
     pub(super) sample_percents_act: IQNSample,
     pub(super) explorer: IQNExplorer,
+    pub(super) expr_sampling: ExperienceSampling,
     pub(super) device: Device,
 }
 

@@ -1,7 +1,7 @@
 //! Builder of SAC agent.
 use crate::{
     model::{SubModel, SubModel2},
-    replay_buffer::{ReplayBuffer, TchBuffer},
+    replay_buffer::{ExperienceSampling, ReplayBuffer, TchBuffer},
     sac::{
         actor::Actor,
         critic::Critic,
@@ -45,6 +45,7 @@ pub struct SACBuilder {
     critic_loss: CriticLoss,
     reward_scale: f32,
     replay_burffer_capacity: usize,
+    expr_sampling: ExperienceSampling,
 }
 
 impl Default for SACBuilder {
@@ -64,6 +65,7 @@ impl Default for SACBuilder {
             critic_loss: CriticLoss::MSE,
             reward_scale: 1.0,
             replay_burffer_capacity: 100,
+            expr_sampling: ExperienceSampling::Uniform,
         }
     }
 }
@@ -167,7 +169,7 @@ impl SACBuilder {
         A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
     {
         let critics_tgt = critics.to_vec();
-        let replay_buffer = ReplayBuffer::new(self.replay_burffer_capacity);
+        let replay_buffer = ReplayBuffer::new(self.replay_burffer_capacity, &self.expr_sampling);
 
         SAC {
             qnets: critics,
@@ -188,6 +190,7 @@ impl SACBuilder {
             reward_scale: self.reward_scale,
             critic_loss: self.critic_loss,
             prev_obs: RefCell::new(None),
+            expr_sampling: self.expr_sampling,
             device,
             phantom: PhantomData,
         }
