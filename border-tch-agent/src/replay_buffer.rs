@@ -106,6 +106,6 @@ pub enum ExperienceSampling {
     /// Sampling with probability proportional to TD-error.
     #[allow(non_camel_case_types)]
     TDerror {
-        alpha: f64,
+        alpha: f32,
     },
 }

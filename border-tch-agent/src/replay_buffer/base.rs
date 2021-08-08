@@ -93,9 +93,9 @@ where
     pub fn new(capacity: usize, sampling: &ExperienceSampling) -> Self {
         info!("Construct replay buffer with capacity = {}", capacity);
         let capacity = capacity;
-        let sum_tree = match sampling {
+        let _sum_tree = match sampling {
             ExperienceSampling::Uniform => None,
-            ExperienceSampling::TDerror { alpha } => Some(SumTree::new(capacity)),
+            ExperienceSampling::TDerror { alpha } => Some(SumTree::new(capacity, *alpha)),
         };
 
         Self {
@@ -176,7 +176,7 @@ where
                 let batch_size = batch_size.min(self.len - 1);
                 Tensor::randint((self.len - 2) as _, &[batch_size as _], INT64_CPU)        
             }
-            Some(sum_tree) => {
+            Some(_sum_tree) => {
                 panic!();
             }
         }
@@ -209,7 +209,7 @@ where
     }
 
     /// Updates priority of samples in the buffer.
-    pub fn update_priority(&mut self, indices: &Tensor, p: &Tensor) {
+    pub fn update_priority(&mut self, _indices: &Tensor, _p: &Tensor) {
         if self.sum_tree.is_none() {
             panic!();
         }
