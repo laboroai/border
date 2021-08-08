@@ -4,6 +4,7 @@ use tch::{Device, Tensor};
 mod base;
 mod sum_tree;
 pub use base::{ReplayBuffer, TchBatch, TchBuffer};
+pub use sum_tree::SumTree;
 use border_core::Shape;
 use serde::{Deserialize, Serialize};
 
