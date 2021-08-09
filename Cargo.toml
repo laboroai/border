@@ -89,6 +89,9 @@ name = "sac_lunarlander_cont_vec"
 [[example]]
 name = "pyo3"
 
+[[example]]
+name = "make_cfg_dqn_atari"
+
 [dev-dependencies]
 clap = "2.33.3"
 csv = "1.1.5"

@@ -19,14 +19,15 @@ impl OutDim for CNNConfig {
     }
 }
 
-// impl CNNConfig {
-//     pub fn new(n_stack: i64, out_dim: i64) -> Self {
-//         Self {
-//             n_stack,
-//             out_dim,
-//         }
-//     }
-// }
+impl CNNConfig {
+    #[allow(dead_code)]
+    pub fn new(n_stack: i64, out_dim: i64) -> Self {
+        Self {
+            n_stack,
+            out_dim,
+        }
+    }
+}
 
 #[allow(clippy::upper_case_acronyms)]
 // Convolutional neural network

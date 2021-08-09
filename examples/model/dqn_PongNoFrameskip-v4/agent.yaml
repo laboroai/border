@@ -17,3 +17,4 @@ explorer:
     eps_final: 0.02
     final_step: 1000000
 replay_burffer_capacity: 50000
+expr_sampling: Uniform
