@@ -127,7 +127,7 @@ fn create_agent() -> Result<impl Agent<Env>> {
         .reward_scale(REWARD_SCALE)
         .critic_loss(CRITIC_LOSS)
         .replay_burffer_capacity(REPLAY_BUFFER_CAPACITY)
-        .build::<_, _, _, ObsBuffer, ActBuffer>(critics, actor, device))
+        .build::<_, _, _, ObsBuffer, ActBuffer>(critics, actor, device, tch::Device::Cpu))
 }
 
 fn create_env() -> Env {

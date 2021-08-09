@@ -64,11 +64,11 @@ where
     ///
     /// Input argument `_n_proc` is not used.
     /// TODO: remove n_procs
-    fn new(capacity: usize) -> Self {
+    fn new(capacity: usize, device: Device) -> Self {
         let capacity = capacity as i64;
         let mut shape: Vec<_> = S::shape().to_vec().iter().map(|e| *e as i64).collect();
         shape.insert(0, capacity);
-        let buf = D::zeros(shape.as_slice());
+        let buf = D::zeros(shape.as_slice()).to(device);
 
         Self {
             buf,
@@ -92,5 +92,9 @@ where
     /// Creates minibatch.
     fn batch(&self, batch_indexes: &Tensor) -> Tensor {
         self.buf.index_select(0, &batch_indexes)
+    }
+
+    fn device(&self) -> Option<tch::Device> {
+        Some(self.buf.device())
     }
 }

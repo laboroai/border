@@ -2,10 +2,7 @@
 use border_core::Env;
 use log::{info, trace};
 use std::marker::PhantomData;
-use tch::{
-    kind::{FLOAT_CPU, INT64_CPU},
-    Tensor,
-};
+use tch::Tensor;
 
 // /// Return binary tensor, one where reward is not zero.
 // ///
@@ -26,7 +23,7 @@ pub trait TchBuffer {
     type SubBatch;
 
     /// Constructs a [TchBuffer].
-    fn new(capacity: usize) -> Self;
+    fn new(capacity: usize, device: tch::Device) -> Self;
 
     /// Push a sample of an item (observations or actions).
     /// Note that each item may consists of values from multiple environments.
@@ -34,6 +31,9 @@ pub trait TchBuffer {
 
     /// Constructs a batch.
     fn batch(&self, batch_indexes: &Tensor) -> Self::SubBatch;
+
+    /// Device, where buffer is stored.
+    fn device(&self) -> Option<tch::Device>;
 }
 
 /// Batch object, generic wrt observation and action.
@@ -85,16 +85,18 @@ where
     A: TchBuffer<Item = E::Act>,
 {
     /// Constructs a replay buffer.
-    pub fn new(capacity: usize) -> Self {
+    pub fn new(capacity: usize, device: tch::Device) -> Self {
         info!("Construct replay buffer with capacity = {}", capacity);
         let capacity = capacity;
 
+        let float_type = (tch::Kind::Float, device);
+
         Self {
-            obs: O::new(capacity),
-            next_obs: O::new(capacity),
-            actions: A::new(capacity),
-            rewards: Tensor::zeros(&[capacity as _], FLOAT_CPU),
-            not_dones: Tensor::zeros(&[capacity as _], FLOAT_CPU),
+            obs: O::new(capacity, device),
+            next_obs: O::new(capacity, device),
+            actions: A::new(capacity, device),
+            rewards: Tensor::zeros(&[capacity as _], float_type),
+            not_dones: Tensor::zeros(&[capacity as _], float_type),
             returns: None,
             capacity,
             len: 0,
@@ -162,7 +164,12 @@ where
     /// Constructs random samples.
     pub fn random_batch(&self, batch_size: usize) -> Option<TchBatch<E, O, A>> {
         let batch_size = batch_size.min(self.len - 1);
-        let batch_indexes = Tensor::randint((self.len - 2) as _, &[batch_size as _], INT64_CPU);
+        let indexes_device = self.obs.device().unwrap_or(tch::Device::Cpu);
+        let _no_grad = tch::no_grad_guard();
+        let batch_indexes = Tensor::randint(
+            (self.len - 2) as _, 
+            &[batch_size as _],
+            (tch::Kind::Int64, indexes_device));
         let obs = self.obs.batch(&batch_indexes);
         let next_obs = self.next_obs.batch(&batch_indexes);
         let actions = self.actions.batch(&batch_indexes);

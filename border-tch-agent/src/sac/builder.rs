@@ -156,6 +156,7 @@ impl SACBuilder {
         critics: Vec<Critic<Q>>,
         policy: Actor<P>,
         device: tch::Device,
+        replay_buffer_device: tch::Device,
     ) -> SAC<E, Q, P, O, A>
     where
         E: Env,
@@ -167,7 +168,7 @@ impl SACBuilder {
         A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
     {
         let critics_tgt = critics.to_vec();
-        let replay_buffer = ReplayBuffer::new(self.replay_burffer_capacity);
+        let replay_buffer = ReplayBuffer::new(self.replay_burffer_capacity, replay_buffer_device);
 
         SAC {
             qnets: critics,

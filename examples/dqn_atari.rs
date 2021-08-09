@@ -75,7 +75,7 @@ fn create_agent(
     let agent_cfg = DQNBuilder::load(Path::new(&agent_cfg))?;
     let agent = agent_cfg
         .clone()
-        .build::<_, _, ObsBuffer, ActBuffer>(qnet, device);
+        .build::<_, _, ObsBuffer, ActBuffer>(qnet, device, tch::Device::Cpu);
 
     Ok((agent, agent_cfg))
 }

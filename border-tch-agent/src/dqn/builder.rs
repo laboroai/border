@@ -139,7 +139,7 @@ impl DQNBuilder {
     /// Constructs DQN agent.
     ///
     /// This is used with non-vectorized environments.
-    pub fn build<E, Q, O, A>(self, qnet: DQNModel<Q>, device: tch::Device) -> DQN<E, Q, O, A>
+    pub fn build<E, Q, O, A>(self, qnet: DQNModel<Q>, device: tch::Device, replay_buffer_device: tch::Device) -> DQN<E, Q, O, A>
     where
         E: Env,
         Q: SubModel<Output = Tensor>,
@@ -149,7 +149,7 @@ impl DQNBuilder {
         A: TchBuffer<Item = E::Act, SubBatch = Tensor>, // Todo: consider replacing Tensor with M::Output
     {
         let qnet_tgt = qnet.clone();
-        let replay_buffer = ReplayBuffer::new(self.replay_burffer_capacity);
+        let replay_buffer = ReplayBuffer::new(self.replay_burffer_capacity, replay_buffer_device);
 
         DQN {
             qnet,
