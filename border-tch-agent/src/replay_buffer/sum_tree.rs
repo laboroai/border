@@ -2,8 +2,10 @@
 //!
 //! Code is adapted from https://github.com/jaromiru/AI-blog/blob/master/SumTree.py and
 /// https://github.com/openai/baselines/blob/master/baselines/deepq/replay_buffer.py
-
-use segment_tree::{SegmentPoint, ops::MinIgnoreNaN};
+use segment_tree::{
+    ops::{MaxIgnoreNaN, MinIgnoreNaN},
+    SegmentPoint,
+};
 
 #[derive(Debug)]
 pub struct SumTree {
@@ -12,7 +14,8 @@ pub struct SumTree {
     capacity: usize,
     n_samples: usize,
     tree: Vec<f32>,
-    min_tree: SegmentPoint<f32, MinIgnoreNaN>
+    min_tree: SegmentPoint<f32, MinIgnoreNaN>,
+    max_tree: SegmentPoint<f32, MaxIgnoreNaN>,
 }
 
 impl SumTree {
@@ -24,6 +27,7 @@ impl SumTree {
             n_samples: 0,
             tree: vec![0f32; 2 * capacity - 1],
             min_tree: SegmentPoint::build(vec![f32::MAX; capacity], MinIgnoreNaN),
+            max_tree: SegmentPoint::build(vec![0f32; capacity], MaxIgnoreNaN),
         }
     }
 
@@ -54,13 +58,20 @@ impl SumTree {
         return self.tree[0];
     }
 
+    pub fn max(&self) -> f32 {
+        self.max_tree
+            .query(0, self.max_tree.len())
+            .powf(-self.alpha)
+    }
+
     /// Add priority value at `ix`-th element in the sum tree.
     ///
     /// The alpha-th power of the priority value is taken when addition.
     pub fn add(&mut self, ix: usize, p: f32) {
+        debug_assert!(ix < self.capacity);
+
         let p = p.powf(self.alpha) + self.eps;
-        self.update(ix + self.capacity - 1, p);
-        self.min_tree.modify(ix, p);
+        self.update(ix, p);
 
         if self.n_samples < self.capacity {
             self.n_samples += 1;
@@ -69,8 +80,13 @@ impl SumTree {
 
     /// Update priority value at `ix`-th element in the sum tree.
     pub fn update(&mut self, ix: usize, p: f32) {
+        debug_assert!(ix < self.capacity);
+
+        let ix = ix + self.capacity - 1;
         let change = p - self.tree[ix];
         self.tree[ix] = p;
+        self.min_tree.modify(ix, p);
+        self.max_tree.modify(ix, p);
         self.propagate(ix, change);
     }
 
@@ -84,7 +100,7 @@ impl SumTree {
     ///
     /// The weight is $w_i=\left(N^{-1}P(i)^{-1}\right)^{\beta}$
     /// and it will be normalized by $max_i w_i$.
-    pub fn sample(&self, batch_size: usize, beta: f32) -> (Vec<usize>, Vec<f32>) {
+    pub fn sample(&self, batch_size: usize, beta: f32) -> (Vec<i64>, Vec<f32>) {
         let s_max = &self.total() * 0.9999999;
         let indices = (0..batch_size)
             .map(|_| self.get(s_max * fastrand::f32()))
@@ -93,12 +109,15 @@ impl SumTree {
         let p_sum = self.tree[0];
         let n_div = p_sum / self.n_samples as f32;
         let w_max = (n_div / self.min_tree.query(0, self.n_samples)).powf(beta);
-        let ws = indices.iter()
+        let ws = indices
+            .iter()
             .map(|ix| self.tree[ix + self.capacity - 1])
             .map(|p| (n_div / p).powf(beta) / w_max)
             .collect::<Vec<_>>();
 
-        (indices, ws)
+        let ixs = indices.iter().map(|&ix| ix as i64).collect();
+
+        (ixs, ws)
     }
 }
 

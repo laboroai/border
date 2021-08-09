@@ -266,7 +266,10 @@ where
             let mut loss_critic = 0f32;
 
             for _ in 0..self.n_updates_per_opt {
-                let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
+                let batch = self
+                    .replay_buffer
+                    .random_batch(self.batch_size, 0f32)
+                    .unwrap();
                 trace!("Sample random batch");
 
                 loss_critic += self.update_critic(batch);

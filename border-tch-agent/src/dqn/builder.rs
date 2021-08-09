@@ -170,6 +170,7 @@ impl DQNBuilder {
             explorer: self.explorer,
             expr_sampling: self.expr_sampling,
             device,
+            n_opts: 0,
             phantom: PhantomData,
         }
     }
@@ -209,6 +210,7 @@ impl DQNBuilder {
             explorer: self.explorer,
             expr_sampling,
             device,
+            n_opts: 0,
             phantom: PhantomData,
         }
     }
@@ -221,7 +223,6 @@ mod test {
         dqn::{DQNBuilder, EpsilonGreedy},
         util::OptInterval,
     };
-    use tempdir::TempDir;
 
     #[test]
     fn test_serde_dqn_builder() -> Result<()> {
@@ -234,7 +235,7 @@ mod test {
             .tau(0.005)
             .explorer(EpsilonGreedy::with_final_step(1000));
 
-        let dir = TempDir::new("dqn_builder")?;
+        let dir = tempdir::TempDir::new("dqn_builder")?;
         let path = dir.path().join("dqn_builder.yaml");
         println!("{:?}", path);
 

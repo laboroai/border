@@ -1,5 +1,10 @@
 //! DQN agent implemented with tch-rs.
-use crate::{dqn::{explorer::DQNExplorer, model::DQNModel}, model::{ModelBase, SubModel}, replay_buffer::{ExperienceSampling, ReplayBuffer, TchBatch, TchBuffer}, util::{track, OptIntervalCounter}};
+use crate::{
+    dqn::{explorer::DQNExplorer, model::DQNModel},
+    model::{ModelBase, SubModel},
+    replay_buffer::{ExperienceSampling, ReplayBuffer, TchBatch, TchBuffer},
+    util::{track, OptIntervalCounter},
+};
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
@@ -38,6 +43,7 @@ where
     pub(crate) explorer: DQNExplorer,
     pub(super) expr_sampling: ExperienceSampling,
     pub(crate) device: Device,
+    pub(crate) n_opts: usize,
 }
 
 impl<E, Q, O, A> DQN<E, Q, O, A>
@@ -69,19 +75,28 @@ where
         let r = batch.rewards.to(self.device);
         let next_obs = batch.next_obs;
         let not_done = batch.not_dones.to(self.device);
+        let ixs = batch.indices;
+        let ws = batch.ws;
 
-        let loss = {
-            let pred = {
-                let a = a;
-                let x = self.qnet.forward(&obs);
-                x.gather(-1, &a, false)
-            };
-            let tgt = no_grad(|| {
-                let x = self.qnet_tgt.forward(&next_obs);
-                let y = x.argmax(-1, false).unsqueeze(-1);
-                let x = x.gather(-1, &y, false);
-                r + not_done * self.discount_factor * x
-            });
+        let pred = {
+            let a = a;
+            let x = self.qnet.forward(&obs);
+            x.gather(-1, &a, false)
+        };
+        let tgt = no_grad(|| {
+            let x = self.qnet_tgt.forward(&next_obs);
+            let y = x.argmax(-1, false).unsqueeze(-1);
+            let x = x.gather(-1, &y, false);
+            r + not_done * self.discount_factor * x
+        });
+        let loss = if let Some(ixs) = ixs {
+            // with PER
+            let ws = ws.unwrap();
+            let tderr = (pred - tgt).abs();
+            self.replay_buffer.update_priority(&ixs, &tderr);
+            (tderr * ws).smooth_l1_loss(&Tensor::from(0f32), tch::Reduction::Mean, 1.0)
+        } else {
+            // w/o PER
             pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0)
         };
         self.qnet.backward_step(&loss);
@@ -92,6 +107,41 @@ where
     fn soft_update(&mut self) {
         trace!("DQN::soft_update()");
         track(&mut self.qnet_tgt, &mut self.qnet, self.tau);
+    }
+
+    fn opt(&mut self) -> Record {
+        let mut loss_critic = 0f32;
+        #[allow(unused_variables)]
+        let beta = match &self.expr_sampling {
+            ExperienceSampling::Uniform => 0f32,
+            ExperienceSampling::TDerror {
+                alpha,
+                iw_scheduler,
+            } => iw_scheduler.beta(self.n_opts),
+        };
+
+        for _ in 0..self.n_updates_per_opt {
+            let batch = self
+                .replay_buffer
+                .random_batch(self.batch_size, beta)
+                .unwrap();
+            trace!("Sample random batch");
+
+            loss_critic += self.update_critic(batch);
+        }
+
+        self.soft_update_counter += 1;
+        if self.soft_update_counter == self.soft_update_interval {
+            self.soft_update_counter = 0;
+            self.soft_update();
+            trace!("Update target network");
+        }
+
+        loss_critic /= self.n_updates_per_opt as f32;
+
+        self.n_opts += 1;
+
+        Record::from_slice(&[("loss_critic", RecordValue::Scalar(loss_critic))])
     }
 }
 
@@ -162,28 +212,7 @@ where
 
         // Do optimization
         if do_optimize {
-            let mut loss_critic = 0f32;
-
-            for _ in 0..self.n_updates_per_opt {
-                let batch = self.replay_buffer.random_batch(self.batch_size).unwrap();
-                trace!("Sample random batch");
-
-                loss_critic += self.update_critic(batch);
-            }
-
-            self.soft_update_counter += 1;
-            if self.soft_update_counter == self.soft_update_interval {
-                self.soft_update_counter = 0;
-                self.soft_update();
-                trace!("Update target network");
-            }
-
-            loss_critic /= self.n_updates_per_opt as f32;
-
-            Some(Record::from_slice(&[(
-                "loss_critic",
-                RecordValue::Scalar(loss_critic),
-            )]))
+            Some(self.opt())
         } else {
             None
         }

@@ -3,22 +3,11 @@ use super::sum_tree::SumTree;
 use crate::replay_buffer::ExperienceSampling;
 use border_core::Env;
 use log::{info, trace};
-use std::marker::PhantomData;
+use std::{convert::TryInto, marker::PhantomData};
 use tch::{
     kind::{FLOAT_CPU, INT64_CPU},
     Tensor,
 };
-
-// /// Return binary tensor, one where reward is not zero.
-// ///
-// /// TODO: Add test.
-// fn zero_reward(reward: &Tensor) -> Tensor {
-//     let zero_reward = Vec::<f32>::from(reward)
-//         .iter()
-//         .map(|x| if *x == 0f32 { 1f32 } else { 0f32 })
-//         .collect::<Vec<_>>();
-//     Tensor::of_slice(&zero_reward)
-// }
 
 /// Generic buffer inside a replay buffer.
 pub trait TchBuffer {
@@ -57,7 +46,11 @@ where
     /// Cumulative rewards in an episode (deprecated).
     pub returns: Option<Tensor>,
     /// Indices of samples in the replay buffer.
+    /// This is used for prioritized experience replay.
     pub indices: Option<Tensor>,
+    /// Weights of samples.
+    /// This is used for prioritized experience replay.
+    pub ws: Option<Tensor>,
     phantom: PhantomData<E>,
 }
 
@@ -93,9 +86,13 @@ where
     pub fn new(capacity: usize, sampling: &ExperienceSampling) -> Self {
         info!("Construct replay buffer with capacity = {}", capacity);
         let capacity = capacity;
-        let _sum_tree = match sampling {
+        #[allow(unused_variables)]
+        let sum_tree = match sampling {
             ExperienceSampling::Uniform => None,
-            ExperienceSampling::TDerror { alpha } => Some(SumTree::new(capacity, *alpha)),
+            ExperienceSampling::TDerror {
+                alpha,
+                iw_scheduler,
+            } => Some(SumTree::new(capacity, *alpha)),
         };
 
         Self {
@@ -109,18 +106,10 @@ where
             len: 0,
             i: 0,
             nonzero_reward_as_done: false,
-            sum_tree: None,
+            sum_tree,
             phandom: PhantomData,
         }
     }
-
-    // /// If set to `True`, non-zero reward is considered as the end of episodes.
-    // #[deprecated]
-    // pub fn nonzero_reward_as_done(mut self, _v: bool) -> Self {
-    //     unimplemented!();
-    //     // self.nonzero_reward_as_done = v;
-    //     // self
-    // }
 
     /// Clears the buffer.
     pub fn clear(&mut self) {
@@ -147,6 +136,12 @@ where
         self.next_obs.push(self.i as _, next_obs);
         self.actions.push(self.i as _, act);
 
+        let max_p = if let Some(sum_tree) = &self.sum_tree {
+            sum_tree.max()
+        } else {
+            f32::NAN
+        };
+
         // Loop over minibatch
         let batch_size = reward.size()[0];
         for j in 0..batch_size {
@@ -162,6 +157,10 @@ where
                 //     .copy_(&(zero_reward * not_done).unsqueeze(-1));
             }
 
+            if let Some(sum_tree) = &mut self.sum_tree {
+                sum_tree.add(self.i, max_p)
+            }
+
             self.i = (self.i + 1) % self.capacity;
             if self.len < self.capacity {
                 self.len += 1;
@@ -170,21 +169,26 @@ where
     }
 
     /// Take samples for creating minibatch.
-    fn sampling(&self, batch_size: usize) -> Tensor {
+    fn sampling(&self, batch_size: usize, beta: f32) -> (Tensor, Option<Tensor>) {
+        let batch_size = batch_size.min(self.len - 1);
         match &self.sum_tree {
-            None => {
-                let batch_size = batch_size.min(self.len - 1);
-                Tensor::randint((self.len - 2) as _, &[batch_size as _], INT64_CPU)        
-            }
-            Some(_sum_tree) => {
-                panic!();
+            None => (
+                Tensor::randint((self.len - 2) as _, &[batch_size as _], INT64_CPU),
+                None,
+            ),
+            Some(sum_tree) => {
+                let (ixs, ws) = sum_tree.sample(batch_size, beta);
+                (
+                    Tensor::from(ixs.as_slice()),
+                    Some(Tensor::from(ws.as_slice())),
+                )
             }
         }
     }
 
     /// Constructs random samples.
-    pub fn random_batch(&self, batch_size: usize) -> Option<TchBatch<E, O, A>> {
-        let batch_indexes = self.sampling(batch_size);
+    pub fn random_batch(&self, batch_size: usize, beta: f32) -> Option<TchBatch<E, O, A>> {
+        let (batch_indexes, ws) = self.sampling(batch_size, beta);
         let obs = self.obs.batch(&batch_indexes);
         let next_obs = self.next_obs.batch(&batch_indexes);
         let actions = self.actions.batch(&batch_indexes);
@@ -204,13 +208,20 @@ where
             not_dones,
             returns,
             indices: Some(batch_indexes),
+            ws,
             phantom,
         })
     }
 
     /// Updates priority of samples in the buffer.
-    pub fn update_priority(&mut self, _indices: &Tensor, _p: &Tensor) {
-        if self.sum_tree.is_none() {
+    pub fn update_priority(&mut self, indices: &Tensor, p: &Tensor) {
+        if let Some(sum_tree) = &mut self.sum_tree {
+            let ixs: Vec<i64> = indices.try_into().unwrap();
+            let ps: Vec<f32> = p.try_into().unwrap();
+            for (&ix, &p) in ixs.iter().zip(ps.iter()) {
+                sum_tree.update(ix as usize, p);
+            }
+        } else {
             panic!();
         }
     }

@@ -1,7 +1,7 @@
 //! Definition of interfaces of neural networks.
+use anyhow::Result;
 use std::path::Path;
 use tch::{nn, nn::VarStore, Tensor};
-use anyhow::Result;
 
 /// Base interface.
 pub trait ModelBase {

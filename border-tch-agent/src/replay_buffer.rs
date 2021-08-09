@@ -2,11 +2,13 @@
 use std::marker::PhantomData;
 use tch::{Device, Tensor};
 mod base;
+mod iw_scheduler;
 mod sum_tree;
 pub use base::{ReplayBuffer, TchBatch, TchBuffer};
-pub use sum_tree::SumTree;
 use border_core::Shape;
+pub use iw_scheduler::IwScheduler;
 use serde::{Deserialize, Serialize};
+pub use sum_tree::SumTree;
 
 /// Adds capability of constructing [Tensor] with a static method.
 pub trait ZeroTensor {
@@ -88,7 +90,6 @@ where
         for i_ in 0..batch_size {
             let i = (i_ + index) % self.capacity;
             self.buf.get(i).copy_(&val.get(i_));
-
         }
     }
 
@@ -107,5 +108,6 @@ pub enum ExperienceSampling {
     #[allow(non_camel_case_types)]
     TDerror {
         alpha: f32,
+        iw_scheduler: IwScheduler,
     },
 }
