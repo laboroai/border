@@ -52,7 +52,7 @@ where
     pub(in crate::sac) reward_scale: f32,
     pub(in crate::sac) critic_loss: CriticLoss,
     pub(in crate::sac) prev_obs: RefCell<Option<E::Obs>>,
-    pub(in crate::sac) expr_sampling: ExperienceSampling,
+    // pub(in crate::sac) expr_sampling: ExperienceSampling,
     pub(in crate::sac) phantom: PhantomData<E>,
     pub(in crate::sac) device: tch::Device,
 }

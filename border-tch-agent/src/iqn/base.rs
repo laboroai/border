@@ -50,7 +50,7 @@ where
     pub(super) sample_percents_tgt: IQNSample,
     pub(super) sample_percents_act: IQNSample,
     pub(super) explorer: IQNExplorer,
-    pub(super) expr_sampling: ExperienceSampling,
+    // pub(super) expr_sampling: ExperienceSampling,
     pub(super) device: Device,
 }
 

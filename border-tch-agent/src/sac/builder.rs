@@ -190,7 +190,7 @@ impl SACBuilder {
             reward_scale: self.reward_scale,
             critic_loss: self.critic_loss,
             prev_obs: RefCell::new(None),
-            expr_sampling: self.expr_sampling,
+            // expr_sampling: self.expr_sampling,
             device,
             phantom: PhantomData,
         }

@@ -187,7 +187,7 @@ impl IQNBuilder {
             sample_percents_act: self.sample_percents_act,
             train: self.train,
             explorer: self.explorer,
-            expr_sampling: self.expr_sampling,
+            // expr_sampling: self.expr_sampling,
             device,
             phantom: PhantomData,
         }
@@ -231,7 +231,7 @@ impl IQNBuilder {
             sample_percents_act: self.sample_percents_act,
             train: self.train,
             explorer: self.explorer,
-            expr_sampling,
+            // expr_sampling,
             device,
             phantom: PhantomData,
         }
