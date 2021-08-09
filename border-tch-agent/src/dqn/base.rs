@@ -89,9 +89,9 @@ where
             let x = x.gather(-1, &y, false);
             r + not_done * self.discount_factor * x
         });
-        let loss = if let Some(ixs) = ixs {
+        let loss = if let Some(ws) = ws {
             // with PER
-            let ws = ws.unwrap();
+            let ixs = ixs.unwrap();
             let tderr = (pred - tgt).abs();
             self.replay_buffer.update_priority(&ixs, &tderr);
             (tderr * ws).smooth_l1_loss(&Tensor::from(0f32), tch::Reduction::Mean, 1.0)
