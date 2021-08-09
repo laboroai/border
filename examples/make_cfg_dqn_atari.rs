@@ -6,6 +6,7 @@ use border_tch_agent::{
     dqn::{EpsilonGreedy, DQNBuilder, DQNModelBuilder},
     opt::OptimizerConfig,
     util::OptInterval,
+    replay_buffer::{ExperienceSampling, IwScheduler}
 };
 use std::{default::Default, path::Path};
 
@@ -65,12 +66,21 @@ fn make_cfg(env_name: impl Into<String>, per: bool) -> Result<()> {
         .tau(TAU)
         .replay_burffer_capacity(REPLAY_BUFFER_CAPACITY)
         .explorer(EpsilonGreedy::with_final_step(EPS_FINAL_STEP));
-    // let builder = if per {
-    //     builder
-    //         .
-    // } else {
-    //     builder
-    // };
+    let builder = if per {
+        builder
+            .expr_sampling(
+                ExperienceSampling::TDerror {
+                    alpha: 0.7f32,
+                    iw_scheduler: IwScheduler {
+                        beta_0: 0.5f32,
+                        beta_final: 1f32,
+                        n_opts_final: 1_000_000,
+                    }
+                }
+            )
+    } else {
+        builder
+    };
     let _ = builder.save(agent_cfg);
 
     let builder = TrainerBuilder::default()
@@ -84,7 +94,7 @@ fn make_cfg(env_name: impl Into<String>, per: bool) -> Result<()> {
 
 fn main() -> Result<()> {
     make_cfg("PongNoFrameskip-v4", false)?;
-    // make_cfg("PongNoFrameskip-v4", true);
+    make_cfg("PongNoFrameskip-v4", true)?;
 
     Ok(())
 }

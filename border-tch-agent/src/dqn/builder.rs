@@ -119,6 +119,12 @@ impl DQNBuilder {
         self.replay_burffer_capacity
     }
 
+    /// Replay buffer sampling.
+    pub fn expr_sampling(mut self, expr_sampling: ExperienceSampling) -> DQNBuilder {
+        self.expr_sampling = expr_sampling;
+        self
+    }
+
     /// Constructs [DQNBuilder] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let path_ = path.as_ref().to_owned();

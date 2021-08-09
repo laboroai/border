@@ -94,7 +94,11 @@ where
             let ixs = ixs.unwrap();
             let tderr = (pred - tgt).abs();
             self.replay_buffer.update_priority(&ixs, &tderr);
-            (tderr * ws).smooth_l1_loss(&Tensor::from(0f32), tch::Reduction::Mean, 1.0)
+            (tderr * ws.to(self.device)).smooth_l1_loss(
+                &Tensor::from(0f32).to(self.device),
+                tch::Reduction::Mean,
+                1.0,
+            )
         } else {
             // w/o PER
             pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0)

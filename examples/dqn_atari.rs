@@ -10,7 +10,7 @@ use border_tch_agent::{
     dqn::{DQNBuilder, DQNModelBuilder},
     replay_buffer::TchTensorBuffer,
 };
-use clap::{App, Arg};
+use clap::{App, Arg, ArgMatches};
 use dqn_atari_model::CNN;
 use ndarray::ArrayD;
 use std::{convert::TryFrom, path::Path, time::Duration};
@@ -62,16 +62,28 @@ type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type ObsBuffer = TchTensorBuffer<u8, ObsShape, Obs>;
 type ActBuffer = TchTensorBuffer<i64, ActShape, Act>;
 
+fn get_model_dir(env_name: impl Into<String>, matches: &ArgMatches) -> String {
+    let mut model_dir = format!("./examples/model/dqn_{}", env_name.into());
+    if matches.is_present("per") {
+        model_dir.push_str("_per");
+    }
+    model_dir
+}
+
 fn create_agent(
     dim_act: i64,
     env_name: impl Into<String>,
+    matches: &ArgMatches
 ) -> Result<(impl Agent<Env>, DQNBuilder)> {
     let device = tch::Device::cuda_if_available();
     let env_name = env_name.into();
-    let model_cfg = format!("./examples/model/dqn_{}/model.yaml", &env_name);
+    let model_dir = get_model_dir(env_name, matches);
+
+    let model_cfg = format!("{}/model.yaml", &model_dir);
     let model_cfg = DQNModelBuilder::<CNN>::load(Path::new(&model_cfg))?;
     let qnet = model_cfg.out_dim(dim_act).build(device)?;
-    let agent_cfg = format!("./examples/model/dqn_{}/agent.yaml", &env_name);
+
+    let agent_cfg = format!("{}/agent.yaml", &model_dir);
     let agent_cfg = DQNBuilder::load(Path::new(&agent_cfg))?;
     let agent = agent_cfg
         .clone()
@@ -117,6 +129,12 @@ fn main() -> Result<()> {
                 .help("Play with the trained model downloaded from google drive"),
         )
         .arg(
+            Arg::with_name("per")
+                .long("per")
+                .takes_value(false)
+                .help("Train/play with prioritized experience replay"),
+        )
+        .arg(
             Arg::with_name("wait")
                 .long("wait")
                 .takes_value(true)
@@ -134,17 +152,17 @@ fn main() -> Result<()> {
     let name = matches.value_of("name").unwrap();
     let mut env_eval = create_env(name, AtariWrapper::Eval);
     let dim_act = env_eval.get_num_actions_atari();
-    let agent = create_agent(dim_act as _, name)?;
+    let agent = create_agent(dim_act as _, name.clone(), &matches)?;
     let agent_cfg = agent.1;
     let mut agent = agent.0;
+    let model_dir = get_model_dir(name, &matches);
 
     if !(matches.is_present("play") || matches.is_present("play-gdrive")) {
         let env_train = create_env(name, AtariWrapper::Train);
-        let saving_model_dir = format!("./examples/model/dqn_{}", name);
-        let trainer_cfg = Path::new(&saving_model_dir).join("trainer.yaml");
+        let trainer_cfg = Path::new(&model_dir).join("trainer.yaml");
         let trainer_cfg = TrainerBuilder::load(&trainer_cfg)?;
         let mut trainer = trainer_cfg.clone().build(env_train, env_eval, agent);
-        let mut recorder = TensorboardRecorder::new(format!("./examples/model/dqn_{}", name));
+        let mut recorder = TensorboardRecorder::new(&model_dir);
 
         if matches.is_present("show-config") {
             println!("Device: {:?}", tch::Device::cuda_if_available());
@@ -177,75 +195,4 @@ fn main() -> Result<()> {
     }
 
     Ok(())
-}
-
-#[cfg(test)]
-mod test {
-    use super::{
-        dqn_atari_model::{CNNConfig, CNN},
-        N_STACK,
-    };
-    use anyhow::Result;
-    use border_core::TrainerBuilder;
-    use border_tch_agent::{
-        dqn::{explorer::EpsilonGreedy, DQNBuilder, DQNModelBuilder},
-        opt::OptimizerConfig,
-        util::OptInterval,
-    };
-    use std::{default::Default, path::Path};
-
-    // DQN agent parameters
-    const DISCOUNT_FACTOR: f64 = 0.99;
-    const BATCH_SIZE: usize = 32;
-    const N_TRANSITIONS_WARMUP: usize = 2500;
-    const N_UPDATES_PER_OPT: usize = 1;
-    const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
-    const SOFT_UPDATE_INTERVAL: usize = 10_000;
-    const TAU: f64 = 1.0;
-    const EPS_FINAL_STEP: usize = 1_000_000;
-    const REPLAY_BUFFER_CAPACITY: usize = 50_000;
-
-    // DQN model parameters
-    const LR_QNET: f64 = 1e-4;
-
-    // Training parameters
-    const MAX_OPTS: usize = 3_000_000;
-    const EVAL_INTERVAL: usize = 10_000;
-    const N_EPISODES_PER_EVAL: usize = 1;
-
-    #[test]
-    fn save_configs() -> Result<()> {
-        let env_name = "PongNoFrameskip-v4";
-        let saving_model_dir = format!("./examples/model/dqn_{}", env_name);
-        let model_cfg = Path::new(&saving_model_dir).join("model.yaml");
-        let agent_cfg = Path::new(&saving_model_dir).join("agent.yaml");
-        let trainer_cfg = Path::new(&saving_model_dir).join("trainer.yaml");
-        println!("{:?}", agent_cfg);
-
-        let out_dim = 0; // set in training/evaluation code
-        let builder = DQNModelBuilder::<CNN>::default()
-            .opt_config(OptimizerConfig::Adam { lr: LR_QNET })
-            .q_config(CNNConfig::new(N_STACK, out_dim));
-        let _ = builder.save(model_cfg);
-
-        let builder = DQNBuilder::default()
-            .opt_interval(OPT_INTERVAL)
-            .n_updates_per_opt(N_UPDATES_PER_OPT)
-            .min_transitions_warmup(N_TRANSITIONS_WARMUP)
-            .batch_size(BATCH_SIZE)
-            .discount_factor(DISCOUNT_FACTOR)
-            .soft_update_interval(SOFT_UPDATE_INTERVAL)
-            .tau(TAU)
-            .replay_burffer_capacity(REPLAY_BUFFER_CAPACITY)
-            .explorer(EpsilonGreedy::with_final_step(EPS_FINAL_STEP));
-        let _ = builder.save(agent_cfg);
-
-        let builder = TrainerBuilder::default()
-            .max_opts(MAX_OPTS)
-            .eval_interval(EVAL_INTERVAL)
-            .n_episodes_per_eval(N_EPISODES_PER_EVAL)
-            .model_dir(saving_model_dir);
-        let _ = builder.save(trainer_cfg);
-        Ok(())
-    }
 }

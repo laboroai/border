@@ -82,11 +82,11 @@ impl SumTree {
     pub fn update(&mut self, ix: usize, p: f32) {
         debug_assert!(ix < self.capacity);
 
+        self.min_tree.modify(ix, p);
+        self.max_tree.modify(ix, p);
         let ix = ix + self.capacity - 1;
         let change = p - self.tree[ix];
         self.tree[ix] = p;
-        self.min_tree.modify(ix, p);
-        self.max_tree.modify(ix, p);
         self.propagate(ix, change);
     }
 
