@@ -63,7 +63,7 @@ where
     P: SubModel<Input = O::SubBatch, Output = (ActMean, ActStd)>,
     E::Obs: Into<O::SubBatch>,
     E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = Tensor>,
+    O: TchBuffer<Item = E::Obs>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
     // Adapted from dqn.rs
@@ -128,9 +128,9 @@ where
         trace!("SAC::update_critic()");
 
         let losses = {
-            let o = &batch.obs.to(self.device);
-            let a = &batch.actions.to(self.device);
-            let next_o = &batch.next_obs.to(self.device);
+            let o = &batch.obs;
+            let a = &batch.actions;
+            let next_o = &batch.next_obs;
             let r = &batch.rewards.to(self.device).squeeze();
             let not_done = &batch.not_dones.to(self.device).squeeze();
 
@@ -171,7 +171,7 @@ where
         trace!("SAC::update_actor()");
 
         let loss = {
-            let o = &batch.obs.to(self.device);
+            let o = &batch.obs;
             let (a, log_p) = self.action_logp(o);
 
             // Update the entropy coefficient

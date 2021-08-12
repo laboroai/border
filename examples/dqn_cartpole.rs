@@ -187,7 +187,7 @@ fn create_agent(epsilon_greedy: bool) -> Result<impl Agent<Env>> {
     } else {
         builder
     }
-    .build::<_, _, ObsBuffer, ActBuffer>(qnet, device, tch::Device::Cpu))
+    .build::<_, _, ObsBuffer, ActBuffer>(qnet, device))
 }
 
 fn create_env() -> Env {

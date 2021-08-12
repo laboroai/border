@@ -238,7 +238,7 @@ fn create_agent(
     let agent_cfg = IQNBuilder::load(Path::new(&agent_cfg))?;
     let agent = agent_cfg
         .clone()
-        .build::<_, _, _, ObsBuffer, ActBuffer>(iqn, device, tch::Device::Cpu);
+        .build::<_, _, _, ObsBuffer, ActBuffer>(iqn, device);
 
     Ok((agent, agent_cfg))
 }

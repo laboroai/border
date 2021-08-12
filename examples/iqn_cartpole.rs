@@ -241,7 +241,7 @@ fn create_agent() -> impl Agent<Env> {
         .soft_update_interval(SOFT_UPDATE_INTERVAL)
         .explorer(EpsilonGreedy::with_params(EPS_START, EPS_FINAL, FINAL_STEP))
         .replay_buffer_capacity(REPLAY_BUFFER_CAPACITY)
-        .build::<_, _, _, ObsBuffer, ActBuffer>(iqn_model, device, tch::Device::Cpu)
+        .build::<_, _, _, ObsBuffer, ActBuffer>(iqn_model, device)
 }
 
 fn create_env() -> Env {

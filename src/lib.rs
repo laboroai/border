@@ -225,7 +225,7 @@
 //!         .tau(TAU)
 //!         .replay_burffer_capacity(REPLAY_BUFFER_CAPACITY)
 //!         .explorer(DQNExplorer::EpsilonGreedy(EpsilonGreedy::new()))
-//!         .build::<_, _, ObsBuffer, ActBuffer>(qnet, device, tch::Device::Cpu))
+//!         .build::<_, _, ObsBuffer, ActBuffer>(qnet, device))
 //! }
 //!
 //! fn create_env() -> Env {
@@ -318,7 +318,7 @@
 //! #         .tau(TAU)
 //! #         .replay_burffer_capacity(REPLAY_BUFFER_CAPACITY)
 //! #         .explorer(DQNExplorer::EpsilonGreedy(EpsilonGreedy::new()))
-//! #         .build::<_, _, ObsBuffer, ActBuffer>(qnet, device, tch::Device::Cpu))
+//! #         .build::<_, _, ObsBuffer, ActBuffer>(qnet, device))
 //! # }
 //! #
 //! # fn create_env() -> Env {

@@ -153,7 +153,6 @@ impl IQNBuilder {
         self,
         iqn_model: IQNModel<F, M>,
         device: Device,
-        replay_buffer_device: Device,
     ) -> IQN<E, F, M, O, A>
     where
         E: Env,
@@ -166,7 +165,7 @@ impl IQNBuilder {
     {
         let iqn = iqn_model;
         let iqn_tgt = iqn.clone();
-        let replay_buffer = ReplayBuffer::new(self.replay_buffer_capacity, replay_buffer_device);
+        let replay_buffer = ReplayBuffer::new(self.replay_buffer_capacity, device);
 
         IQN {
             iqn,
