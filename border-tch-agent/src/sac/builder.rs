@@ -1,7 +1,7 @@
 //! Builder of SAC agent.
 use crate::{
     model::{SubModel, SubModel2},
-    replay_buffer::{ReplayBuffer, TchBuffer},
+    replay_buffer::{ReplayBuffer, TchBuffer, TchBufferOnDevice},
     sac::{
         actor::Actor,
         critic::Critic,
@@ -167,7 +167,52 @@ impl SACBuilder {
         A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
     {
         let critics_tgt = critics.to_vec();
-        let replay_buffer = ReplayBuffer::new(self.replay_burffer_capacity);
+        let replay_buffer = ReplayBuffer::new(self.replay_burffer_capacity, device);
+
+        SAC {
+            qnets: critics,
+            qnets_tgt: critics_tgt,
+            pi: policy,
+            replay_buffer,
+            gamma: self.gamma,
+            tau: self.tau,
+            ent_coef: EntCoef::new(self.ent_coef_mode, device),
+            epsilon: self.epsilon,
+            min_lstd: self.min_lstd,
+            max_lstd: self.max_lstd,
+            opt_interval_counter: self.opt_interval_counter,
+            n_updates_per_opt: self.n_updates_per_opt,
+            min_transitions_warmup: self.min_transitions_warmup,
+            batch_size: self.batch_size,
+            train: self.train,
+            reward_scale: self.reward_scale,
+            critic_loss: self.critic_loss,
+            prev_obs: RefCell::new(None),
+            device,
+            phantom: PhantomData,
+        }
+    }
+
+    /// Constructs SAC.
+    pub fn build2<E, Q, P, O, A>(
+        self,
+        critics: Vec<Critic<Q>>,
+        policy: Actor<P>,
+        device: tch::Device,
+        replay_buffer_device: tch::Device,
+    ) -> SAC<E, Q, P, O, A>
+    where
+        E: Env,
+        Q: SubModel2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue>,
+        P: SubModel<Input = O::SubBatch, Output = (ActMean, ActStd)>,
+        E::Obs: Into<O::SubBatch>,
+        E::Act: From<Tensor>,
+        O: TchBufferOnDevice<Item = E::Obs>,
+        A: TchBufferOnDevice<Item = E::Act, SubBatch = Tensor>,
+    {
+        let critics_tgt = critics.to_vec();
+        let replay_buffer =
+            ReplayBuffer::new_on_device(self.replay_burffer_capacity, replay_buffer_device, device);
 
         SAC {
             qnets: critics,

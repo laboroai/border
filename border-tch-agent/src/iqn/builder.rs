@@ -165,7 +165,7 @@ impl IQNBuilder {
     {
         let iqn = iqn_model;
         let iqn_tgt = iqn.clone();
-        let replay_buffer = ReplayBuffer::new(self.replay_buffer_capacity);
+        let replay_buffer = ReplayBuffer::new(self.replay_buffer_capacity, device);
 
         IQN {
             iqn,

@@ -129,7 +129,7 @@ where
 
         let losses = {
             let o = &batch.obs;
-            let a = &batch.actions.to(self.device);
+            let a = &batch.actions;
             let next_o = &batch.next_obs;
             let r = &batch.rewards.to(self.device).squeeze();
             let not_done = &batch.not_dones.to(self.device).squeeze();
@@ -224,7 +224,7 @@ where
     P: SubModel<Input = O::SubBatch, Output = (ActMean, ActStd)>,
     E::Obs: Into<O::SubBatch>,
     E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs>,
+    O: TchBuffer<Item = E::Obs, SubBatch = Tensor>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
     fn train(&mut self) {

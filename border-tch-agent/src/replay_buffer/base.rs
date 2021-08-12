@@ -2,10 +2,7 @@
 use border_core::Env;
 use log::{info, trace};
 use std::marker::PhantomData;
-use tch::{
-    kind::{FLOAT_CPU, INT64_CPU},
-    Tensor,
-};
+use tch::Tensor;
 
 // /// Return binary tensor, one where reward is not zero.
 // ///
@@ -26,7 +23,7 @@ pub trait TchBuffer {
     type SubBatch;
 
     /// Constructs a [TchBuffer].
-    fn new(capacity: usize) -> Self;
+    fn new(capacity: usize, model_device: tch::Device) -> Self;
 
     /// Push a sample of an item (observations or actions).
     /// Note that each item may consists of values from multiple environments.
@@ -34,6 +31,12 @@ pub trait TchBuffer {
 
     /// Constructs a batch.
     fn batch(&self, batch_indexes: &Tensor) -> Self::SubBatch;
+}
+
+/// Generic buffer on a device.
+pub trait TchBufferOnDevice: TchBuffer {
+    /// Constructs a [TchBuffer] on a device.
+    fn new_on_device(capacity: usize, device: tch::Device, model_device: tch::Device) -> Self;
 }
 
 /// Batch object, generic wrt observation and action.
@@ -85,16 +88,18 @@ where
     A: TchBuffer<Item = E::Act>,
 {
     /// Constructs a replay buffer.
-    pub fn new(capacity: usize) -> Self {
+    pub fn new(capacity: usize, model_device: tch::Device) -> Self {
         info!("Construct replay buffer with capacity = {}", capacity);
         let capacity = capacity;
 
+        let float_type = (tch::Kind::Float, tch::Device::Cpu);
+
         Self {
-            obs: O::new(capacity),
-            next_obs: O::new(capacity),
-            actions: A::new(capacity),
-            rewards: Tensor::zeros(&[capacity as _], FLOAT_CPU),
-            not_dones: Tensor::zeros(&[capacity as _], FLOAT_CPU),
+            obs: O::new(capacity, model_device),
+            next_obs: O::new(capacity, model_device),
+            actions: A::new(capacity, model_device),
+            rewards: Tensor::zeros(&[capacity as _], float_type),
+            not_dones: Tensor::zeros(&[capacity as _], float_type),
             returns: None,
             capacity,
             len: 0,
@@ -103,14 +108,6 @@ where
             phandom: PhantomData,
         }
     }
-
-    // /// If set to `True`, non-zero reward is considered as the end of episodes.
-    // #[deprecated]
-    // pub fn nonzero_reward_as_done(mut self, _v: bool) -> Self {
-    //     unimplemented!();
-    //     // self.nonzero_reward_as_done = v;
-    //     // self
-    // }
 
     /// Clears the buffer.
     pub fn clear(&mut self) {
@@ -142,6 +139,7 @@ where
         for j in 0..batch_size {
             self.rewards.get(self.i as _).copy_(&reward.get(j));
 
+            // TODO: Consider removing this block
             if !self.nonzero_reward_as_done {
                 self.not_dones.get(self.i as _).copy_(&not_done.get(j));
             } else {
@@ -162,12 +160,17 @@ where
     /// Constructs random samples.
     pub fn random_batch(&self, batch_size: usize) -> Option<TchBatch<E, O, A>> {
         let batch_size = batch_size.min(self.len - 1);
-        let batch_indexes = Tensor::randint((self.len - 2) as _, &[batch_size as _], INT64_CPU);
+        let _no_grad = tch::no_grad_guard();
+        let batch_indexes = Tensor::randint(
+            (self.len - 2) as _,
+            &[batch_size as _],
+            (tch::Kind::Int64, self.rewards.device()),
+        );
         let obs = self.obs.batch(&batch_indexes);
         let next_obs = self.next_obs.batch(&batch_indexes);
         let actions = self.actions.batch(&batch_indexes);
-        let rewards = self.rewards.index_select(0, &batch_indexes).unsqueeze(-1); //.flatten(0, 1);
-        let not_dones = self.not_dones.index_select(0, &batch_indexes).unsqueeze(-1); //.flatten(0, 1);
+        let rewards = self.rewards.index_select(0, &batch_indexes).unsqueeze(-1);
+        let not_dones = self.not_dones.index_select(0, &batch_indexes).unsqueeze(-1);
         let returns = match self.returns.as_ref() {
             Some(r) => Some(r.index_select(0, &batch_indexes).flatten(0, 1)),
             None => None,
@@ -233,5 +236,36 @@ where
     /// Length of the replay buffer.
     pub fn len(&self) -> usize {
         self.len
+    }
+}
+
+impl<E, O, A> ReplayBuffer<E, O, A>
+where
+    E: Env,
+    O: TchBufferOnDevice<Item = E::Obs>,
+    A: TchBufferOnDevice<Item = E::Act>,
+{
+    /// Constructs a replay buffer on a `device`.
+    ///
+    /// When generating a minibatch, the data is transferred to `model_device`.
+    pub fn new_on_device(capacity: usize, device: tch::Device, model_device: tch::Device) -> Self {
+        info!("Construct replay buffer with capacity = {}", capacity);
+        let capacity = capacity;
+
+        let float_type = (tch::Kind::Float, device);
+
+        Self {
+            obs: O::new_on_device(capacity, device, model_device),
+            next_obs: O::new_on_device(capacity, device, model_device),
+            actions: A::new_on_device(capacity, device, model_device),
+            rewards: Tensor::zeros(&[capacity as _], float_type).to(device),
+            not_dones: Tensor::zeros(&[capacity as _], float_type).to(device),
+            returns: None,
+            capacity,
+            len: 0,
+            i: 0,
+            nonzero_reward_as_done: false,
+            phandom: PhantomData,
+        }
     }
 }

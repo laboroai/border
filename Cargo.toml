@@ -71,6 +71,9 @@ name = "random_ant"
 name = "sac_ant"
 
 [[example]]
+name = "sac_ant_gpu"
+
+[[example]]
 name = "dqn_atari_vec"
 # test = true
 
