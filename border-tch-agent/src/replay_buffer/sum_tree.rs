@@ -27,7 +27,7 @@ impl SumTree {
             n_samples: 0,
             tree: vec![0f32; 2 * capacity - 1],
             min_tree: SegmentPoint::build(vec![f32::MAX; capacity], MinIgnoreNaN),
-            max_tree: SegmentPoint::build(vec![0f32; capacity], MaxIgnoreNaN),
+            max_tree: SegmentPoint::build(vec![1e-8f32; capacity], MaxIgnoreNaN),
         }
     }
 
@@ -70,7 +70,7 @@ impl SumTree {
     pub fn add(&mut self, ix: usize, p: f32) {
         debug_assert!(ix < self.capacity);
 
-        let p = p.powf(self.alpha) + self.eps;
+        let p = (p + self.eps).powf(self.alpha);
         self.update(ix, p);
 
         if self.n_samples < self.capacity {
@@ -86,6 +86,10 @@ impl SumTree {
         self.max_tree.modify(ix, p);
         let ix = ix + self.capacity - 1;
         let change = p - self.tree[ix];
+        if change.is_nan() {
+            println!("{:?}, {:?}", p, self.tree[ix]);
+            panic!();
+        }
         self.tree[ix] = p;
         self.propagate(ix, change);
     }
@@ -101,19 +105,41 @@ impl SumTree {
     /// The weight is $w_i=\left(N^{-1}P(i)^{-1}\right)^{\beta}$
     /// and it will be normalized by $max_i w_i$.
     pub fn sample(&self, batch_size: usize, beta: f32) -> (Vec<i64>, Vec<f32>) {
-        let s_max = &self.total() * 0.9999999;
+        let p_sum = &self.total();
         let indices = (0..batch_size)
-            .map(|_| self.get(s_max * fastrand::f32()))
+            .map(|_| self.get(p_sum * fastrand::f32()))
             .collect::<Vec<_>>();
 
-        let p_sum = self.tree[0];
-        let n_div = p_sum / self.n_samples as f32;
-        let w_max = (n_div / self.min_tree.query(0, self.n_samples)).powf(beta);
+        let n = self.n_samples as f32 / p_sum;
         let ws = indices
             .iter()
             .map(|ix| self.tree[ix + self.capacity - 1])
-            .map(|p| (n_div / p).powf(beta) / w_max)
+            .map(|p| (n * p).powf(-beta))
             .collect::<Vec<_>>();
+
+        // normalizer within all samples
+        // let w_max_inv = (n * self.min_tree.query(0, self.n_samples)).powf(beta);
+
+        // normalizer within batch
+        let w_max_inv = 1f32 / ws.iter().fold(0.0 / 0.0, |m, v| v.max(m));
+
+        let ws = ws.iter().map(|w| w * w_max_inv).collect::<Vec<f32>>();
+
+        // debug
+        // if self.n_samples % 100 == 0 || p_sum.is_nan() || w_max.is_nan() {
+        if p_sum.is_nan() || w_max_inv.is_nan() || ws.iter().sum::<f32>().is_nan() {
+            println!("p_sum: {:?}", p_sum);
+            println!("w_max_inv: {:?}", w_max_inv);
+            println!("p: {:?}", indices
+                .iter()
+                .map(|ix| self.tree[ix + self.capacity - 1])
+                .map(|p| (n * p).powf(-beta))
+                .collect::<Vec<_>>()
+            );
+            println!("self.n_samples: {:?}", self.n_samples);
+            println!("{:?}", ws);
+            panic!();
+        }
 
         let ixs = indices.iter().map(|&ix| ix as i64).collect();
 

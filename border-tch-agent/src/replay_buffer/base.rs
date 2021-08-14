@@ -219,6 +219,10 @@ where
             let ixs: Vec<i64> = indices.try_into().unwrap();
             let ps: Vec<f32> = p.try_into().unwrap();
             for (&ix, &p) in ixs.iter().zip(ps.iter()) {
+                if p.is_nan() {
+                    println!("{:?}", ps);
+                    panic!();
+                }
                 sum_tree.update(ix as usize, p);
             }
         } else {

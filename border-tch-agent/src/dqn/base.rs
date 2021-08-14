@@ -11,7 +11,7 @@ use border_core::{
     Agent, Env, Policy, Step,
 };
 use log::trace;
-use std::{cell::RefCell, fs, marker::PhantomData, path::Path};
+use std::{cell::RefCell, fs, marker::PhantomData, path::Path, convert::TryInto};
 use tch::{no_grad, Device, Tensor};
 
 #[allow(clippy::upper_case_acronyms)]
@@ -92,8 +92,9 @@ where
         let loss = if let Some(ws) = ws {
             // with PER
             let ixs = ixs.unwrap();
-            let tderr = (pred - tgt).abs();
-            self.replay_buffer.update_priority(&ixs, &tderr);
+            let tderr = (pred - tgt).abs(); //.clip(0.0, 1.0)
+            let eps = Tensor::from(1e-5).internal_cast_float(false);
+            self.replay_buffer.update_priority(&ixs, &(&tderr + eps));
             (tderr * ws.to(self.device)).smooth_l1_loss(
                 &Tensor::from(0f32).to(self.device),
                 tch::Reduction::Mean,
@@ -103,6 +104,7 @@ where
             // w/o PER
             pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0)
         };
+
         self.qnet.backward_step(&loss);
 
         f32::from(loss)
