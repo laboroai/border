@@ -28,3 +28,9 @@ segment-tree = "2.0.0"
 
 [dev-dependencies]
 tempdir = "0.3.7"
+
+[package.metadata.docs.rs]
+features = [ "doc-only" ]
+
+[features]
+doc-only = ["tch/doc-only"]
