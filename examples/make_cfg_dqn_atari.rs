@@ -50,9 +50,14 @@ fn make_cfg(env_name: impl Into<String>, per: bool) -> Result<()> {
     let trainer_cfg = Path::new(&saving_model_dir).join("trainer.yaml");
     println!("{:?}", agent_cfg);
 
+    let lr = match per {
+        true => LR_QNET / 4f64,
+        false => LR_QNET
+    };
+
     let out_dim = 0; // set in training/evaluation code
     let builder = DQNModelBuilder::<CNN>::default()
-        .opt_config(OptimizerConfig::Adam { lr: LR_QNET })
+        .opt_config(OptimizerConfig::Adam { lr })
         .q_config(CNNConfig::new(N_STACK, out_dim));
     let _ = builder.save(model_cfg);
 

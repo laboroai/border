@@ -47,7 +47,7 @@ impl SumTree {
             return ix;
         }
 
-        if s <= self.tree[left] {
+        if s <= self.tree[left] || self.tree[right] == 0f32 {
             return self.retrieve(left, s);
         } else {
             return self.retrieve(right, s - self.tree[left]);
@@ -68,9 +68,8 @@ impl SumTree {
     ///
     /// The alpha-th power of the priority value is taken when addition.
     pub fn add(&mut self, ix: usize, p: f32) {
-        debug_assert!(ix < self.capacity);
+        debug_assert!(ix <= self.n_samples);
 
-        let p = (p + self.eps).powf(self.alpha);
         self.update(ix, p);
 
         if self.n_samples < self.capacity {
@@ -82,6 +81,7 @@ impl SumTree {
     pub fn update(&mut self, ix: usize, p: f32) {
         debug_assert!(ix < self.capacity);
 
+        let p = (p + self.eps).powf(self.alpha);
         self.min_tree.modify(ix, p);
         self.max_tree.modify(ix, p);
         let ix = ix + self.capacity - 1;
@@ -97,6 +97,7 @@ impl SumTree {
     /// Get the maximal index of the sum tree where the sum of priority values is less than `s`.
     pub fn get(&self, s: f32) -> usize {
         let ix = self.retrieve(0, s);
+        debug_assert!(ix >= (self.capacity - 1));
         ix + 1 - self.capacity
     }
 
@@ -106,9 +107,11 @@ impl SumTree {
     /// and it will be normalized by $max_i w_i$.
     pub fn sample(&self, batch_size: usize, beta: f32) -> (Vec<i64>, Vec<f32>) {
         let p_sum = &self.total();
-        let indices = (0..batch_size)
-            .map(|_| self.get(p_sum * fastrand::f32()))
-            .collect::<Vec<_>>();
+        let ps = (0..batch_size).map(|_| p_sum * fastrand::f32()).collect::<Vec<_>>();
+        let indices = ps.iter().map(|&p| self.get(p)).collect::<Vec<_>>();
+        // let indices = (0..batch_size)
+        //     .map(|_| self.get(p_sum * fastrand::f32()))
+        //     .collect::<Vec<_>>();
 
         let n = self.n_samples as f32 / p_sum;
         let ws = indices
@@ -128,15 +131,11 @@ impl SumTree {
         // debug
         // if self.n_samples % 100 == 0 || p_sum.is_nan() || w_max.is_nan() {
         if p_sum.is_nan() || w_max_inv.is_nan() || ws.iter().sum::<f32>().is_nan() {
+            println!("self.n_samples: {:?}", self.n_samples);
             println!("p_sum: {:?}", p_sum);
             println!("w_max_inv: {:?}", w_max_inv);
-            println!("p: {:?}", indices
-                .iter()
-                .map(|ix| self.tree[ix + self.capacity - 1])
-                .map(|p| (n * p).powf(-beta))
-                .collect::<Vec<_>>()
-            );
-            println!("self.n_samples: {:?}", self.n_samples);
+            println!("ps: {:?}", ps);
+            println!("indices: {:?}", indices);
             println!("{:?}", ws);
             panic!();
         }
@@ -153,9 +152,9 @@ mod tests {
 
     #[test]
     fn test_sum_tree_odd() {
-        let data = vec![0.5f32, 0.2, 0.8, 0.3, 1.1];
+        let data = vec![0.5f32, 0.2, 0.8, 0.3, 1.1, 2.5, 3.9];
         let mut sum_tree = SumTree::new(8, 1.0);
-        for ix in 0..5 {
+        for ix in 0..data.len() {
             sum_tree.add(ix, data[ix]);
         }
 
@@ -173,11 +172,12 @@ mod tests {
         println!("{:?}", ws);
         println!();
 
-        let n_samples = 100000;
+        let n_samples = 1000000;
         let (ixs, _) = sum_tree.sample(n_samples, 1.0);
+        debug_assert!(ixs.iter().all(|&ix| ix < data.len() as i64));
         (0..5).for_each(|ix| {
             let p = data[ix] / sum_tree.total() * (n_samples as f32);
-            let n = ixs.iter().filter(|&&e| e == ix).collect::<Vec<_>>().len();
+            let n = ixs.iter().filter(|&&e| e == ix as i64).collect::<Vec<_>>().len();
             println!("ix={:?}: {:?} (p={:?})", ix, n, p);
         })
     }

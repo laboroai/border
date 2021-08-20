@@ -92,7 +92,14 @@ where
             ExperienceSampling::TDerror {
                 alpha,
                 iw_scheduler,
-            } => Some(SumTree::new(capacity, *alpha)),
+            } => {
+                // check if the capacity is a power of 2
+                let c = capacity;
+                if !((c != 0) && ((c & (c - 1)) == 0)) {
+                    panic!("When using prioritized sampling, Capacity must be a power of 2.");
+                }
+                Some(SumTree::new(capacity, *alpha))
+            }
         };
 
         Self {

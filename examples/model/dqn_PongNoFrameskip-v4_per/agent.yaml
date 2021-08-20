@@ -16,7 +16,7 @@ explorer:
     eps_start: 1.0
     eps_final: 0.02
     final_step: 1000000
-replay_burffer_capacity: 50000
+replay_burffer_capacity: 65536
 expr_sampling:
   TDerror:
     alpha: 0.699999988079071
