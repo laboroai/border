@@ -1,0 +1,26 @@
+---
+opt_interval_counter:
+  opt_interval:
+    Steps: 1
+  count: 0
+soft_update_interval: 10000
+n_updates_per_opt: 1
+min_transitions_warmup: 2500
+batch_size: 32
+discount_factor: 0.99
+tau: 1.0
+train: false
+explorer:
+  EpsilonGreedy:
+    n_opts: 0
+    eps_start: 1.0
+    eps_final: 0.02
+    final_step: 1000000
+replay_burffer_capacity: 1048576
+expr_sampling:
+  TDerror:
+    alpha: 0.699999988079071
+    iw_scheduler:
+      beta_0: 0.5
+      beta_final: 1.0
+      n_opts_final: 1000000

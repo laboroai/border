@@ -161,16 +161,16 @@ fn main() -> Result<()> {
         let env_train = create_env(name, AtariWrapper::Train);
         let trainer_cfg = Path::new(&model_dir).join("trainer.yaml");
         let trainer_cfg = TrainerBuilder::load(&trainer_cfg)?;
-        let mut trainer = trainer_cfg.clone().build(env_train, env_eval, agent);
-        let mut recorder = TensorboardRecorder::new(&model_dir);
 
         if matches.is_present("show-config") {
             println!("Device: {:?}", tch::Device::cuda_if_available());
-            println!("{:?}", trainer_cfg);
-            println!("{:?}", agent_cfg);
+            println!("{}", serde_yaml::to_string(&trainer_cfg).unwrap());
+            println!("{}", serde_yaml::to_string(&agent_cfg).unwrap());
             return Ok(());
         }
 
+        let mut trainer = trainer_cfg.clone().build(env_train, env_eval, agent);
+        let mut recorder = TensorboardRecorder::new(&model_dir);
         trainer.train(&mut recorder);
     } else {
         if matches.is_present("play") {
