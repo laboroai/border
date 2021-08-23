@@ -111,3 +111,9 @@ pub enum ExperienceSampling {
         iw_scheduler: IwScheduler,
     },
 }
+
+impl ExperienceSampling {
+    pub fn default() -> Self {
+        Self::Uniform
+    }
+}

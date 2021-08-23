@@ -38,6 +38,7 @@ pub struct IQNBuilder {
     sample_percents_pred: IQNSample,
     sample_percents_tgt: IQNSample,
     sample_percents_act: IQNSample,
+    #[serde(default = "ExperienceSampling::default")]
     expr_sampling: ExperienceSampling,
 }
 
