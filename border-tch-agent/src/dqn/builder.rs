@@ -38,6 +38,10 @@ pub struct DQNBuilder {
     explorer: DQNExplorer,
     replay_burffer_capacity: usize,
     expr_sampling: ExperienceSampling,
+    #[serde(default)]
+    clip_reward: Option<f64>,
+    #[serde(default)]
+    double_dqn: bool,
 }
 
 impl Default for DQNBuilder {
@@ -55,6 +59,8 @@ impl Default for DQNBuilder {
             replay_burffer_capacity: 100,
             explorer: DQNExplorer::Softmax(Softmax::new()),
             expr_sampling: ExperienceSampling::Uniform,
+            clip_reward: None,
+            double_dqn: false,
         }
     }
 }
@@ -119,6 +125,18 @@ impl DQNBuilder {
         self.replay_burffer_capacity
     }
 
+    /// Reward clipping.
+    pub fn clip_reward(mut self, clip_reward: Option<f64>) -> DQNBuilder {
+        self.clip_reward = clip_reward;
+        self
+    }
+
+    /// Double DQN
+    pub fn double_dqn(mut self, double_dqn: bool) -> DQNBuilder {
+        self.double_dqn = double_dqn;
+        self
+    }
+
     /// Replay buffer sampling.
     pub fn expr_sampling(mut self, expr_sampling: ExperienceSampling) -> DQNBuilder {
         self.expr_sampling = expr_sampling;
@@ -177,6 +195,8 @@ impl DQNBuilder {
             expr_sampling: self.expr_sampling,
             device,
             n_opts: 0,
+            clip_reward: self.clip_reward,
+            double_dqn: self.double_dqn,
             phantom: PhantomData,
         }
     }
@@ -217,6 +237,8 @@ impl DQNBuilder {
             expr_sampling,
             device,
             n_opts: 0,
+            clip_reward: self.clip_reward,
+            double_dqn: self.double_dqn,
             phantom: PhantomData,
         }
     }

@@ -67,13 +67,18 @@ fn get_model_dir(env_name: impl Into<String>, matches: &ArgMatches) -> String {
     if matches.is_present("per") {
         model_dir.push_str("_per");
     }
+
+    if matches.is_present("ddqn") {
+        model_dir.push_str("_ddqn");
+    }
+
     model_dir
 }
 
 fn create_agent(
     dim_act: i64,
     env_name: impl Into<String>,
-    matches: &ArgMatches
+    matches: &ArgMatches,
 ) -> Result<(impl Agent<Env>, DQNBuilder)> {
     let device = tch::Device::cuda_if_available();
     let env_name = env_name.into();
@@ -133,6 +138,12 @@ fn main() -> Result<()> {
                 .long("per")
                 .takes_value(false)
                 .help("Train/play with prioritized experience replay"),
+        )
+        .arg(
+            Arg::with_name("ddqn")
+                .long("ddqn")
+                .takes_value(false)
+                .help("Train/play with double DQN"),
         )
         .arg(
             Arg::with_name("wait")

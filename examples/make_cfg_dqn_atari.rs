@@ -10,10 +10,12 @@ use border_tch_agent::{
 use dqn_atari_model::{CNNConfig, CNN};
 use std::{default::Default, path::Path};
 
+#[derive(Clone)]
 struct Params {
     replay_buffer_capacity: usize,
     per: bool,
     max_opts: usize,
+    double_dqn: bool,
 }
 
 impl Default for Params {
@@ -26,6 +28,8 @@ impl Default for Params {
 
             // 3,000,000 is enough for Pong, an environment easy to solve
             max_opts: 3_000_000,
+
+            double_dqn: false,
         }
     }
 }
@@ -45,6 +49,11 @@ impl Params {
         self.max_opts = max_opts;
         self
     }
+
+    fn ddqn(mut self) -> Self {
+        self.double_dqn = true;
+        self
+    }
 }
 
 // DQN agent parameters
@@ -57,6 +66,7 @@ const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
 const SOFT_UPDATE_INTERVAL: usize = 10_000;
 const TAU: f64 = 1.0;
 const EPS_FINAL_STEP: usize = 1_000_000;
+const CLIP_REWARD: Option<f64> = Some(1.0);
 // const REPLAY_BUFFER_CAPACITY: usize = 50_000;
 
 // DQN model parameters
@@ -67,10 +77,14 @@ const LR_QNET: f64 = 1e-4;
 const EVAL_INTERVAL: usize = 10_000;
 const N_EPISODES_PER_EVAL: usize = 1;
 
-fn saving_model_dir(env_name: String, per: bool) -> Result<String> {
+fn saving_model_dir(env_name: String, per: bool, ddqn: bool) -> Result<String> {
     let mut model_dir = format!("./examples/model/dqn_{}", env_name);
     if per {
         model_dir.push_str("_per");
+    }
+
+    if ddqn {
+        model_dir.push_str("_ddqn");
     }
 
     if !Path::new(&model_dir).exists() {
@@ -84,7 +98,8 @@ fn make_cfg(env_name: impl Into<String>, params: &Params) -> Result<()> {
     let replay_buffer_capacity = params.replay_buffer_capacity;
     let per = params.per;
     let max_opts = params.max_opts;
-    let saving_model_dir = saving_model_dir(env_name.into(), per)?;
+    let ddqn = params.double_dqn;
+    let saving_model_dir = saving_model_dir(env_name.into(), per, ddqn)?;
     let model_cfg = Path::new(&saving_model_dir).join("model.yaml");
     let agent_cfg = Path::new(&saving_model_dir).join("agent.yaml");
     let trainer_cfg = Path::new(&saving_model_dir).join("trainer.yaml");
@@ -110,6 +125,8 @@ fn make_cfg(env_name: impl Into<String>, params: &Params) -> Result<()> {
         .soft_update_interval(SOFT_UPDATE_INTERVAL)
         .tau(TAU)
         .replay_burffer_capacity(replay_buffer_capacity)
+        .clip_reward(CLIP_REWARD)
+        .double_dqn(ddqn)
         .explorer(EpsilonGreedy::with_final_step(EPS_FINAL_STEP));
     let builder = if per {
         builder.expr_sampling(ExperienceSampling::TDerror {
@@ -136,18 +153,17 @@ fn make_cfg(env_name: impl Into<String>, params: &Params) -> Result<()> {
 
 fn main() -> Result<()> {
     // Pong
-    let params = Params::default();
+    let params = Params::default().replay_buffer_capacity(65536);
     make_cfg("PongNoFrameskip-v4", &params)?;
-    make_cfg(
-        "PongNoFrameskip-v4",
-        &params.per().replay_buffer_capacity(65536),
-    )?;
+    make_cfg("PongNoFrameskip-v4", &params.clone().per())?;
+    make_cfg("PongNoFrameskip-v4", &params.clone().ddqn())?;
 
     // Hero
-    let params = Params::default().max_opts(50_000_000)
+    let params = Params::default()
+        .max_opts(50_000_000)
         .replay_buffer_capacity(1048576);
     make_cfg("HeroNoFrameskip-v4", &params)?;
-    make_cfg("HeroNoFrameskip-v4", &params.per())?;
+    make_cfg("HeroNoFrameskip-v4", &params.clone().per())?;
 
     Ok(())
 }

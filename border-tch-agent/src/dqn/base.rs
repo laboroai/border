@@ -11,7 +11,7 @@ use border_core::{
     Agent, Env, Policy, Step,
 };
 use log::trace;
-use std::{cell::RefCell, fs, marker::PhantomData, path::Path, convert::TryInto};
+use std::{cell::RefCell, convert::TryInto, fs, marker::PhantomData, path::Path};
 use tch::{no_grad, Device, Tensor};
 
 #[allow(clippy::upper_case_acronyms)]
@@ -25,25 +25,26 @@ where
     O: TchBuffer<Item = E::Obs, SubBatch = Q::Input>,
     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
 {
-    // TODO: Consider making it visible only from dqn.builder module.
-    pub(crate) opt_interval_counter: OptIntervalCounter,
-    pub(crate) soft_update_interval: usize,
-    pub(crate) soft_update_counter: usize,
-    pub(crate) n_updates_per_opt: usize,
-    pub(crate) min_transitions_warmup: usize,
-    pub(crate) batch_size: usize,
-    pub(crate) qnet: DQNModel<Q>,
-    pub(crate) qnet_tgt: DQNModel<Q>,
-    pub(crate) train: bool,
-    pub(crate) phantom: PhantomData<E>,
-    pub(crate) prev_obs: RefCell<Option<E::Obs>>,
-    pub(crate) replay_buffer: ReplayBuffer<E, O, A>,
-    pub(crate) discount_factor: f64,
-    pub(crate) tau: f64,
-    pub(crate) explorer: DQNExplorer,
-    pub(super) expr_sampling: ExperienceSampling,
-    pub(crate) device: Device,
-    pub(crate) n_opts: usize,
+    pub(in crate::dqn) opt_interval_counter: OptIntervalCounter,
+    pub(in crate::dqn) soft_update_interval: usize,
+    pub(in crate::dqn) soft_update_counter: usize,
+    pub(in crate::dqn) n_updates_per_opt: usize,
+    pub(in crate::dqn) min_transitions_warmup: usize,
+    pub(in crate::dqn) batch_size: usize,
+    pub(in crate::dqn) qnet: DQNModel<Q>,
+    pub(in crate::dqn) qnet_tgt: DQNModel<Q>,
+    pub(in crate::dqn) train: bool,
+    pub(in crate::dqn) phantom: PhantomData<E>,
+    pub(in crate::dqn) prev_obs: RefCell<Option<E::Obs>>,
+    pub(in crate::dqn) replay_buffer: ReplayBuffer<E, O, A>,
+    pub(in crate::dqn) discount_factor: f64,
+    pub(in crate::dqn) tau: f64,
+    pub(in crate::dqn) explorer: DQNExplorer,
+    pub(in crate::dqn) expr_sampling: ExperienceSampling,
+    pub(in crate::dqn) device: Device,
+    pub(in crate::dqn) n_opts: usize,
+    pub(in crate::dqn) double_dqn: bool,
+    pub(in crate::dqn) clip_reward: Option<f64>,
 }
 
 impl<E, Q, O, A> DQN<E, Q, O, A>
@@ -62,6 +63,13 @@ where
         let obs = self.prev_obs.replace(None).unwrap();
         let reward = Tensor::of_slice(&step.reward[..]);
         let not_done = Tensor::from(1f32) - Tensor::of_slice(&step.is_done[..]);
+
+        let reward = if let Some(clip) = self.clip_reward {
+            reward.clip(-clip, clip)
+        } else {
+            reward
+        };
+
         self.replay_buffer
             .push(&obs, &step.act, &reward, &next_obs, &not_done);
         let _ = self.prev_obs.replace(Some(next_obs));
@@ -84,7 +92,11 @@ where
             x.gather(-1, &a, false)
         };
         let tgt = no_grad(|| {
-            let x = self.qnet_tgt.forward(&next_obs);
+            let x = if self.double_dqn {
+                self.qnet.forward(&next_obs)
+            } else {
+                self.qnet_tgt.forward(&next_obs)
+            };            
             let y = x.argmax(-1, false).unsqueeze(-1);
             let x = x.gather(-1, &y, false);
             r + not_done * self.discount_factor * x

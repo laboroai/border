@@ -24,3 +24,5 @@ expr_sampling:
       beta_0: 0.5
       beta_final: 1.0
       n_opts_final: 1000000
+clip_reward: 1.0
+double_dqn: false
