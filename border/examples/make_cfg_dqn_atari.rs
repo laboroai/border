@@ -78,7 +78,7 @@ const EVAL_INTERVAL: usize = 10_000;
 const N_EPISODES_PER_EVAL: usize = 1;
 
 fn saving_model_dir(env_name: String, per: bool, ddqn: bool) -> Result<String> {
-    let mut model_dir = format!("./examples/model/dqn_{}", env_name);
+    let mut model_dir = format!("./border/examples/model/dqn_{}", env_name);
     if per {
         model_dir.push_str("_per");
     }

@@ -70,10 +70,10 @@ fn create_agent(
 ) -> Result<(impl Agent<Env>, DQNBuilder)> {
     let device = tch::Device::cuda_if_available();
     let env_name = env_name.into();
-    let model_cfg = format!("./examples/model/dqn_{}/model.yaml", &env_name);
+    let model_cfg = format!("./border/examples/model/dqn_{}/model.yaml", &env_name);
     let model_cfg = DQNModelBuilder::<CNN>::load(Path::new(&model_cfg))?;
     let qnet = model_cfg.out_dim(dim_act).build(device)?;
-    let agent_cfg = format!("./examples/model/dqn_{}/agent.yaml", &env_name);
+    let agent_cfg = format!("./border/examples/model/dqn_{}/agent.yaml", &env_name);
     let agent_cfg = DQNBuilder::load(Path::new(&agent_cfg))?;
     let agent = agent_cfg
         .clone()
@@ -123,8 +123,8 @@ fn main() -> Result<()> {
     let (agent, agent_cfg) = create_agent(dim_act as _, name)?;
     let env_train = create_env(name, AtariWrapper::Train)?;
 
-    let cfg_dir = format!("./examples/model/dqn_{}", name);
-    let saving_model_dir = format!("./examples/model/dqn_{}_vec", name);
+    let cfg_dir = format!("./border/examples/model/dqn_{}", name);
+    let saving_model_dir = format!("./border/examples/model/dqn_{}_vec", name);
     let trainer_cfg_file = Path::new(&cfg_dir).join("trainer.yaml");
     let trainer_cfg = TrainerBuilder::load(trainer_cfg_file)?.model_dir(&saving_model_dir);
 
@@ -159,7 +159,7 @@ mod test {
         let name = "PongNoFrameskip-v4";
         let saving_model_dir_test = TempDir::new("dqn_PongNoFrameskip-v4_vec")?;
         let saving_model_dir_test = saving_model_dir_test.path().to_str().unwrap();
-        let saving_model_dir = format!("./examples/model/dqn_{}_vec", name);
+        let saving_model_dir = format!("./border/examples/model/dqn_{}_vec", name);
 
         let env_eval = create_env(name, AtariWrapper::Eval)?;
         let dim_act = env_eval.get_num_actions_atari();

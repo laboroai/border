@@ -162,12 +162,12 @@ fn main() -> Result<()> {
             .eval_interval(EVAL_INTERVAL)
             .n_episodes_per_eval(N_EPISODES_PER_EVAL)
             .build(env, env_eval, agent);
-        let mut recorder = TensorboardRecorder::new("./examples/model/sac_ant");
+        let mut recorder = TensorboardRecorder::new("./border/examples/model/sac_ant");
 
         trainer.train(&mut recorder);
         trainer
             .get_agent()
-            .save("./examples/model/sac_ant")
+            .save("./border/examples/model/sac_ant")
             .unwrap();
     } else {
         let mut env = create_env();

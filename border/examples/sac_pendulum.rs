@@ -42,7 +42,7 @@ const EVAL_INTERVAL: usize = 2_000;
 const REPLAY_BUFFER_CAPACITY: usize = 100_000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const MAX_STEPS_IN_EPISODE: usize = 200;
-const MODEL_DIR: &str = "./examples/model/sac_pendulum";
+const MODEL_DIR: &str = "./border/examples/model/sac_pendulum";
 
 shape!(ObsShape, [3]);
 shape!(ActShape, [1]);
@@ -391,7 +391,7 @@ fn main() -> Result<()> {
         .n_episodes_per_eval(N_EPISODES_PER_EVAL)
         .model_dir(MODEL_DIR)
         .build(env, env_eval, agent);
-    let mut recorder = TensorboardRecorder::new("./examples/model/sac_pendulum");
+    let mut recorder = TensorboardRecorder::new("./border/examples/model/sac_pendulum");
 
     trainer.train(&mut recorder);
 
@@ -408,7 +408,7 @@ fn main() -> Result<()> {
     // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
     let mut wtr = csv::WriterBuilder::new()
         .has_headers(false)
-        .from_writer(File::create("examples/model/sac_pendulum_eval.csv")?);
+        .from_writer(File::create("./border/examples/model/sac_pendulum_eval.csv")?);
     for record in recorder.iter() {
         wtr.serialize(PendulumRecord::try_from(record)?)?;
     }

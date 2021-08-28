@@ -60,7 +60,7 @@ const N_EPISODES_PER_EVAL: usize = 5;
 const EPS_START: f64 = 1.0;
 const EPS_FINAL: f64 = 0.1;
 const FINAL_STEP: usize = 5000; // MAX_OPTS;
-const MODEL_DIR: &str = "examples/model/iqn_cartpole";
+const MODEL_DIR: &str = "border/examples/model/iqn_cartpole";
 
 shape!(ObsShape, [4]);
 shape!(ActShape, [1]);
@@ -317,7 +317,7 @@ fn main() -> Result<()> {
     // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
     let mut wtr = WriterBuilder::new()
         .has_headers(false)
-        .from_writer(File::create("examples/model/iqn_cartpole_eval.csv")?);
+        .from_writer(File::create("border/examples/model/iqn_cartpole_eval.csv")?);
     for record in recorder.iter() {
         wtr.serialize(CartpoleRecord::try_from(record)?)?;
     }

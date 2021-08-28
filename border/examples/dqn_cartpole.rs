@@ -29,7 +29,7 @@ const MAX_OPTS: usize = 1000;
 const EVAL_INTERVAL: usize = 50;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
-const MODEL_DIR: &str = "./examples/model/dqn_cartpole";
+const MODEL_DIR: &str = "./border/examples/model/dqn_cartpole";
 
 shape!(ObsShape, [DIM_OBS as usize]);
 shape!(ActShape, [1]);

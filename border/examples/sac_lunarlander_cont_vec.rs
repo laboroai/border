@@ -33,7 +33,7 @@ const EVAL_INTERVAL: usize = 10_000;
 const REPLAY_BUFFER_CAPACITY: usize = 100_000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const MAX_STEPS_IN_EPISODE: usize = 1000;
-const MODEL_DIR: &str = "./examples/model/sac_lunarlander_cont_vec";
+const MODEL_DIR: &str = "./border/examples/model/sac_lunarlander_cont_vec";
 
 shape!(ObsShape, [8]);
 shape!(ActShape, [2]);

@@ -231,10 +231,10 @@ fn create_agent(
 ) -> Result<(impl Agent<Env>, IQNBuilder)> {
     let device = tch::Device::cuda_if_available();
     let env_name = env_name.into();
-    let model_cfg = format!("./examples/model/iqn_{}/model.yaml", &env_name);
+    let model_cfg = format!("./border/examples/model/iqn_{}/model.yaml", &env_name);
     let model_cfg = IQNModelBuilder::<ConvNet, MLP>::load(Path::new(&model_cfg))?;
     let iqn = model_cfg.out_dim(dim_act).build(device)?;
-    let agent_cfg = format!("./examples/model/iqn_{}/agent.yaml", &env_name);
+    let agent_cfg = format!("./border/examples/model/iqn_{}/agent.yaml", &env_name);
     let agent_cfg = IQNBuilder::load(Path::new(&agent_cfg))?;
     let agent = agent_cfg
         .clone()
@@ -319,11 +319,11 @@ fn main() -> Result<()> {
 
     if !(matches.is_present("play") || matches.is_present("play-gdrive")) {
         let env_train = create_env(name, AtariWrapper::Train);
-        let saving_model_dir = format!("./examples/model/iqn_{}", name);
+        let saving_model_dir = format!("./border/examples/model/iqn_{}", name);
         let trainer_cfg = Path::new(&saving_model_dir).join("trainer.yaml");
         let trainer_cfg = TrainerBuilder::load(&trainer_cfg)?;
         let mut trainer = trainer_cfg.clone().build(env_train, env_eval, agent);
-        let mut recorder = TensorboardRecorder::new(format!("./examples/model/iqn_{}", name));
+        let mut recorder = TensorboardRecorder::new(format!("./border/examples/model/iqn_{}", name));
 
         if matches.is_present("show-config") {
             println!("Device: {:?}", tch::Device::cuda_if_available());
@@ -443,7 +443,7 @@ mod test {
     fn save_configs() -> Result<()> {
         // let env_name = "PongNoFrameskip-v4";
         let env_name = "SeaquestNoFrameskip-v4";
-        let saving_model_dir = format!("./examples/model/iqn_{}", env_name);
+        let saving_model_dir = format!("./border/examples/model/iqn_{}", env_name);
         let model_cfg = Path::new(&saving_model_dir).join("model.yaml");
         let agent_cfg = Path::new(&saving_model_dir).join("agent.yaml");
         let trainer_cfg = Path::new(&saving_model_dir).join("trainer.yaml");

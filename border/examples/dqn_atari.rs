@@ -63,7 +63,7 @@ type ObsBuffer = TchTensorBuffer<u8, ObsShape, Obs>;
 type ActBuffer = TchTensorBuffer<i64, ActShape, Act>;
 
 fn get_model_dir(env_name: impl Into<String>, matches: &ArgMatches) -> String {
-    let mut model_dir = format!("./examples/model/dqn_{}", env_name.into());
+    let mut model_dir = format!("./border/examples/model/dqn_{}", env_name.into());
     if matches.is_present("per") {
         model_dir.push_str("_per");
     }
