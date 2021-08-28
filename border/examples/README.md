@@ -37,19 +37,19 @@ cargo run --example sac_lunarlander_cont
 * Training
 
   ```bash
-  PYTHONPATH=./examples cargo run --release --example dqn_atari -- PongNoFrameskip-v4
+  PYTHONPATH=./border/examples cargo run --release --example dqn_atari -- PongNoFrameskip-v4
   ```
 
 * Evaluation
 
   ```bash
-  PYTHONPATH=./examples cargo run --example dqn_atari -- PongNoFrameskip-v4 --play ./examples/model/dqn_PongNoFrameskip-v4
+  PYTHONPATH=./border/examples cargo run --example dqn_atari -- PongNoFrameskip-v4 --play ./examples/model/dqn_PongNoFrameskip-v4
   ```
 
 * Evaluation with pretrained models, downloaded from google drive
 
   ```bash
-  PYTHONPATH=./examples cargo run --example dqn_atari -- PongNoFrameskip-v4 --play-gdrive
+  PYTHONPATH=./border/examples cargo run --example dqn_atari -- PongNoFrameskip-v4 --play-gdrive
   ```
 
 ### IQN
@@ -57,11 +57,11 @@ cargo run --example sac_lunarlander_cont
 * Evaluation with pretrained models
 
   ```bash
-  PYTHONPATH=./examples cargo run --example iqn_atari -- PongNoFrameskip-v4 --play-gdrive
+  PYTHONPATH=./border/examples cargo run --example iqn_atari -- PongNoFrameskip-v4 --play-gdrive
   ```
 
   ```bash
-  PYTHONPATH=./examples cargo run --example iqn_atari -- SeaquestNoFrameskip-v4 --play-gdrive
+  PYTHONPATH=./border/examples cargo run --example iqn_atari -- SeaquestNoFrameskip-v4 --play-gdrive
   ```
 
 ## PyBullet Env Ant-v0
@@ -77,7 +77,7 @@ cargo run --example sac_lunarlander_cont
 * Evaluation
 
   ```bash
-  cargo run --example sac_ant -- --play=$REPO/examples/model/sac_ant
+  cargo run --example sac_ant -- --play=$./border/examples/model/sac_ant
   ```
 
 * Evaluation with a pretrained model, downloaded from google drive
