@@ -92,14 +92,19 @@ where
             x.gather(-1, &a, false)
         };
         let tgt = no_grad(|| {
-            let x = if self.double_dqn {
-                self.qnet.forward(&next_obs)
+            let q = if self.double_dqn {
+                let x = self.qnet.forward(&next_obs);
+                let y = x.argmax(-1, false).unsqueeze(-1);
+                self.qnet_tgt.forward(&next_obs).gather(-1, &y, false)
             } else {
-                self.qnet_tgt.forward(&next_obs)
-            };            
-            let y = x.argmax(-1, false).unsqueeze(-1);
-            let x = x.gather(-1, &y, false);
-            r + not_done * self.discount_factor * x
+                let x = self.qnet_tgt.forward(&next_obs);
+                let y = x.argmax(-1, false).unsqueeze(-1);
+                x.gather(-1, &y, false)
+            };
+            // let y = x.argmax(-1, false).unsqueeze(-1);
+            // let x = x.gather(-1, &y, false);
+            // r + not_done * self.discount_factor * x
+            r + not_done * self.discount_factor * q
         });
         let loss = if let Some(ws) = ws {
             // with PER

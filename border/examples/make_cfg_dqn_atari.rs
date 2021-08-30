@@ -11,14 +11,15 @@ use dqn_atari_model::{CNNConfig, CNN};
 use std::{default::Default, path::Path};
 
 #[derive(Clone)]
-struct Params {
+struct Params<'a> {
     replay_buffer_capacity: usize,
     per: bool,
     max_opts: usize,
     double_dqn: bool,
+    optimizer: &'a str,
 }
 
-impl Default for Params {
+impl<'a> Default for Params<'a> {
     fn default() -> Self {
         Self {
             // 50,000 is enough for Pong, an environment easy to solve
@@ -30,11 +31,13 @@ impl Default for Params {
             max_opts: 3_000_000,
 
             double_dqn: false,
+
+            optimizer: "adam",
         }
     }
 }
 
-impl Params {
+impl<'a> Params<'a> {
     fn per(mut self) -> Self {
         self.per = true;
         self
@@ -52,6 +55,11 @@ impl Params {
 
     fn ddqn(mut self) -> Self {
         self.double_dqn = true;
+        self
+    }
+
+    fn optimizer(mut self, optimizer: &'a str) -> Self {
+        self.optimizer = optimizer;
         self
     }
 }
@@ -110,9 +118,16 @@ fn make_cfg(env_name: impl Into<String>, params: &Params) -> Result<()> {
         false => LR_QNET,
     };
 
+    let optimizer = match params.optimizer {
+        "adam" => OptimizerConfig::Adam { lr },
+        _ => panic!()
+    };
+
+    // let optimizer = match params.
+
     let out_dim = 0; // set in training/evaluation code
     let builder = DQNModelBuilder::<CNN>::default()
-        .opt_config(OptimizerConfig::Adam { lr })
+        .opt_config(optimizer)
         .q_config(CNNConfig::new(N_STACK, out_dim));
     let _ = builder.save(model_cfg);
 
@@ -161,9 +176,11 @@ fn main() -> Result<()> {
     // Hero
     let params = Params::default()
         .max_opts(50_000_000)
-        .replay_buffer_capacity(1048576);
+        .replay_buffer_capacity(1048576)
+        .optimizer("adam");
     make_cfg("HeroNoFrameskip-v4", &params)?;
     make_cfg("HeroNoFrameskip-v4", &params.clone().per())?;
+    make_cfg("HeroNoFrameskip-v4", &params.clone().ddqn())?;
 
     Ok(())
 }
