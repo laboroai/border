@@ -4,5 +4,6 @@ members = [
     "border-core",
     "border-py-gym-env",
     "border-tch-agent",
+    "border-derive",
     "border"
 ]
