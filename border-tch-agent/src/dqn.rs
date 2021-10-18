@@ -1,9 +1,9 @@
 //! DQN agent.
 mod base;
-mod builder;
+mod config;
 mod explorer;
 mod model;
 pub use base::DQN;
-pub use builder::DQNBuilder;
+pub use config::DQNConfig;
 pub use explorer::{DQNExplorer, EpsilonGreedy, Softmax};
-pub use model::{DQNModel, DQNModelBuilder};
+pub use model::{DQNModel, DQNModelConfig};

@@ -1,14 +1,6 @@
-//! Replay buffer.
+use border_core::{Shape, replay_buffer::SubBatch};
+use tch::{Tensor, Device};
 use std::marker::PhantomData;
-use tch::{Device, Tensor};
-mod base;
-mod iw_scheduler;
-mod sum_tree;
-pub use base::{ReplayBuffer, TchBatch, TchBuffer};
-use border_core::Shape;
-pub use iw_scheduler::IwScheduler;
-use serde::{Deserialize, Serialize};
-pub use sum_tree::SumTree;
 
 /// Adds capability of constructing [Tensor] with a static method.
 pub trait ZeroTensor {
@@ -42,33 +34,44 @@ impl ZeroTensor for i64 {
 
 /// A buffer consisting of a [Tensor](tch::Tensor).
 ///
-/// Type parameter `D` is the data type of the buffer and one of `u8` or `f32`.
-/// S is the shape of the buffer, excepting the first dimension, which is for minibatch.
-/// Type parameter `T` is the data stored in the buffer.
-pub struct TchTensorBuffer<D, S, T>
-where
-    D: 'static + Copy + tch::kind::Element + ZeroTensor,
-    S: Shape,
-    T: Into<Tensor>,
-{
+/// Type parameter `D` is the data type of the buffer.
+/// S is the shape of items in the buffer.
+pub struct TensorSubBatch<S, D> {
     buf: Tensor,
     capacity: i64,
-    phantom: PhantomData<(D, S, T)>,
+    phantom: PhantomData<(S, D)>,
 }
 
-impl<D, S, T> TchBuffer for TchTensorBuffer<D, S, T>
-where
-    D: 'static + Copy + tch::kind::Element + ZeroTensor,
-    S: Shape,
-    T: Clone + Into<Tensor>,
-{
-    type Item = T;
-    type SubBatch = Tensor;
+impl<S, D> Clone for TensorSubBatch<S, D> {
+    fn clone(&self) -> Self {
+        Self {
+            buf: self.buf.copy(),
+            capacity: self.capacity,
+            phantom: PhantomData
+        }
+    }
+}
 
-    /// Creates a buffer.
-    ///
-    /// Input argument `_n_proc` is not used.
-    /// TODO: remove n_procs
+impl<S, D> TensorSubBatch<S, D>
+where
+    S: Shape,
+    D: 'static + Copy + tch::kind::Element + ZeroTensor,
+{
+    pub fn from_tensor(t: Tensor) -> Self {
+        let capacity = t.size()[0] as _;
+        Self {
+            buf: t,
+            capacity,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<S, D> SubBatch for TensorSubBatch<S, D>
+where
+    S: Shape,
+    D: 'static + Copy + tch::kind::Element + ZeroTensor,
+{
     fn new(capacity: usize) -> Self {
         let capacity = capacity as i64;
         let mut shape: Vec<_> = S::shape().to_vec().iter().map(|e| *e as i64).collect();
@@ -82,8 +85,9 @@ where
         }
     }
 
-    fn push(&mut self, index: i64, item: &Self::Item) {
-        let val: Tensor = item.clone().into();
+    fn push(&mut self, index: usize, data: &Self) {
+        let index = index as i64;
+        let val: Tensor = data.buf.copy();
         let batch_size = val.size()[0];
         debug_assert_eq!(&val.size()[1..], &self.buf.size()[1..]);
 
@@ -93,27 +97,20 @@ where
         }
     }
 
-    /// Creates minibatch.
-    fn batch(&self, batch_indexes: &Tensor) -> Tensor {
-        self.buf.index_select(0, &batch_indexes)
+    fn sample(&self, ixs: &Vec<usize>) -> Self {
+        let ixs = ixs.iter().map(|&ix| ix as i64).collect::<Vec<_>>();
+        let batch_indexes = Tensor::of_slice(&ixs);
+        let buf = self.buf.index_select(0, &batch_indexes);
+        Self {
+            buf,
+            capacity: ixs.len() as i64,
+            phantom: PhantomData,
+        }
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub enum ExperienceSampling {
-    /// Uniform sampling.
-    Uniform,
-
-    /// Sampling with probability proportional to TD-error.
-    #[allow(non_camel_case_types)]
-    TDerror {
-        alpha: f32,
-        iw_scheduler: IwScheduler,
-    },
-}
-
-impl ExperienceSampling {
-    pub fn default() -> Self {
-        Self::Uniform
+impl<S, D> From<TensorSubBatch<S, D>> for Tensor {
+    fn from(b: TensorSubBatch<S, D>) -> Self {
+        b.buf
     }
 }

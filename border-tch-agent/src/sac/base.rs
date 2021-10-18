@@ -1,18 +1,17 @@
-//! SAC agent.
+use super::{SACConfig, Actor, Critic, EntCoef};
 use crate::{
     model::{ModelBase, SubModel, SubModel2},
-    replay_buffer::{ExperienceSampling, ReplayBuffer, TchBatch, TchBuffer},
-    sac::{actor::Actor, critic::Critic, ent_coef::EntCoef},
-    util::{track, CriticLoss, OptIntervalCounter},
+    util::{track, CriticLoss, OutDim},
 };
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, Env, Policy, Step,
+    Agent, Batch, Env, Policy, ReplayBufferBase,
 };
-use log::trace;
-use std::{cell::RefCell, fs, marker::PhantomData, path::Path};
-use tch::{no_grad, Tensor};
+use serde::{de::DeserializeOwned, Serialize};
+// use log::info;
+use std::{fs, marker::PhantomData, path::Path};
+use tch::{no_grad, Device, Tensor};
 
 type ActionValue = Tensor;
 type ActMean = Tensor;
@@ -24,63 +23,93 @@ fn normal_logp(x: &Tensor) -> Tensor {
     tmp.sum_dim_intlist(&[-1], false, tch::Kind::Float)
 }
 
-/// Soft actor critic agent.
+/// Soft actor critic (SAC) agent.
 #[allow(clippy::upper_case_acronyms)]
-pub struct SAC<E, Q, P, O, A>
+pub struct SAC<E, Q, P, R>
 where
     E: Env,
     Q: SubModel2<Output = ActionValue>,
     P: SubModel<Output = (ActMean, ActStd)>,
-    O: TchBuffer<Item = E::Obs>,
-    A: TchBuffer<Item = E::Act>,
+    R: ReplayBufferBase,
+    E::Obs: Into<Q::Input1> + Into<P::Input>,
+    E::Act: Into<Q::Input2>,
+    Q::Input2: From<ActMean>,
+    Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
+    P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
+    <R::Batch as Batch>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
+    <R::Batch as Batch>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
-    pub(in crate::sac) qnets: Vec<Critic<Q>>,
-    pub(in crate::sac) qnets_tgt: Vec<Critic<Q>>,
-    pub(in crate::sac) pi: Actor<P>,
-    pub(in crate::sac) replay_buffer: ReplayBuffer<E, O, A>,
-    pub(in crate::sac) gamma: f64,
-    pub(in crate::sac) tau: f64,
-    pub(in crate::sac) ent_coef: EntCoef,
-    pub(in crate::sac) epsilon: f64,
-    pub(in crate::sac) min_lstd: f64,
-    pub(in crate::sac) max_lstd: f64,
-    pub(in crate::sac) opt_interval_counter: OptIntervalCounter,
-    pub(in crate::sac) n_updates_per_opt: usize,
-    pub(in crate::sac) min_transitions_warmup: usize,
-    pub(in crate::sac) batch_size: usize,
-    pub(in crate::sac) train: bool,
-    pub(in crate::sac) reward_scale: f32,
-    pub(in crate::sac) critic_loss: CriticLoss,
-    pub(in crate::sac) prev_obs: RefCell<Option<E::Obs>>,
-    // pub(in crate::sac) expr_sampling: ExperienceSampling,
-    pub(in crate::sac) phantom: PhantomData<E>,
-    pub(in crate::sac) device: tch::Device,
+    pub(super) qnets: Vec<Critic<Q>>,
+    pub(super) qnets_tgt: Vec<Critic<Q>>,
+    pub(super) pi: Actor<P>,
+    pub(super) gamma: f64,
+    pub(super) tau: f64,
+    pub(super) ent_coef: EntCoef,
+    pub(super) epsilon: f64,
+    pub(super) min_lstd: f64,
+    pub(super) max_lstd: f64,
+    pub(super) n_updates_per_opt: usize,
+    pub(super) min_transitions_warmup: usize,
+    pub(super) batch_size: usize,
+    pub(super) train: bool,
+    pub(super) reward_scale: f32,
+    pub(super) critic_loss: CriticLoss,
+    // pub(super) expr_sampling: ExperienceSampling,
+    pub(super) phantom: PhantomData<(E, R)>,
+    pub(super) device: tch::Device,
 }
 
-impl<E, Q, P, O, A> SAC<E, Q, P, O, A>
+impl<E, Q, P, R> SAC<E, Q, P, R>
 where
     E: Env,
-    Q: SubModel2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue>,
-    P: SubModel<Input = O::SubBatch, Output = (ActMean, ActStd)>,
-    E::Obs: Into<O::SubBatch>,
-    E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs>,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
+    Q: SubModel2<Output = ActionValue>,
+    P: SubModel<Output = (ActMean, ActStd)>,
+    R: ReplayBufferBase,
+    E::Obs: Into<Q::Input1> + Into<P::Input>,
+    E::Act: Into<Q::Input2>,
+    Q::Input2: From<ActMean>,
+    Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
+    P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
+    <R::Batch as Batch>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
+    <R::Batch as Batch>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
-    // Adapted from dqn.rs
-    fn push_transition(&mut self, step: Step<E>) {
-        let next_obs = step.obs;
-        let obs = self.prev_obs.replace(None).unwrap();
-        let reward = Tensor::of_slice(&step.reward[..]);
-        let not_done = Tensor::from(1f32) - Tensor::of_slice(&step.is_done[..]);
-        self.replay_buffer
-            .push(&obs, &step.act, &reward, &next_obs, &not_done);
-        let _ = self.prev_obs.replace(Some(next_obs));
+    /// Constructs [SAC] agent.
+    pub fn build(config: SACConfig<Q, P>, device: Device) -> Result<Self> {
+        let n_critics = config.n_critics;
+        let pi = Actor::build(config.actor_config, device)?;
+        let mut qnets = vec![];
+        let mut qnets_tgt = vec![];
+        for _ in 0..n_critics {
+            let critic = Critic::build(config.critic_config.clone(), device)?;
+            qnets.push(critic.clone());
+            qnets_tgt.push(critic);
+        }
+
+        Ok(
+            SAC {
+                qnets,
+                qnets_tgt,
+                pi,
+                gamma: config.gamma,
+                tau: config.tau,
+                ent_coef: EntCoef::new(config.ent_coef_mode, device),
+                epsilon: config.epsilon,
+                min_lstd: config.min_lstd,
+                max_lstd: config.max_lstd,
+                n_updates_per_opt: config.n_updates_per_opt,
+                min_transitions_warmup: config.min_transitions_warmup,
+                batch_size: config.batch_size,
+                train: config.train,
+                reward_scale: config.reward_scale,
+                critic_loss: config.critic_loss,
+                // expr_sampling: self.expr_sampling,
+                device,
+                phantom: PhantomData,
+            }    
+        )
     }
 
-    fn action_logp(&self, o: &P::Input) -> (A::SubBatch, Tensor) {
-        trace!("SAC::action_logp()");
-
+    fn action_logp(&self, o: &P::Input) -> (Tensor, Tensor) {
         let (mean, lstd) = self.pi.forward(o);
         let std = lstd.clip(self.min_lstd, self.max_lstd).exp();
         let z = Tensor::randn(mean.size().as_slice(), tch::kind::FLOAT_CPU).to(self.device);
@@ -96,7 +125,7 @@ where
         (a, log_p)
     }
 
-    fn qvals(&self, qnets: &[Critic<Q>], obs: &Q::Input1, act: &Tensor) -> Vec<Tensor> {
+    fn qvals(&self, qnets: &[Critic<Q>], obs: &Q::Input1, act: &Q::Input2) -> Vec<Tensor> {
         qnets
             .iter()
             .map(|qnet| qnet.forward(obs, act).squeeze())
@@ -104,7 +133,7 @@ where
     }
 
     /// Returns the minimum values of q values over critics
-    fn qvals_min(&self, qnets: &[Critic<Q>], obs: &Q::Input1, act: &Tensor) -> Tensor {
+    fn qvals_min(&self, qnets: &[Critic<Q>], obs: &Q::Input1, act: &Q::Input2) -> Tensor {
         let qvals = self.qvals(qnets, obs, act);
         let qvals = Tensor::vstack(&qvals);
         let qvals_min = qvals.min_dim(0, false).0;
@@ -114,35 +143,20 @@ where
         qvals_min
     }
 
-    // /// Returns the minimum values of q values over critics
-    // fn qvals_mean(&self, qnets: &[Q], obs: &Tensor, act: &Tensor) -> Tensor {
-    //     let qvals = self.qvals(qnets, obs, act);
-    //     let qvals = Tensor::vstack(&qvals);
-    //     let qvals_mean = qvals.mean1(&[0], false, tch::Kind::Float);
-
-    //     debug_assert_eq!(qvals_mean.size().as_slice(), [self.batch_size as i64]);
-
-    //     qvals_mean
-    // }
-
-    fn update_critic(&mut self, batch: &TchBatch<E, O, A>) -> f32 {
-        trace!("SAC::update_critic()");
-
+    fn update_critic(&mut self, batch: R::Batch) -> f32 {
         let losses = {
-            let o = &batch.obs;
-            let a = &batch.actions.to(self.device);
-            let next_o = &batch.next_obs;
-            let r = &batch.rewards.to(self.device).squeeze();
-            let not_done = &batch.not_dones.to(self.device).squeeze();
+            let (obs, act, next_obs, reward, is_done) = batch.unpack();
+            let reward = Tensor::of_slice(&reward[..]).to(self.device);
+            let is_done = Tensor::of_slice(&is_done[..]).to(self.device);
 
-            let preds = self.qvals(&self.qnets, &o, &a);
+            let preds = self.qvals(&self.qnets, &obs.into(), &act.into());
             let tgt = {
                 let next_q = no_grad(|| {
-                    let (next_a, next_log_p) = self.action_logp(&next_o);
-                    let next_q = self.qvals_min(&self.qnets_tgt, &next_o, &next_a);
+                    let (next_a, next_log_p) = self.action_logp(&next_obs.clone().into());
+                    let next_q = self.qvals_min(&self.qnets_tgt, &next_obs.into(), &next_a.into());
                     next_q - self.ent_coef.alpha() * next_log_p
                 });
-                self.reward_scale * r + not_done * Tensor::from(self.gamma) * next_q
+                self.reward_scale * reward + (1f32 - &is_done) * Tensor::from(self.gamma) * next_q
             };
 
             debug_assert_eq!(tgt.size().as_slice(), [self.batch_size as i64]);
@@ -157,7 +171,6 @@ where
                     .map(|pred| pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0))
                     .collect(),
             };
-
             losses
         };
 
@@ -168,18 +181,16 @@ where
         losses.iter().map(f32::from).sum::<f32>() / (self.qnets.len() as f32)
     }
 
-    fn update_actor(&mut self, batch: &TchBatch<E, O, A>) -> f32 {
-        trace!("SAC::update_actor()");
-
+    fn update_actor(&mut self, batch: &R::Batch) -> f32 {
         let loss = {
-            let o = &batch.obs;
-            let (a, log_p) = self.action_logp(o);
+            let o = batch.obs().clone();
+            let (a, log_p) = self.action_logp(&o.into());
 
             // Update the entropy coefficient
             self.ent_coef.update(&log_p);
 
-            // let qval = self.qvals_mean(&self.qnets, o, &a);
-            let qval = self.qvals_min(&self.qnets, o, &a);
+            let o = batch.obs().clone();
+            let qval = self.qvals_min(&self.qnets, &o.into(), &a.into());
             (self.ent_coef.alpha() * &log_p - &qval).mean(tch::Kind::Float)
         };
 
@@ -193,17 +204,46 @@ where
             track(qnet_tgt, qnet, self.tau);
         }
     }
+
+    fn opt_(&mut self, buffer: &mut R) -> Record {
+        let mut loss_critic = 0f32;
+        let mut loss_actor = 0f32;
+        let beta = None;
+
+        for _ in 0..self.n_updates_per_opt {
+            let batch = buffer.batch(self.batch_size, beta).unwrap();
+            loss_actor += self.update_actor(&batch);
+            loss_critic += self.update_critic(batch);
+            self.soft_update();
+        }
+
+        loss_critic /= self.n_updates_per_opt as f32;
+        loss_actor /= self.n_updates_per_opt as f32;
+
+        Record::from_slice(&[
+            ("loss_critic", RecordValue::Scalar(loss_critic)),
+            ("loss_actor", RecordValue::Scalar(loss_actor)),
+            (
+                "ent_coef",
+                RecordValue::Scalar(self.ent_coef.alpha().double_value(&[0]) as f32),
+            ),
+        ])
+    }
 }
 
-impl<E, Q, P, O, A> Policy<E> for SAC<E, Q, P, O, A>
+impl<E, Q, P, R> Policy<E> for SAC<E, Q, P, R>
 where
     E: Env,
-    Q: SubModel2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue>,
-    P: SubModel<Input = O::SubBatch, Output = (ActMean, ActStd)>,
-    E::Obs: Into<O::SubBatch>,
-    E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs>,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
+    Q: SubModel2<Output = ActionValue>,
+    P: SubModel<Output = (ActMean, ActStd)>,
+    R: ReplayBufferBase,
+    E::Obs: Into<Q::Input1> + Into<P::Input>,
+    E::Act: Into<Q::Input2> + From<Tensor>,
+    Q::Input2: From<ActMean>,
+    Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
+    P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
+    <R::Batch as Batch>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
+    <R::Batch as Batch>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
     fn sample(&mut self, obs: &E::Obs) -> E::Act {
         let obs = obs.clone().into();
@@ -218,15 +258,19 @@ where
     }
 }
 
-impl<E, Q, P, O, A> Agent<E> for SAC<E, Q, P, O, A>
+impl<E, Q, P, R> Agent<E, R> for SAC<E, Q, P, R>
 where
     E: Env,
-    Q: SubModel2<Input1 = O::SubBatch, Input2 = A::SubBatch, Output = ActionValue>,
-    P: SubModel<Input = O::SubBatch, Output = (ActMean, ActStd)>,
-    E::Obs: Into<O::SubBatch>,
-    E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs>,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
+    Q: SubModel2<Output = ActionValue>,
+    P: SubModel<Output = (ActMean, ActStd)>,
+    R: ReplayBufferBase,
+    E::Obs: Into<Q::Input1> + Into<P::Input>,
+    E::Act: Into<Q::Input2> + From<Tensor>,
+    Q::Input2: From<ActMean>,
+    Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
+    P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
+    <R::Batch as Batch>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
+    <R::Batch as Batch>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
     fn train(&mut self) {
         self.train = true;
@@ -240,50 +284,9 @@ where
         self.train
     }
 
-    fn push_obs(&self, obs: &E::Obs) {
-        self.prev_obs.replace(Some(obs.clone()));
-    }
-
-    /// Update model parameters.
-    ///
-    /// When the return value is `Some(Record)`, it includes:
-    /// * `loss_critic`: Loss of critic
-    /// * `loss_actor`: Loss of actor
-    fn observe(&mut self, step: Step<E>) -> Option<Record> {
-        trace!("SAC::observe()");
-
-        // Check if doing optimization
-        let do_optimize = self.opt_interval_counter.do_optimize(&step.is_done)
-            && self.replay_buffer.len() + 1 >= self.min_transitions_warmup;
-
-        // Push transition to the replay buffer
-        self.push_transition(step);
-        trace!("Push transition");
-
-        // Do optimization
-        if do_optimize {
-            let mut loss_critic = 0f32;
-            let mut loss_actor = 0f32;
-
-            for _ in 0..self.n_updates_per_opt {
-                let batch = self
-                    .replay_buffer
-                    .random_batch(self.batch_size, 0f32)
-                    .unwrap();
-
-                loss_critic += self.update_critic(&batch);
-                loss_actor += self.update_actor(&batch);
-                self.soft_update();
-            }
-
-            Some(Record::from_slice(&[
-                ("loss_critic", RecordValue::Scalar(loss_critic)),
-                ("loss_actor", RecordValue::Scalar(loss_actor)),
-                (
-                    "ent_coef",
-                    RecordValue::Scalar(self.ent_coef.alpha().double_value(&[0]) as f32),
-                ),
-            ]))
+    fn opt(&mut self, buffer: &mut R) -> Option<Record> {
+        if buffer.len() >= self.min_transitions_warmup {
+            Some(self.opt_(buffer))
         } else {
             None
         }

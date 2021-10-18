@@ -1,11 +1,11 @@
 //! SAC agent.
 mod actor;
 mod base;
-mod builder;
+mod config;
 mod critic;
 mod ent_coef;
-pub use actor::{Actor, ActorBuilder};
+pub use actor::{Actor, ActorConfig};
 pub use base::SAC;
-pub use builder::SACBuilder;
-pub use critic::{Critic, CriticBuilder};
+pub use config::SACConfig;
+pub use critic::{Critic, CriticConfig};
 pub use ent_coef::{EntCoef, EntCoefMode};

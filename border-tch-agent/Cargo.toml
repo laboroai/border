@@ -14,7 +14,7 @@ autoexamples = false
 
 [dependencies]
 border-core = { version = "0.0.4", path = "../border-core" }
-serde = { version = "1.0.117", features = ["derive"] }
+serde = { version = "=1.0.126", features = ["derive"] }
 serde_yaml = "0.8.7"
 tensorboard-rs = "0.2.4"
 log = "0.4"
