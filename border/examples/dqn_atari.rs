@@ -1,112 +1,72 @@
-mod dqn_atari_model;
 use anyhow::Result;
-use border::{try_from, util::url::get_model_from_url};
-use border_core::{record::TensorboardRecorder, shape, util, Agent, TrainerBuilder};
+use border_core::{
+    record::{BufferedRecorder, Record, TensorboardRecorder},
+    replay_buffer::{
+        SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
+        SimpleStepProcessorConfig, SubBatch,
+    },
+    shape, util, Agent, Env as _, Policy, Trainer, TrainerConfig,
+};
+use border_derive::{Act, Obs, SubBatch};
 use border_py_gym_env::{
-    newtype_act_d, newtype_obs, AtariWrapper, FrameStackFilter, PyGymEnv, PyGymEnvBuilder,
-    PyGymEnvDiscreteAct, PyGymEnvObs,
+    FrameStackFilter, PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct,
+    PyGymEnvDiscreteActRawFilter, PyGymEnvObs, PyGymEnvObsFilter,
 };
 use border_tch_agent::{
-    dqn::{DQNBuilder, DQNModelBuilder},
-    replay_buffer::TchTensorBuffer,
+    dqn::{DQNConfig, DQNModelConfig, DQN as DQN_},
+    cnn::{CNNConfig, CNN},
+    TensorSubBatch,
 };
 use clap::{App, Arg, ArgMatches};
-use dqn_atari_model::CNN;
-use ndarray::ArrayD;
-use std::{convert::TryFrom, path::Path, time::Duration};
-use tch::Tensor;
+use csv::WriterBuilder;
+use serde::Serialize;
+use std::{convert::TryFrom, fs::File};
+// #[cfg(feature = "tch")]
+// use tch::Tensor;
 
 const N_STACK: i64 = 4;
+
+type PyObsDtype = u8;
+type ObsDtype = u8;
+
 shape!(ObsShape, [N_STACK as usize, 1, 84, 84]);
 shape!(ActShape, [1]);
-newtype_obs!(Obs, ObsShape, u8, u8);
-newtype_act_d!(Act, ActFilter);
 
-impl From<Obs> for Tensor {
-    fn from(obs: Obs) -> Tensor {
-        try_from(obs.0.obs).unwrap()
+#[derive(Clone, Debug, Obs)]
+struct Obs(PyGymEnvObs<ObsShape, PyObsDtype, ObsDtype>);
+
+#[derive(Clone, SubBatch)]
+struct ObsBatch(TensorSubBatch<ObsShape, ObsDtype>);
+
+impl From<Obs> for ObsBatch {
+    fn from(obs: Obs) -> Self {
+        let tensor = obs.into();
+        Self(TensorSubBatch::from_tensor(tensor))
     }
 }
 
-impl From<Act> for Tensor {
-    fn from(act: Act) -> Tensor {
-        let v = act.0.act.iter().map(|e| *e as i64).collect::<Vec<_>>();
-        let t: Tensor = TryFrom::<Vec<i64>>::try_from(v).unwrap();
+#[derive(Clone, Debug, Act)]
+struct Act(PyGymEnvDiscreteAct);
 
-        // The first dimension of the action tensor is the number of processes,
-        // which is 1 for the non-vectorized environment.
-        t.unsqueeze(0)
+#[derive(SubBatch)]
+struct ActBatch(TensorSubBatch<ActShape, i32>);
+
+impl From<Act> for ActBatch {
+    fn from(act: Act) -> Self {
+        let tensor = act.into();
+        Self(TensorSubBatch::from_tensor(tensor))
     }
 }
 
-/// Converts Tensor to Act, called when applying actions estimated by DQN.
-/// DQN outputs Tensor, while PyGymEnv accepts Act as actions to the environment.
-impl From<Tensor> for Act {
-    /// `t` must be a 1-dimentional tensor of `f32`.
-    fn from(t: Tensor) -> Self {
-        let data: Vec<i64> = t.into();
-        let data: Vec<_> = data.iter().map(|e| *e as i32).collect();
-        Act(PyGymEnvDiscreteAct::new(data))
-    }
-}
-
-/// This implementation is required by FrameStackFilter.
-impl From<ArrayD<u8>> for Obs {
-    fn from(obs: ArrayD<u8>) -> Self {
-        Obs(PyGymEnvObs::from(obs))
-    }
-}
-
-type ObsFilter = FrameStackFilter<Obs, u8, u8>;
+type ObsFilter = FrameStackFilter<ObsShape, PyObsDtype, ObsDtype, Obs>;
+type ActFilter = PyGymEnvDiscreteActRawFilter<Act>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
-type ObsBuffer = TchTensorBuffer<u8, ObsShape, Obs>;
-type ActBuffer = TchTensorBuffer<i64, ActShape, Act>;
+type EnvConfig = PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
+type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
+type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
+type DQN = DQN_<Env, CNN, ReplayBuffer>;
 
-fn get_model_dir(env_name: impl Into<String>, matches: &ArgMatches) -> String {
-    let mut model_dir = format!("./border/examples/model/dqn_{}", env_name.into());
-    if matches.is_present("per") {
-        model_dir.push_str("_per");
-    }
-
-    if matches.is_present("ddqn") {
-        model_dir.push_str("_ddqn");
-    }
-
-    model_dir
-}
-
-fn create_agent(
-    dim_act: i64,
-    env_name: impl Into<String>,
-    matches: &ArgMatches,
-) -> Result<(impl Agent<Env>, DQNBuilder)> {
-    let device = tch::Device::cuda_if_available();
-    let env_name = env_name.into();
-    let model_dir = get_model_dir(env_name, matches);
-
-    let model_cfg = format!("{}/model.yaml", &model_dir);
-    let model_cfg = DQNModelBuilder::<CNN>::load(Path::new(&model_cfg))?;
-    let qnet = model_cfg.out_dim(dim_act).build(device)?;
-
-    let agent_cfg = format!("{}/agent.yaml", &model_dir);
-    let agent_cfg = DQNBuilder::load(Path::new(&agent_cfg))?;
-    let agent = agent_cfg
-        .clone()
-        .build::<_, _, ObsBuffer, ActBuffer>(qnet, device);
-
-    Ok((agent, agent_cfg))
-}
-
-fn create_env(name: &str, mode: AtariWrapper) -> Env {
-    let obs_filter = ObsFilter::new(N_STACK as i64);
-    let act_filter = ActFilter::default();
-    PyGymEnvBuilder::default()
-        .atari_wrapper(Some(mode))
-        .build(name, obs_filter, act_filter)
-        .unwrap()
-}
-
-fn main() -> Result<()> {
+fn init<'a>() -> ArgMatches<'a> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
 
@@ -160,49 +120,96 @@ fn main() -> Result<()> {
         )
         .get_matches();
 
+    matches
+}
+
+fn show_config(env_config: &EnvConfig, agent_config: &DQNConfig<CNN>, trainer_config: &TrainerConfig) {
+    println!("Device: {:?}", tch::Device::cuda_if_available());
+    println!("{}", serde_yaml::to_string(&env_config).unwrap());
+    println!("{}", serde_yaml::to_string(&agent_config).unwrap());
+    println!("{}", serde_yaml::to_string(&trainer_config).unwrap());
+}
+
+fn model_dir(matches: &ArgMatches) -> String {
+    unimplemented!();
+}
+
+fn model_dir_for_play(matches: &ArgMatches) -> String {
+    unimplemented!();
+}
+
+fn env_config(name: &str) -> EnvConfig {
+    PyGymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
+        .name(name.to_string())
+        .obs_filter_config(ObsFilter::default_config())
+        .act_filter_config(ActFilter::default_config())
+        .atari_wrapper(Some(border_py_gym_env::AtariWrapper::Eval))
+}
+
+fn n_actions(env_config: &EnvConfig) -> Result<usize> {
+    Ok(Env::build(env_config, 0)?.get_num_actions_atari() as usize)
+}
+
+fn agent_config<'a>(model_dir: impl Into<&'a str>) -> Result<DQNConfig<CNN>> {
+    let config_path = format!("{}/dqn_config.yaml", model_dir.into());
+    DQNConfig::<CNN>::load(config_path)
+}
+
+fn trainer_config<'a>(model_dir: impl Into<&'a str>) -> Result<TrainerConfig> {
+    let config_path = format!("{}/trainer_config.yaml", model_dir.into());
+    TrainerConfig::load(config_path)
+}
+
+fn train(matches: ArgMatches) -> Result<()> {
     let name = matches.value_of("name").unwrap();
-    let mut env_eval = create_env(name, AtariWrapper::Eval);
-    let dim_act = env_eval.get_num_actions_atari();
-    let agent = create_agent(dim_act as _, name.clone(), &matches)?;
-    let agent_cfg = agent.1;
-    let mut agent = agent.0;
-    let model_dir = get_model_dir(name, &matches);
+    let model_dir = model_dir(&matches);
+    let env_config = env_config(name);
+    let n_actions = n_actions(&env_config)?;
+    let agent_config = agent_config(model_dir.as_str())?;
+    let trainer_config = trainer_config(model_dir.as_str())?;
+    let step_proc_config = SimpleStepProcessorConfig {};
+    let capacity = 0;// TODO load from somewhere
+    let replay_buffer_config = SimpleReplayBufferConfig::default().capacity(capacity);
 
-    if !(matches.is_present("play") || matches.is_present("play-gdrive")) {
-        let env_train = create_env(name, AtariWrapper::Train);
-        let trainer_cfg = Path::new(&model_dir).join("trainer.yaml");
-        let trainer_cfg = TrainerBuilder::load(&trainer_cfg)?;
-
-        if matches.is_present("show-config") {
-            println!("Device: {:?}", tch::Device::cuda_if_available());
-            println!("{}", serde_yaml::to_string(&trainer_cfg).unwrap());
-            println!("{}", serde_yaml::to_string(&agent_cfg).unwrap());
-            return Ok(());
-        }
-
-        let mut trainer = trainer_cfg.clone().build(env_train, env_eval, agent);
-        let mut recorder = TensorboardRecorder::new(&model_dir);
-        trainer.train(&mut recorder);
+    if matches.is_present("show-config") {
+        show_config(&env_config, &agent_config, &trainer_config);
     } else {
-        if matches.is_present("play") {
-            let model_dir = matches
-                .value_of("play")
-                .expect("Failed to parse model directory");
-            agent.load(model_dir)?;
-        } else {
-            // TODO: change file_base and url depending on the game
-            let file_base = "dqn_PongNoFrameskip-v4_20210428_ec2";
-            let url =
-                "https://drive.google.com/uc?export=download&id=1TF5aN9fH5wd4APFHj9RP1JxuVNoi6lqJ";
-            let model_dir = get_model_from_url(url, file_base)?;
-            agent.load(model_dir)?;
-        };
+        let device = tch::Device::cuda_if_available();
+        let mut trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
+            trainer_config, env_config, step_proc_config, replay_buffer_config
+        );
+        let mut recorder = TensorboardRecorder::new(model_dir);
+        let mut agent = DQN::build(agent_config, device);
+        trainer.train(&mut agent, &mut recorder)?;
+    }
 
-        let time = matches.value_of("wait").unwrap().parse::<u64>()?;
-        env_eval.set_render(true);
-        env_eval.set_wait_in_render(Duration::from_millis(time));
-        agent.eval();
-        util::eval(&mut env_eval, &mut agent, 5);
+    Ok(())
+}
+
+fn play(matches: ArgMatches) -> Result<()> {
+    let name = matches.value_of("name").unwrap();
+    let model_dir = model_dir_for_play(&matches);
+    let env_config = env_config(name);
+    let n_actions = n_actions(&env_config);
+    let agent_config = agent_config(model_dir.as_str())?;
+    let device = tch::Device::cuda_if_available();
+    let mut agent = DQN::build(agent_config, device);
+    let mut env = Env::build(&env_config, 0)?;
+
+    env.set_render(true);
+    agent.load(model_dir)?;
+    agent.eval();
+
+    Ok(())
+}
+
+fn main() -> Result<()> {
+    let matches = init();
+
+    if matches.is_present("play") || matches.is_present("play-gdrive") {
+        play(matches)?;
+    } else {
+        train(matches)?;
     }
 
     Ok(())
