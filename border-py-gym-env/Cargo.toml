@@ -14,10 +14,31 @@ autoexamples = false
 
 [dependencies]
 border-core = { version = "0.0.4", path = "../border-core" }
-numpy = "=0.13.0"
-pyo3 = { version = "0.13.0", default-features = false }
-serde = { version = "1.0.117", features = ["derive"] }
+numpy = "0.14.1"
+# numpy = "=0.13.0"
+pyo3 = { version = "=0.14.5", default-features = false, features = ["auto-initialize"] }
+# pyo3 = { version = "=0.13.0", default-features = false }
+serde = { version = "=1.0.126", features = ["derive"] }
 log = "0.4"
 num-traits = "0.2.14"
-ndarray = { version = "0.14.0", features = ["serde"] }
+ndarray = { version = "0.15.3", features = ["serde"] }
+# ndarray = { version = "0.14.0", features = ["serde"] }
 anyhow = "1.0.38"
+tch = { version = "0.5.0", optional = true }
+
+[dev-dependencies]
+fastrand = "1.4.0"
+env_logger = "0.8.2"
+csv = "1.1.5"
+
+[features]
+default = ["tch"]
+
+[[example]]
+name = "random_cartpole"
+
+[[example]]
+name = "random_lunarlander_cont"
+
+[[example]]
+name = "random_ant"
