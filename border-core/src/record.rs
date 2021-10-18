@@ -200,7 +200,7 @@ impl TensorboardRecorder {
     pub fn new<P: AsRef<Path>>(logdir: P) -> Self {
         Self {
             writer: SummaryWriter::new(logdir),
-            step_key: "n_opts".to_string(),
+            step_key: "opt_steps".to_string(),
             ignore_unsupported_value: true
         }
     }
@@ -211,7 +211,7 @@ impl TensorboardRecorder {
     pub fn new_with_check_unsupported_value<P: AsRef<Path>>(logdir: P) -> Self {
         Self {
             writer: SummaryWriter::new(logdir),
-            step_key: "n_opts".to_string(),
+            step_key: "opt_steps".to_string(),
             ignore_unsupported_value: false
         }
     }
@@ -250,7 +250,7 @@ impl Recorder for TensorboardRecorder {
 /// Buffered recorder.
 ///
 /// This is used for recording sequences of observation and action
-/// during evaluation runs in [`crate::core::util::eval_with_recorder`].
+/// during evaluation runs in [`crate::util::eval_with_recorder`].
 #[derive(Default)]
 pub struct BufferedRecorder(Vec<Record>);
 
