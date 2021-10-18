@@ -89,9 +89,9 @@ clap = "2.33.3"
 csv = "1.1.5"
 tempdir = "0.3.7"
 border-derive = { version = "0.0.5", path = "../border-derive"}
-border-core = { version = "0.0.4", path = "../border-core" }
-border-tch-agent = { version = "0.0.4", path = "../border-tch-agent" }
-border-py-gym-env = { version = "0.0.4", path = "../border-py-gym-env"}
+border-core = { version = "0.0.5", path = "../border-core" }
+border-tch-agent = { version = "0.0.5", path = "../border-tch-agent" }
+border-py-gym-env = { version = "0.0.5", path = "../border-py-gym-env"}
 serde = { version = "1.0.117", features = ["derive"] }
 env_logger = "0.8.2"
 numpy = "0.14.1"

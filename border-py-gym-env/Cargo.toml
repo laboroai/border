@@ -1,6 +1,6 @@
 [package]
 name = "border-py-gym-env"
-version = "0.0.4"
+version = "0.0.5"
 authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
 edition = "2018"
 
@@ -13,7 +13,7 @@ readme = "README.md"
 autoexamples = false
 
 [dependencies]
-border-core = { version = "0.0.4", path = "../border-core" }
+border-core = { version = "0.0.5", path = "../border-core" }
 numpy = "0.14.1"
 # numpy = "=0.13.0"
 pyo3 = { version = "=0.14.5", default-features = false, features = ["auto-initialize"] }
