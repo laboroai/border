@@ -81,8 +81,8 @@ required-features = ["tch"]
 # [[example]]
 # name = "pyo3"
 
-# [[example]]
-# name = "make_cfg_dqn_atari"
+[[example]]
+name = "make_cfg_dqn_atari"
 
 [dev-dependencies]
 clap = "2.33.3"

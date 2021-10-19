@@ -9,6 +9,13 @@ pub struct CNNConfig {
     pub(super) out_dim: i64,
 }
 
+impl CNNConfig {
+    /// Constructs [CNNConfig]
+    pub fn new(n_stack: i64, out_dim: i64) -> Self {
+        Self { n_stack, out_dim }
+    }
+}
+
 impl OutDim for CNNConfig {
     /// Gets output dimension.
     fn get_out_dim(&self) -> i64 {
