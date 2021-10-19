@@ -1,38 +1,59 @@
-mod dqn_atari_model;
 use anyhow::Result;
-use border_core::TrainerBuilder;
+use border_core::{replay_buffer::SimpleReplayBufferConfig, TrainerConfig};
 use border_tch_agent::{
-    dqn::{DQNBuilder, DQNModelBuilder, EpsilonGreedy},
+    cnn::{CNNConfig, CNN},
+    dqn::{DQNConfig, DQNModelConfig, EpsilonGreedy, DQNExplorer},
     opt::OptimizerConfig,
-    replay_buffer::{ExperienceSampling, IwScheduler},
-    util::OptInterval,
 };
-use dqn_atari_model::{CNNConfig, CNN};
 use std::{default::Default, path::Path};
 
 #[derive(Clone)]
 struct Params<'a> {
+    // Agent parameters
     replay_buffer_capacity: usize,
     per: bool,
-    max_opts: usize,
     double_dqn: bool,
     optimizer: &'a str,
+    batch_size: usize,
+    discount_factor: f64,
+    min_transition_warmup: usize,
+    soft_update_interval: usize,
+    lr: f64,
+    clip_reward: Option<f64>,
+    explorer: DQNExplorer,
+
+    // Trainer parameters
+    max_opts: usize,
+    eval_interval: usize,
+    eval_episodes: usize,
+    opt_interval: usize,
+    record_interval: usize,
+    save_interval: usize,
 }
 
 impl<'a> Default for Params<'a> {
     fn default() -> Self {
         Self {
-            // 50,000 is enough for Pong, an environment easy to solve
+            // Agent parameters
             replay_buffer_capacity: 50_000,
-
             per: false,
-
-            // 3,000,000 is enough for Pong, an environment easy to solve
-            max_opts: 3_000_000,
-
             double_dqn: false,
-
             optimizer: "adam",
+            batch_size: 32,
+            discount_factor: 0.99,
+            min_transition_warmup: 2500,
+            soft_update_interval: 10_000,
+            lr: 1e-4,
+            clip_reward: Some(1.0),
+            explorer: EpsilonGreedy::with_final_step(1_000_000),
+
+            // Trainer parameters
+            max_opts: 3_000_000,
+            eval_interval: 50_000,
+            eval_episodes: 1,
+            opt_interval: 1,
+            record_interval: 50_000,
+            save_interval: 500_000,
         }
     }
 }
@@ -64,28 +85,10 @@ impl<'a> Params<'a> {
     }
 }
 
-// DQN agent parameters
-const N_STACK: i64 = 4;
-const DISCOUNT_FACTOR: f64 = 0.99;
-const BATCH_SIZE: usize = 32;
-const N_TRANSITIONS_WARMUP: usize = 2500;
-const N_UPDATES_PER_OPT: usize = 1;
-const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
-const SOFT_UPDATE_INTERVAL: usize = 10_000;
-const TAU: f64 = 1.0;
-const EPS_FINAL_STEP: usize = 1_000_000;
-const CLIP_REWARD: Option<f64> = Some(1.0);
-// const REPLAY_BUFFER_CAPACITY: usize = 50_000;
+fn model_dir(env_name: String, params: &Params) -> Result<String> {
+    let per = params.per;
+    let ddqn = params.double_dqn;
 
-// DQN model parameters
-const LR_QNET: f64 = 1e-4;
-
-// Training parameters
-// const MAX_OPTS: usize = 3_000_000;
-const EVAL_INTERVAL: usize = 10_000;
-const N_EPISODES_PER_EVAL: usize = 1;
-
-fn saving_model_dir(env_name: String, per: bool, ddqn: bool) -> Result<String> {
     let mut model_dir = format!("./border/examples/model/dqn_{}", env_name);
     if per {
         model_dir.push_str("_per");
@@ -102,67 +105,55 @@ fn saving_model_dir(env_name: String, per: bool, ddqn: bool) -> Result<String> {
     Ok(model_dir)
 }
 
-fn make_cfg(env_name: impl Into<String>, params: &Params) -> Result<()> {
-    let replay_buffer_capacity = params.replay_buffer_capacity;
-    let per = params.per;
-    let max_opts = params.max_opts;
-    let ddqn = params.double_dqn;
-    let saving_model_dir = saving_model_dir(env_name.into(), per, ddqn)?;
-    let model_cfg = Path::new(&saving_model_dir).join("model.yaml");
-    let agent_cfg = Path::new(&saving_model_dir).join("agent.yaml");
-    let trainer_cfg = Path::new(&saving_model_dir).join("trainer.yaml");
-    println!("{:?}", agent_cfg);
+fn make_dqn_config(params: &Params) -> DQNConfig<CNN> {
+    let n_stack = 4;
+    let out_dim = 0; // Set before training/evaluation
+    let model_config = DQNModelConfig::default()
+        .q_config(CNNConfig::new(n_stack, out_dim))
+        .out_dim(out_dim)
+        .opt_config(OptimizerConfig::Adam { lr: params.lr });
+    DQNConfig::default()
+        .model_config(model_config)
+        .batch_size(params.batch_size)
+        .discount_factor(params.discount_factor)
+        .double_dqn(params.double_dqn)
+        .min_transitions_warmup(params.min_transition_warmup)
+        .soft_update_interval(params.soft_update_interval)
+        .clip_reward(params.clip_reward)
+        .explorer(params.explorer.clone())
+}
 
-    let lr = match per {
-        true => LR_QNET / 4f64,
-        false => LR_QNET,
-    };
+fn make_replay_buffer_config(params: &Params) -> SimpleReplayBufferConfig {
+    SimpleReplayBufferConfig::default().capacity(params.replay_buffer_capacity)
+}
 
-    let optimizer = match params.optimizer {
-        "adam" => OptimizerConfig::Adam { lr },
-        _ => panic!()
-    };
+fn make_trainer_config(env_name: String, params: &Params) -> Result<TrainerConfig> {
+    let model_dir = model_dir(env_name, params)?;
 
-    // let optimizer = match params.
+    Ok(TrainerConfig::default()
+        .max_opts(params.max_opts)
+        .eval_interval(params.eval_interval)
+        .eval_episodes(params.eval_episodes)
+        .model_dir(model_dir)
+        .opt_interval(params.opt_interval)
+        .record_interval(params.record_interval)
+        .save_interval(params.save_interval))
+}
 
-    let out_dim = 0; // set in training/evaluation code
-    let builder = DQNModelBuilder::<CNN>::default()
-        .opt_config(optimizer)
-        .q_config(CNNConfig::new(N_STACK, out_dim));
-    let _ = builder.save(model_cfg);
+fn make_cfg(env_name: impl Into<String> + Clone, params: &Params) -> Result<()> {
+    let agent_config = make_dqn_config(params);
+    let replay_buffer_config = make_replay_buffer_config(params);
+    let trainer_config = make_trainer_config(env_name.clone().into(), params)?;
 
-    let builder = DQNBuilder::default()
-        .opt_interval(OPT_INTERVAL)
-        .n_updates_per_opt(N_UPDATES_PER_OPT)
-        .min_transitions_warmup(N_TRANSITIONS_WARMUP)
-        .batch_size(BATCH_SIZE)
-        .discount_factor(DISCOUNT_FACTOR)
-        .soft_update_interval(SOFT_UPDATE_INTERVAL)
-        .tau(TAU)
-        .replay_burffer_capacity(replay_buffer_capacity)
-        .clip_reward(CLIP_REWARD)
-        .double_dqn(ddqn)
-        .explorer(EpsilonGreedy::with_final_step(EPS_FINAL_STEP));
-    let builder = if per {
-        builder.expr_sampling(ExperienceSampling::TDerror {
-            alpha: 0.7f32,
-            iw_scheduler: IwScheduler {
-                beta_0: 0.5f32,
-                beta_final: 1f32,
-                n_opts_final: 1_000_000,
-            },
-        })
-    } else {
-        builder
-    };
-    let _ = builder.save(agent_cfg);
+    let model_dir = model_dir(env_name.into(), params)?;
+    let agent_path = Path::new(&model_dir).join("agent.yaml");
+    let replay_buffer_path = Path::new(&model_dir).join("replay_buffer.yaml");
+    let trainer_path = Path::new(&model_dir).join("trainer.yaml");
 
-    let builder = TrainerBuilder::default()
-        .max_opts(max_opts)
-        .eval_interval(EVAL_INTERVAL)
-        .n_episodes_per_eval(N_EPISODES_PER_EVAL)
-        .model_dir(saving_model_dir);
-    let _ = builder.save(trainer_cfg);
+    agent_config.save(agent_path)?;
+    replay_buffer_config.save(replay_buffer_path)?;
+    trainer_config.save(trainer_path)?;
+
     Ok(())
 }
 
