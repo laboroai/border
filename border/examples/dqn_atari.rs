@@ -150,12 +150,12 @@ fn n_actions(env_config: &EnvConfig) -> Result<usize> {
     Ok(Env::build(env_config, 0)?.get_num_actions_atari() as usize)
 }
 
-fn agent_config<'a>(model_dir: impl Into<&'a str>) -> Result<DQNConfig<CNN>> {
+fn load_dqn_config<'a>(model_dir: impl Into<&'a str>) -> Result<DQNConfig<CNN>> {
     let config_path = format!("{}/dqn_config.yaml", model_dir.into());
     DQNConfig::<CNN>::load(config_path)
 }
 
-fn trainer_config<'a>(model_dir: impl Into<&'a str>) -> Result<TrainerConfig> {
+fn load_trainer_config<'a>(model_dir: impl Into<&'a str>) -> Result<TrainerConfig> {
     let config_path = format!("{}/trainer_config.yaml", model_dir.into());
     TrainerConfig::load(config_path)
 }
@@ -165,11 +165,12 @@ fn train(matches: ArgMatches) -> Result<()> {
     let model_dir = model_dir(&matches);
     let env_config = env_config(name);
     let n_actions = n_actions(&env_config)?;
-    let agent_config = agent_config(model_dir.as_str())?;
-    let trainer_config = trainer_config(model_dir.as_str())?;
+
+    // Configurations
+    let agent_config = load_dqn_config(model_dir.as_str())?;
+    let trainer_config = load_trainer_config(model_dir.as_str())?;
+    let replay_buffer_config = load_replay_buffer_config(model_dir.as_str())?;
     let step_proc_config = SimpleStepProcessorConfig {};
-    let capacity = 0;// TODO load from somewhere
-    let replay_buffer_config = SimpleReplayBufferConfig::default().capacity(capacity);
 
     if matches.is_present("show-config") {
         show_config(&env_config, &agent_config, &trainer_config);
