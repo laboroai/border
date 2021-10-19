@@ -150,9 +150,13 @@ fn make_cfg(env_name: impl Into<String> + Clone, params: &Params) -> Result<()> 
     let replay_buffer_path = Path::new(&model_dir).join("replay_buffer.yaml");
     let trainer_path = Path::new(&model_dir).join("trainer.yaml");
 
-    agent_config.save(agent_path)?;
-    replay_buffer_config.save(replay_buffer_path)?;
-    trainer_config.save(trainer_path)?;
+    agent_config.save(&agent_path)?;
+    replay_buffer_config.save(&replay_buffer_path)?;
+    trainer_config.save(&trainer_path)?;
+
+    println!("{:?}", agent_path);
+    println!("{:?}", replay_buffer_path);
+    println!("{:?}", trainer_path);
 
     Ok(())
 }
