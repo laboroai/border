@@ -95,11 +95,6 @@ where
         let reward = Tensor::of_slice(&reward[..]).to(self.device);
         let is_done = Tensor::of_slice(&is_done[..]).to(self.device);
 
-        // let obs = &batch.obs;
-        // let a = batch.actions.to(self.device);
-        // let r = batch.rewards.to(self.device);
-        // let next_obs = batch.next_obs;
-        // let not_done = batch.not_dones.to(self.device);
         // let ixs = batch.indices;
         // let ws = batch.ws;
 

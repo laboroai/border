@@ -5,25 +5,25 @@ use std::{default::Default, path::Path};
 #[derive(Clone)]
 pub struct Params<'a> {
     // Agent parameters
-    replay_buffer_capacity: usize,
-    per: bool,
-    double_dqn: bool,
-    optimizer: &'a str,
-    batch_size: usize,
-    discount_factor: f64,
-    min_transition_warmup: usize,
-    soft_update_interval: usize,
-    lr: f64,
-    clip_reward: Option<f64>,
-    explorer: DQNExplorer,
+    pub replay_buffer_capacity: usize,
+    pub per: bool,
+    pub double_dqn: bool,
+    pub optimizer: &'a str,
+    pub batch_size: usize,
+    pub discount_factor: f64,
+    pub min_transition_warmup: usize,
+    pub soft_update_interval: usize,
+    pub lr: f64,
+    pub clip_reward: Option<f64>,
+    pub explorer: DQNExplorer,
 
     // Trainer parameters
-    max_opts: usize,
-    eval_interval: usize,
-    eval_episodes: usize,
-    opt_interval: usize,
-    record_interval: usize,
-    save_interval: usize,
+    pub max_opts: usize,
+    pub eval_interval: usize,
+    pub eval_episodes: usize,
+    pub opt_interval: usize,
+    pub record_interval: usize,
+    pub save_interval: usize,
 }
 
 impl<'a> Default for Params<'a> {
@@ -64,16 +64,19 @@ impl<'a> Params<'a> {
         self
     }
 
+    #[allow(dead_code)]
     pub fn replay_buffer_capacity(mut self, replay_buffer_capacity: usize) -> Self {
         self.replay_buffer_capacity = replay_buffer_capacity;
         self
     }
 
+    #[allow(dead_code)]
     pub fn max_opts(mut self, max_opts: usize) -> Self {
         self.max_opts = max_opts;
         self
     }
 
+    #[allow(dead_code)]
     pub fn optimizer(mut self, optimizer: &'a str) -> Self {
         self.optimizer = optimizer;
         self

@@ -49,7 +49,7 @@ impl From<Obs> for ObsBatch {
 struct Act(PyGymEnvDiscreteAct);
 
 #[derive(SubBatch)]
-struct ActBatch(TensorSubBatch<ActShape, i32>);
+struct ActBatch(TensorSubBatch<ActShape, i64>);
 
 impl From<Act> for ActBatch {
     fn from(act: Act) -> Self {
@@ -169,19 +169,19 @@ fn n_actions(env_config: &EnvConfig) -> Result<usize> {
 }
 
 fn load_dqn_config<'a>(model_dir: impl Into<&'a str>) -> Result<DQNConfig<CNN>> {
-    let config_path = format!("{}/dqn_config.yaml", model_dir.into());
+    let config_path = format!("{}/agent.yaml", model_dir.into());
     DQNConfig::<CNN>::load(config_path)
 }
 
 fn load_trainer_config<'a>(model_dir: impl Into<&'a str>) -> Result<TrainerConfig> {
-    let config_path = format!("{}/trainer_config.yaml", model_dir.into());
+    let config_path = format!("{}/trainer.yaml", model_dir.into());
     TrainerConfig::load(config_path)
 }
 
 fn load_replay_buffer_config<'a>(
     model_dir: impl Into<&'a str>,
 ) -> Result<SimpleReplayBufferConfig> {
-    let config_path = format!("{}/replay_buffer_config.yaml", model_dir.into());
+    let config_path = format!("{}/replay_buffer.yaml", model_dir.into());
     SimpleReplayBufferConfig::load(config_path)
 }
 
