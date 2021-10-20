@@ -1,26 +1,26 @@
+mod util_dqn_atari;
 use anyhow::Result;
 use border_core::{
-    record::{BufferedRecorder, Record, TensorboardRecorder},
+    record::TensorboardRecorder,
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
-        SimpleStepProcessorConfig, SubBatch,
+        SimpleStepProcessorConfig,
     },
-    shape, util, Agent, Env as _, Policy, Trainer, TrainerConfig,
+    shape, Agent, Env as _, Trainer, TrainerConfig,
 };
 use border_derive::{Act, Obs, SubBatch};
 use border_py_gym_env::{
     FrameStackFilter, PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct,
-    PyGymEnvDiscreteActRawFilter, PyGymEnvObs, PyGymEnvObsFilter,
+    PyGymEnvDiscreteActRawFilter, PyGymEnvObs,
 };
 use border_tch_agent::{
-    dqn::{DQNConfig, DQNModelConfig, DQN as DQN_},
-    cnn::{CNNConfig, CNN},
+    cnn::CNN,
+    dqn::{DQNConfig, DQN as DQN_},
     TensorSubBatch,
 };
 use clap::{App, Arg, ArgMatches};
-use csv::WriterBuilder;
-use serde::Serialize;
-use std::{convert::TryFrom, fs::File};
+use util_dqn_atari::{model_dir as model_dir_, Params};
+use std::convert::TryFrom;
 // #[cfg(feature = "tch")]
 // use tch::Tensor;
 
@@ -123,15 +123,33 @@ fn init<'a>() -> ArgMatches<'a> {
     matches
 }
 
-fn show_config(env_config: &EnvConfig, agent_config: &DQNConfig<CNN>, trainer_config: &TrainerConfig) {
+fn show_config(
+    env_config: &EnvConfig,
+    agent_config: &DQNConfig<CNN>,
+    trainer_config: &TrainerConfig,
+) {
     println!("Device: {:?}", tch::Device::cuda_if_available());
     println!("{}", serde_yaml::to_string(&env_config).unwrap());
     println!("{}", serde_yaml::to_string(&agent_config).unwrap());
     println!("{}", serde_yaml::to_string(&trainer_config).unwrap());
 }
 
-fn model_dir(matches: &ArgMatches) -> String {
-    unimplemented!();
+fn model_dir(matches: &ArgMatches) -> Result<String> {
+    let name = matches
+        .value_of("name")
+        .expect("The name of the environment was not given")
+        .to_string();
+    let mut params = Params::default();
+
+    if matches.is_present("ddqn") {
+        params = params.ddqn();
+    }
+
+    if matches.is_present("per") {
+        params = params.per();
+    }
+
+    model_dir_(name, &params)
 }
 
 fn model_dir_for_play(matches: &ArgMatches) -> String {
@@ -160,14 +178,21 @@ fn load_trainer_config<'a>(model_dir: impl Into<&'a str>) -> Result<TrainerConfi
     TrainerConfig::load(config_path)
 }
 
+fn load_replay_buffer_config<'a>(
+    model_dir: impl Into<&'a str>,
+) -> Result<SimpleReplayBufferConfig> {
+    let config_path = format!("{}/replay_buffer_config.yaml", model_dir.into());
+    SimpleReplayBufferConfig::load(config_path)
+}
+
 fn train(matches: ArgMatches) -> Result<()> {
     let name = matches.value_of("name").unwrap();
-    let model_dir = model_dir(&matches);
+    let model_dir = model_dir(&matches)?;
     let env_config = env_config(name);
     let n_actions = n_actions(&env_config)?;
 
     // Configurations
-    let agent_config = load_dqn_config(model_dir.as_str())?;
+    let agent_config = load_dqn_config(model_dir.as_str())?.out_dim(n_actions as _);
     let trainer_config = load_trainer_config(model_dir.as_str())?;
     let replay_buffer_config = load_replay_buffer_config(model_dir.as_str())?;
     let step_proc_config = SimpleStepProcessorConfig {};
@@ -177,7 +202,10 @@ fn train(matches: ArgMatches) -> Result<()> {
     } else {
         let device = tch::Device::cuda_if_available();
         let mut trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
-            trainer_config, env_config, step_proc_config, replay_buffer_config
+            trainer_config,
+            env_config,
+            step_proc_config,
+            replay_buffer_config,
         );
         let mut recorder = TensorboardRecorder::new(model_dir);
         let mut agent = DQN::build(agent_config, device);
@@ -191,8 +219,8 @@ fn play(matches: ArgMatches) -> Result<()> {
     let name = matches.value_of("name").unwrap();
     let model_dir = model_dir_for_play(&matches);
     let env_config = env_config(name);
-    let n_actions = n_actions(&env_config);
-    let agent_config = agent_config(model_dir.as_str())?;
+    let n_actions = n_actions(&env_config)?;
+    let agent_config = load_dqn_config(model_dir.as_str())?.out_dim(n_actions as _);
     let device = tch::Device::cuda_if_available();
     let mut agent = DQN::build(agent_config, device);
     let mut env = Env::build(&env_config, 0)?;

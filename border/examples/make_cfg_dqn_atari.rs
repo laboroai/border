@@ -8,7 +8,7 @@ use border_tch_agent::{
 use std::{default::Default, path::Path};
 
 #[derive(Clone)]
-struct Params<'a> {
+pub struct Params<'a> {
     // Agent parameters
     replay_buffer_capacity: usize,
     per: bool,
@@ -59,8 +59,13 @@ impl<'a> Default for Params<'a> {
 }
 
 impl<'a> Params<'a> {
-    fn per(mut self) -> Self {
+    pub fn per(mut self) -> Self {
         self.per = true;
+        self
+    }
+
+    pub fn ddqn(mut self) -> Self {
+        self.double_dqn = true;
         self
     }
 
@@ -74,18 +79,13 @@ impl<'a> Params<'a> {
         self
     }
 
-    fn ddqn(mut self) -> Self {
-        self.double_dqn = true;
-        self
-    }
-
     fn optimizer(mut self, optimizer: &'a str) -> Self {
         self.optimizer = optimizer;
         self
     }
 }
 
-fn model_dir(env_name: String, params: &Params) -> Result<String> {
+pub fn model_dir(env_name: String, params: &Params) -> Result<String> {
     let per = params.per;
     let ddqn = params.double_dqn;
 

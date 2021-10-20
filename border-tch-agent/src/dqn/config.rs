@@ -120,6 +120,13 @@ where
         self
     }
 
+    /// Sets the output dimention of the dqn model of the DQN agent.
+    pub fn out_dim(mut self, out_dim: i64) -> Self {
+        let model_config = self.model_config.clone();
+        self.model_config = model_config.out_dim(out_dim);
+        self
+    }
+
     /// Reward clipping.
     pub fn clip_reward(mut self, clip_reward: Option<f64>) -> Self {
         self.clip_reward = clip_reward;
