@@ -2,13 +2,16 @@
 use super::PyGymEnvObs;
 use crate::PyGymEnvObsFilter;
 use border_core::Shape;
-use border_core::{record::Record, Obs};
+use border_core::{
+    record::{Record, RecordValue},
+    Obs,
+};
 use ndarray::{stack, ArrayD, Axis, IxDyn, SliceInfo, SliceInfoElem}; //, SliceOrIndex};
 use num_traits::cast::AsPrimitive;
 use numpy::{Element, PyArrayDyn};
 use pyo3::{types::PyList, Py, PyAny, PyObject};
+use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fmt::Debug, marker::PhantomData};
-use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 /// Configuration of [FrameStackFilter].
@@ -120,7 +123,7 @@ impl<S, T1, T2, U> PyGymEnvObsFilter<U> for FrameStackFilter<S, T1, T2, U>
 where
     S: Shape,
     T1: Element + Debug + num_traits::identities::Zero + AsPrimitive<T2>,
-    T2: 'static + Copy + num_traits::Zero,
+    T2: 'static + Copy + num_traits::Zero + Into<f32>,
     U: Obs + From<PyGymEnvObs<S, T1, T2>>,
 {
     type Config = FrameStackFilterConfig;
@@ -171,11 +174,18 @@ where
             });
 
             // Returns stacked observation in the buffer
-            let obs = PyGymEnvObs::from(self.buffer[0].clone().insert_axis(Axis(0)));
+            // img.shape() = [1, 4, 1, 84, 84]
+            // [batch_size, n_stack, color_ch, width, height]
+            let img = self.buffer[0].clone().insert_axis(Axis(0));
+            let data = img.iter().map(|&e| e.into()).collect::<Vec<_>>();
+            let shape = [img.shape()[3] * self.n_stack as usize, img.shape()[4]];
+
+            let obs = PyGymEnvObs::from(img);
             let obs = U::from(obs);
 
             // TODO: add contents in the record
-            let record = Record::empty();
+            let mut record = Record::empty();
+            record.insert("frame_stack_filter_out", RecordValue::Array2(data, shape));
 
             (obs, record)
         }

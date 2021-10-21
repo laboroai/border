@@ -1,5 +1,5 @@
 //! Samples transitions and pushes them into a replay buffer.
-use crate::{Env, Agent, ReplayBufferBase, StepProcessorBase};
+use crate::{Env, Agent, ReplayBufferBase, StepProcessorBase, record::Record};
 use anyhow::Result;
 
 pub struct SyncSampler<E, P>
@@ -31,7 +31,7 @@ where
     }
 
     /// Samples transitions and pushes them into the replay buffer.
-    pub fn sample_and_push<A, R>(&mut self, agent: &mut A, buffer: &mut R) -> Result<()> 
+    pub fn sample_and_push<A, R>(&mut self, agent: &mut A, buffer: &mut R) -> Result<Record> 
     where
         A: Agent<E, R>,
         R: ReplayBufferBase<PushedItem = P::Output>
@@ -48,7 +48,7 @@ where
 
         // Sample action(s) and apply it to environment(s)
         let act = agent.sample(self.prev_obs.as_ref().unwrap());
-        let (step, _record) = self.env.step_with_reset(&act);
+        let (step, record) = self.env.step_with_reset(&act);
         self.prev_obs = Some(step.obs.clone());
 
         // Create and push transition(s)
@@ -61,7 +61,7 @@ where
             self.time += time.as_millis() as f32;
         }
 
-        Ok(())
+        Ok(record)
     }
 
     /// Returns FPS, including taking action, applying it to the, environment,

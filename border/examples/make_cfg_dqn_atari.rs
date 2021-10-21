@@ -34,13 +34,19 @@ fn make_replay_buffer_config(params: &Params) -> SimpleReplayBufferConfig {
 fn make_trainer_config(env_name: String, params: &Params) -> Result<TrainerConfig> {
     let model_dir = model_dir(env_name, params)?;
 
+    let (max_opts, opt_interval, record_interval) = if !params.debug {
+        (params.max_opts, params.opt_interval, params.record_interval)
+    } else {
+        (1000, 100, 100)
+    };
+
     Ok(TrainerConfig::default()
-        .max_opts(params.max_opts)
+        .max_opts(max_opts)
+        .opt_interval(opt_interval)
+        .record_interval(record_interval)
         .eval_interval(params.eval_interval)
         .eval_episodes(params.eval_episodes)
         .model_dir(model_dir)
-        .opt_interval(params.opt_interval)
-        .record_interval(params.record_interval)
         .save_interval(params.save_interval))
 }
 
@@ -69,6 +75,7 @@ fn main() -> Result<()> {
     // Pong
     let params = Params::default().replay_buffer_capacity(65536);
     make_cfg("PongNoFrameskip-v4", &params)?;
+    make_cfg("PongNoFrameskip-v4", &params.clone().debug())?;
     make_cfg("PongNoFrameskip-v4", &params.clone().per())?;
     make_cfg("PongNoFrameskip-v4", &params.clone().ddqn())?;
 

@@ -106,6 +106,12 @@ fn init<'a>() -> ArgMatches<'a> {
                 .help("Train/play with double DQN"),
         )
         .arg(
+            Arg::with_name("debug")
+                .long("debug")
+                .takes_value(false)
+                .help("Run with debug configuration"),
+        )
+        .arg(
             Arg::with_name("wait")
                 .long("wait")
                 .takes_value(true)
@@ -149,6 +155,10 @@ fn model_dir(matches: &ArgMatches) -> Result<String> {
         params = params.per();
     }
 
+    if matches.is_present("debug") {
+        params = params.debug();
+    }
+
     model_dir_(name, &params)
 }
 
@@ -188,8 +198,9 @@ fn load_replay_buffer_config<'a>(
 fn train(matches: ArgMatches) -> Result<()> {
     let name = matches.value_of("name").unwrap();
     let model_dir = model_dir(&matches)?;
-    let env_config = env_config(name);
-    let n_actions = n_actions(&env_config)?;
+    let env_config_train = env_config(name).atari_wrapper(Some(border_py_gym_env::AtariWrapper::Train));
+    let env_config_eval = env_config(name).atari_wrapper(Some(border_py_gym_env::AtariWrapper::Eval));
+    let n_actions = n_actions(&env_config_train)?;
 
     // Configurations
     let agent_config = load_dqn_config(model_dir.as_str())?.out_dim(n_actions as _);
@@ -198,12 +209,13 @@ fn train(matches: ArgMatches) -> Result<()> {
     let step_proc_config = SimpleStepProcessorConfig {};
 
     if matches.is_present("show-config") {
-        show_config(&env_config, &agent_config, &trainer_config);
+        show_config(&env_config_train, &agent_config, &trainer_config);
     } else {
         let device = tch::Device::cuda_if_available();
         let mut trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
             trainer_config,
-            env_config,
+            env_config_train,
+            Some(env_config_eval),
             step_proc_config,
             replay_buffer_config,
         );

@@ -163,8 +163,7 @@ impl Record {
                 RecordValue::String(s) => Ok(s.clone()),
                 _ => Err(LrrError::RecordValueTypeError("String".to_string())),
             }
-        }
-        else {
+        } else {
             Err(LrrError::RecordKeyError(k.to_string()))
         }
     }
@@ -201,7 +200,7 @@ impl TensorboardRecorder {
         Self {
             writer: SummaryWriter::new(logdir),
             step_key: "opt_steps".to_string(),
-            ignore_unsupported_value: true
+            ignore_unsupported_value: true,
         }
     }
 
@@ -212,7 +211,7 @@ impl TensorboardRecorder {
         Self {
             writer: SummaryWriter::new(logdir),
             step_key: "opt_steps".to_string(),
-            ignore_unsupported_value: false
+            ignore_unsupported_value: false,
         }
     }
 }
@@ -236,6 +235,19 @@ impl Recorder for TensorboardRecorder {
                 match v {
                     RecordValue::Scalar(v) => self.writer.add_scalar(k, *v as f32, step),
                     RecordValue::DateTime(_) => {} // discard value
+                    RecordValue::Array2(data, shape) => {
+                        let shape = [3, shape[0], shape[1]];
+                        let min = data.iter().fold(f32::MAX, |m, v| v.min(m));
+                        let scale = data.iter().fold(-f32::MAX, |m, v| v.max(m)) - min;
+                        let mut data = data
+                            .iter()
+                            .map(|&e| ((e - min) / scale * 255f32) as u8)
+                            .collect::<Vec<_>>();
+                        let data_ = data.clone();
+                        data.extend(data_.iter());
+                        data.extend(data_.iter());
+                        self.writer.add_image(k, data.as_slice(), &shape, step)
+                    }
                     _ => {
                         if !self.ignore_unsupported_value {
                             panic!("Unsupported value: {:?}", (k, v));

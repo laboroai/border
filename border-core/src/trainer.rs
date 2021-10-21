@@ -31,8 +31,13 @@ where
     P: StepProcessorBase<E>,
     R: ReplayBufferBase<PushedItem = P::Output>,
 {
-    /// Configuration of the environment.
-    pub env_config: E::Config,
+    /// Configuration of the environment for training.
+    pub env_config_train: E::Config,
+
+    /// Configuration of the environment for evaluation.
+    ///
+    /// If `None`, `env_config_train` is used.
+    pub env_config_eval: Option<E::Config>,
 
     /// Configuration of the transition producer.
     pub step_proc_config: P::Config,
@@ -69,9 +74,16 @@ where
     R: ReplayBufferBase<PushedItem = P::Output>,
 {
     /// Constructs a trainer.
-    pub fn build(config: TrainerConfig, env_config: E::Config, step_proc_config: P::Config, replay_buffer_config: R::Config) -> Self {
+    pub fn build(
+        config: TrainerConfig,
+        env_config_train: E::Config,
+        env_config_eval: Option<E::Config>,
+        step_proc_config: P::Config,
+        replay_buffer_config: R::Config,
+    ) -> Self {
         Self {
-            env_config,
+            env_config_train,
+            env_config_eval,
             step_proc_config,
             replay_buffer_config,
             model_dir: config.model_dir,
@@ -108,7 +120,13 @@ where
     {
         agent.eval();
 
-        let mut env = E::build(&self.env_config, 0)?; // TODO use eval_env_config
+        let env_config = if self.env_config_eval.is_none() {
+            &self.env_config_train
+        } else {
+            &self.env_config_eval.as_ref().unwrap()
+        };
+
+        let mut env = E::build(env_config, 0)?; // TODO use eval_env_config
         let mut r_total = 0f32;
 
         for _ in 0..self.eval_episodes {
@@ -143,14 +161,14 @@ where
         A: Agent<E, R>,
     {
         // Sample transition(s) and push it into the replay buffer
-        sampler.sample_and_push(agent, buffer)?;
+        let record_ = sampler.sample_and_push(agent, buffer)?;
 
         // Do optimization step
         *env_steps += 1;
 
         if *env_steps % self.opt_interval == 0 {
             let now = std::time::SystemTime::now();
-            let record = agent.opt(buffer);
+            let record = agent.opt(buffer).map_or(None, |r| Some(record_.merge(r)));
             let time = now.elapsed()?;
             Ok((record, Some(time)))
         } else {
@@ -164,7 +182,7 @@ where
         A: Agent<E, R>,
         S: Recorder,
     {
-        let env = E::build(&self.env_config, 0)?;
+        let env = E::build(&self.env_config_train, 0)?;
         let producer = P::build(&self.step_proc_config);
         let mut buffer = R::build(&self.replay_buffer_config);
         let mut sampler = SyncSampler::new(env, producer);

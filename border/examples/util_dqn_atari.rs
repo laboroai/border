@@ -24,6 +24,9 @@ pub struct Params<'a> {
     pub opt_interval: usize,
     pub record_interval: usize,
     pub save_interval: usize,
+
+    // Debug parameters
+    pub debug: bool,
 }
 
 impl<'a> Default for Params<'a> {
@@ -49,6 +52,9 @@ impl<'a> Default for Params<'a> {
             opt_interval: 1,
             record_interval: 50_000,
             save_interval: 500_000,
+
+            // Debug parameters
+            debug: false,
         }
     }
 }
@@ -61,6 +67,11 @@ impl<'a> Params<'a> {
 
     pub fn ddqn(mut self) -> Self {
         self.double_dqn = true;
+        self
+    }
+
+    pub fn debug(mut self) -> Self {
+        self.debug = true;
         self
     }
 
@@ -86,6 +97,7 @@ impl<'a> Params<'a> {
 pub fn model_dir(env_name: String, params: &Params) -> Result<String> {
     let per = params.per;
     let ddqn = params.double_dqn;
+    let debug = params.debug;
 
     let mut model_dir = format!("./border/examples/model/dqn_{}", env_name);
     if per {
@@ -94,6 +106,10 @@ pub fn model_dir(env_name: String, params: &Params) -> Result<String> {
 
     if ddqn {
         model_dir.push_str("_ddqn");
+    }
+
+    if debug {
+        model_dir.push_str("_debug");
     }
 
     if !Path::new(&model_dir).exists() {

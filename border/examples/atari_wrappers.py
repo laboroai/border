@@ -336,3 +336,9 @@ def make(env_name, atari_wrapper, train, num_processes):
         make_env(env_name, img_dir, atari_wrapper, train, 42, i) for i in range(num_processes)
     ])
     return envs
+
+if __name__ == "__main__":
+    env = make_env_single_proc("PongNoFrameskip-v4", True, True)
+    env.reset()
+    step = env.step(0)
+    Image.fromarray(step[0].reshape([84, 84])).save("./test.png")
