@@ -83,6 +83,8 @@ fn main() -> Result<()> {
     // Hero
     let params = Params::default()
         .max_opts(50_000_000)
+        .eval_interval(500_000)
+        .save_interval(10_000_000)
         .replay_buffer_capacity(1048576)
         .optimizer("adam");
     make_cfg("HeroNoFrameskip-v4", &params)?;

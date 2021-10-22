@@ -62,16 +62,19 @@ impl<'a> Default for Params<'a> {
 }
 
 impl<'a> Params<'a> {
+    #[allow(dead_code)]
     pub fn per(mut self) -> Self {
         self.per = true;
         self
     }
 
+    #[allow(dead_code)]
     pub fn ddqn(mut self) -> Self {
         self.double_dqn = true;
         self
     }
 
+    #[allow(dead_code)]
     pub fn debug(mut self) -> Self {
         self.debug = true;
         self
@@ -86,6 +89,18 @@ impl<'a> Params<'a> {
     #[allow(dead_code)]
     pub fn max_opts(mut self, max_opts: usize) -> Self {
         self.max_opts = max_opts;
+        self
+    }
+
+    #[allow(dead_code)]
+    pub fn save_interval(mut self, save_interval: usize) -> Self {
+        self.save_interval = save_interval;
+        self
+    }
+
+    #[allow(dead_code)]
+    pub fn eval_interval(mut self, eval_interval: usize) -> Self {
+        self.eval_interval = eval_interval;
         self
     }
 
