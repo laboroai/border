@@ -1,8 +1,0 @@
----
-q_config:
-  n_stack: 4
-  out_dim: 0
-opt_config:
-  Adam:
-    lr: 0.000025
-phantom: ~
