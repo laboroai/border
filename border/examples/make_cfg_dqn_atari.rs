@@ -24,6 +24,7 @@ fn make_dqn_config(params: &Params) -> DQNConfig<CNN> {
         .min_transitions_warmup(params.min_transition_warmup)
         .soft_update_interval(params.soft_update_interval)
         .clip_reward(params.clip_reward)
+        .tau(params.tau)
         .explorer(params.explorer.clone())
 }
 
@@ -76,8 +77,8 @@ fn main() -> Result<()> {
     let params = Params::default().replay_buffer_capacity(65536);
     make_cfg("PongNoFrameskip-v4", &params)?;
     make_cfg("PongNoFrameskip-v4", &params.clone().debug())?;
-    make_cfg("PongNoFrameskip-v4", &params.clone().per())?;
-    make_cfg("PongNoFrameskip-v4", &params.clone().ddqn())?;
+    // make_cfg("PongNoFrameskip-v4", &params.clone().per())?;
+    // make_cfg("PongNoFrameskip-v4", &params.clone().ddqn())?;
 
     // Hero
     let params = Params::default()
@@ -85,8 +86,8 @@ fn main() -> Result<()> {
         .replay_buffer_capacity(1048576)
         .optimizer("adam");
     make_cfg("HeroNoFrameskip-v4", &params)?;
-    make_cfg("HeroNoFrameskip-v4", &params.clone().per())?;
-    make_cfg("HeroNoFrameskip-v4", &params.clone().ddqn())?;
+    // make_cfg("HeroNoFrameskip-v4", &params.clone().per())?;
+    // make_cfg("HeroNoFrameskip-v4", &params.clone().ddqn())?;
 
     Ok(())
 }

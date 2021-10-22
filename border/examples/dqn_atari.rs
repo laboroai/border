@@ -1,12 +1,12 @@
 mod util_dqn_atari;
 use anyhow::Result;
 use border_core::{
-    record::TensorboardRecorder,
+    record::{TensorboardRecorder, BufferedRecorder},
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    shape, Agent, Env as _, Trainer, TrainerConfig,
+    shape, Agent, Env as _, Trainer, TrainerConfig, util
 };
 use border_derive::{Act, Obs, SubBatch};
 use border_py_gym_env::{
@@ -163,7 +163,7 @@ fn model_dir(matches: &ArgMatches) -> Result<String> {
 }
 
 fn model_dir_for_play(matches: &ArgMatches) -> String {
-    unimplemented!();
+    matches.value_of("play").unwrap().to_string()
 }
 
 fn env_config(name: &str) -> EnvConfig {
@@ -236,10 +236,13 @@ fn play(matches: ArgMatches) -> Result<()> {
     let device = tch::Device::cuda_if_available();
     let mut agent = DQN::build(agent_config, device);
     let mut env = Env::build(&env_config, 0)?;
+    let mut recorder = BufferedRecorder::new();
 
     env.set_render(true);
-    agent.load(model_dir)?;
+    agent.load(model_dir + "/best")?;
     agent.eval();
+
+    let _ = util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder)?;
 
     Ok(())
 }

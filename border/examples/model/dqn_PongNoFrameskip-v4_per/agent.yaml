@@ -11,7 +11,7 @@ n_updates_per_opt: 1
 min_transitions_warmup: 2500
 batch_size: 32
 discount_factor: 0.99
-tau: 0.005
+tau: 1.0
 train: false
 explorer:
   EpsilonGreedy:

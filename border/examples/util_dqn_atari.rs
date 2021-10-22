@@ -16,6 +16,7 @@ pub struct Params<'a> {
     pub lr: f64,
     pub clip_reward: Option<f64>,
     pub explorer: DQNExplorer,
+    pub tau: f64,
 
     // Trainer parameters
     pub max_opts: usize,
@@ -44,6 +45,7 @@ impl<'a> Default for Params<'a> {
             lr: 1e-4,
             clip_reward: Some(1.0),
             explorer: EpsilonGreedy::with_final_step(1_000_000),
+            tau: 1.0,
 
             // Trainer parameters
             max_opts: 3_000_000,
