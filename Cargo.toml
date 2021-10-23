@@ -5,5 +5,6 @@ members = [
     "border-py-gym-env",
     "border-tch-agent",
     "border-derive",
+    "border-atari-env",
     "border"
 ]

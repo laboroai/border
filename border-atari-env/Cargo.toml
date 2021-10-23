@@ -1,0 +1,59 @@
+[package]
+name = "border-atari-env"
+version = "0.0.5"
+authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
+edition = "2018"
+
+description = "Atari environment based on gym-rs"
+repository = "https://github.com/taku-y/border"
+keywords = ["rl"]
+categories = ["science"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+autoexamples = false
+
+[dependencies]
+anyhow = "1.0.38"
+pixels = "0.2.0"
+# wgpu = "0.7.0"
+winit = "0.24.0"
+atari-env = { version = "0.1.1", path = "../../../elbaro/gym-rs/atari-env" }
+dirs = "3.0.1"
+rand = "0.8.3"
+border-core = { version = "0.0.5", path = "../border-core" }
+# fastrand = "1.4.0"
+# winit_input_helper = "0.9.0"
+
+[[example]]
+name = "random_pong"
+
+# [dev-dependencies]
+# clap = "2.33.3"
+# csv = "1.1.5"
+# tempdir = "0.3.7"
+# border-derive = { version = "0.0.5", path = "../border-derive"}
+# border-core = { version = "0.0.5", path = "../border-core" }
+# border-tch-agent = { version = "0.0.5", path = "../border-tch-agent" }
+# border-py-gym-env = { version = "0.0.5", path = "../border-py-gym-env"}
+# serde = { version = "1.0.117", features = ["derive"] }
+# env_logger = "0.8.2"
+# numpy = "0.14.1"
+# ndarray = { version = "0.15.3", features = ["serde"] }
+# num-traits = "0.2.14"
+# pyo3 = { version = "=0.14.5", default-features = false }
+# fastrand = "1.4.0"
+# chrono = "0.4"
+# tensorboard-rs = "0.2.4"
+# thiserror = "1.0"
+# serde_yaml = "0.8.7"
+
+# [package.metadata.docs.rs]
+# features = [ "doc-only" ]
+
+# [features]
+# # default = [ "adam_eps" ]
+# doc-only = ["tch/doc-only"]
+# adam_eps = []
+
+#[target.'cfg(feature="adam_eps")'.patch.crates-io]
+#tch = { git = "https://github.com/taku-y/tch-rs", branch = "adam_eps" }
