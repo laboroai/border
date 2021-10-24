@@ -12,3 +12,9 @@ impl Act for BorderAtariAct {
         1
     }
 }
+
+impl From<u8> for BorderAtariAct {
+    fn from(act: u8) -> Self {
+        Self { act }
+    }
+}
