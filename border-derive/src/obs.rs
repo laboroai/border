@@ -23,8 +23,9 @@ pub fn derive(input: TokenStream) -> TokenStream {
 }
 
 fn py_gym_env_obs(ident: proc_macro2::Ident, field_type: syn::Type) -> proc_macro2::TokenStream {
-    #[cfg(not(feature = "tch"))]
-    let output = quote! {
+    // #[cfg(not(feature = "tch"))]
+    #[allow(unused_mut)]
+    let mut output = quote! {
         impl border_core::Obs for #ident {
             fn dummy(n: usize) -> Self {
                 Obs(PyGymEnvObs::dummy(n))
@@ -47,33 +48,13 @@ fn py_gym_env_obs(ident: proc_macro2::Ident, field_type: syn::Type) -> proc_macr
     };
 
     #[cfg(feature = "tch")]
-    let output = quote! {
-        impl border_core::Obs for #ident {
-            fn dummy(n: usize) -> Self {
-                Obs(PyGymEnvObs::dummy(n))
-            }
-
-            fn merge(self, obs_reset: Self, is_done: &[i8]) -> Self {
-                Obs(self.0.merge(obs_reset.0, is_done))
-            }
-
-            fn len(&self) -> usize {
-                self.0.len()
-            }
-        }
-
-        impl From<#field_type> for #ident {
-            fn from(obs: #field_type) -> Self {
-                #ident(obs)
-            }
-        }
-
+    output.extend(quote! {
         impl From<#ident> for tch::Tensor {
             fn from(obs: #ident) -> tch::Tensor {
                 tch::Tensor::try_from(obs.0).unwrap()
             }
         }
-    };
+    }.into_iter());
 
     output
 }

@@ -125,6 +125,7 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
         let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
             config,
             env_config,
+            None,
             step_proc_config,
             replay_buffer_config,
         );

@@ -30,8 +30,9 @@ fn py_gym_env_cont_act(
     ident: proc_macro2::Ident,
     field_type: syn::Type,
 ) -> proc_macro2::TokenStream {
-    #[cfg(not(feature = "tch"))]
-    let output = quote! {
+    // #[cfg(not(feature = "tch"))]
+    #[allow(unused_mut)]
+    let mut output = quote! {
         impl border_core::Act for #ident {
             fn len(&self) -> usize {
                 self.0.len()
@@ -46,19 +47,7 @@ fn py_gym_env_cont_act(
     };
 
     #[cfg(feature = "tch")]
-    let output = quote! {
-        impl border_core::Act for #ident {
-            fn len(&self) -> usize {
-                self.0.len()
-            }
-        }
-
-        impl Into<#field_type> for #ident {
-            fn into(self) -> #field_type {
-                self.0
-            }
-        }
-
+    output.extend(quote! {
         impl From<#ident> for tch::Tensor {
             fn from(act: #ident) -> tch::Tensor {
                 let v = act.0.act.iter().map(|e| *e as f32).collect::<Vec<_>>();
@@ -85,7 +74,7 @@ fn py_gym_env_cont_act(
                 #ident(PyGymEnvContinuousAct::new(act))
             }
         }
-    };
+    }.into_iter());
 
     output
 }
@@ -94,8 +83,9 @@ fn py_gym_env_disc_act(
     ident: proc_macro2::Ident,
     field_type: syn::Type,
 ) -> proc_macro2::TokenStream {
-    #[cfg(not(feature = "tch"))]
-    let output = quote! {
+    // #[cfg(not(feature = "tch"))]
+    #[allow(unused_mut)]
+    let mut output = quote! {
         impl border_core::Act for #ident {
             fn len(&self) -> usize {
                 self.0.len()
@@ -110,19 +100,7 @@ fn py_gym_env_disc_act(
     };
 
     #[cfg(feature = "tch")]
-    let output = quote! {
-        impl border_core::Act for #ident {
-            fn len(&self) -> usize {
-                self.0.len()
-            }
-        }
-
-        impl Into<#field_type> for #ident {
-            fn into(self) -> #field_type {
-                self.0
-            }
-        }
-
+    output.extend(quote! {
         impl From<#ident> for tch::Tensor {
             fn from(act: #ident) -> tch::Tensor {
                 let v = act.0.act.iter().map(|e| *e as i64).collect::<Vec<_>>();
@@ -142,7 +120,7 @@ fn py_gym_env_disc_act(
                 #ident(PyGymEnvDiscreteAct::new(data))
             }
         }
-    };
+    }.into_iter());
 
     output
 }
