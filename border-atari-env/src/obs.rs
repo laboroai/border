@@ -1,9 +1,24 @@
+//! Observation of [BorderAtariEnv](super::BorderAtariEnv).
+//!
+//! It applies the following preprocessing 
+//! (explanations are adapted from [Stable Baselines](https://stable-baselines3.readthedocs.io/en/master/common/atari_wrappers.html#stable_baselines3.common.atari_wrappers.AtariWrapper)
+//! API document):
+//! * (WIP: NoopReset: obtain initial state by taking random number of no-ops on reset.)
+//! * Four frames skipping 
+//! * Max pooling: most recent two observations
+//! * Resize to 84 x 84
+//! * Grayscale
+//! * Clip reward to {-1, 0, 1} in training
+//! * Stacking four frames
+//! It does not apply pixel scaling from 255 to 1.0 for saving memory of the replay buffer.
+//! Instead, the scaling is applied in CNN model.
 use border_core::Obs;
 
+/// Observation of [BorderAtariEnv](super::BorderAtariEnv).
 #[derive(Debug, Clone)]
 pub struct BorderAtariObs {
-    // 4 * 84 * 84
-    frames: Vec<u8>,
+    /// Four frames of 84 * 84 pixels.
+    pub frames: Vec<u8>,
 }
 
 impl From<Vec<u8>> for BorderAtariObs {

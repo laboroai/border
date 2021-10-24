@@ -49,7 +49,7 @@ where
         self
     }
 
-    /// Constructs [ActorBuilder] from YAML file.
+    /// Constructs [ActorConfig] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let file = File::open(path)?;
         let rdr = BufReader::new(file);
@@ -57,39 +57,10 @@ where
         Ok(b)
     }
 
-    /// Saves [ActorBuilder].
+    /// Saves [ActorConfig].
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let mut file = File::create(path)?;
         file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;
         Ok(())
     }
-
-    // /// Constructs [Actor] with the given configurations of sub models.
-    // pub fn build(self, device: Device) -> Result<Actor<P>> {
-    //     let pi_config = self.pi_config.context("pi_config is not set.")?;
-    //     let out_dim = pi_config.get_out_dim();
-    //     let opt_config = self.opt_config;
-    //     let var_store = nn::VarStore::new(device);
-    //     let pi = P::build(&var_store, pi_config);
-
-    //     Ok(Actor::_build(
-    //         device, out_dim, opt_config, pi, var_store, None,
-    //     ))
-    // }
-
-    // /// Constructs [Actor] with the given configurations of sub models.
-    // pub fn build_with_submodel_configs(
-    //     &self,
-    //     pi_config: P::Config,
-    //     device: Device,
-    // ) -> Result<Actor<P>> {
-    //     let out_dim = pi_config.get_out_dim();
-    //     let opt_config = self.opt_config.clone();
-    //     let var_store = nn::VarStore::new(device);
-    //     let pi = P::build(&var_store, pi_config);
-
-    //     Ok(Actor::_build(
-    //         device, out_dim, opt_config, pi, var_store, None,
-    //     ))
-    // }
 }

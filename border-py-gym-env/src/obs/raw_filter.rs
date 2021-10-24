@@ -24,7 +24,7 @@ impl Default for PyGymEnvObsRawFilterConfig {
 
 /// An observation filter without any postprocessing.
 ///
-/// The filter works with [super::PyGymEnv] or [super::PyVecGymEnv].
+/// The filter works with [PyGymEnv](crate::PyGymEnv).
 pub struct PyGymEnvObsRawFilter<S, T1, T2, U> {
     /// If the environment is vectorized.
     pub vectorized: bool,

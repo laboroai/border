@@ -17,7 +17,7 @@ use std::{
 use tch::Tensor;
 
 #[allow(clippy::upper_case_acronyms)]
-/// Constructs [DQN].
+/// Constructs [DQN](super::DQN).
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct DQNConfig<Q>
 where

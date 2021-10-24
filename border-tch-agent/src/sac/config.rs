@@ -161,7 +161,7 @@ where
         self
     }
 
-    /// Constructs [SACBuilder] from YAML file.
+    /// Constructs [SACConfig] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let path_ = path.as_ref().to_owned();
         let file = File::open(path)?;
@@ -171,7 +171,7 @@ where
         Ok(b)
     }
 
-    /// Saves [SACBuilder].
+    /// Saves [SACConfig].
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let path_ = path.as_ref().to_owned();
         let mut file = File::create(path)?;

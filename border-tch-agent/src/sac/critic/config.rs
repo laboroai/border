@@ -40,7 +40,7 @@ where
         self
     }
 
-    /// Constructs [CriticBuilder] from YAML file.
+    /// Constructs [CriticConfig] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let file = File::open(path)?;
         let rdr = BufReader::new(file);
@@ -48,7 +48,7 @@ where
         Ok(b)
     }
 
-    /// Saves [CriticBuilder].
+    /// Saves [CriticConfig].
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let mut file = File::create(path)?;
         file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;

@@ -228,6 +228,7 @@ impl Env for BorderAtariEnv {
         Ok(self.frames.clone().into())
     }
 
+    /// Currently it supports non-vectorized environment.
     fn step_with_reset(
         &mut self,
         a: &Self::Act,
@@ -235,7 +236,23 @@ impl Env for BorderAtariEnv {
     where
         Self: Sized,
     {
-        unimplemented!();
+        let (step, record) = self.step(a);
+        assert_eq!(step.is_done.len(), 1);
+        let step = if step.is_done[0] == 1 {
+            let init_obs = self.reset(None).unwrap();
+            Step {
+                act: step.act,
+                obs: step.obs,
+                reward: step.reward,
+                is_done: step.is_done,
+                info: step.info,
+                init_obs
+            }
+        } else {
+            step
+        };
+
+        (step, record)
     }
 
     fn step(&mut self, act: &Self::Act) -> (border_core::Step<Self>, border_core::record::Record)
