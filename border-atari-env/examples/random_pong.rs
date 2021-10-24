@@ -1,9 +1,11 @@
 use anyhow::Result;
-use border_atari_env::{BorderAtariEnv, BorderAtariAct};
+use border_atari_env::{BorderAtariEnv, BorderAtariEnvConfig};
 use border_core::Env;
 
 fn main() -> Result<()> {
-    let mut env = BorderAtariEnv::default();
+    let env_config = BorderAtariEnvConfig::default()
+        .name("pong");
+    let mut env = BorderAtariEnv::build(&env_config, 42)?;
     env.open()?;
     // let mut i = 0;
 

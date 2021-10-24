@@ -4,27 +4,24 @@ use super::{BorderAtariAct, BorderAtariObs};
 use anyhow::Result;
 use atari_env::{AtariAction, AtariEnv, EmulatorConfig};
 use border_core::{record::Record, Env, Info, Obs, Step};
-use config::BorderAtariEnvConfig;
+pub use config::BorderAtariEnvConfig;
 use image::{
     imageops::{grayscale, resize, FilterType::Triangle},
     ImageBuffer, Luma, Rgb,
 };
 use std::default::Default;
+use std::ptr::copy;
 use window::AtariWindow;
 use winit::{event_loop::ControlFlow, platform::run_return::EventLoopExtRunReturn};
-use std::ptr::copy;
 
 /// Empty struct.
 pub struct NullInfo;
 
 impl Info for NullInfo {}
 
-fn env() -> AtariEnv {
+fn env(rom_dir: &str, name: &str) -> AtariEnv {
     AtariEnv::new(
-        dirs::home_dir()
-            .unwrap()
-            .join(".local/lib/python3.9/site-packages/atari_py/atari_roms/space_invaders.bin"),
-            // .join(".local/lib/python3.9/site-packages/atari_py/atari_roms/pong.bin"),
+        rom_dir.to_string() + format!("/{}.bin", name).as_str(),
         EmulatorConfig {
             // display_screen: true,
             // sound: true,
@@ -141,7 +138,7 @@ impl BorderAtariEnv {
         // `obs.len()` is w * h * 3 where (w, h) is the size of the frame.
         let img = ImageBuffer::<Rgb<_>, _>::from_vec(w, h, obs).unwrap();
         let img = resize(&img, 84, 84, Triangle);
-        let img: ImageBuffer::<Luma<u8>, _> = grayscale(&img);
+        let img: ImageBuffer<Luma<u8>, _> = grayscale(&img);
         let buf = img.to_vec();
         assert_eq!(buf.len(), 84 * 84);
         buf
@@ -164,7 +161,7 @@ impl Default for BorderAtariEnv {
     fn default() -> Self {
         Self {
             train: false,
-            env: env(),
+            env: env(BorderAtariEnvConfig::default().rom_dir.as_str(), "pong"),
             window: None,
             obs_buffer: [vec![], vec![]],
             lives: 0,
@@ -180,13 +177,13 @@ impl Env for BorderAtariEnv {
     type Act = BorderAtariAct;
     type Info = NullInfo;
 
-    fn build(_config: &Self::Config, _seed: i64) -> Result<Self>
+    fn build(config: &Self::Config, _seed: i64) -> Result<Self>
     where
         Self: Sized,
     {
         Ok(Self {
             train: false,
-            env: env(),
+            env: env(config.rom_dir.as_str(), config.name.as_str()),
             window: None,
             obs_buffer: [vec![], vec![]],
             lives: 0,
@@ -246,7 +243,7 @@ impl Env for BorderAtariEnv {
                 reward: step.reward,
                 is_done: step.is_done,
                 info: step.info,
-                init_obs
+                init_obs,
             }
         } else {
             step
