@@ -15,13 +15,12 @@ autoexamples = false
 [dependencies]
 anyhow = "1.0.38"
 pixels = "0.2.0"
-# wgpu = "0.7.0"
 winit = "0.24.0"
 atari-env = { version = "0.1.1", path = "../../../elbaro/gym-rs/atari-env" }
 dirs = "3.0.1"
 border-core = { version = "0.0.5", path = "../border-core" }
 image = "0.23.14"
-# winit_input_helper = "0.9.0"
+tch = { version = "0.5.0", optional = true }
 
 [[example]]
 name = "random_pong"
@@ -29,34 +28,3 @@ name = "random_pong"
 [dev-dependencies]
 fastrand = "1.4.0"
 env_logger = "0.8.2"
-
-# [dev-dependencies]
-# clap = "2.33.3"
-# csv = "1.1.5"
-# tempdir = "0.3.7"
-# border-derive = { version = "0.0.5", path = "../border-derive"}
-# border-core = { version = "0.0.5", path = "../border-core" }
-# border-tch-agent = { version = "0.0.5", path = "../border-tch-agent" }
-# border-py-gym-env = { version = "0.0.5", path = "../border-py-gym-env"}
-# serde = { version = "1.0.117", features = ["derive"] }
-# env_logger = "0.8.2"
-# numpy = "0.14.1"
-# ndarray = { version = "0.15.3", features = ["serde"] }
-# num-traits = "0.2.14"
-# pyo3 = { version = "=0.14.5", default-features = false }
-# fastrand = "1.4.0"
-# chrono = "0.4"
-# tensorboard-rs = "0.2.4"
-# thiserror = "1.0"
-# serde_yaml = "0.8.7"
-
-# [package.metadata.docs.rs]
-# features = [ "doc-only" ]
-
-# [features]
-# # default = [ "adam_eps" ]
-# doc-only = ["tch/doc-only"]
-# adam_eps = []
-
-#[target.'cfg(feature="adam_eps")'.patch.crates-io]
-#tch = { git = "https://github.com/taku-y/tch-rs", branch = "adam_eps" }

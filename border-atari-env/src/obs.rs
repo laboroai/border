@@ -13,6 +13,8 @@
 //! It does not apply pixel scaling from 255 to 1.0 for saving memory of the replay buffer.
 //! Instead, the scaling is applied in CNN model.
 use border_core::Obs;
+#[cfg(feature = "tch")]
+use {tch::Tensor, std::convert::TryFrom};
 
 /// Observation of [BorderAtariEnv](super::BorderAtariEnv).
 #[derive(Debug, Clone)]
@@ -40,5 +42,14 @@ impl Obs for BorderAtariObs {
 
     fn len(&self) -> usize {
         1
+    }
+}
+
+#[cfg(feature = "tch")]
+impl From<BorderAtariObs> for Tensor {
+    fn from(obs: BorderAtariObs) -> Tensor {
+        let tmp = &obs.frames;
+        // Assumes the batch size is 1, implying non-vectorized environment
+        Tensor::try_from(tmp).unwrap().reshape(&[1, 4, 84, 84])
     }
 }

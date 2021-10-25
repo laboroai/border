@@ -7,6 +7,12 @@ pub struct BorderAtariAct {
     pub(crate) act: u8,
 }
 
+impl BorderAtariAct {
+    pub fn new(act: u8) -> Self {
+        Self { act }
+    }
+}
+
 impl Act for BorderAtariAct {
     fn len(&self) -> usize {
         1
