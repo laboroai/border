@@ -32,19 +32,7 @@ fn py_gym_env_cont_act(
 ) -> proc_macro2::TokenStream {
     // #[cfg(not(feature = "tch"))]
     #[allow(unused_mut)]
-    let mut output = quote! {
-        impl border_core::Act for #ident {
-            fn len(&self) -> usize {
-                self.0.len()
-            }
-        }
-
-        impl Into<#field_type> for #ident {
-            fn into(self) -> #field_type {
-                self.0
-            }
-        }
-    };
+    let mut output = common(ident.clone(), field_type.clone());
 
     #[cfg(feature = "tch")]
     output.extend(quote! {
@@ -85,19 +73,7 @@ fn py_gym_env_disc_act(
 ) -> proc_macro2::TokenStream {
     // #[cfg(not(feature = "tch"))]
     #[allow(unused_mut)]
-    let mut output = quote! {
-        impl border_core::Act for #ident {
-            fn len(&self) -> usize {
-                self.0.len()
-            }
-        }
-
-        impl Into<#field_type> for #ident {
-            fn into(self) -> #field_type {
-                self.0
-            }
-        }
-    };
+    let mut output = common(ident.clone(), field_type.clone());
 
     #[cfg(feature = "tch")]
     output.extend(quote! {
@@ -123,4 +99,20 @@ fn py_gym_env_disc_act(
     }.into_iter());
 
     output
+}
+
+fn common(ident: proc_macro2::Ident, field_type: syn::Type) -> proc_macro2::TokenStream {
+    quote! {
+        impl border_core::Act for #ident {
+            fn len(&self) -> usize {
+                self.0.len()
+            }
+        }
+
+        impl Into<#field_type> for #ident {
+            fn into(self) -> #field_type {
+                self.0
+            }
+        }
+    }
 }
