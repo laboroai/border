@@ -1,10 +1,10 @@
 //! Observation of [BorderAtariEnv](super::BorderAtariEnv).
 //!
-//! It applies the following preprocessing 
+//! It applies the following preprocessing
 //! (explanations are adapted from [Stable Baselines](https://stable-baselines3.readthedocs.io/en/master/common/atari_wrappers.html#stable_baselines3.common.atari_wrappers.AtariWrapper)
 //! API document):
 //! * (WIP: NoopReset: obtain initial state by taking random number of no-ops on reset.)
-//! * Four frames skipping 
+//! * Four frames skipping
 //! * Max pooling: most recent two observations
 //! * Resize to 84 x 84
 //! * Grayscale
@@ -12,9 +12,11 @@
 //! * Stacking four frames
 //! It does not apply pixel scaling from 255 to 1.0 for saving memory of the replay buffer.
 //! Instead, the scaling is applied in CNN model.
-use border_core::Obs;
+use anyhow::Result;
+use border_core::{record::Record, Obs};
+use std::{default::Default, marker::PhantomData};
 #[cfg(feature = "tch")]
-use {tch::Tensor, std::convert::TryFrom};
+use {std::convert::TryFrom, tch::Tensor};
 
 /// Observation of [BorderAtariEnv](super::BorderAtariEnv).
 #[derive(Debug, Clone)]
@@ -51,5 +53,54 @@ impl From<BorderAtariObs> for Tensor {
         let tmp = &obs.frames;
         // Assumes the batch size is 1, implying non-vectorized environment
         Tensor::try_from(tmp).unwrap().reshape(&[1, 4, 84, 84])
+    }
+}
+
+/// Converts [BorderAtariObs] to `O` with an arbitrary processing.
+pub trait BorderAtariObsFilter<O: Obs> {
+    /// Configuration of the filter.
+    type Config: Default;
+
+    /// Constructs the filter given a configuration.
+    fn build(config: &Self::Config) -> Result<Self>
+    where
+        Self: Sized;
+
+    /// Converts the original observation into `O`.
+    fn filt(&mut self, obs: BorderAtariObs) -> (O, Record);
+
+    /// Resets the filter.
+    fn reset(&mut self, obs: BorderAtariObs) -> O {
+        let (obs, _) = self.filt(obs);
+        obs
+    }
+}
+
+/// Configuration of [BorderAtariObsRawFilter].
+pub struct BorderAtariObsRawFilterConfig;
+
+impl Default for BorderAtariObsRawFilterConfig {
+    fn default() -> Self {
+        Self
+    }
+}
+
+/// A filter without any processing.
+pub struct BorderAtariObsRawFilter<O> {
+    phantom: PhantomData<O>
+}
+
+impl<O> BorderAtariObsFilter<O> for BorderAtariObsRawFilter<O>
+where
+    O: Obs + From<BorderAtariObs>,
+{
+    type Config = BorderAtariObsRawFilterConfig;
+
+    fn build(_config: &Self::Config) -> Result<Self> {
+        Ok(Self { phantom: PhantomData })
+    }
+
+    fn filt(&mut self, obs: BorderAtariObs) -> (O, Record) {
+        (obs.into(), Record::empty())
     }
 }

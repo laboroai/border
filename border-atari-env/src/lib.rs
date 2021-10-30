@@ -5,6 +5,6 @@
 mod act;
 mod obs;
 mod env;
-pub use act::BorderAtariAct;
-pub use obs::BorderAtariObs;
+pub use act::{BorderAtariAct, BorderAtariActFilter, BorderAtariActRawFilter};
+pub use obs::{BorderAtariObs, BorderAtariObsFilter, BorderAtariObsRawFilter};
 pub use env::{BorderAtariEnv, BorderAtariEnvConfig};

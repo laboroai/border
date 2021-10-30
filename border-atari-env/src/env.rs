@@ -3,16 +3,17 @@ mod window;
 use super::{BorderAtariAct, BorderAtariObs};
 use anyhow::Result;
 use atari_env::{AtariAction, AtariEnv, EmulatorConfig};
-use border_core::{record::Record, Env, Info, Obs, Step};
+use border_core::{record::Record, Env, Info, Obs, Act, Step};
 pub use config::BorderAtariEnvConfig;
 use image::{
     imageops::{grayscale, resize, FilterType::Triangle},
     ImageBuffer, Luma, Rgb,
 };
-use std::default::Default;
+use std::{default::Default, marker::PhantomData};
 use std::ptr::copy;
 use window::AtariWindow;
 use winit::{event_loop::ControlFlow, platform::run_return::EventLoopExtRunReturn};
+use super::{BorderAtariObsFilter, BorderAtariActFilter};
 
 /// Empty struct.
 pub struct NullInfo;
@@ -36,7 +37,13 @@ fn env(rom_dir: &str, name: &str) -> AtariEnv {
 ///
 /// Preprocessing is the same in the link:
 /// https://stable-baselines3.readthedocs.io/en/master/common/atari_wrappers.html#stable_baselines3.common.atari_wrappers.AtariWrapper.
-pub struct BorderAtariEnv {
+pub struct BorderAtariEnv<O, A, OF, AF>
+where
+    O: Obs,
+    A: Act,
+    OF: BorderAtariObsFilter<O>,
+    AF: BorderAtariActFilter<A>,
+{
     // True for training mode, it affects preprocessing at every steps.
     train: bool,
 
@@ -57,9 +64,20 @@ pub struct BorderAtariEnv {
 
     // Buffer for stacking frames
     frames: Vec<u8>,
+
+    // Filters
+    obs_filter: OF,
+    act_filter: AF,
+    phantom: PhantomData<(O, A)>,
 }
 
-impl BorderAtariEnv {
+impl<O, A, OF, AF> BorderAtariEnv <O, A, OF, AF>
+where
+    O: Obs,
+    A: Act,
+    OF: BorderAtariObsFilter<O>,
+    AF: BorderAtariActFilter<A>,
+{
     /// Opens window for display.
     pub fn open(&mut self) -> Result<()> {
         // Do nothing if a window is already opened.
@@ -157,24 +175,41 @@ impl BorderAtariEnv {
     }
 }
 
-impl Default for BorderAtariEnv {
+impl<O, A, OF, AF> Default for BorderAtariEnv<O, A, OF, AF>
+where
+    O: Obs,
+    A: Act,
+    OF: BorderAtariObsFilter<O>,
+    AF: BorderAtariActFilter<A>,
+{
     fn default() -> Self {
+        let config = BorderAtariEnvConfig::<O, A, OF, AF>::default();
+
         Self {
             train: false,
-            env: env(BorderAtariEnvConfig::default().rom_dir.as_str(), "pong"),
+            env: env(config.rom_dir.as_str(), "pong"),
             window: None,
             obs_buffer: [vec![], vec![]],
             lives: 0,
             was_real_done: true,
             frames: vec![0; 4 * 84 * 84],
+            obs_filter: OF::build(&config.obs_filter_config).unwrap(),
+            act_filter: AF::build(&config.act_filter_config).unwrap(),
+            phantom: PhantomData,
         }
     }
 }
 
-impl Env for BorderAtariEnv {
-    type Config = BorderAtariEnvConfig;
-    type Obs = BorderAtariObs;
-    type Act = BorderAtariAct;
+impl<O, A, OF, AF> Env for BorderAtariEnv<O, A, OF, AF>
+where
+    O: Obs,
+    A: Act,
+    OF: BorderAtariObsFilter<O>,
+    AF: BorderAtariActFilter<A>,
+{
+    type Config = BorderAtariEnvConfig<O, A, OF, AF>;
+    type Obs = O;
+    type Act = A;
     type Info = NullInfo;
 
     fn build(config: &Self::Config, _seed: i64) -> Result<Self>
@@ -189,6 +224,9 @@ impl Env for BorderAtariEnv {
             lives: 0,
             was_real_done: true,
             frames: vec![0; 4 * 84 * 84],
+            obs_filter: OF::build(&config.obs_filter_config)?,
+            act_filter: AF::build(&config.act_filter_config)?,
+            phantom: PhantomData,
         })
     }
 
@@ -222,7 +260,7 @@ impl Env for BorderAtariEnv {
             }
         }
 
-        Ok(self.frames.clone().into())
+        Ok(self.obs_filter.filt(self.frames.clone().into()).0)
     }
 
     /// Currently it supports non-vectorized environment.
@@ -256,14 +294,17 @@ impl Env for BorderAtariEnv {
     where
         Self: Sized,
     {
-        let (obs, reward, is_done) = self.skip_and_max(act);
+        let act_org = act.clone();
+        let (act, _record) = self.act_filter.filt(act_org.clone());
+        let (obs, reward, is_done) = self.skip_and_max(&act);
         let (w, h) = (self.env.width() as u32, self.env.height() as u32);
         let obs = Self::warp_and_grayscale(w, h, obs);
         let reward = self.clip_reward(reward); // in training
         self.stack_frame(obs);
+        let (obs, _record) = self.obs_filter.filt(self.frames.clone().into());
         let step = Step::new(
-            self.frames.clone().into(),
-            act.clone(),
+            obs,
+            act_org,
             reward,
             is_done,
             NullInfo,

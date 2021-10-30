@@ -1,10 +1,16 @@
 use anyhow::Result;
-use border_atari_env::{BorderAtariObs, BorderAtariAct, BorderAtariEnv, BorderAtariEnvConfig};
-use border_core::{Policy, Env as _, record::BufferedRecorder, util};
+use border_atari_env::{
+    BorderAtariAct, BorderAtariActRawFilter, BorderAtariEnv, BorderAtariEnvConfig, BorderAtariObs,
+    BorderAtariObsRawFilter,
+};
+use border_core::{record::BufferedRecorder, util, Env as _, Policy};
 
 type Obs = BorderAtariObs;
 type Act = BorderAtariAct;
-type Env = BorderAtariEnv;
+type ObsFilter = BorderAtariObsRawFilter<Obs>;
+type ActFilter = BorderAtariActRawFilter<Act>;
+type EnvConfig = BorderAtariEnvConfig<Obs, Act, ObsFilter, ActFilter>;
+type Env = BorderAtariEnv<Obs, Act, ObsFilter, ActFilter>;
 
 struct RandomPolicy {
     n_acts: usize,
@@ -22,9 +28,8 @@ impl Policy<Env> for RandomPolicy {
     }
 }
 
-fn env_config(name: String) -> BorderAtariEnvConfig {
-    BorderAtariEnvConfig::default()
-        .name(name)
+fn env_config(name: String) -> EnvConfig {
+    EnvConfig::default().name(name)
 }
 
 fn main() -> Result<()> {
@@ -38,7 +43,7 @@ fn main() -> Result<()> {
     let mut policy = RandomPolicy::new(n_acts as _);
 
     env.open()?;
-   let _ = util::eval_with_recorder(&mut env, &mut policy, 5, &mut recorder)?;
+    let _ = util::eval_with_recorder(&mut env, &mut policy, 5, &mut recorder)?;
 
-   Ok(())
+    Ok(())
 }
