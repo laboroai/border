@@ -1,6 +1,6 @@
 mod config;
 mod window;
-use super::{BorderAtariAct, BorderAtariObs};
+use super::BorderAtariAct;
 use anyhow::Result;
 use atari_env::{AtariAction, AtariEnv, EmulatorConfig};
 use border_core::{record::Record, Env, Info, Obs, Act, Step};
