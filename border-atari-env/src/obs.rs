@@ -53,7 +53,7 @@ impl From<BorderAtariObs> for Tensor {
     fn from(obs: BorderAtariObs) -> Tensor {
         let tmp = &obs.frames;
         // Assumes the batch size is 1, implying non-vectorized environment
-        Tensor::try_from(tmp).unwrap().reshape(&[1, 4, 84, 84])
+        Tensor::try_from(tmp).unwrap().reshape(&[1, 4, 1, 84, 84])
     }
 }
 

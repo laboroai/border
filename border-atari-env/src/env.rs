@@ -97,7 +97,7 @@ where
     }
 
     fn episodic_life_env_step(&mut self, a: &BorderAtariAct) -> (Vec<u8>, f32, i8) {
-        let actions = self.env.available_actions();
+        let actions = self.env.minimal_actions();
         let ix = a.act;
         let reward = self.env.step(actions[ix as usize]) as f32;
         let mut done = self.env.is_game_over();
