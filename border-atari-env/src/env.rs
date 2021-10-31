@@ -92,7 +92,8 @@ where
 
     /// Returns the number of actions.
     pub fn get_num_actions_atari(&self) -> i64 {
-        self.env.available_actions().len() as i64
+        // self.env.available_actions().len() as i64
+        self.env.minimal_actions().len() as i64
     }
 
     fn episodic_life_env_step(&mut self, a: &BorderAtariAct) -> (Vec<u8>, f32, i8) {

@@ -20,6 +20,7 @@ use border_tch_agent::{
 };
 use clap::{App, Arg, ArgMatches};
 use util_dqn_atari::{model_dir as model_dir_, Params};
+use log::info;
 
 type ObsDtype = u8;
 shape!(ObsShape, [4, 1, 84, 84]);
@@ -200,7 +201,7 @@ fn play(matches: ArgMatches) -> Result<()> {
     let mut env = Env::build(&env_config, 0)?;
     let mut recorder = BufferedRecorder::new();
 
-    env.open();
+    env.open()?;
     agent.load(model_dir + "/best")?;
     agent.eval();
 
