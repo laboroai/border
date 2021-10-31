@@ -50,9 +50,7 @@ impl TryFrom<&Record> for CartpoleRecord {
                 .get_array1("obs")?
                 .iter()
                 .map(|v| *v as f64)
-                .collect(), // obs: Vec::from_iter(
-                            //     record.get_array1("obs")?.iter().map(|v| *v as f64)
-                            // )
+                .collect(),
         })
     }
 }
@@ -72,7 +70,6 @@ fn main() -> Result<()> {
 
     let _ = util::eval_with_recorder(&mut env, &mut policy, 5, &mut recorder)?;
 
-    // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
     let mut wtr = csv::WriterBuilder::new()
         .has_headers(false)
         .from_writer(File::create("border-py-gym-env/examples/random_cartpole_eval.csv")?);
