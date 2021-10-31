@@ -18,7 +18,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
     } else if field_type_str == "BorderAtariObs" {
         atari_env_obs(ident, field_type)
     } else {
-        panic!("Deriving Obs support PyGymEnvObs or BorderAtariObs, given {:?}", field_type_str);
+        panic!("Deriving Obs supports PyGymEnvObs or BorderAtariObs, given {:?}", field_type_str);
     };
 
     output.into()
@@ -31,6 +31,8 @@ fn py_gym_env_obs(ident: proc_macro2::Ident, field_type: syn::Type) -> proc_macr
 
     #[cfg(feature = "tch")]
     output.extend(quote! {
+        use std::convert::TryFrom as _;
+
         impl From<#ident> for tch::Tensor {
             fn from(obs: #ident) -> tch::Tensor {
                 // `PyGymEnvObs` implements Into<Tensor> when feature = "tch"
@@ -69,6 +71,8 @@ fn atari_env_obs(ident: proc_macro2::Ident, field_type: syn::Type) -> proc_macro
 
     #[cfg(feature = "tch")]
     output.extend(quote! {
+        use std::convert::TryFrom as _;
+
         impl From<#ident> for tch::Tensor {
             fn from(obs: #ident) -> tch::Tensor {
                 // `BorderAtariObs` implements Into<Tensor> when feature = "tch"

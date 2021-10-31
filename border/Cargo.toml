@@ -48,6 +48,10 @@ required-features = ["tch"]
 name = "dqn_atari"
 required-features = ["tch"]
 
+[[example]]
+name = "dqn_atari_rs"
+required-features = ["tch"]
+
 # [[example]]
 # name = "iqn_atari"
 # # required_features = [ "adam_eps" ]
@@ -92,6 +96,7 @@ border-derive = { version = "0.0.5", path = "../border-derive"}
 border-core = { version = "0.0.5", path = "../border-core" }
 border-tch-agent = { version = "0.0.5", path = "../border-tch-agent" }
 border-py-gym-env = { version = "0.0.5", path = "../border-py-gym-env"}
+border-atari-env = { version = "0.0.5", path = "../border-atari-env"}
 serde = { version = "1.0.117", features = ["derive"] }
 env_logger = "0.8.2"
 numpy = "0.14.1"

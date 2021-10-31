@@ -14,6 +14,7 @@
 //! Instead, the scaling is applied in CNN model.
 use anyhow::Result;
 use border_core::{record::Record, Obs};
+use serde::{Deserialize, Serialize};
 use std::{default::Default, marker::PhantomData};
 #[cfg(feature = "tch")]
 use {std::convert::TryFrom, tch::Tensor};
@@ -76,6 +77,7 @@ pub trait BorderAtariObsFilter<O: Obs> {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 /// Configuration of [BorderAtariObsRawFilter].
 pub struct BorderAtariObsRawFilterConfig;
 
@@ -87,7 +89,7 @@ impl Default for BorderAtariObsRawFilterConfig {
 
 /// A filter without any processing.
 pub struct BorderAtariObsRawFilter<O> {
-    phantom: PhantomData<O>
+    phantom: PhantomData<O>,
 }
 
 impl<O> BorderAtariObsFilter<O> for BorderAtariObsRawFilter<O>
@@ -97,7 +99,9 @@ where
     type Config = BorderAtariObsRawFilterConfig;
 
     fn build(_config: &Self::Config) -> Result<Self> {
-        Ok(Self { phantom: PhantomData })
+        Ok(Self {
+            phantom: PhantomData,
+        })
     }
 
     fn filt(&mut self, obs: BorderAtariObs) -> (O, Record) {

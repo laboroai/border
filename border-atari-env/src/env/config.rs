@@ -5,7 +5,9 @@
 use std::{env, default::Default};
 use border_core::{Obs, Act};
 use super::{BorderAtariObsFilter, BorderAtariActFilter};
+use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize, Debug)]
 /// Configuration of [BorderAtariEnv](super::BorderAtariEnv).
 pub struct BorderAtariEnvConfig<O, A, OF, AF>
 where
