@@ -14,6 +14,7 @@ use std::ptr::copy;
 use window::AtariWindow;
 use winit::{event_loop::ControlFlow, platform::run_return::EventLoopExtRunReturn};
 use super::{BorderAtariObsFilter, BorderAtariActFilter};
+use itertools::izip;
 
 /// Empty struct.
 pub struct NullInfo;
@@ -157,20 +158,31 @@ where
         // `obs.len()` is w * h * 3 where (w, h) is the size of the frame.
         let img = ImageBuffer::<Rgb<_>, _>::from_vec(w, h, obs).unwrap();
         let img = resize(&img, 84, 84, Triangle);
-        let img: ImageBuffer<Luma<u8>, _> = grayscale(&img);
-        let buf = img.to_vec();
+        let buf = {
+            let buf = img.to_vec();
+            let i1 = buf.iter().step_by(3);
+            let i2 = buf.iter().skip(1).step_by(3);
+            let i3 = buf.iter().skip(2).step_by(3);
+            izip![i1, i2, i3].map(|(&b, &g, &r)|
+                ((0.299 * r as f32) + (0.587 * g as f32) + (0.114 * b as f32)) as u8
+            ).collect::<Vec<_>>()
+        };
+        // let buf = {
+        //     let img: ImageBuffer<Luma<u8>, _> = grayscale(&img);
+        //     img.to_vec()
+        // };
         assert_eq!(buf.len(), 84 * 84);
         buf
     }
 
     fn stack_frame(&mut self, obs: Vec<u8>) {
         unsafe {
-            let src: *const u8 = &self.frames[1 * 84 * 84];
-            let dst: *mut u8 = &mut self.frames[0];
+            let src: *const u8 = &self.frames[0];
+            let dst: *mut u8 = &mut self.frames[1 * 84 * 84];
             copy(src, dst, 3 * 84 * 84);
 
             let src: *const u8 = &obs[0];
-            let dst: *mut u8 = &mut self.frames[3 * 84 * 84];
+            let dst: *mut u8 = &mut self.frames[0];
             copy(src, dst, 1 * 84 * 84);
         }
     }
