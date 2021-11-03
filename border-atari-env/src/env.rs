@@ -29,6 +29,7 @@ fn env(rom_dir: &str, name: &str) -> AtariEnv {
             // sound: true,
             frame_skip: 1,
             color_averaging: false,
+            repeat_action_probability: 0.0,
             ..EmulatorConfig::default()
         },
     )
