@@ -75,6 +75,7 @@ fn make_cfg(env_name: impl Into<String> + Clone, params: &Params) -> Result<()> 
 fn main() -> Result<()> {
     // Pong
     let params = Params::default().replay_buffer_capacity(65536);
+    make_cfg("pong", &params)?;
     make_cfg("PongNoFrameskip-v4", &params)?;
     make_cfg("PongNoFrameskip-v4", &params.clone().debug())?;
     // make_cfg("PongNoFrameskip-v4", &params.clone().per())?;
