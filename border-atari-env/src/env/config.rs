@@ -20,6 +20,7 @@ where
     pub(super) name: String,
     pub(super) obs_filter_config: OF::Config,
     pub(super) act_filter_config: AF::Config,
+    pub(super) train: bool,
 }
 
 impl<O, A, OF, AF> Default for BorderAtariEnvConfig<O, A, OF, AF>
@@ -41,6 +42,7 @@ where
             name: "".to_string(),
             obs_filter_config: Default::default(),
             act_filter_config: Default::default(),
+            train: true,
         }
     }
 }
@@ -55,6 +57,12 @@ where
     /// Sets the name of the game.
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.name = name.into();
+        self
+    }
+
+    /// Sets the evaluation flag.
+    pub fn eval(mut self) -> Self {
+        self.train = false;
         self
     }
 }

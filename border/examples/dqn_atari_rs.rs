@@ -20,7 +20,7 @@ use border_tch_agent::{
 };
 use clap::{App, Arg, ArgMatches};
 use util_dqn_atari::{model_dir as model_dir_, Params};
-use log::info;
+// use log::info;
 
 type ObsDtype = u8;
 shape!(ObsShape, [4, 1, 84, 84]);
@@ -187,7 +187,35 @@ fn load_replay_buffer_config<'a>(
 }
 
 fn train(matches: ArgMatches) -> Result<()> {
-    unimplemented!();
+    let name = matches.value_of("name").unwrap();
+    let model_dir = model_dir(&matches)?;
+    let env_config_train = env_config(name);
+    let env_config_eval = env_config(name).eval();
+    let n_actions = n_actions(&env_config_train)?;
+
+    // Configurations
+    let agent_config = load_dqn_config(model_dir.as_str())?.out_dim(n_actions as _);
+    let trainer_config = load_trainer_config(model_dir.as_str())?;
+    let replay_buffer_config = load_replay_buffer_config(model_dir.as_str())?;
+    let step_proc_config = SimpleStepProcessorConfig {};
+
+    if matches.is_present("show-config") {
+        show_config(&env_config_train, &agent_config, &trainer_config);
+    } else {
+        let device = tch::Device::cuda_if_available();
+        let mut trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
+            trainer_config,
+            env_config_train,
+            Some(env_config_eval),
+            step_proc_config,
+            replay_buffer_config,
+        );
+        let mut recorder = TensorboardRecorder::new(model_dir);
+        let mut agent = DQN::build(agent_config, device);
+        trainer.train(&mut agent, &mut recorder)?;
+    }
+
+    Ok(())
 }
 
 fn play(matches: ArgMatches) -> Result<()> {

@@ -6,8 +6,8 @@ use atari_env::{AtariAction, AtariEnv, EmulatorConfig};
 use border_core::{record::Record, Env, Info, Obs, Act, Step};
 pub use config::BorderAtariEnvConfig;
 use image::{
-    imageops::{grayscale, resize, FilterType::Triangle},
-    ImageBuffer, Luma, Rgb,
+    imageops::{/*grayscale,*/ resize, FilterType::Triangle},
+    ImageBuffer, /*Luma,*/ Rgb,
 };
 use std::{default::Default, marker::PhantomData};
 use std::ptr::copy;
@@ -149,9 +149,9 @@ where
 
     fn clip_reward(&self, r: f32) -> Vec<f32> {
         if self.train {
-            vec![r]
-        } else {
             vec![r.signum()]
+        } else {
+            vec![r]
         }
     }
 
@@ -231,7 +231,7 @@ where
         Self: Sized,
     {
         Ok(Self {
-            train: false,
+            train: config.train,
             env: env(config.rom_dir.as_str(), config.name.as_str()),
             window: None,
             obs_buffer: [vec![], vec![]],
