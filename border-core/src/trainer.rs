@@ -192,6 +192,7 @@ where
         let mut opt_time: f32 = 0.;
         let mut opt_steps_ops: usize = 0; // optimizations per second
         sampler.reset();
+        agent.train();
 
         loop {
             let (record, time) =

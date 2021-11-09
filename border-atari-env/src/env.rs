@@ -108,8 +108,8 @@ where
 
         if self.train && lives < self.lives && lives > 0 {
             done = true;
-            self.lives = lives;
         }
+        self.lives = lives;
 
         let done = if done { 1 } else { 0 };
         let (w, h) = (self.env.width(), self.env.height());
@@ -149,7 +149,11 @@ where
 
     fn clip_reward(&self, r: f32) -> Vec<f32> {
         if self.train {
-            vec![r.signum()]
+            if r == 0.0 {
+                vec![0.0]
+            } else {
+                vec![r.signum()]
+            }
         } else {
             vec![r]
         }
