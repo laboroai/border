@@ -58,12 +58,14 @@ where
             let act = step.act.into();
             let reward = step.reward;
             let is_done = step.is_done;
+            let ix_sample = None;
+            let weight = None;
 
             if is_done[0] == 1 {
                 self.prev_obs.replace(step.init_obs.into());
             }
 
-            Batch {obs, act, next_obs, reward, is_done}
+            Batch {obs, act, next_obs, reward, is_done, ix_sample, weight}
         };
 
         batch

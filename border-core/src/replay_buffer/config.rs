@@ -8,11 +8,24 @@ use std::{
     path::Path,
 };
 
+/// Configuration of [PerState](super::base::PerState).
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
+pub struct PerConfig {
+    pub(super) alpha: f32,
+    /// Initial value of $\beta$.
+    pub(super) beta_0: f32,
+    /// Final value of $\beta$.
+    pub(super) beta_final: f32,
+    /// Optimization steps when beta reaches its final value.
+    pub(super) n_opts_final: usize,
+}
+
 /// Configuration of [SimpleReplayBuffer](super::SimpleReplayBuffer).
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct SimpleReplayBufferConfig {
     pub(super) capacity: usize,
     pub(super) seed: u64,
+    pub(super) per_config: Option<PerConfig>,
 }
 
 impl Default for SimpleReplayBufferConfig {
@@ -20,6 +33,7 @@ impl Default for SimpleReplayBufferConfig {
         Self {
             capacity: 10000,
             seed: 42,
+            per_config: None,
         }
     }
 }

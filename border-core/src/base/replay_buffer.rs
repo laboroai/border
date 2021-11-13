@@ -22,8 +22,11 @@ pub trait ReplayBufferBase {
     /// Constructs a batch.
     ///
     /// `beta` - The exponent for priority.
-    fn batch(&self, size: usize, beta: Option<f32>) -> Result<Self::Batch>;
+    fn batch(&self, size: usize) -> Result<Self::Batch>;
 
     /// Pushes a transition into the buffer.
     fn push(&mut self, tr: Self::PushedItem);
+
+    /// Updates priority based on TD error.
+    fn update_priority(&mut self, ixs: &Option<Vec<usize>>, td_err: &Option<Vec<f32>>);
 }

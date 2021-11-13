@@ -38,7 +38,6 @@ where
     pub(in crate::dqn) discount_factor: f64,
     pub(in crate::dqn) tau: f64,
     pub(in crate::dqn) explorer: DQNExplorer,
-    // pub(in crate::dqn) expr_sampling: ExperienceSampling,
     pub(in crate::dqn) device: Device,
     pub(in crate::dqn) n_opts: usize,
     pub(in crate::dqn) double_dqn: bool,
@@ -66,9 +65,6 @@ where
         DQN {
             qnet,
             qnet_tgt,
-            // replay_buffer,
-            // prev_obs: RefCell::new(None),
-            // opt_interval_counter: self.opt_interval_counter,
             soft_update_interval: config.soft_update_interval,
             soft_update_counter: 0,
             n_updates_per_opt: config.n_updates_per_opt,
@@ -78,7 +74,6 @@ where
             tau: config.tau,
             train: config.train,
             explorer: config.explorer,
-            // expr_sampling: config.expr_sampling,
             device,
             n_opts: 0,
             _clip_reward: config.clip_reward,
@@ -87,16 +82,14 @@ where
         }
     }
 
-    fn update_critic(&mut self, batch: R::Batch) -> f32 {
-        let (obs, act, next_obs, reward, is_done) = batch.unpack();
+    fn update_critic(&mut self, buffer: &mut R) -> f32 {
+        let batch = buffer.batch(self.batch_size).unwrap();
+        let (obs, act, next_obs, reward, is_done, ixs, weight) = batch.unpack();
         let obs = obs.into();
         let act = act.into().to(self.device);
         let next_obs = next_obs.into();
         let reward = Tensor::of_slice(&reward[..]).to(self.device);
         let is_done = Tensor::of_slice(&is_done[..]).to(self.device);
-
-        // let ixs = batch.indices;
-        // let ws = batch.ws;
 
         let pred = {
             let x = self.qnet.forward(&obs);
@@ -107,7 +100,10 @@ where
             let q = if self.double_dqn {
                 let x = self.qnet.forward(&next_obs);
                 let y = x.argmax(-1, false).unsqueeze(-1);
-                self.qnet_tgt.forward(&next_obs).gather(-1, &y, false).squeeze()
+                self.qnet_tgt
+                    .forward(&next_obs)
+                    .gather(-1, &y, false)
+                    .squeeze()
             } else {
                 let x = self.qnet_tgt.forward(&next_obs);
                 let y = x.argmax(-1, false).unsqueeze(-1);
@@ -116,25 +112,24 @@ where
             reward + (1 - is_done) * self.discount_factor * q
         });
 
-        let loss = pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0);
-
-        // let loss = if let Some(ws) = ws {
-        //     // with PER
-        //     let ixs = ixs.unwrap();
-        //     let tderr = (pred - tgt).abs(); //.clip(0.0, 1.0)
-        //     let eps = Tensor::from(1e-5).internal_cast_float(false);
-        //     self.replay_buffer.update_priority(&ixs, &(&tderr + eps));
-        //     (tderr * ws.to(self.device)).smooth_l1_loss(
-        //         &Tensor::from(0f32).to(self.device),
-        //         tch::Reduction::Mean,
-        //         1.0,
-        //     )
-        // } else {
-        //     // w/o PER
-        //     pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0)
-        // };
-
-        self.qnet.backward_step(&loss);
+        let loss = if let Some(ws) = weight {
+            let n = ws.len() as i64;
+            let td_errs = (&pred - &tgt).abs();
+            let loss = Tensor::of_slice(&ws[..]).to(self.device) * &td_errs;
+            let loss = loss.smooth_l1_loss(
+                &Tensor::zeros(&[n], tch::kind::FLOAT_CPU).to(self.device),
+                tch::Reduction::Mean,
+                1.0,
+            );
+            self.qnet.backward_step(&loss);
+            let td_errs = Vec::<f32>::from(td_errs);
+            buffer.update_priority(&ixs, &Some(td_errs));
+            loss
+        } else {
+            let loss = pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0);
+            self.qnet.backward_step(&loss);
+            loss
+        };
 
         f32::from(loss)
     }
@@ -142,19 +137,9 @@ where
     fn opt_(&mut self, buffer: &mut R) -> Record {
         let mut loss_critic = 0f32;
 
-        let beta = None;
-        // #[allow(unused_variables)]
-        // let beta = match &self.expr_sampling {
-        //     ExperienceSampling::Uniform => 0f32,
-        //     ExperienceSampling::TDerror {
-        //         alpha,
-        //         iw_scheduler,
-        //     } => iw_scheduler.beta(self.n_opts),
-        // };
-
         for _ in 0..self.n_updates_per_opt {
-            let batch = buffer.batch(self.batch_size, beta).unwrap();
-            loss_critic += self.update_critic(batch);
+            let loss = self.update_critic(buffer);
+            loss_critic += loss;
         }
 
         self.soft_update_counter += 1;
@@ -245,73 +230,3 @@ where
         Ok(())
     }
 }
-
-// impl<E, Q, O, A> Agent<E> for DQN<E, Q, O, A>
-// where
-//     E: Env,
-//     Q: SubModel<Output = Tensor>,
-//     E::Obs: Into<Q::Input>,
-//     E::Act: From<Tensor>,
-//     O: TchBuffer<Item = E::Obs, SubBatch = Q::Input>,
-//     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
-// {
-//     fn train(&mut self) {
-//         self.train = true;
-//     }
-
-//     fn eval(&mut self) {
-//         self.train = false;
-//     }
-
-//     fn is_train(&self) -> bool {
-//         self.train
-//     }
-
-//     fn opt(&mut self, buffer: &mut impl border_core::ReplayBufferBase) -> Option<Record> {
-//         if buffer.len() >= self.min_transitions_warmup {
-//             let batch = buffer.batch(self.batch_size, None).unwrap();
-//             Some(self.opt_(buffer))
-//         } else {
-//             None
-//         }
-//     }
-
-//     /// Update model parameters.
-//     ///
-//     /// When the return value is `Some(Record)`, it includes:
-//     /// * `loss_critic`: Loss of critic
-//     fn observe(&mut self, step: Step<E>) -> Option<Record> {
-//         trace!("DQN::observe()");
-
-//         // Check if doing optimization
-//         let do_optimize = self.opt_interval_counter.do_optimize(&step.is_done)
-//             && self.replay_buffer.len() + 1 >= self.min_transitions_warmup;
-
-//         // Push transition to the replay buffer
-//         self.push_transition(step);
-//         trace!("Push transition");
-
-//         // Do optimization
-//         if do_optimize {
-//             Some(self.opt())
-//         } else {
-//             None
-//         }
-//     }
-
-//     fn save<T: AsRef<Path>>(&self, path: T) -> Result<()> {
-//         // TODO: consider to rename the path if it already exists
-//         fs::create_dir_all(&path)?;
-//         self.qnet.save(&path.as_ref().join("qnet.pt").as_path())?;
-//         self.qnet_tgt
-//             .save(&path.as_ref().join("qnet_tgt.pt").as_path())?;
-//         Ok(())
-//     }
-
-//     fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
-//         self.qnet.load(&path.as_ref().join("qnet.pt").as_path())?;
-//         self.qnet_tgt
-//             .load(&path.as_ref().join("qnet_tgt.pt").as_path())?;
-//         Ok(())
-//     }
-// }

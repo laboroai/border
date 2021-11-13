@@ -145,7 +145,7 @@ where
 
     fn update_critic(&mut self, batch: R::Batch) -> f32 {
         let losses = {
-            let (obs, act, next_obs, reward, is_done) = batch.unpack();
+            let (obs, act, next_obs, reward, is_done, _, _) = batch.unpack();
             let reward = Tensor::of_slice(&reward[..]).to(self.device);
             let is_done = Tensor::of_slice(&is_done[..]).to(self.device);
 
@@ -208,10 +208,9 @@ where
     fn opt_(&mut self, buffer: &mut R) -> Record {
         let mut loss_critic = 0f32;
         let mut loss_actor = 0f32;
-        let beta = None;
 
         for _ in 0..self.n_updates_per_opt {
-            let batch = buffer.batch(self.batch_size, beta).unwrap();
+            let batch = buffer.batch(self.batch_size).unwrap();
             loss_actor += self.update_actor(&batch);
             loss_critic += self.update_critic(batch);
             self.soft_update();
