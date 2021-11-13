@@ -85,7 +85,7 @@ where
 
         for j in 0..batch_size {
             let i = (self.i + j) % self.capacity;
-            sum_tree.add(self.i, max_p);
+            sum_tree.add(i, max_p);
         }
     }
 }

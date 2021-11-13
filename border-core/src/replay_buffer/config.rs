@@ -16,8 +16,45 @@ pub struct PerConfig {
     pub(super) beta_0: f32,
     /// Final value of $\beta$.
     pub(super) beta_final: f32,
-    /// Optimization steps when beta reaches its final value.
+    /// Optimization step when beta reaches its final value.
     pub(super) n_opts_final: usize,
+}
+
+impl Default for PerConfig {
+    fn default() -> Self {
+        Self {
+            alpha: 0.6,
+            beta_0: 0.4,
+            beta_final: 1.0,
+            n_opts_final: 500_000
+        }
+    }
+}
+
+impl PerConfig {
+    /// Sets alpha, the exponent of sampling probability.
+    pub fn alpha(mut self, alpha: f32) -> Self {
+        self.alpha = alpha;
+        self
+    }
+
+    /// Sets beta_0, the initial value of the exponent of importance weights.
+    pub fn beta_0(mut self, beta_0: f32) -> Self {
+        self.beta_0 = beta_0;
+        self
+    }
+
+    /// Sets beta_final, the final value of the exponent of importance weights.
+    pub fn beta_final(mut self, beta_final: f32) -> Self {
+        self.beta_final = beta_final;
+        self
+    }
+
+    /// Sets the optimization step when beta reaches the final value.
+    pub fn n_opts_final(mut self, n_opts_final: usize) -> Self {
+        self.n_opts_final = n_opts_final;
+        self
+    }
 }
 
 /// Configuration of [SimpleReplayBuffer](super::SimpleReplayBuffer).
@@ -42,6 +79,12 @@ impl SimpleReplayBufferConfig {
     /// Sets the capacity of the replay buffer.
     pub fn capacity(mut self, capacity: usize) -> Self {
         self.capacity = capacity;
+        self
+    }
+
+    /// Sets configuration of PER.
+    pub fn per_config(mut self, per_config: Option<PerConfig>) -> Self {
+        self.per_config = per_config;
         self
     }
 

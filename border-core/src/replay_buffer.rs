@@ -6,6 +6,6 @@ mod subbatch;
 mod step_proc;
 pub use base::SimpleReplayBuffer;
 pub use batch::Batch;
-pub use config::SimpleReplayBufferConfig;
+pub use config::{SimpleReplayBufferConfig, PerConfig};
 pub use subbatch::SubBatch;
 pub use step_proc::{SimpleStepProcessor, SimpleStepProcessorConfig};

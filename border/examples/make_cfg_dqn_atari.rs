@@ -1,6 +1,6 @@
 mod util_dqn_atari;
 use anyhow::Result;
-use border_core::{replay_buffer::SimpleReplayBufferConfig, TrainerConfig};
+use border_core::{replay_buffer::{SimpleReplayBufferConfig, PerConfig}, TrainerConfig};
 use border_tch_agent::{
     cnn::{CNNConfig, CNN},
     dqn::{DQNConfig, DQNModelConfig}, //, EpsilonGreedy, DQNExplorer},
@@ -29,7 +29,14 @@ fn make_dqn_config(params: &Params) -> DQNConfig<CNN> {
 }
 
 fn make_replay_buffer_config(params: &Params) -> SimpleReplayBufferConfig {
-    SimpleReplayBufferConfig::default().capacity(params.replay_buffer_capacity)
+    let mut config = SimpleReplayBufferConfig::default()
+        .capacity(params.replay_buffer_capacity);
+
+    if params.per {
+        config = config.per_config(Some(PerConfig::default()));
+    }
+
+    config
 }
 
 fn make_trainer_config(env_name: String, params: &Params) -> Result<TrainerConfig> {
@@ -78,7 +85,7 @@ fn main() -> Result<()> {
     make_cfg("pong", &params)?;
     make_cfg("PongNoFrameskip-v4", &params)?;
     make_cfg("PongNoFrameskip-v4", &params.clone().debug())?;
-    // make_cfg("PongNoFrameskip-v4", &params.clone().per())?;
+    make_cfg("pong", &params.clone().per())?;
     // make_cfg("PongNoFrameskip-v4", &params.clone().ddqn())?;
 
     // Hero
