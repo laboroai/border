@@ -176,7 +176,13 @@ where
                     DQNExplorer::EpsilonGreedy(egreedy) => egreedy.action(&a),
                 }
             } else {
-                a.argmax(-1, true)
+                if fastrand::f32() < 0.01 {
+                    let n_actions = a.size()[1] as i32;
+                    let a = fastrand::i32(0..n_actions);
+                    Tensor::from(a)
+                } else {
+                    a.argmax(-1, true)
+                }
             };
             a.into()
         })
