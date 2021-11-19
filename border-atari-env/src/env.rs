@@ -255,6 +255,11 @@ where
         } else {
             // no-op step to advance from terminal/lost life state
             self.env.step(AtariAction::Noop);
+
+            let n = fastrand::u8(0..=30);
+            for _ in 0..n {
+                self.env.step(AtariAction::Noop);
+            }
         }
 
         // TODO: noop random steps (?)

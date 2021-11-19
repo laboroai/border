@@ -96,7 +96,8 @@ fn main() -> Result<()> {
         .replay_buffer_capacity(1048576)
         .optimizer("adam");
     make_cfg("HeroNoFrameskip-v4", &params)?;
-    // make_cfg("HeroNoFrameskip-v4", &params.clone().per())?;
+    make_cfg("hero", &params)?;
+    make_cfg("hero", &params.clone().per())?;
     // make_cfg("HeroNoFrameskip-v4", &params.clone().ddqn())?;
 
     Ok(())
