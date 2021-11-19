@@ -86,7 +86,6 @@ fn main() -> Result<()> {
     make_cfg("PongNoFrameskip-v4", &params)?;
     make_cfg("PongNoFrameskip-v4", &params.clone().debug())?;
     make_cfg("pong", &params.clone().per())?;
-    // make_cfg("PongNoFrameskip-v4", &params.clone().ddqn())?;
 
     // Hero
     let params = Params::default()
@@ -97,8 +96,8 @@ fn main() -> Result<()> {
         .optimizer("adam");
     make_cfg("HeroNoFrameskip-v4", &params)?;
     make_cfg("hero", &params)?;
-    make_cfg("hero", &params.clone().per())?;
-    // make_cfg("HeroNoFrameskip-v4", &params.clone().ddqn())?;
+    make_cfg("hero", &params.clone().ddqn())?;
+    make_cfg("hero", &params.clone().ddqn().per())?;
 
     Ok(())
 }

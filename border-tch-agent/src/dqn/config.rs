@@ -33,7 +33,6 @@ where
     pub(super) tau: f64,
     pub(super) train: bool,
     pub(super) explorer: DQNExplorer,
-    // expr_sampling: ExperienceSampling,
     #[serde(default)]
     pub(super) clip_reward: Option<f64>,
     #[serde(default)]

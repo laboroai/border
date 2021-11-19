@@ -117,12 +117,12 @@ pub fn model_dir(env_name: String, params: &Params) -> Result<String> {
     let debug = params.debug;
 
     let mut model_dir = format!("./border/examples/model/dqn_{}", env_name);
-    if per {
-        model_dir.push_str("_per");
-    }
-
     if ddqn {
         model_dir.push_str("_ddqn");
+    }
+
+    if per {
+        model_dir.push_str("_per");
     }
 
     if debug {
