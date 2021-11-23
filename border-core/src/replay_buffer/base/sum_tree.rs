@@ -61,7 +61,7 @@ impl SumTree {
     pub fn max(&self) -> f32 {
         self.max_tree
             .query(0, self.max_tree.len())
-            .powf(-self.alpha)
+            .powf(1.0 / self.alpha)
     }
 
     /// Add priority value at `ix`-th element in the sum tree.
@@ -144,6 +144,21 @@ impl SumTree {
 
         (ixs, ws)
     }
+
+    pub fn print_tree(&self) {
+        let mut nl = 1;
+
+        for i in 0..self.tree.len() {
+            print!("{} ", self.tree[i]);
+            if i == 2 * nl - 2 {
+                println!();
+                nl *= 2;
+            }
+        }
+        println!("max   = {}", self.max());
+        // println!("min   = {}", self.min());
+        println!("total = {}", self.total());
+    }
 }
 
 #[cfg(test)]
@@ -157,6 +172,8 @@ mod tests {
         for ix in 0..data.len() {
             sum_tree.add(ix, data[ix]);
         }
+        sum_tree.print_tree();
+        println!();
 
         assert_eq!(sum_tree.get(0.0), 0);
         assert_eq!(sum_tree.get(0.4), 0);
@@ -167,18 +184,22 @@ mod tests {
         assert_eq!(sum_tree.get(2.0), 4);
         assert_eq!(sum_tree.get(2.8), 4);
 
-        let (ixs, ws) = sum_tree.sample(10, 1.0);
-        println!("{:?}", ixs);
-        println!("{:?}", ws);
+        sum_tree.update(7, 2.0);
+        sum_tree.print_tree();
         println!();
 
-        let n_samples = 1000000;
-        let (ixs, _) = sum_tree.sample(n_samples, 1.0);
-        debug_assert!(ixs.iter().all(|&ix| ix < data.len() as i64));
-        (0..5).for_each(|ix| {
-            let p = data[ix] / sum_tree.total() * (n_samples as f32);
-            let n = ixs.iter().filter(|&&e| e == ix as i64).collect::<Vec<_>>().len();
-            println!("ix={:?}: {:?} (p={:?})", ix, n, p);
-        })
+        // let (ixs, ws) = sum_tree.sample(10, 1.0);
+        // println!("{:?}", ixs);
+        // println!("{:?}", ws);
+        // println!();
+
+        // let n_samples = 1000000;
+        // let (ixs, _) = sum_tree.sample(n_samples, 1.0);
+        // debug_assert!(ixs.iter().all(|&ix| ix < data.len() as i64));
+        // (0..5).for_each(|ix| {
+        //     let p = data[ix] / sum_tree.total() * (n_samples as f32);
+        //     let n = ixs.iter().filter(|&&e| e == ix as i64).collect::<Vec<_>>().len();
+        //     println!("ix={:?}: {:?} (p={:?})", ix, n, p);
+        // })
     }
 }
