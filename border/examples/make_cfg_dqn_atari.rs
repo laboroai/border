@@ -1,21 +1,27 @@
 mod util_dqn_atari;
 use anyhow::Result;
-use border_core::{replay_buffer::{SimpleReplayBufferConfig, PerConfig}, TrainerConfig};
+use border_core::{
+    replay_buffer::{PerConfig, SimpleReplayBufferConfig},
+    TrainerConfig,
+};
 use border_tch_agent::{
     cnn::{CNNConfig, CNN},
     dqn::{DQNConfig, DQNModelConfig}, //, EpsilonGreedy, DQNExplorer},
     opt::OptimizerConfig,
 };
 use std::{default::Default, path::Path};
-use util_dqn_atari::{Params, model_dir};
+use util_dqn_atari::{model_dir, Params};
 
 fn make_dqn_config(params: &Params) -> DQNConfig<CNN> {
     let n_stack = 4;
     let out_dim = 0; // Set before training/evaluation
+    let lr = if params.per { params.lr / 4.0 } else { params.lr };
+
     let model_config = DQNModelConfig::default()
         .q_config(CNNConfig::new(n_stack, out_dim))
         .out_dim(out_dim)
-        .opt_config(OptimizerConfig::Adam { lr: params.lr });
+        .opt_config(OptimizerConfig::Adam { lr });
+
     DQNConfig::default()
         .model_config(model_config)
         .batch_size(params.batch_size)
@@ -29,11 +35,10 @@ fn make_dqn_config(params: &Params) -> DQNConfig<CNN> {
 }
 
 fn make_replay_buffer_config(params: &Params) -> SimpleReplayBufferConfig {
-    let mut config = SimpleReplayBufferConfig::default()
-        .capacity(params.replay_buffer_capacity);
+    let mut config = SimpleReplayBufferConfig::default().capacity(params.replay_buffer_capacity);
 
     if params.per {
-        config = config.per_config(Some(PerConfig::default()));
+        config = config.per_config(Some(PerConfig::default().n_opts_final(200_000_000)));
     }
 
     config
