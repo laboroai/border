@@ -1,0 +1,31 @@
+[package]
+name = "border-async-trainer"
+version = "0.0.5"
+authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
+edition = "2018"
+
+description = "Atari environment based on gym-rs"
+repository = "https://github.com/taku-y/border"
+keywords = ["rl"]
+categories = ["science"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+autoexamples = false
+
+[dependencies]
+anyhow = "1.0.38"
+border-core = { version = "0.0.5", path = "../border-core" }
+serde = { version = "=1.0.126", features = ["derive"] }
+crossbeam-channel = "0.5.1"
+log = "0.4"
+
+# itertools = "0.10.1"
+# fastrand = "1.4.0"
+# dirs = "3.0.1"
+
+# [[example]]
+# name = "random_pong"
+
+[dev-dependencies]
+# env_logger = "0.8.2"
+tch = { version = "0.5.0" }
