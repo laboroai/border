@@ -42,6 +42,7 @@ where
     pub(in crate::dqn) n_opts: usize,
     pub(in crate::dqn) double_dqn: bool,
     pub(in crate::dqn) _clip_reward: Option<f64>,
+    pub(in crate::dqn) clip_td_err: Option<(f64, f64)>,
 }
 
 impl<E, Q, R> DQN<E, Q, R>
@@ -78,6 +79,7 @@ where
             n_opts: 0,
             _clip_reward: config.clip_reward,
             double_dqn: config.double_dqn,
+            clip_td_err: config.clip_td_err,
             phantom: PhantomData,
         }
     }
@@ -114,7 +116,10 @@ where
 
         let loss = if let Some(ws) = weight {
             let n = ws.len() as i64;
-            let td_errs = (&pred - &tgt).abs();
+            let td_errs = match self.clip_td_err {
+                None => (&pred - &tgt).abs(),
+                Some((min, max)) => (&pred - &tgt).abs().clip(min, max)
+            };
             let loss = Tensor::of_slice(&ws[..]).to(self.device) * &td_errs;
             let loss = loss.smooth_l1_loss(
                 &Tensor::zeros(&[n], tch::kind::FLOAT_CPU).to(self.device),

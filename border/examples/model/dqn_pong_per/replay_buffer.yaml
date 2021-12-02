@@ -6,3 +6,4 @@ per_config:
   beta_0: 0.4000000059604645
   beta_final: 1.0
   n_opts_final: 200000000
+  normalize: All

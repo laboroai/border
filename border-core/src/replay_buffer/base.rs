@@ -6,6 +6,7 @@ use crate::{Batch as BatchBase, ReplayBufferBase};
 use fastrand::Rng;
 use iw_scheduler::IwScheduler;
 use sum_tree::SumTree;
+pub use sum_tree::WeightNormalizer;
 
 struct PerState {
     sum_tree: SumTree,
@@ -15,7 +16,7 @@ struct PerState {
 impl PerState {
     fn new(capacity: usize, per_config: &PerConfig) -> Self {
         Self {
-            sum_tree: SumTree::new(capacity, per_config.alpha),
+            sum_tree: SumTree::new(capacity, per_config.alpha, per_config.normalize),
             iw_scheduler: IwScheduler::new(
                 per_config.beta_0,
                 per_config.beta_final,

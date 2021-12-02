@@ -6,6 +6,16 @@ use segment_tree::{
     ops::{MaxIgnoreNaN, MinIgnoreNaN},
     SegmentPoint,
 };
+use serde::{Deserialize, Serialize};
+
+#[derive(Copy, Debug, Clone, Deserialize, Serialize, PartialEq)]
+/// Specifies how to normalize the importance weights in a prioritized batch.
+pub enum WeightNormalizer {
+    /// Normalize weights by the maximum weight of all samples in the buffer.
+    All,
+    /// Normalize weights by the maximum weight of samples in the batch.
+    Batch,
+}
 
 #[derive(Debug)]
 pub struct SumTree {
@@ -16,10 +26,11 @@ pub struct SumTree {
     tree: Vec<f32>,
     min_tree: SegmentPoint<f32, MinIgnoreNaN>,
     max_tree: SegmentPoint<f32, MaxIgnoreNaN>,
+    normalize: WeightNormalizer,
 }
 
 impl SumTree {
-    pub fn new(capacity: usize, alpha: f32) -> Self {
+    pub fn new(capacity: usize, alpha: f32, normalize: WeightNormalizer) -> Self {
         Self {
             eps: 1e-8,
             alpha,
@@ -28,6 +39,7 @@ impl SumTree {
             tree: vec![0f32; 2 * capacity - 1],
             min_tree: SegmentPoint::build(vec![f32::MAX; capacity], MinIgnoreNaN),
             max_tree: SegmentPoint::build(vec![1e-8f32; capacity], MaxIgnoreNaN),
+            normalize,
         }
     }
 
@@ -107,7 +119,9 @@ impl SumTree {
     /// and it will be normalized by $max_i w_i$.
     pub fn sample(&self, batch_size: usize, beta: f32) -> (Vec<i64>, Vec<f32>) {
         let p_sum = &self.total();
-        let ps = (0..batch_size).map(|_| p_sum * fastrand::f32()).collect::<Vec<_>>();
+        let ps = (0..batch_size)
+            .map(|_| p_sum * fastrand::f32())
+            .collect::<Vec<_>>();
         let indices = ps.iter().map(|&p| self.get(p)).collect::<Vec<_>>();
         // let indices = (0..batch_size)
         //     .map(|_| self.get(p_sum * fastrand::f32()))
@@ -121,11 +135,10 @@ impl SumTree {
             .collect::<Vec<_>>();
 
         // normalizer within all samples
-        // let w_max_inv = (n * self.min_tree.query(0, self.n_samples)).powf(beta);
-
-        // normalizer within batch
-        let w_max_inv = 1f32 / ws.iter().fold(0.0 / 0.0, |m, v| v.max(m));
-
+        let w_max_inv = match self.normalize {
+            WeightNormalizer::All => (n * self.min_tree.query(0, self.n_samples)).powf(beta),
+            WeightNormalizer::Batch => 1f32 / ws.iter().fold(0.0 / 0.0, |m, v| v.max(m)),
+        };
         let ws = ws.iter().map(|w| w * w_max_inv).collect::<Vec<f32>>();
 
         // debug
@@ -163,12 +176,12 @@ impl SumTree {
 
 #[cfg(test)]
 mod tests {
-    use super::SumTree;
+    use super::{SumTree, WeightNormalizer::Batch};
 
     #[test]
     fn test_sum_tree_odd() {
         let data = vec![0.5f32, 0.2, 0.8, 0.3, 1.1, 2.5, 3.9];
-        let mut sum_tree = SumTree::new(8, 1.0);
+        let mut sum_tree = SumTree::new(8, 1.0, Batch);
         for ix in 0..data.len() {
             sum_tree.add(ix, data[ix]);
         }

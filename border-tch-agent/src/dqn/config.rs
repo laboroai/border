@@ -37,6 +37,7 @@ where
     pub(super) clip_reward: Option<f64>,
     #[serde(default)]
     pub(super) double_dqn: bool,
+    pub(super) clip_td_err: Option<(f64, f64)>,
     phantom: PhantomData<Q>,
 }
 
@@ -61,6 +62,7 @@ where
             // expr_sampling: ExperienceSampling::Uniform,
             clip_reward: None,
             double_dqn: false,
+            clip_td_err: None,
             phantom: PhantomData,
         }
     }
@@ -135,6 +137,12 @@ where
     /// Double DQN
     pub fn double_dqn(mut self, double_dqn: bool) -> Self {
         self.double_dqn = double_dqn;
+        self
+    }
+
+    /// TD-error clipping.
+    pub fn clip_td_err(mut self, clip_td_err: Option<(f64, f64)>) -> Self {
+        self.clip_td_err = clip_td_err;
         self
     }
 
