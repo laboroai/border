@@ -32,8 +32,9 @@ type ObsDtype = u8;
 shape!(ObsShape, [N_STACK as usize, 1, 84, 84]);
 shape!(ActShape, [1]);
 
-#[derive(Clone, Debug, Obs)]
-struct Obs(PyGymEnvObs<ObsShape, PyObsDtype, ObsDtype>);
+// #[derive(Clone, Debug, Obs)]
+// struct Obs(PyGymEnvObs<ObsShape, PyObsDtype, ObsDtype>);
+type Obs = PyGymEnvObs<ObsShape, PyObsDtype, ObsDtype>;
 
 #[derive(Clone, SubBatch)]
 struct ObsBatch(TensorSubBatch<ObsShape, ObsDtype>);
@@ -45,6 +46,9 @@ impl From<Obs> for ObsBatch {
     }
 }
 
+// Wrap `PyGymEnvDiscreteAct` to make a new type.
+// Act also implements Into<Tensor>.
+// TODO: Consider to implement Into<Tensor> on PyGymEnvDiscreteAct when feature=tch.
 #[derive(Clone, Debug, Act)]
 struct Act(PyGymEnvDiscreteAct);
 

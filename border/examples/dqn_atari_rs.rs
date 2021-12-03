@@ -25,8 +25,9 @@ use util_dqn_atari::{model_dir as model_dir_, Params};
 type ObsDtype = u8;
 shape!(ObsShape, [4, 1, 84, 84]);
 
-#[derive(Debug, Clone, Obs)]
-struct Obs(BorderAtariObs);
+// #[derive(Debug, Clone, Obs)]
+// struct Obs(BorderAtariObs);
+type Obs = BorderAtariObs;
 
 #[derive(Clone, SubBatch)]
 struct ObsBatch(TensorSubBatch<ObsShape, ObsDtype>);
@@ -50,6 +51,9 @@ impl From<Act> for ActBatch {
     }
 }
 
+// Wrap `BorderAtariAct` to make a new type.
+// Act also implements Into<Tensor>.
+// TODO: Consider to implement Into<Tensor> on BorderAtariAct when feature=tch.
 #[derive(Debug, Clone, Act)]
 struct Act(BorderAtariAct);
 
