@@ -158,6 +158,7 @@ impl SumTree {
         (ixs, ws)
     }
 
+    #[allow(dead_code)]
     pub fn print_tree(&self) {
         let mut nl = 1;
 

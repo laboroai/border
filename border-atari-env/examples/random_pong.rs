@@ -12,17 +12,24 @@ type ActFilter = BorderAtariActRawFilter<Act>;
 type EnvConfig = BorderAtariEnvConfig<Obs, Act, ObsFilter, ActFilter>;
 type Env = BorderAtariEnv<Obs, Act, ObsFilter, ActFilter>;
 
+#[derive(Clone)]
+struct RandomPolicyConfig {
+    pub n_acts: usize,
+}
+
 struct RandomPolicy {
     n_acts: usize,
 }
 
-impl RandomPolicy {
-    fn new(n_acts: usize) -> Self {
-        Self { n_acts }
-    }
-}
-
 impl Policy<Env> for RandomPolicy {
+    type Config = RandomPolicyConfig;
+
+    fn build(config: Self::Config) -> Self {
+        Self {
+            n_acts: config.n_acts,
+        }
+    }
+
     fn sample(&mut self, _: &Obs) -> Act {
         fastrand::u8(..self.n_acts as u8).into()
     }
@@ -40,7 +47,10 @@ fn main() -> Result<()> {
     let mut env = Env::build(&env_config, 42)?;
     let mut recorder = BufferedRecorder::new();
     let n_acts = env.get_num_actions_atari();
-    let mut policy = RandomPolicy::new(n_acts as _);
+    let policy_config = RandomPolicyConfig {
+        n_acts: n_acts as _,
+    };
+    let mut policy = RandomPolicy::build(policy_config);
 
     env.open()?;
     let _ = util::eval_with_recorder(&mut env, &mut policy, 5, &mut recorder)?;

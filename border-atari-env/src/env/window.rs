@@ -1,9 +1,10 @@
 use anyhow::Result;
-use atari_env::{AtariAction, AtariEnv, EmulatorConfig};
+use atari_env::AtariEnv;
+// use atari_env::{AtariAction, AtariEnv, EmulatorConfig};
 use pixels::{Pixels, SurfaceTexture};
 use winit::{
     event_loop::EventLoop,
-    platform::run_return::EventLoopExtRunReturn,
+    // platform::run_return::EventLoopExtRunReturn,
     window::{Window, WindowBuilder},
 };
 

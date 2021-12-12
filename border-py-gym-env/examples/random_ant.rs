@@ -16,9 +16,18 @@ type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f32, f32, Obs>;
 type ActFilter = PyGymEnvContinuousActRawFilter<ActShape, Act>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 
-struct RandomPolicy {}
+#[derive(Clone)]
+struct RandomPolicyConfig;
+
+struct RandomPolicy;
 
 impl Policy<Env> for RandomPolicy {
+    type Config = RandomPolicyConfig;
+
+    fn build(_config: Self::Config) -> Self {
+        Self
+    }
+
     fn sample(&mut self, _: &Obs) -> Act {
         Act::new(
             Array::from(
@@ -43,7 +52,7 @@ fn main() -> Result<()> {
     let mut env = Env::build(&env_config, 0)?;
     let mut recorder = BufferedRecorder::new();
     env.set_render(true);
-    let mut policy = RandomPolicy {};
+    let mut policy = RandomPolicy;
 
     let _ = util::eval_with_recorder(&mut env, &mut policy, 5, &mut recorder)?;
 

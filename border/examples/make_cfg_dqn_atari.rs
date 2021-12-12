@@ -90,7 +90,7 @@ fn main() -> Result<()> {
     make_cfg("pong", &params)?;
     make_cfg("PongNoFrameskip-v4", &params)?;
     make_cfg("PongNoFrameskip-v4", &params.clone().debug())?;
-    make_cfg("pong", &params.clone().per())?;
+    make_cfg("pong", &params.clone().ddqn().per())?;
 
     // Hero
     let params = Params::default()

@@ -7,7 +7,8 @@ use std::{
     io::{BufReader, Write},
     path::Path,
 };
-use super::{WeightNormalizer, WeightNormalizer::{All, Batch}};
+use super::{WeightNormalizer, WeightNormalizer::All};
+// use super::{WeightNormalizer, WeightNormalizer::{All, Batch}};
 
 /// Configuration of [PerState](super::base::PerState).
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]

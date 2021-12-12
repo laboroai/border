@@ -24,4 +24,5 @@ double_dqn: true
 clip_td_err:
   - -1.0
   - 1.0
+device: ~
 phantom: ~

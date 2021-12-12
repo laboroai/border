@@ -3,7 +3,7 @@ use super::{
     explorer::{DQNExplorer, Softmax},
     DQNModelConfig,
 };
-use crate::{model::SubModel, util::OutDim};
+use crate::{model::SubModel, util::OutDim, Device};
 use anyhow::Result;
 use log::info;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -18,7 +18,7 @@ use tch::Tensor;
 
 #[allow(clippy::upper_case_acronyms)]
 /// Constructs [DQN](super::DQN).
-#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct DQNConfig<Q>
 where
     Q: SubModel<Output = Tensor>,
@@ -38,7 +38,33 @@ where
     #[serde(default)]
     pub(super) double_dqn: bool,
     pub(super) clip_td_err: Option<(f64, f64)>,
+    pub device: Option<Device>,
     phantom: PhantomData<Q>,
+}
+
+impl<Q> Clone for DQNConfig<Q>
+where
+    Q: SubModel<Output = Tensor>,
+    Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            model_config: self.model_config.clone(),
+            soft_update_interval: self.soft_update_interval,
+            n_updates_per_opt: self.n_updates_per_opt,
+            min_transitions_warmup: self.min_transitions_warmup,
+            batch_size: self.batch_size,
+            discount_factor: self.discount_factor,
+            tau: self.tau,
+            train: self.train,
+            explorer: self.explorer.clone(),
+            clip_reward: self.clip_reward,
+            double_dqn: self.double_dqn,
+            clip_td_err: self.clip_td_err,
+            device: self.device.clone(),
+            phantom: PhantomData,    
+        }
+    }
 }
 
 impl<Q> Default for DQNConfig<Q>
@@ -63,6 +89,7 @@ where
             clip_reward: None,
             double_dqn: false,
             clip_td_err: None,
+            device: None,
             phantom: PhantomData,
         }
     }
@@ -146,6 +173,12 @@ where
         self
     }
 
+    /// Device.
+    pub fn device(mut self, device: tch::Device) -> Self {
+        self.device = Some(device.into());
+        self
+    }
+
     /// Loads [DQNConfig] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let path_ = path.as_ref().to_owned();
@@ -165,37 +198,3 @@ where
         Ok(())
     }
 }
-
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//     use crate::{
-//         dqn::{DQNConfig, EpsilonGreedy},
-//         util::OptInterval,
-//     };
-
-//     #[test]
-//     fn test_serde_dqn_builder() -> Result<()> {
-//         let builder = DQNConfig::default()
-//             .opt_interval(OptInterval::Steps(50))
-//             .n_updates_per_opt(1)
-//             .min_transitions_warmup(100)
-//             .batch_size(32)
-//             .discount_factor(0.99)
-//             .tau(0.005)
-//             .explorer(EpsilonGreedy::with_final_step(1000));
-
-//         let dir = tempdir::TempDir::new("dqn_builder")?;
-//         let path = dir.path().join("dqn_builder.yaml");
-//         println!("{:?}", path);
-
-//         builder.save(&path)?;
-//         let builder_ = DQNConfig::load(&path)?;
-//         assert_eq!(builder, builder_);
-
-//         let yaml = serde_yaml::to_string(&builder)?;
-//         println!("{}", yaml);
-
-//         Ok(())
-//     }
-// }

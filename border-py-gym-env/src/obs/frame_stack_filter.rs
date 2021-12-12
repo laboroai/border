@@ -6,12 +6,15 @@ use border_core::{
     record::{Record, RecordValue},
     Obs,
 };
-use ndarray::{stack, ArrayD, Axis, IxDyn, SliceInfo, SliceInfoElem}; //, SliceOrIndex};
+use ndarray::{ArrayD, Axis, SliceInfoElem}; //, SliceOrIndex};
+// use ndarray::{stack, ArrayD, Axis, IxDyn, SliceInfo, SliceInfoElem};
 use num_traits::cast::AsPrimitive;
 use numpy::{Element, PyArrayDyn};
-use pyo3::{types::PyList, Py, PyAny, PyObject};
+use pyo3::{PyAny, PyObject};
+// use pyo3::{types::PyList, Py, PyAny, PyObject};
 use serde::{Deserialize, Serialize};
-use std::{convert::TryFrom, fmt::Debug, marker::PhantomData};
+use std::{fmt::Debug, marker::PhantomData};
+// use std::{convert::TryFrom, fmt::Debug, marker::PhantomData};
 
 #[derive(Debug, Serialize, Deserialize)]
 /// Configuration of [FrameStackFilter].

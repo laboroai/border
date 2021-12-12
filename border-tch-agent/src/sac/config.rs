@@ -5,6 +5,7 @@ use crate::{
     sac::ent_coef::EntCoefMode,
     util::CriticLoss,
     util::OutDim,
+    Device,
 };
 use anyhow::Result;
 use log::info;
@@ -17,13 +18,9 @@ use std::{
 };
 use tch::Tensor;
 
-// type ActionValue = Tensor;
-// type ActMean = Tensor;
-// type ActStd = Tensor;
-
 /// Constructs [SAC](super::SAC).
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct SACConfig<Q, P>
 where
     Q: SubModel2<Output = Tensor>,
@@ -47,7 +44,38 @@ where
     pub(super) reward_scale: f32,
     pub(super) replay_burffer_capacity: usize,
     pub(super) n_critics: usize,
+    pub device: Option<Device>,
     // expr_sampling: ExperienceSampling,
+}
+
+impl<Q, P> Clone for SACConfig<Q, P>
+where
+    Q: SubModel2<Output = Tensor>,
+    Q::Config: DeserializeOwned + Serialize + Debug + PartialEq + Clone,
+    P: SubModel<Output = (Tensor, Tensor)>,
+    P::Config: DeserializeOwned + Serialize + OutDim + Debug + PartialEq + Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            actor_config: self.actor_config.clone(),
+            critic_config: self.critic_config.clone(),
+            gamma: self.gamma.clone(),
+            tau: self.tau.clone(),
+            ent_coef_mode: self.ent_coef_mode.clone(),
+            epsilon: self.epsilon.clone(),
+            min_lstd: self.min_lstd.clone(),
+            max_lstd: self.max_lstd.clone(),
+            n_updates_per_opt: self.n_updates_per_opt.clone(),
+            min_transitions_warmup: self.min_transitions_warmup.clone(),
+            batch_size: self.batch_size.clone(),
+            train: self.train.clone(),
+            critic_loss: self.critic_loss.clone(),
+            reward_scale: self.reward_scale.clone(),
+            replay_burffer_capacity: self.replay_burffer_capacity.clone(),
+            n_critics: self.n_critics.clone(),
+            device: self.device.clone() 
+        }
+    }
 }
 
 impl<Q, P> Default for SACConfig<Q, P>
@@ -75,6 +103,7 @@ where
             reward_scale: 1.0,
             replay_burffer_capacity: 100,
             n_critics: 1,
+            device: None,
             // expr_sampling: ExperienceSampling::Uniform,
         }
     }
@@ -158,6 +187,12 @@ where
     /// The number of critics.
     pub fn n_critics(mut self, n_critics: usize) -> Self {
         self.n_critics = n_critics;
+        self
+    }
+
+    /// Device.
+    pub fn device(mut self, device: tch::Device) -> Self {
+        self.device = Some(device.into());
         self
     }
 

@@ -56,34 +56,6 @@ where
     <R::Batch as Batch>::ObsBatch: Into<Q::Input>,
     <R::Batch as Batch>::ActBatch: Into<Tensor>,
 {
-    /// Constructs DQN agent.
-    ///
-    /// This is used with non-vectorized environments.
-    pub fn build(config: DQNConfig<Q>, device: Device) -> Self {
-        let qnet = DQNModel::build(config.model_config, device);
-        let qnet_tgt = qnet.clone();
-
-        DQN {
-            qnet,
-            qnet_tgt,
-            soft_update_interval: config.soft_update_interval,
-            soft_update_counter: 0,
-            n_updates_per_opt: config.n_updates_per_opt,
-            min_transitions_warmup: config.min_transitions_warmup,
-            batch_size: config.batch_size,
-            discount_factor: config.discount_factor,
-            tau: config.tau,
-            train: config.train,
-            explorer: config.explorer,
-            device,
-            n_opts: 0,
-            _clip_reward: config.clip_reward,
-            double_dqn: config.double_dqn,
-            clip_td_err: config.clip_td_err,
-            phantom: PhantomData,
-        }
-    }
-
     fn update_critic(&mut self, buffer: &mut R) -> f32 {
         let batch = buffer.batch(self.batch_size).unwrap();
         let (obs, act, next_obs, reward, is_done, ixs, weight) = batch.unpack();
@@ -172,6 +144,35 @@ where
     <R::Batch as Batch>::ObsBatch: Into<Q::Input>,
     <R::Batch as Batch>::ActBatch: Into<Tensor>,
 {
+    type Config = DQNConfig<Q>;
+
+    /// Constructs DQN agent.
+    fn build(config: Self::Config) -> Self {
+        let device = config.device.expect("No device is given for DQN agent").into();
+        let qnet = DQNModel::build(config.model_config, device);
+        let qnet_tgt = qnet.clone();
+
+        DQN {
+            qnet,
+            qnet_tgt,
+            soft_update_interval: config.soft_update_interval,
+            soft_update_counter: 0,
+            n_updates_per_opt: config.n_updates_per_opt,
+            min_transitions_warmup: config.min_transitions_warmup,
+            batch_size: config.batch_size,
+            discount_factor: config.discount_factor,
+            tau: config.tau,
+            train: config.train,
+            explorer: config.explorer,
+            device,
+            n_opts: 0,
+            _clip_reward: config.clip_reward,
+            double_dqn: config.double_dqn,
+            clip_td_err: config.clip_td_err,
+            phantom: PhantomData,
+        }
+    }
+
     fn sample(&mut self, obs: &E::Obs) -> E::Act {
         no_grad(|| {
             let a = self.qnet.forward(&obs.clone().into());

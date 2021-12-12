@@ -11,7 +11,7 @@ use border_core::{
 use serde::{de::DeserializeOwned, Serialize};
 // use log::info;
 use std::{fs, marker::PhantomData, path::Path};
-use tch::{no_grad, Device, Tensor};
+use tch::{no_grad, Tensor};
 
 type ActionValue = Tensor;
 type ActMean = Tensor;
@@ -73,42 +73,6 @@ where
     <R::Batch as Batch>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
     <R::Batch as Batch>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
-    /// Constructs [SAC] agent.
-    pub fn build(config: SACConfig<Q, P>, device: Device) -> Result<Self> {
-        let n_critics = config.n_critics;
-        let pi = Actor::build(config.actor_config, device)?;
-        let mut qnets = vec![];
-        let mut qnets_tgt = vec![];
-        for _ in 0..n_critics {
-            let critic = Critic::build(config.critic_config.clone(), device)?;
-            qnets.push(critic.clone());
-            qnets_tgt.push(critic);
-        }
-
-        Ok(
-            SAC {
-                qnets,
-                qnets_tgt,
-                pi,
-                gamma: config.gamma,
-                tau: config.tau,
-                ent_coef: EntCoef::new(config.ent_coef_mode, device),
-                epsilon: config.epsilon,
-                min_lstd: config.min_lstd,
-                max_lstd: config.max_lstd,
-                n_updates_per_opt: config.n_updates_per_opt,
-                min_transitions_warmup: config.min_transitions_warmup,
-                batch_size: config.batch_size,
-                train: config.train,
-                reward_scale: config.reward_scale,
-                critic_loss: config.critic_loss,
-                // expr_sampling: self.expr_sampling,
-                device,
-                phantom: PhantomData,
-            }    
-        )
-    }
-
     fn action_logp(&self, o: &P::Input) -> (Tensor, Tensor) {
         let (mean, lstd) = self.pi.forward(o);
         let std = lstd.clip(self.min_lstd, self.max_lstd).exp();
@@ -244,6 +208,43 @@ where
     <R::Batch as Batch>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
     <R::Batch as Batch>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
+    type Config = SACConfig<Q, P>;
+
+    /// Constructs [SAC] agent.
+    fn build(config: Self::Config) -> Self {
+        let device = config.device.expect("No device is given for SAC agent").into();
+        let n_critics = config.n_critics;
+        let pi = Actor::build(config.actor_config, device).unwrap();
+        let mut qnets = vec![];
+        let mut qnets_tgt = vec![];
+        for _ in 0..n_critics {
+            let critic = Critic::build(config.critic_config.clone(), device).unwrap();
+            qnets.push(critic.clone());
+            qnets_tgt.push(critic);
+        }
+
+        SAC {
+            qnets,
+            qnets_tgt,
+            pi,
+            gamma: config.gamma,
+            tau: config.tau,
+            ent_coef: EntCoef::new(config.ent_coef_mode, device),
+            epsilon: config.epsilon,
+            min_lstd: config.min_lstd,
+            max_lstd: config.max_lstd,
+            n_updates_per_opt: config.n_updates_per_opt,
+            min_transitions_warmup: config.min_transitions_warmup,
+            batch_size: config.batch_size,
+            train: config.train,
+            reward_scale: config.reward_scale,
+            critic_loss: config.critic_loss,
+            // expr_sampling: self.expr_sampling,
+            device,
+            phantom: PhantomData,
+        }
+    }
+
     fn sample(&mut self, obs: &E::Obs) -> E::Act {
         let obs = obs.clone().into();
         let (mean, lstd) = self.pi.forward(&obs);

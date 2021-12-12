@@ -1,12 +1,11 @@
 use anyhow::Result;
 use border_core::{
-    Env as _,
     record::{BufferedRecorder, Record},
-    shape, Policy, util,
+    shape, util, Env as _, Policy,
 };
 use border_py_gym_env::{
-    PyGymEnv, PyGymEnvConfig, PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter, PyGymEnvObs,
-    PyGymEnvObsRawFilter, PyGymEnvObsFilter, PyGymEnvActFilter,
+    PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter,
+    PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
 };
 use serde::Serialize;
 use std::{convert::TryFrom, fs::File};
@@ -21,9 +20,18 @@ type ObsFilter = PyGymEnvObsRawFilter<ObsShape, PyObsDtype, f32, Obs>;
 type ActFilter = PyGymEnvDiscreteActRawFilter<Act>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 
-struct RandomPolicy {}
+#[derive(Clone)]
+struct RandomPolicyConfig;
+
+struct RandomPolicy;
 
 impl Policy<Env> for RandomPolicy {
+    type Config = RandomPolicyConfig;
+
+    fn build(_config: Self::Config) -> Self {
+        Self
+    }
+
     fn sample(&mut self, _: &Obs) -> Act {
         let v = fastrand::u32(..=1);
         Act::new(vec![v as i32])
@@ -35,7 +43,7 @@ struct CartpoleRecord {
     episode: usize,
     step: usize,
     reward: f32,
-    obs: Vec<f64>,  
+    obs: Vec<f64>,
 }
 
 impl TryFrom<&Record> for CartpoleRecord {
@@ -66,13 +74,15 @@ fn main() -> Result<()> {
     let mut env = Env::build(&env_config, 0)?;
     let mut recorder = BufferedRecorder::new();
     env.set_render(true);
-    let mut policy = RandomPolicy {};
+    let mut policy = RandomPolicy;
 
     let _ = util::eval_with_recorder(&mut env, &mut policy, 5, &mut recorder)?;
 
     let mut wtr = csv::WriterBuilder::new()
         .has_headers(false)
-        .from_writer(File::create("border-py-gym-env/examples/random_cartpole_eval.csv")?);
+        .from_writer(File::create(
+            "border-py-gym-env/examples/random_cartpole_eval.csv",
+        )?);
     for record in recorder.iter() {
         wtr.serialize(CartpoleRecord::try_from(record)?)?;
     }
