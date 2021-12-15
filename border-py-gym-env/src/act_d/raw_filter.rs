@@ -10,6 +10,7 @@ use std::marker::PhantomData;
 
 #[derive(Debug, Serialize, Deserialize)]
 /// Configuration of [PyGymEnvDiscreteActRawFilter].
+#[derive(Clone)]
 pub struct PyGymEnvDiscreteActRawFilterConfig {
     vectorized: bool,
 }

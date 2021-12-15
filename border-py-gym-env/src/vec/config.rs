@@ -24,6 +24,26 @@ where
     phantom: PhantomData<(O, A, OF, AF)>,
 }
 
+impl<O, A, OF, AF> Clone for PyVecGymEnvConfig<O, A, OF, AF>
+where
+    O: Obs,
+    A: Act,
+    OF: PyGymEnvObsFilter<O>,
+    AF: PyGymEnvActFilter<A>,
+{
+    fn clone(&self) -> Self {
+        Self {
+            name: self.name.clone(),
+            max_steps: self.max_steps,
+            atari_wrapper: self.atari_wrapper.clone(),
+            n_procs: self.n_procs,
+            obs_filter_config: self.obs_filter_config.clone(),
+            act_filter_config: self.act_filter_config.clone(),
+            phantom: PhantomData,
+        }
+    }
+}
+
 impl<O, A, OF, AF> Default for PyVecGymEnvConfig<O, A, OF, AF>
 where
     O: Obs,

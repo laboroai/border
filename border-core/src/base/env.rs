@@ -6,7 +6,7 @@ use anyhow::Result;
 /// Represents an environment, typically an MDP.
 pub trait Env {
     /// Configurations.
-    type Config;
+    type Config: Clone;
 
     /// Observation of the environment.
     type Obs: Obs;

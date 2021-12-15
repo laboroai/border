@@ -20,7 +20,7 @@ impl Info for PyGymInfo {}
 /// Convert [PyObject] to [PyGymEnv]::Obs with a preprocessing.
 pub trait PyGymEnvObsFilter<O: Obs> {
     /// Configuration.
-    type Config: Default + Serialize + DeserializeOwned;
+    type Config: Clone + Default + Serialize + DeserializeOwned;
 
     /// Build filter.
     fn build(config: &Self::Config) -> Result<Self> where Self: Sized;
@@ -47,7 +47,7 @@ pub trait PyGymEnvObsFilter<O: Obs> {
 /// This trait should support vectorized environments.
 pub trait PyGymEnvActFilter<A: Act> {
     /// Configuration.
-    type Config: Default + Serialize + DeserializeOwned;
+    type Config: Clone + Default + Serialize + DeserializeOwned;
 
     /// Build filter.
     fn build(config: &Self::Config) -> Result<Self> where Self: Sized;

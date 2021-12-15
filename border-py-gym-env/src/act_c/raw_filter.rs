@@ -10,6 +10,7 @@ use std::{default::Default, fmt::Debug, marker::PhantomData};
 
 #[derive(Debug, Serialize, Deserialize)]
 /// Configuration of [PyGymEnvContinuousActRawFilter].
+#[derive(Clone)]
 pub struct PyGymEnvContinuousActRawFilterConfig {
     vectorized: bool,
 }

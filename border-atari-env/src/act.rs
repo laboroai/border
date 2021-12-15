@@ -31,7 +31,7 @@ impl From<u8> for BorderAtariAct {
 /// Converts `A` to [BorderAtariAct].
 pub trait BorderAtariActFilter<A: Act> {
     /// Configuration of the filter.
-    type Config: Default;
+    type Config: Clone + Default;
 
     /// Constructs the filter given a configuration.
     fn build(config: &Self::Config) -> Result<Self>
@@ -47,6 +47,7 @@ pub trait BorderAtariActFilter<A: Act> {
 
 #[derive(Debug, Deserialize, Serialize)]
 /// Configuration of [BorderAtariActRawFilter].
+#[derive(Clone)]
 pub struct BorderAtariActRawFilterConfig;
 
 impl Default for BorderAtariActRawFilterConfig {

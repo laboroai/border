@@ -18,6 +18,7 @@ use std::{fmt::Debug, marker::PhantomData};
 
 #[derive(Debug, Serialize, Deserialize)]
 /// Configuration of [FrameStackFilter].
+#[derive(Clone)]
 pub struct FrameStackFilterConfig {
     n_procs: i64,
     n_stack: i64,

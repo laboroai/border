@@ -12,6 +12,7 @@ use std::{fmt::Debug, marker::PhantomData};
 
 #[derive(Debug, Serialize, Deserialize)]
 /// Configuration of [PyGymEnvObsRawFilter].
+#[derive(Clone)]
 pub struct PyGymEnvObsRawFilterConfig {
     vectorized: bool,
 }

@@ -60,7 +60,7 @@ impl From<BorderAtariObs> for Tensor {
 /// Converts [BorderAtariObs] to `O` with an arbitrary processing.
 pub trait BorderAtariObsFilter<O: Obs> {
     /// Configuration of the filter.
-    type Config: Default;
+    type Config: Clone + Default;
 
     /// Constructs the filter given a configuration.
     fn build(config: &Self::Config) -> Result<Self>
@@ -79,6 +79,7 @@ pub trait BorderAtariObsFilter<O: Obs> {
 
 #[derive(Serialize, Deserialize, Debug)]
 /// Configuration of [BorderAtariObsRawFilter].
+#[derive(Clone)]
 pub struct BorderAtariObsRawFilterConfig;
 
 impl Default for BorderAtariObsRawFilterConfig {

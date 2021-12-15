@@ -23,6 +23,25 @@ where
     pub(super) train: bool,
 }
 
+impl<O, A, OF, AF> Clone for BorderAtariEnvConfig<O, A, OF, AF>
+where
+    O: Obs,
+    A: Act,
+    OF: BorderAtariObsFilter<O>,
+    AF: BorderAtariActFilter<A>,
+{
+    fn clone(&self) -> Self {
+        Self {
+            rom_dir: self.rom_dir.clone(),
+            name: self.name.clone(),
+            obs_filter_config: self.obs_filter_config.clone(),
+            act_filter_config: self.act_filter_config.clone(),
+            train: self.train,
+        }
+    }
+}
+
+
 impl<O, A, OF, AF> Default for BorderAtariEnvConfig<O, A, OF, AF>
 where
     O: Obs,
