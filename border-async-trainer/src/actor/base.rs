@@ -64,13 +64,16 @@ where
 
     /// Runs sampling loop until `self.stop` becomes `true`.
     #[allow(unused_variables, unused_mut)] // TODO: remove this
-    pub fn run(&mut self, sender: Sender<BatchMessage<R::Batch>>) {
+    pub fn run(&mut self, sender: Sender<BatchMessage<R::Batch>>, guard: Arc<Mutex<bool>>) {
         let mut agent = A::build(self.agent_config.clone());
-        let mut env = E::build(&self.env_config, self.env_seed).unwrap();
-        let mut step_proc = P::build(&self.step_proc_config);
         let mut buffer =
             ReplayBufferProxy::<R>::build_with_sender(&self.replay_buffer_config, sender);
-        let mut sampler = SyncSampler::new(env, step_proc);
+        let mut sampler = {
+            let tmp = guard.lock().unwrap();
+            let mut env = E::build(&self.env_config, self.env_seed).unwrap();
+            let mut step_proc = P::build(&self.step_proc_config);
+            SyncSampler::new(env, step_proc)
+        };
         let mut env_step = 0;
 
         // Sampling loop

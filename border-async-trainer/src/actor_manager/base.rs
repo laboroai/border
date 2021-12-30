@@ -75,6 +75,7 @@ where
     pub fn run(&mut self) {
         // Create channel for [BatchMessage]
         let (s, r) = unbounded();
+        let guard = Arc::new(Mutex::new(true));
         self.batch_message_receiver = Some(r);
 
         // Runs sampling processes
@@ -86,6 +87,7 @@ where
             let step_proc_config = self.step_proc_config.clone();
             let samples_per_push = self.samples_per_push;
             let stop = self.stop.clone();
+            let guard = guard.clone();
 
             let handle = std::thread::spawn(move || {
                 Actor::<A, E, P, R>::build(
@@ -96,7 +98,7 @@ where
                     samples_per_push,
                     stop,
                     seed as i64,
-                ).run(sender);
+                ).run(sender, guard);
             });
             self.threads.push(handle);
         });
