@@ -10,7 +10,7 @@ use std::{
 use super::{WeightNormalizer, WeightNormalizer::All};
 // use super::{WeightNormalizer, WeightNormalizer::{All, Batch}};
 
-/// Configuration of [PerState](super::base::PerState).
+/// Configuration for prioritized experience replay.
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct PerConfig {
     pub(super) alpha: f32,
