@@ -27,4 +27,4 @@ mod shape;
 pub use shape::Shape;
 
 mod trainer;
-pub use trainer::{Trainer, TrainerConfig};
+pub use trainer::{Trainer, TrainerConfig, SyncSampler};

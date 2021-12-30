@@ -2,6 +2,9 @@
 use crate::{Env, Agent, ReplayBufferBase, StepProcessorBase, record::Record};
 use anyhow::Result;
 
+/// Gets an [Agent] interacts with an [Env] and takes samples.
+///
+/// TODO: Rename to `Sampler`.
 pub struct SyncSampler<E, P>
 where
     E: Env,
