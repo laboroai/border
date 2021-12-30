@@ -34,13 +34,17 @@ where
     }
 
     /// Samples transitions and pushes them into the replay buffer.
-    pub fn sample_and_push<A, R>(&mut self, agent: &mut A, buffer: &mut R) -> Result<Record> 
+    ///
+    /// The replay buffer `R_`, to which samples will be pushed, has to accept
+    /// `PushedItem` that are the same with `Agent::R`.
+    pub fn sample_and_push<A, R, R_>(&mut self, agent: &mut A, buffer: &mut R_) -> Result<Record>
     where
         A: Agent<E, R>,
-        R: ReplayBufferBase<PushedItem = P::Output>
+        R: ReplayBufferBase<PushedItem = P::Output>,
+        R_: ReplayBufferBase<PushedItem = R::PushedItem>,
     {
         let now = std::time::SystemTime::now();
-
+ 
         // Reset environment(s) if required
         if self.prev_obs.is_none() {
             // For a vectorized environments, reset all environments in `env`
