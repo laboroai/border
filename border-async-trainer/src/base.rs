@@ -3,10 +3,7 @@ use border_core::{
     record::{Record, RecordValue::Scalar, Recorder},
     Agent, Env, Obs, ReplayBufferBase, StepProcessorBase,
 };
-use crossbeam_channel::unbounded;
-// pub use config::TrainerConfig;
 use log::info;
-// pub use sampler::SyncSampler;
 
 /// Manages asynchronous training loop in a single machine.
 ///

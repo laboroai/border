@@ -5,7 +5,11 @@
 // use async_trait::async_trait;
 use border_core::{Agent, Env, ReplayBufferBase};
 use std::{marker::PhantomData, sync::{Arc, Mutex}};
+use crate::{ReplayBufferProxy, ReplayBufferProxiConfig};
 
+/// Runs interaction between an [Agent] and an [Env], taking samples.
+///
+/// Samples taken will be pushed into a replay buffer via [ActorManager](crate::ActorManager).
 pub struct Actor<A, E, R>
 where
     A: Agent<E, R>,
@@ -17,6 +21,7 @@ where
     agent: A,
     env: E,
     samples_per_push: usize,
+    replay_buffer_proxy: ReplayBufferProxy<R>,
     phantom: PhantomData<(A, E, R)>,
 }
 
@@ -29,24 +34,29 @@ where
     pub fn build(
         agent_config: A::Config,
         env_config: E::Config,
+        replay_buffer_config: ReplayBufferProxiConfig,
         samples_per_push: usize,
         stop: Arc<Mutex<bool>>,
         seed: i64) -> Self {
 
         let agent = A::build(agent_config);
         let env = E::build(&env_config, seed).unwrap();
+        let replay_buffer_proxy = ReplayBufferProxy::build(&replay_buffer_config);
 
         Self {
             stop,
             agent,
             env,
             samples_per_push,
+            replay_buffer_proxy,
             phantom: PhantomData
         }
     }
 
     pub fn run(&mut self) {
+        // Sampling loop
         loop {
+            // Stop the sampling loop
             if *self.stop.lock().unwrap() {
                 break;
             }
