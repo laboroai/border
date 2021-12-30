@@ -68,16 +68,16 @@ where
         let mut sampler = SyncSampler::new(env, step_proc);
         let mut env_step = 0;
 
-        // // Sampling loop
-        // loop {
-        //     // TODO: error handling
-        //     let _record = sampler.sample_and_push(&mut agent, &mut buffer).unwrap();
+        // Sampling loop
+        loop {
+            // TODO: error handling
+            let _record = sampler.sample_and_push(&mut agent, &mut buffer).unwrap();
 
-        //     // Stop the sampling loop
-        //     if *self.stop.lock().unwrap() {
-        //         break;
-        //     }
-        // }
+            // Stop the sampling loop
+            if *self.stop.lock().unwrap() {
+                break;
+            }
+        }
     }
 }
 

@@ -21,7 +21,12 @@ impl<B: ReplayBufferBase> ReplayBufferBase for ReplayBufferProxy<B> {
     type Batch = B::Batch;
 
     fn build(_config: &Self::Config) -> Self {
-        unimplemented!();
+        Self {
+            phantom: PhantomData,
+        }
+    }
+
+    fn push(&mut self, _tr: Self::PushedItem) {
     }
 
     fn len(&self) -> usize {
@@ -29,10 +34,6 @@ impl<B: ReplayBufferBase> ReplayBufferBase for ReplayBufferProxy<B> {
     }
 
     fn batch(&self, _size: usize) -> anyhow::Result<Self::Batch> {
-        unimplemented!();
-    }
-
-    fn push(&mut self, _tr: Self::PushedItem) {
         unimplemented!();
     }
 

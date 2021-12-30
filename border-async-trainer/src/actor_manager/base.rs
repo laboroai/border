@@ -44,6 +44,9 @@ where
     E: Env,
     P: StepProcessorBase<E>,
     R: ReplayBufferBase<PushedItem = P::Output>,
+    A::Config: Send + 'static,
+    E::Config: Send + 'static,
+    P::Config: Send + 'static,
 {
     /// Builds a [ActorManager].
     pub fn build(config: &ActorManagerConfig<A, E, P, R>) -> Self {
@@ -60,19 +63,28 @@ where
 
     /// Runs [Actor]s.
     pub fn run(&self) {
+        // 
+
         // Runs sampling processes
         (0..self.n_actors).for_each(|seed| {
             let replay_buffer_proxy_config = ReplayBufferProxyConfig {};
+            let agent_config = self.agent_config.clone();
+            let env_config = self.env_config.clone();
+            let step_proc_config = self.step_proc_config.clone();
+            let samples_per_push = self.samples_per_push;
+            let stop = self.stop.clone();
 
-            Actor::<A, E, P, R>::build(
-                self.agent_config.clone(),
-                self.env_config.clone(),
-                self.step_proc_config.clone(),
-                replay_buffer_proxy_config,
-                self.samples_per_push,
-                self.stop.clone(),
-                seed as i64,
-            ).run();
-        })
+            std::thread::spawn(move || {
+                Actor::<A, E, P, R>::build(
+                    agent_config,
+                    env_config,
+                    step_proc_config,
+                    replay_buffer_proxy_config,
+                    samples_per_push,
+                    stop,
+                    seed as i64,
+                ).run();
+            });
+        });
     }
 }
