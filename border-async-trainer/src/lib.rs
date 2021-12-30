@@ -9,7 +9,7 @@ mod actor_manager;
 mod replay_buffer_proxy;
 pub use actor::Actor;
 pub use actor_manager::{ActorManager, ActorManagerConfig};
-pub use replay_buffer_proxy::{ReplayBufferProxiConfig, ReplayBufferProxy};
+pub use replay_buffer_proxy::{ReplayBufferProxyConfig, ReplayBufferProxy};
 // mod base;
 // mod messages;
 // mod replay_buffer_proxy;
@@ -43,6 +43,6 @@ mod test {
     fn test_actor_manager() {
         let config = actor_man_config();
         let man = ActorManager::build(&config);
-        // man.run();
+        man.run();
     }
 }

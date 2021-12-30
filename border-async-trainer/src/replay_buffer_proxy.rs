@@ -6,7 +6,8 @@ use std::marker::PhantomData;
 // pub ReplayBufferCommand
 
 /// Configuration of [ReplayBufferProxy].
-pub struct ReplayBufferProxiConfig {
+#[derive(Clone, Debug)]
+pub struct ReplayBufferProxyConfig {
 }
 
 /// A wrapper of replay buffer for asynchronous trainer.
@@ -15,11 +16,11 @@ pub struct ReplayBufferProxy<B: ReplayBufferBase> {
 }
 
 impl<B: ReplayBufferBase> ReplayBufferBase for ReplayBufferProxy<B> {
-    type Config = ReplayBufferProxiConfig;
+    type Config = ReplayBufferProxyConfig;
     type PushedItem = B::PushedItem;
     type Batch = B::Batch;
 
-    fn build(config: &Self::Config) -> Self {
+    fn build(_config: &Self::Config) -> Self {
         unimplemented!();
     }
 
@@ -27,15 +28,15 @@ impl<B: ReplayBufferBase> ReplayBufferBase for ReplayBufferProxy<B> {
         unimplemented!();
     }
 
-    fn batch(&self, size: usize) -> anyhow::Result<Self::Batch> {
+    fn batch(&self, _size: usize) -> anyhow::Result<Self::Batch> {
         unimplemented!();
     }
 
-    fn push(&mut self, tr: Self::PushedItem) {
+    fn push(&mut self, _tr: Self::PushedItem) {
         unimplemented!();
     }
 
-    fn update_priority(&mut self, ixs: &Option<Vec<usize>>, td_err: &Option<Vec<f32>>) {
+    fn update_priority(&mut self, _ixs: &Option<Vec<usize>>, _td_err: &Option<Vec<f32>>) {
         unimplemented!();
     }
 }

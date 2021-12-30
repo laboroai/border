@@ -11,7 +11,7 @@ where
     P: StepProcessorBase<E>,
     R: ReplayBufferBase<PushedItem = P::Output>,
 {
-    /// The number of [Actor]s.
+    /// The number of [Actor](crate::Actor)s.
     pub n_actors: usize,
 
     /// Configuration of [Agent].

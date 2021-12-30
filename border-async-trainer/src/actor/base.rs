@@ -3,64 +3,81 @@
 // use tokio::sync::broadcast;
 // use std::future::{Future, Ready};
 // use async_trait::async_trait;
-use border_core::{Agent, Env, ReplayBufferBase};
+use border_core::{Agent, Env, ReplayBufferBase, SyncSampler, StepProcessorBase};
 use std::{marker::PhantomData, sync::{Arc, Mutex}};
-use crate::{ReplayBufferProxy, ReplayBufferProxiConfig};
+use crate::{ReplayBufferProxy, ReplayBufferProxyConfig};
 
 /// Runs interaction between an [Agent] and an [Env], taking samples.
 ///
 /// Samples taken will be pushed into a replay buffer via [ActorManager](crate::ActorManager).
-pub struct Actor<A, E, R>
+pub struct Actor<A, E, P, R>
 where
     A: Agent<E, R>,
     E: Env,
-    R: ReplayBufferBase,
+    P: StepProcessorBase<E>,
+    R: ReplayBufferBase<PushedItem = P::Output>,
 {
     /// Stops sampling process if this field is set to `true`.
+    #[allow(dead_code)] // TODO: remove this
     stop: Arc<Mutex<bool>>,
-    agent: A,
-    env: E,
+    agent_config: A::Config,
+    env_config: E::Config,
+    step_proc_config: P::Config,
+    replay_buffer_config: ReplayBufferProxyConfig,
+    #[allow(dead_code)] // TODO: remove this
     samples_per_push: usize,
-    replay_buffer_proxy: ReplayBufferProxy<R>,
-    phantom: PhantomData<(A, E, R)>,
+    env_seed: i64,
+    phantom: PhantomData<(A, E, P, R)>,
 }
 
-impl<A, E, R> Actor<A, E, R>
+impl<A, E, P, R> Actor<A, E, P, R>
 where
     A: Agent<E, R>,
     E: Env,
-    R: ReplayBufferBase,
+    P: StepProcessorBase<E>,
+    R: ReplayBufferBase<PushedItem = P::Output>,
 {
     pub fn build(
         agent_config: A::Config,
         env_config: E::Config,
-        replay_buffer_config: ReplayBufferProxiConfig,
+        step_proc_config: P::Config,
+        replay_buffer_config: ReplayBufferProxyConfig,
         samples_per_push: usize,
         stop: Arc<Mutex<bool>>,
-        seed: i64) -> Self {
-
-        let agent = A::build(agent_config);
-        let env = E::build(&env_config, seed).unwrap();
-        let replay_buffer_proxy = ReplayBufferProxy::build(&replay_buffer_config);
+        env_seed: i64) -> Self {
 
         Self {
             stop,
-            agent,
-            env,
+            agent_config: agent_config.clone(),
+            env_config: env_config.clone(),
+            step_proc_config: step_proc_config.clone(),
+            replay_buffer_config: replay_buffer_config.clone(),
             samples_per_push,
-            replay_buffer_proxy,
+            env_seed,
             phantom: PhantomData
         }
     }
 
+    /// Runs sampling loop until `self.stop` becomes `true`.
+    #[allow(unused_variables, unused_mut)] // TODO: remove this
     pub fn run(&mut self) {
-        // Sampling loop
-        loop {
-            // Stop the sampling loop
-            if *self.stop.lock().unwrap() {
-                break;
-            }
-        }
+        let mut agent = A::build(self.agent_config.clone());
+        let mut env = E::build(&self.env_config, self.env_seed).unwrap();
+        let mut step_proc = P::build(&self.step_proc_config);
+        let mut buffer = ReplayBufferProxy::<R>::build(&self.replay_buffer_config);
+        let mut sampler = SyncSampler::new(env, step_proc);
+        let mut env_step = 0;
+
+        // // Sampling loop
+        // loop {
+        //     // TODO: error handling
+        //     let _record = sampler.sample_and_push(&mut agent, &mut buffer).unwrap();
+
+        //     // Stop the sampling loop
+        //     if *self.stop.lock().unwrap() {
+        //         break;
+        //     }
+        // }
     }
 }
 

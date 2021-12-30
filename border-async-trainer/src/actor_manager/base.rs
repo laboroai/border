@@ -1,4 +1,4 @@
-use crate::{Actor, ActorManagerConfig, ReplayBufferProxiConfig};
+use crate::{Actor, ActorManagerConfig, ReplayBufferProxyConfig};
 use border_core::{Agent, Env, ReplayBufferBase, StepProcessorBase};
 use std::{marker::PhantomData, sync::{Arc, Mutex}};
 
@@ -7,7 +7,7 @@ use std::{marker::PhantomData, sync::{Arc, Mutex}};
 /// This struct handles the following requests:
 /// * From the [LearnerManager]() for updating the latest model info, stored in this struct.
 /// * From the [Actor]s for getting the latest model info.
-/// * From the [Actor]s for pushing sample batch to the [LearnerManager].
+/// * From the [Actor]s for pushing sample batch to the `LearnerManager`.
 pub struct ActorManager<A, E, P, R>
 where
     A: Agent<E, R>,
@@ -62,11 +62,12 @@ where
     pub fn run(&self) {
         // Runs sampling processes
         (0..self.n_actors).for_each(|seed| {
-            let replay_buffer_proxy_config = ReplayBufferProxiConfig {};
+            let replay_buffer_proxy_config = ReplayBufferProxyConfig {};
 
-            Actor::<A, E, R>::build(
+            Actor::<A, E, P, R>::build(
                 self.agent_config.clone(),
                 self.env_config.clone(),
+                self.step_proc_config.clone(),
                 replay_buffer_proxy_config,
                 self.samples_per_push,
                 self.stop.clone(),
