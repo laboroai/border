@@ -50,7 +50,7 @@ impl<E: Env> Step<E> {
 /// Process [Step] and output an item.
 pub trait StepProcessorBase<E: Env> {
     /// Configuration.
-    type Config;
+    type Config: Clone;
 
     /// The type of transitions produced by this trait.
     type Output;

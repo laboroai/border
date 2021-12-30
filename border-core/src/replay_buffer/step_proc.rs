@@ -4,6 +4,7 @@ use crate::{Obs, Env, StepProcessorBase};
 use super::{Batch, SubBatch};
 
 /// Configuration of [SimpleStepProcessor].
+#[derive(Clone, Debug)]
 pub struct SimpleStepProcessorConfig {
     // gamma: f32,
 }
