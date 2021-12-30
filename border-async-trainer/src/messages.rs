@@ -1,29 +1,38 @@
-/// Messages that actors (`Sampler`) receive.
-pub enum ActorMessage<T> {
-    /// Model parameters for the [Agent](border_core::Agent).
-    ModelParams(T)
-}
+use border_core::Batch;
+// /// Messages that actors (`Sampler`) receive.
+// pub enum ActorMessage<T> {
+//     /// Model parameters for the [Agent](border_core::Agent).
+//     ModelParams(T)
+// }
 
-/// Messages that the replay buffer receives.
-pub enum ReplayBufferMessage<T> {
-    /// Call [ReplayBufferBase](border_core::ReplayBufferBase)`::len()`.
-    CallLen,
+// /// Messages that the replay buffer receives.
+// pub enum ReplayBufferMessage<T> {
+//     /// Call [ReplayBufferBase](border_core::ReplayBufferBase)`::len()`.
+//     CallLen,
 
-    /// Call [ReplayBufferBase](border_core::ReplayBufferBase)`::update_priority()`.
-    CallUpdatePriority(),
+//     /// Call [ReplayBufferBase](border_core::ReplayBufferBase)`::update_priority()`.
+//     CallUpdatePriority(),
 
-    /// Call [ReplayBufferBase](border_core::ReplayBufferBase)`::batch()`.
-    Batch(usize),
+//     /// Call [ReplayBufferBase](border_core::ReplayBufferBase)`::batch()`.
+//     Batch(usize),
 
-    /// Call [ReplayBufferBase](border_core::ReplayBufferBase)`::push()`.
-    Push(T)
-}
+//     /// Call [ReplayBufferBase](border_core::ReplayBufferBase)`::push()`.
+//     Push(T)
+// }
 
-/// Messages that the learner ([Agent](border_core::Agent)) receives.
-pub enum LearnerMessage<T> {
-    /// Current size of samples in the replay buffer.
-    Len(usize),
+// /// Messages that the learner ([Agent](border_core::Agent)) receives.
+// pub enum LearnerMessage<T> {
+//     /// Current size of samples in the replay buffer.
+//     Len(usize),
 
-    /// Sample batch used for training.
-    Batch(T),
+//     /// Sample batch used for training.
+//     Batch(T),
+// }
+
+/// Message containing a [Batch].
+///
+/// It will be sent from [Actor](crate::Actor) to [ActorManager](crate::ActorManager).
+pub struct BatchMessage<B: Batch> {
+    /// A batch.
+    pub batch: B,
 }

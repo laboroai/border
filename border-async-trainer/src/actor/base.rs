@@ -3,9 +3,13 @@
 // use tokio::sync::broadcast;
 // use std::future::{Future, Ready};
 // use async_trait::async_trait;
-use border_core::{Agent, Env, ReplayBufferBase, SyncSampler, StepProcessorBase};
-use std::{marker::PhantomData, sync::{Arc, Mutex}};
-use crate::{ReplayBufferProxy, ReplayBufferProxyConfig};
+use crate::{BatchMessage, ReplayBufferProxy, ReplayBufferProxyConfig};
+use border_core::{Agent, Env, ReplayBufferBase, StepProcessorBase, SyncSampler};
+use crossbeam_channel::Sender;
+use std::{
+    marker::PhantomData,
+    sync::{Arc, Mutex},
+};
 
 /// Runs interaction between an [Agent] and an [Env], taking samples.
 ///
@@ -44,8 +48,8 @@ where
         replay_buffer_config: ReplayBufferProxyConfig,
         samples_per_push: usize,
         stop: Arc<Mutex<bool>>,
-        env_seed: i64) -> Self {
-
+        env_seed: i64,
+    ) -> Self {
         Self {
             stop,
             agent_config: agent_config.clone(),
@@ -54,17 +58,18 @@ where
             replay_buffer_config: replay_buffer_config.clone(),
             samples_per_push,
             env_seed,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 
     /// Runs sampling loop until `self.stop` becomes `true`.
     #[allow(unused_variables, unused_mut)] // TODO: remove this
-    pub fn run(&mut self) {
+    pub fn run(&mut self, sender: Sender<BatchMessage<R::Batch>>) {
         let mut agent = A::build(self.agent_config.clone());
         let mut env = E::build(&self.env_config, self.env_seed).unwrap();
         let mut step_proc = P::build(&self.step_proc_config);
-        let mut buffer = ReplayBufferProxy::<R>::build(&self.replay_buffer_config);
+        let mut buffer =
+            ReplayBufferProxy::<R>::build_with_sender(&self.replay_buffer_config, sender);
         let mut sampler = SyncSampler::new(env, step_proc);
         let mut env_step = 0;
 

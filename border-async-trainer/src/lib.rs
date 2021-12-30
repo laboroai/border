@@ -7,9 +7,11 @@
 mod actor;
 mod actor_manager;
 mod replay_buffer_proxy;
+mod messages;
 pub use actor::Actor;
 pub use actor_manager::{ActorManager, ActorManagerConfig};
 pub use replay_buffer_proxy::{ReplayBufferProxyConfig, ReplayBufferProxy};
+pub use messages::BatchMessage;
 // mod base;
 // mod messages;
 // mod replay_buffer_proxy;
@@ -29,7 +31,7 @@ mod test {
     type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 
     fn actor_man_config() -> ActorManagerConfig<Agent, Env, StepProc, ReplayBuffer> {
-        let n_actors = 1;
+        let n_actors = 2;
         let env_config = env_config("pong".to_string());
         let env = Env::build(&env_config, 0).unwrap();
         let n_acts = env.get_num_actions_atari() as _;
@@ -42,7 +44,10 @@ mod test {
     #[test]
     fn test_actor_manager() {
         let config = actor_man_config();
-        let man = ActorManager::build(&config);
+        let mut man = ActorManager::build(&config);
         man.run();
+        std::thread::sleep(std::time::Duration::from_secs(2));
+        man.stop();
+        man.join();
     }
 }

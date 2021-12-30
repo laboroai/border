@@ -1,33 +1,42 @@
-use border_core::{ReplayBufferBase};
+use crate::BatchMessage;
+use border_core::ReplayBufferBase;
+use crossbeam_channel::Sender;
 use std::marker::PhantomData;
-// use crossbeam_channel::{Sender, Receiver, bounded};
-
-// /// Commands that [ReplayBufferProxy] sends and receives.
-// pub ReplayBufferCommand
 
 /// Configuration of [ReplayBufferProxy].
 #[derive(Clone, Debug)]
-pub struct ReplayBufferProxyConfig {
-}
+pub struct ReplayBufferProxyConfig {}
 
 /// A wrapper of replay buffer for asynchronous trainer.
-pub struct ReplayBufferProxy<B: ReplayBufferBase> {
-    phantom: PhantomData<B>,
+pub struct ReplayBufferProxy<R: ReplayBufferBase> {
+    /// Sender of [BatchMessage].
+    sender: Sender<BatchMessage<R::Batch>>,
+
+    phantom: PhantomData<R>,
 }
 
-impl<B: ReplayBufferBase> ReplayBufferBase for ReplayBufferProxy<B> {
-    type Config = ReplayBufferProxyConfig;
-    type PushedItem = B::PushedItem;
-    type Batch = B::Batch;
-
-    fn build(_config: &Self::Config) -> Self {
+impl<R: ReplayBufferBase> ReplayBufferProxy<R> {
+    pub fn build_with_sender(
+        _config: &ReplayBufferProxyConfig,
+        sender: Sender<BatchMessage<R::Batch>>,
+    ) -> Self {
         Self {
+            sender,
             phantom: PhantomData,
         }
     }
+}
 
-    fn push(&mut self, _tr: Self::PushedItem) {
+impl<R: ReplayBufferBase> ReplayBufferBase for ReplayBufferProxy<R> {
+    type Config = ReplayBufferProxyConfig;
+    type PushedItem = R::PushedItem;
+    type Batch = R::Batch;
+
+    fn build(_config: &Self::Config) -> Self {
+        unimplemented!();
     }
+
+    fn push(&mut self, _tr: Self::PushedItem) {}
 
     fn len(&self) -> usize {
         unimplemented!();
@@ -41,19 +50,3 @@ impl<B: ReplayBufferBase> ReplayBufferBase for ReplayBufferProxy<B> {
         unimplemented!();
     }
 }
-
-// #[test]
-// fn send_tensor() {
-//     use std::thread;
-//     use tch::Tensor;
-
-//     let (s, r) = bounded(1);
-
-//     thread::spawn(move || {
-//         let t = Tensor::of_slice(&[1, 2, 3]);
-//         s.send(t).unwrap();
-//     });
-
-//     let msg = r.recv().unwrap();
-//     println!("{:?}", msg);
-// }
