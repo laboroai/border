@@ -5,7 +5,7 @@ use anyhow::Result;
 /// Represents a replay buffer.
 pub trait ReplayBufferBase {
     /// Configuration of the replay buffer.
-    type Config;
+    type Config: Clone;
 
     /// Items pushed into the buffer.
     type PushedItem;

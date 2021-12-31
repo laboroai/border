@@ -46,6 +46,15 @@ where
     /// If `false`, stops the thread for replay buffer.
     stop: Arc<Mutex<bool>>,
 
+    /// Configuration of [Agent].
+    agent_config: A::Config,
+
+    /// Configuration of [Env].
+    env_config: E::Config,
+
+    /// Configuration of replay buffer.
+    replay_buffer_config: R::Config,
+
     phantom: PhantomData<(A, E, R)>,
 }
 
@@ -58,16 +67,22 @@ where
 {
     /// Creates [AsyncTrainer].
     pub fn build(
-        config: AsyncTrainerConfig,
+        config: &AsyncTrainerConfig,
+        agent_config: &A::Config,
+        env_config: &E::Config,
+        replay_buffer_config: &R::Config,
         r_bulk_pushed_item: Receiver<PushedItemMessage<R::PushedItem>>,
     ) -> Self {
         Self {
-            model_dir: config.model_dir,
+            model_dir: config.model_dir.clone(),
             record_interval: config.record_interval,
             eval_interval: config.eval_interval,
             max_train_steps: config.max_train_steps,
             save_interval: config.save_interval,
             sync_interval: config.sync_interval,
+            agent_config: agent_config.clone(),
+            env_config: env_config.clone(),
+            replay_buffer_config: replay_buffer_config.clone(),
             r_bulk_pushed_item,
             stop: Arc::new(Mutex::new(false)),
             phantom: PhantomData,
@@ -148,7 +163,10 @@ where
     }
 
     /// Runs training loop.
-    pub fn train(&mut self, agent: &mut A, buffer: Arc<Mutex<R>>, recorder: &mut impl Recorder) {
+    pub fn train(&mut self, recorder: &mut impl Recorder) {
+        let mut agent = A::build(self.agent_config.clone());
+        let buffer = Arc::new(Mutex::new(R::build(&self.replay_buffer_config)));
+
         self.run_replay_buffer_thread(buffer.clone());
 
         let mut max_eval_reward = f32::MIN;
@@ -173,7 +191,7 @@ where
                 let do_sync = opt_steps % self.sync_interval == 0;
 
                 if do_eval {
-                    self.eval(agent, &mut record, &mut max_eval_reward);
+                    self.eval(&mut agent, &mut record, &mut max_eval_reward);
                 }
                 if do_record {
                     self.record(&mut record, &mut opt_steps_, &mut time);
@@ -182,10 +200,10 @@ where
                     self.flush(opt_steps, record, recorder);
                 }
                 if do_save {
-                    self.save(opt_steps, agent);
+                    self.save(opt_steps, &mut agent);
                 }
                 if do_sync {
-                    self.sync(agent);
+                    self.sync(&mut agent);
                 }
                 if opt_steps == self.max_train_steps {
                     break;

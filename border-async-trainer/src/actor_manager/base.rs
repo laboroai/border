@@ -13,7 +13,7 @@ use std::{
 /// * From the [LearnerManager]() for updating the latest model info, stored in this struct.
 /// * From the [Actor]s for getting the latest model info.
 /// * From the [Actor]s for pushing sample batch to the `LearnerManager`.
-pub struct ActorManager<A, E, P, R>
+pub struct ActorManager<A, E, R, P>
 where
     A: Agent<E, R>,
     E: Env,
@@ -49,7 +49,7 @@ where
     phantom: PhantomData<R>,
 }
 
-impl<A, E, P, R> ActorManager<A, E, P, R>
+impl<A, E, R, P> ActorManager<A, E, R, P>
 where
     A: Agent<E, R>,
     E: Env,
@@ -61,12 +61,17 @@ where
     R::PushedItem: Send + 'static,
 {
     /// Builds a [ActorManager].
-    pub fn build(config: &ActorManagerConfig<A, E, P, R>) -> Self {
+    pub fn build(
+        config: &ActorManagerConfig,
+        agent_config: &A::Config,
+        env_config: &E::Config,
+        step_proc_config: &P::Config,
+    ) -> Self {
         Self {
             n_actors: config.n_actors,
-            agent_config: config.agent_config.clone(),
-            env_config: config.env_config.clone(),
-            step_proc_config: config.step_proc_config.clone(),
+            agent_config: agent_config.clone(),
+            env_config: env_config.clone(),
+            step_proc_config: step_proc_config.clone(),
             samples_per_push: config.samples_per_push,
             stop: Arc::new(Mutex::new(false)),
             threads: vec![],
