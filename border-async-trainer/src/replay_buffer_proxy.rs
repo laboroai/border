@@ -1,5 +1,5 @@
-use crate::BatchMessage;
-use border_core::ReplayBufferBase;
+use crate::PushedItemMessage;
+use border_core::{ReplayBufferBase};
 use crossbeam_channel::Sender;
 use std::marker::PhantomData;
 
@@ -9,18 +9,22 @@ pub struct ReplayBufferProxyConfig {}
 
 /// A wrapper of replay buffer for asynchronous trainer.
 pub struct ReplayBufferProxy<R: ReplayBufferBase> {
+    id: usize,
+
     /// Sender of [BatchMessage].
-    sender: Sender<BatchMessage<R::Batch>>,
+    sender: Sender<PushedItemMessage<R::PushedItem>>,
 
     phantom: PhantomData<R>,
 }
 
 impl<R: ReplayBufferBase> ReplayBufferProxy<R> {
     pub fn build_with_sender(
+        id: usize,
         _config: &ReplayBufferProxyConfig,
-        sender: Sender<BatchMessage<R::Batch>>,
+        sender: Sender<PushedItemMessage<R::PushedItem>>,
     ) -> Self {
         Self {
+            id,
             sender,
             phantom: PhantomData,
         }
@@ -36,7 +40,13 @@ impl<R: ReplayBufferBase> ReplayBufferBase for ReplayBufferProxy<R> {
         unimplemented!();
     }
 
-    fn push(&mut self, _tr: Self::PushedItem) {}
+    fn push(&mut self, tr: Self::PushedItem) {
+        let msg = PushedItemMessage {
+            id: self.id,
+            pushed_item: tr,
+        };
+        self.sender.send(msg).unwrap();
+    }
 
     fn len(&self) -> usize {
         unimplemented!();

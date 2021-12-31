@@ -1,4 +1,4 @@
-use border_core::Batch;
+// use border_core::Batch;
 // /// Messages that actors (`Sampler`) receive.
 // pub enum ActorMessage<T> {
 //     /// Model parameters for the [Agent](border_core::Agent).
@@ -29,10 +29,13 @@ use border_core::Batch;
 //     Batch(T),
 // }
 
-/// Message containing a [Batch].
+/// Message containing a [ReplayBufferBase]::`PushedItem`.
 ///
 /// It will be sent from [Actor](crate::Actor) to [ActorManager](crate::ActorManager).
-pub struct BatchMessage<B: Batch> {
+pub struct PushedItemMessage<T> {
+    /// ID of [Actor](crate::Actor) which generates samples (`pushed_item`).
+    pub id: usize,
+
     /// A batch.
-    pub batch: B,
+    pub pushed_item: T,
 }

@@ -3,7 +3,7 @@
 // use tokio::sync::broadcast;
 // use std::future::{Future, Ready};
 // use async_trait::async_trait;
-use crate::{BatchMessage, ReplayBufferProxy, ReplayBufferProxyConfig};
+use crate::{PushedItemMessage, ReplayBufferProxy, ReplayBufferProxyConfig};
 use border_core::{Agent, Env, ReplayBufferBase, StepProcessorBase, SyncSampler};
 use crossbeam_channel::Sender;
 use std::{
@@ -22,7 +22,8 @@ where
     R: ReplayBufferBase<PushedItem = P::Output>,
 {
     /// Stops sampling process if this field is set to `true`.
-    #[allow(dead_code)] // TODO: remove this
+    id: usize,
+    // #[allow(dead_code)] // TODO: remove this
     stop: Arc<Mutex<bool>>,
     agent_config: A::Config,
     env_config: E::Config,
@@ -42,6 +43,7 @@ where
     R: ReplayBufferBase<PushedItem = P::Output>,
 {
     pub fn build(
+        id: usize,
         agent_config: A::Config,
         env_config: E::Config,
         step_proc_config: P::Config,
@@ -51,6 +53,7 @@ where
         env_seed: i64,
     ) -> Self {
         Self {
+            id,
             stop,
             agent_config: agent_config.clone(),
             env_config: env_config.clone(),
@@ -64,10 +67,10 @@ where
 
     /// Runs sampling loop until `self.stop` becomes `true`.
     #[allow(unused_variables, unused_mut)] // TODO: remove this
-    pub fn run(&mut self, sender: Sender<BatchMessage<R::Batch>>, guard: Arc<Mutex<bool>>) {
+    pub fn run(&mut self, sender: Sender<PushedItemMessage<R::PushedItem>>, guard: Arc<Mutex<bool>>) {
         let mut agent = A::build(self.agent_config.clone());
         let mut buffer =
-            ReplayBufferProxy::<R>::build_with_sender(&self.replay_buffer_config, sender);
+            ReplayBufferProxy::<R>::build_with_sender(self.id, &self.replay_buffer_config, sender);
         let mut sampler = {
             let tmp = guard.lock().unwrap();
             let mut env = E::build(&self.env_config, self.env_seed).unwrap();

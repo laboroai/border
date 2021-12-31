@@ -1,7 +1,11 @@
-use crate::{Actor, ActorManagerConfig, ReplayBufferProxyConfig, BatchMessage};
+use crate::{Actor, ActorManagerConfig, PushedItemMessage, ReplayBufferProxyConfig};
 use border_core::{Agent, Env, ReplayBufferBase, StepProcessorBase};
-use std::{marker::PhantomData, sync::{Arc, Mutex}, thread::JoinHandle};
-use crossbeam_channel::{Receiver, unbounded};
+use crossbeam_channel::{unbounded, Receiver};
+use std::{
+    marker::PhantomData,
+    sync::{Arc, Mutex},
+    thread::JoinHandle,
+};
 
 /// Manages [Actor]s.
 ///
@@ -40,9 +44,9 @@ where
     stop: Arc<Mutex<bool>>,
 
     /// Channel receiving [BatchMessage] from [Actor].
-    batch_message_receiver: Option<Receiver<BatchMessage<R::Batch>>>,
+    batch_message_receiver: Option<Receiver<PushedItemMessage<R::PushedItem>>>,
 
-    phantom: PhantomData<R>
+    phantom: PhantomData<R>,
 }
 
 impl<A, E, P, R> ActorManager<A, E, P, R>
@@ -54,7 +58,7 @@ where
     A::Config: Send + 'static,
     E::Config: Send + 'static,
     P::Config: Send + 'static,
-    R::Batch: Send + 'static,
+    R::PushedItem: Send + 'static,
 {
     /// Builds a [ActorManager].
     pub fn build(config: &ActorManagerConfig<A, E, P, R>) -> Self {
@@ -71,15 +75,15 @@ where
         }
     }
 
-    /// Runs [Actor]s.
+    /// Runs threads for [Actor]s and a thread for sending samples into the replay buffer.
     pub fn run(&mut self) {
         // Create channel for [BatchMessage]
         let (s, r) = unbounded();
         let guard = Arc::new(Mutex::new(true));
-        self.batch_message_receiver = Some(r);
+        self.batch_message_receiver = Some(r.clone());
 
         // Runs sampling processes
-        (0..self.n_actors).for_each(|seed| {
+        (0..self.n_actors).for_each(|id| {
             let sender = s.clone();
             let replay_buffer_proxy_config = ReplayBufferProxyConfig {};
             let agent_config = self.agent_config.clone();
@@ -87,10 +91,12 @@ where
             let step_proc_config = self.step_proc_config.clone();
             let samples_per_push = self.samples_per_push;
             let stop = self.stop.clone();
+            let seed = id;
             let guard = guard.clone();
 
             let handle = std::thread::spawn(move || {
                 Actor::<A, E, P, R>::build(
+                    id,
                     agent_config,
                     env_config,
                     step_proc_config,
@@ -98,10 +104,20 @@ where
                     samples_per_push,
                     stop,
                     seed as i64,
-                ).run(sender, guard);
+                )
+                .run(sender, guard);
             });
             self.threads.push(handle);
         });
+
+        // Thread for handling incoming message
+        {
+            let stop = self.stop.clone();
+            let handle = std::thread::spawn(move || {
+                Self::handle_message(r, stop);
+            });
+            self.threads.push(handle);
+        }
     }
 
     /// Waits until all actors finish.
@@ -115,5 +131,26 @@ where
     pub fn stop(&self) {
         let mut stop = self.stop.lock().unwrap();
         *stop = true;
+    }
+
+    /// Loop waiting [PushedItemMessage] from [Actor]s.
+    fn handle_message(
+        receiver: Receiver<PushedItemMessage<R::PushedItem>>,
+        stop: Arc<Mutex<bool>>,
+    ) {
+        let mut n_samples = 0;
+
+        loop {
+            // Handle incoming message
+            // TODO: error handling
+            let _msg = receiver.recv().unwrap();
+            n_samples += 1;
+            println!("{:?}", (_msg.id, n_samples));
+
+            // Stop the loop
+            if *stop.lock().unwrap() {
+                break;
+            }
+        }
     }
 }
