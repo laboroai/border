@@ -4,6 +4,7 @@ mod sum_tree;
 use super::{config::PerConfig, Batch, SimpleReplayBufferConfig, SubBatch};
 use crate::{Batch as BatchBase, ReplayBufferBase};
 use fastrand::Rng;
+use rand::{SeedableRng, RngCore, rngs::StdRng};
 use iw_scheduler::IwScheduler;
 use sum_tree::SumTree;
 pub use sum_tree::WeightNormalizer;
@@ -40,7 +41,7 @@ where
     next_obs: O,
     reward: Vec<f32>,
     is_done: Vec<i8>,
-    rng: Rng,
+    rng: StdRng,
     per_state: Option<PerState>,
 }
 
@@ -116,7 +117,8 @@ where
             next_obs: O::new(capacity),
             reward: vec![0.; capacity],
             is_done: vec![0; capacity],
-            rng: Rng::with_seed(config.seed),
+            // rng: Rng::with_seed(config.seed),
+            rng: StdRng::seed_from_u64(config.seed as _),
             per_state,
         }
     }
@@ -129,7 +131,7 @@ where
         }
     }
 
-    fn batch(&self, size: usize) -> anyhow::Result<Self::Batch> {
+    fn batch(&mut self, size: usize) -> anyhow::Result<Self::Batch> {
         let (ixs, weight) = if let Some(per_state) = &self.per_state {
             let sum_tree = &per_state.sum_tree;
             let beta = per_state.iw_scheduler.beta();
@@ -138,7 +140,8 @@ where
             (ixs, Some(weight))
         } else {
             let ixs = (0..size)
-                .map(|_| self.rng.usize(..self.size))
+                // .map(|_| self.rng.usize(..self.size))
+                .map(|_| (self.rng.next_u32() as usize) % self.size)
                 .collect::<Vec<_>>();
             let weight = None;
             (ixs, weight)

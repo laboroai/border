@@ -21,8 +21,10 @@ thiserror = "1.0"
 anyhow = "1.0.38"
 chrono = "0.4"
 aquamarine = "0.1"
+# Consider removing fastrand
 fastrand = "1.4.0"
 segment-tree = "2.0.0"
+rand = "0.8.4"
 
 [dev-dependencies]
 tempdir = "0.3.7"

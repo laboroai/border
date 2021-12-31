@@ -52,7 +52,7 @@ impl<R: ReplayBufferBase> ReplayBufferBase for ReplayBufferProxy<R> {
         unimplemented!();
     }
 
-    fn batch(&self, _size: usize) -> anyhow::Result<Self::Batch> {
+    fn batch(&mut self, _size: usize) -> anyhow::Result<Self::Batch> {
         unimplemented!();
     }
 

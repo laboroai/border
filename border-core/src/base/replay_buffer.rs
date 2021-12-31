@@ -22,7 +22,7 @@ pub trait ReplayBufferBase {
     /// Constructs a batch.
     ///
     /// `beta` - The exponent for priority.
-    fn batch(&self, size: usize) -> Result<Self::Batch>;
+    fn batch(&mut self, size: usize) -> Result<Self::Batch>;
 
     /// Pushes a transition into the buffer.
     fn push(&mut self, tr: Self::PushedItem);
