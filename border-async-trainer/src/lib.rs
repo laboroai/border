@@ -1,4 +1,4 @@
-//! Asynchronous off-policy trainer.
+//! Asynchronous trainer using replay buffer.
 //!
 //! # Messages
 //! * From Learner ([Agent](border_core::Agent)) to Actor (`Sampler`)
@@ -6,18 +6,14 @@
 // mod actor;
 mod actor;
 mod actor_manager;
-mod replay_buffer_proxy;
+mod async_trainer;
 mod messages;
+mod replay_buffer_proxy;
 pub use actor::Actor;
 pub use actor_manager::{ActorManager, ActorManagerConfig};
-pub use replay_buffer_proxy::{ReplayBufferProxyConfig, ReplayBufferProxy};
+pub use async_trainer::{AsyncTrainer, AsyncTrainerConfig};
 pub use messages::PushedItemMessage;
-// mod base;
-// mod messages;
-// mod replay_buffer_proxy;
-// pub use actor::AsyncActor;
-// pub use actor::TchAsyncActor;
-// pub use base::AsyncTrainer;
+pub use replay_buffer_proxy::{ReplayBufferProxy, ReplayBufferProxyConfig};
 
 #[cfg(test)]
 mod test {
