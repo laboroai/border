@@ -1,6 +1,6 @@
 use crate::{Actor, ActorManagerConfig, PushedItemMessage, ReplayBufferProxyConfig};
 use border_core::{Agent, Env, ReplayBufferBase, StepProcessorBase};
-use crossbeam_channel::{unbounded, Receiver};
+use crossbeam_channel::{unbounded, Receiver, Sender};
 use std::{
     marker::PhantomData,
     sync::{Arc, Mutex},
@@ -43,8 +43,11 @@ where
     /// Flag to stop training
     stop: Arc<Mutex<bool>>,
 
-    /// Channel receiving [BatchMessage] from [Actor].
+    /// Receiver of [PushedItemMessage]s from [Actor].
     batch_message_receiver: Option<Receiver<PushedItemMessage<R::PushedItem>>>,
+
+    /// Sender of [PushedItemMessage]s to [AsyncTrainer](crate::AsyncTrainer).
+    pushed_item_message_sender: Sender<PushedItemMessage<R::PushedItem>>,
 
     phantom: PhantomData<R>,
 }
@@ -66,6 +69,7 @@ where
         agent_config: &A::Config,
         env_config: &E::Config,
         step_proc_config: &P::Config,
+        pushed_item_message_sender: Sender<PushedItemMessage<R::PushedItem>>,
     ) -> Self {
         Self {
             n_actors: config.n_actors,
@@ -76,6 +80,7 @@ where
             stop: Arc::new(Mutex::new(false)),
             threads: vec![],
             batch_message_receiver: None,
+            pushed_item_message_sender,
             phantom: PhantomData,
         }
     }
@@ -118,8 +123,9 @@ where
         // Thread for handling incoming message
         {
             let stop = self.stop.clone();
+            let s = self.pushed_item_message_sender.clone();
             let handle = std::thread::spawn(move || {
-                Self::handle_message(r, stop);
+                Self::handle_message(r, stop, s);
             });
             self.threads.push(handle);
         }
@@ -142,15 +148,19 @@ where
     fn handle_message(
         receiver: Receiver<PushedItemMessage<R::PushedItem>>,
         stop: Arc<Mutex<bool>>,
+        sender: Sender<PushedItemMessage<R::PushedItem>>,
     ) {
-        let mut n_samples = 0;
+        let mut _n_samples = 0;
 
         loop {
             // Handle incoming message
-            // TODO: error handling
-            let _msg = receiver.recv().unwrap();
-            n_samples += 1;
-            println!("{:?}", (_msg.id, n_samples));
+            // TODO: error handling, timeout
+            // TODO: caching
+            // TODO: stats
+            let msg = receiver.recv().unwrap();
+            _n_samples += 1;
+            sender.send(msg).unwrap();
+            // println!("{:?}", (_msg.id, n_samples));
 
             // Stop the loop
             if *stop.lock().unwrap() {

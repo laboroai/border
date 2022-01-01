@@ -2,7 +2,7 @@ use crate::{AsyncTrainerConfig, PushedItemMessage};
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue::Scalar, Recorder},
-    Agent, Env, ReplayBufferBase,
+    Agent, Env, Obs, ReplayBufferBase,
 };
 use crossbeam_channel::{Receiver, Sender};
 use log::info;
@@ -39,6 +39,9 @@ where
 
     /// Interval of synchronizing model parameters in training steps.
     sync_interval: usize,
+
+    /// The number of episodes for evaluation
+    eval_episodes: usize,
 
     /// Receiver of pushed items.
     r_bulk_pushed_item: Receiver<PushedItemMessage<R::PushedItem>>,
@@ -80,6 +83,7 @@ where
             max_train_steps: config.max_train_steps,
             save_interval: config.save_interval,
             sync_interval: config.sync_interval,
+            eval_episodes: config.eval_episodes,
             agent_config: agent_config.clone(),
             env_config: env_config.clone(),
             replay_buffer_config: replay_buffer_config.clone(),
@@ -96,14 +100,35 @@ where
         }
     }
 
-    fn evaluate(&mut self, agent: &mut A) -> Result<f32> {
-        unimplemented!();
+    fn evaluate(&mut self, agent: &mut A, env: &mut E) -> Result<f32> {
+        agent.eval();
+
+        let mut r_total = 0f32;
+
+        for _ in 0..self.eval_episodes {
+            let mut prev_obs = env.reset(None)?;
+            assert_eq!(prev_obs.len(), 1); // env must be non-vectorized
+
+            loop {
+                let act = agent.sample(&prev_obs);
+                let (step, _) = env.step(&act);
+                r_total += step.reward[0];
+                if step.is_done[0] == 1 {
+                    break;
+                }
+                prev_obs = step.obs;
+            }
+        }
+
+        agent.train();
+
+        Ok(r_total / self.eval_episodes as f32)
     }
 
     /// Do evaluation.
     #[inline(always)]
-    fn eval(&mut self, agent: &mut A, record: &mut Record, max_eval_reward: &mut f32) {
-        let eval_reward = self.evaluate(agent).unwrap();
+    fn eval(&mut self, agent: &mut A, env: &mut E, record: &mut Record, max_eval_reward: &mut f32) {
+        let eval_reward = self.evaluate(agent, env).unwrap();
         record.insert("eval_reward", Scalar(eval_reward));
 
         // Save the best model up to the current iteration
@@ -140,7 +165,7 @@ where
 
     /// Sync model.
     fn sync(&mut self, _agent: &A) {
-        unimplemented!();
+        // Do nothing
     }
 
     /// Run a thread for replay buffer.
@@ -148,24 +173,26 @@ where
         let r = self.r_bulk_pushed_item.clone();
         let stop = self.stop.clone();
 
-        std::thread::spawn(move || {
-            loop {
-                let msg = r.recv().unwrap();
-                {
-                    let mut buffer = buffer.lock().unwrap();
-                    buffer.push(msg.pushed_item);
-                }
-                if *stop.lock().unwrap() {
-                    break;
-                }
+        std::thread::spawn(move || loop {
+            let msg = r.recv().unwrap();
+            {
+                let mut buffer = buffer.lock().unwrap();
+                buffer.push(msg.pushed_item);
             }
+            if *stop.lock().unwrap() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
         });
     }
 
     /// Runs training loop.
     pub fn train(&mut self, recorder: &mut impl Recorder) {
+        // TODO: error handling
+        let mut env = E::build(&self.env_config, 0).unwrap();
         let mut agent = A::build(self.agent_config.clone());
         let buffer = Arc::new(Mutex::new(R::build(&self.replay_buffer_config)));
+        agent.train();
 
         self.run_replay_buffer_thread(buffer.clone());
 
@@ -181,6 +208,7 @@ where
             };
 
             if let Some(mut record) = record {
+                println!("!!");
                 opt_steps += 1;
                 opt_steps_ += 1;
 
@@ -191,18 +219,23 @@ where
                 let do_sync = opt_steps % self.sync_interval == 0;
 
                 if do_eval {
-                    self.eval(&mut agent, &mut record, &mut max_eval_reward);
+                    println!("eval");
+                    self.eval(&mut agent, &mut env, &mut record, &mut max_eval_reward);
                 }
                 if do_record {
+                    println!("record");
                     self.record(&mut record, &mut opt_steps_, &mut time);
                 }
                 if do_flush {
+                    println!("flush");
                     self.flush(opt_steps, record, recorder);
                 }
                 if do_save {
+                    println!("save");
                     self.save(opt_steps, &mut agent);
                 }
                 if do_sync {
+                    println!("sync");
                     self.sync(&mut agent);
                 }
                 if opt_steps == self.max_train_steps {
