@@ -1,10 +1,14 @@
 //! Utilities for test.
-use anyhow::Result;
 use crate::{
     BorderAtariAct, BorderAtariActRawFilter, BorderAtariEnv, BorderAtariEnvConfig, BorderAtariObs,
     BorderAtariObsRawFilter,
 };
-use border_core::{Agent as Agent_, Policy, ReplayBufferBase, replay_buffer::{SimpleReplayBuffer, SubBatch}};
+use anyhow::Result;
+use border_core::{
+    record::Record,
+    replay_buffer::{SimpleReplayBuffer, SubBatch},
+    Agent as Agent_, Policy, ReplayBufferBase,
+};
 use std::ptr::copy;
 
 pub type Obs = BorderAtariObs;
@@ -52,19 +56,13 @@ impl SubBatch for ObsBatch {
         let n = ixs.len();
         let m = self.m;
         let mut buf = vec![0; n];
-        (0..n).enumerate().for_each(|(i, ix)| {
-            unsafe {
-                let src: *const u8 = &self.buf[ix];
-                let dst: *mut u8 = &mut buf[i * self.m];
-                copy(src, dst, self.m);
-            }
+        (0..n).enumerate().for_each(|(i, ix)| unsafe {
+            let src: *const u8 = &self.buf[ix];
+            let dst: *mut u8 = &mut buf[i * self.m];
+            copy(src, dst, self.m);
         });
 
-        Self {
-            m,
-            n,
-            buf
-        }
+        Self { m, n, buf }
     }
 }
 
@@ -112,19 +110,13 @@ impl SubBatch for ActBatch {
         let n = ixs.len();
         let m = self.m;
         let mut buf = vec![0; n];
-        (0..n).enumerate().for_each(|(i, ix)| {
-            unsafe {
-                let src: *const u8 = &self.buf[ix];
-                let dst: *mut u8 = &mut buf[i * self.m];
-                copy(src, dst, self.m);
-            }
+        (0..n).enumerate().for_each(|(i, ix)| unsafe {
+            let src: *const u8 = &self.buf[ix];
+            let dst: *mut u8 = &mut buf[i * self.m];
+            copy(src, dst, self.m);
         });
 
-        Self {
-            m,
-            n,
-            buf
-        }
+        Self { m, n, buf }
     }
 }
 
@@ -147,6 +139,7 @@ pub struct RandomAgentConfig {
 /// A random policy.
 pub struct RandomAgent {
     n_acts: usize,
+    train: bool,
 }
 
 impl Policy<Env> for RandomAgent {
@@ -155,6 +148,7 @@ impl Policy<Env> for RandomAgent {
     fn build(config: Self::Config) -> Self {
         Self {
             n_acts: config.n_acts,
+            train: true,
         }
     }
 
@@ -163,30 +157,32 @@ impl Policy<Env> for RandomAgent {
     }
 }
 
-impl<R: ReplayBufferBase> Agent_<Env, R> for RandomAgent
-{
+impl<R: ReplayBufferBase> Agent_<Env, R> for RandomAgent {
     fn train(&mut self) {
-        unimplemented!();
+        self.train = true;
     }
 
     fn eval(&mut self) {
-        unimplemented!();
+        self.train = false;
     }
 
     fn is_train(&self) -> bool {
-        unimplemented!();
+        self.train
     }
 
     fn opt(&mut self, _buffer: &mut R) -> Option<border_core::record::Record> {
-        unimplemented!();
+        // Do nothing
+        Some(Record::empty())
     }
 
     fn save<T: AsRef<std::path::Path>>(&self, _path: T) -> Result<()> {
-        unimplemented!();
+        println!("save() was invoked");
+        Ok(())
     }
 
     fn load<T: AsRef<std::path::Path>>(&mut self, _path: T) -> Result<()> {
-        unimplemented!();
+        println!("load() was invoked");
+        Ok(())
     }
 }
 
