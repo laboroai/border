@@ -33,3 +33,16 @@ impl NamedTensors {
         });    
     }
 }
+
+impl Clone for NamedTensors {
+    fn clone(&self) -> Self {
+        let src = &self.named_tensors;
+
+        tch::no_grad(|| NamedTensors {
+            named_tensors: HashMap::from_iter(src.iter().map(|(k, v)| {
+                let v = v.detach().to(Cpu).data();
+                (k.clone(), v)
+            })),
+        })
+    }
+}
