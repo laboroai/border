@@ -22,10 +22,8 @@ mod test {
     use border_core::{Env as _, StepProcessorBase, record::BufferedRecorder, replay_buffer::{SimpleStepProcessor, SimpleStepProcessorConfig, SimpleReplayBuffer, SimpleReplayBufferConfig}};
     use crossbeam_channel::unbounded;
 
-    type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
-
     fn replay_buffer_config() -> SimpleReplayBufferConfig {
-        unimplemented!();
+        SimpleReplayBufferConfig::default()
     }
 
     fn actor_man_config(n_actors: usize) -> ActorManagerConfig {
@@ -54,7 +52,7 @@ mod test {
         let n_acts = env.get_num_actions_atari() as _;
         let agent_config = RandomAgentConfig { n_acts };
         let step_proc_config = SimpleStepProcessorConfig::default();
-        let actor_man_config = actor_man_config(1);
+        let actor_man_config = actor_man_config(2);
 
         let mut actors = ActorManager_::build(
             &actor_man_config, &agent_config, &env_config, &step_proc_config
