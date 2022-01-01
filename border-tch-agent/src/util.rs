@@ -3,7 +3,9 @@ use crate::model::ModelBase;
 use log::trace;
 use serde::{Deserialize, Serialize};
 mod quantile_loss;
+mod named_tensors;
 pub use quantile_loss::quantile_huber_loss;
+pub use named_tensors::NamedTensors;
 
 /// Critic loss type.
 #[allow(clippy::upper_case_acronyms)]
