@@ -233,23 +233,23 @@ where
                 let do_sync = opt_steps % self.sync_interval == 0;
 
                 if do_eval {
-                    println!("eval");
+                    info!("Starts evaluation of the trained model");
                     self.eval(&mut agent, &mut env, &mut record, &mut max_eval_reward);
                 }
                 if do_record {
-                    println!("record");
+                    info!("Records training logs");
                     self.record(&mut record, &mut opt_steps_, &mut time);
                 }
                 if do_flush {
-                    println!("flush");
+                    info!("Flushes records");
                     self.flush(opt_steps, record, recorder);
                 }
                 if do_save {
-                    println!("save");
+                    info!("Saves the trained model");
                     self.save(opt_steps, &mut agent);
                 }
                 if do_sync {
-                    println!("sync");
+                    info!("Sends the trained model info to ActorManager");
                     self.sync(&agent);
                 }
                 if opt_steps == self.max_train_steps {

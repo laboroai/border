@@ -61,20 +61,26 @@ where
         }
     }
 
-    fn sync_model_first(agent: &mut A, model_info: &Arc<Mutex<(usize, A::ModelInfo)>>) {
+    fn sync_model_first(agent: &mut A, model_info: &Arc<Mutex<(usize, A::ModelInfo)>>, id: usize) {
         let model_info = model_info.lock().unwrap();
         agent.sync_model(&model_info.1);
+        info!("Received the initial model info in actor {}", id);
     }
 
     fn sync_model(
         agent: &mut A,
         n_opt_steps: &mut usize,
         model_info: &Arc<Mutex<(usize, A::ModelInfo)>>,
+        id: usize,
     ) {
         let model_info = model_info.lock().unwrap();
         if model_info.0 > *n_opt_steps {
             *n_opt_steps = model_info.0;
             agent.sync_model(&model_info.1);
+            info!(
+                "Synchronized the model info of {} opt steps in actor {}",
+                n_opt_steps, id
+            );
         }
     }
 
@@ -101,12 +107,12 @@ where
         let mut n_opt_steps = 0;
 
         // Synchronize model
-        Self::sync_model_first(&mut agent, &model_info);
+        Self::sync_model_first(&mut agent, &model_info, self.id);
 
         // Sampling loop
         loop {
             // Check model update and synchronize
-            Self::sync_model(&mut agent, &mut n_opt_steps, &model_info);
+            Self::sync_model(&mut agent, &mut n_opt_steps, &model_info, self.id);
 
             // TODO: error handling
             let _record = sampler.sample_and_push(&mut agent, &mut buffer).unwrap();
