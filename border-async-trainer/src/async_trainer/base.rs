@@ -1,4 +1,4 @@
-use crate::{AsyncTrainerConfig, PushedItemMessage};
+use crate::{AsyncTrainerConfig, PushedItemMessage, SyncModel};
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue::Scalar, Recorder},
@@ -17,7 +17,7 @@ use std::{
 /// It will be used with [ActorManager](crate::ActorManager)
 pub struct AsyncTrainer<A, E, R>
 where
-    A: Agent<E, R>,
+    A: Agent<E, R> + SyncModel,
     E: Env,
     R: ReplayBufferBase + Sync + Send + 'static,
     R::PushedItem: Send + 'static,
@@ -55,6 +55,9 @@ where
     /// Configuration of [Env].
     env_config: E::Config,
 
+    /// Sender of model info.
+    model_info_sender: Sender<(usize, A::ModelInfo)>,
+
     /// Configuration of replay buffer.
     replay_buffer_config: R::Config,
 
@@ -63,7 +66,7 @@ where
 
 impl<A, E, R> AsyncTrainer<A, E, R>
 where
-    A: Agent<E, R>,
+    A: Agent<E, R> + SyncModel,
     E: Env,
     R: ReplayBufferBase + Sync + Send + 'static,
     R::PushedItem: Send + 'static,
@@ -75,6 +78,7 @@ where
         env_config: &E::Config,
         replay_buffer_config: &R::Config,
         r_bulk_pushed_item: Receiver<PushedItemMessage<R::PushedItem>>,
+        model_info_sender: Sender<(usize, A::ModelInfo)>,
     ) -> Self {
         Self {
             model_dir: config.model_dir.clone(),
@@ -88,6 +92,7 @@ where
             env_config: env_config.clone(),
             replay_buffer_config: replay_buffer_config.clone(),
             r_bulk_pushed_item,
+            model_info_sender,
             stop: Arc::new(Mutex::new(false)),
             phantom: PhantomData,
         }
@@ -164,8 +169,10 @@ where
     }
 
     /// Sync model.
-    fn sync(&mut self, _agent: &A) {
-        // Do nothing
+    fn sync(&mut self, agent: &A) {
+        let model_info = agent.model_info();
+        // TODO: error handling
+        self.model_info_sender.send(model_info).unwrap();
     }
 
     /// Run a thread for replay buffer.
@@ -236,7 +243,7 @@ where
                 }
                 if do_sync {
                     println!("sync");
-                    self.sync(&mut agent);
+                    self.sync(&agent);
                 }
                 if opt_steps == self.max_train_steps {
                     break;

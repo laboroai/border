@@ -9,18 +9,21 @@ mod actor_manager;
 mod async_trainer;
 mod messages;
 mod replay_buffer_proxy;
+mod sync_model;
 pub use actor::Actor;
 pub use actor_manager::{ActorManager, ActorManagerConfig};
 pub use async_trainer::{AsyncTrainer, AsyncTrainerConfig};
 pub use messages::PushedItemMessage;
 pub use replay_buffer_proxy::{ReplayBufferProxy, ReplayBufferProxyConfig};
+pub use sync_model::SyncModel;
 
 #[cfg(test)]
 mod test {
-    use super::{ActorManager, ActorManagerConfig, AsyncTrainerConfig, AsyncTrainer};
+    use super::{ActorManager, ActorManagerConfig, AsyncTrainerConfig, AsyncTrainer, SyncModel};
     use border_atari_env::util::test::*;
     use border_core::{Env as _, StepProcessorBase, record::BufferedRecorder, replay_buffer::{SimpleStepProcessor, SimpleStepProcessorConfig, SimpleReplayBuffer, SimpleReplayBufferConfig}};
     use crossbeam_channel::unbounded;
+    use tokio::sync::mpsc::unbounded_channel;
 
     fn replay_buffer_config() -> SimpleReplayBufferConfig {
         SimpleReplayBufferConfig::default()
@@ -67,6 +70,16 @@ mod test {
     //     actors.join();
     // }
 
+    impl SyncModel for RandomAgent {
+        type ModelInfo = ();
+
+        fn model_info(&self) -> (usize, Self::ModelInfo) {
+            (self.n_opts_steps(), ())
+        }
+
+        fn sync_model(&mut self, _model_info: &Self::ModelInfo) {}
+    }
+
     #[test]
     fn test_async_trainer() {
         type Agent = RandomAgent;
@@ -89,13 +102,16 @@ mod test {
         // Pushed items into replay buffer
         let (item_s, item_r) = unbounded();
 
+        // Synchronizing model
+        let (model_s, model_r) = unbounded();
+
         let mut actors = ActorManager_::build(
             &actor_man_config, &agent_config, &env_config, &step_proc_config,
-            item_s,
+            item_s, model_r
         );
         let mut trainer = AsyncTrainer_::build(
             &async_trainer_config, &agent_config, &env_config, &replay_buffer_config,
-            item_r
+            item_r, model_s
         );
 
         actors.run();

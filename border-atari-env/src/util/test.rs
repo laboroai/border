@@ -139,6 +139,7 @@ pub struct RandomAgentConfig {
 /// A random policy.
 pub struct RandomAgent {
     n_acts: usize,
+    n_opts_steps: usize,
     train: bool,
 }
 
@@ -148,6 +149,7 @@ impl Policy<Env> for RandomAgent {
     fn build(config: Self::Config) -> Self {
         Self {
             n_acts: config.n_acts,
+            n_opts_steps: 0,
             train: true,
         }
     }
@@ -172,6 +174,7 @@ impl<R: ReplayBufferBase> Agent_<Env, R> for RandomAgent {
 
     fn opt(&mut self, _buffer: &mut R) -> Option<border_core::record::Record> {
         // Do nothing
+        self.n_opts_steps += 1;
         Some(Record::empty())
     }
 
@@ -183,6 +186,13 @@ impl<R: ReplayBufferBase> Agent_<Env, R> for RandomAgent {
     fn load<T: AsRef<std::path::Path>>(&mut self, _path: T) -> Result<()> {
         println!("load() was invoked");
         Ok(())
+    }
+}
+
+impl RandomAgent {
+    /// Returns the number of optimization steps;
+    pub fn n_opts_steps(&self) -> usize {
+        self.n_opts_steps
     }
 }
 

@@ -11,7 +11,7 @@ pub struct ReplayBufferProxyConfig {}
 pub struct ReplayBufferProxy<R: ReplayBufferBase> {
     id: usize,
 
-    /// Sender of [BatchMessage].
+    /// Sender of [PushedItemMessage].
     sender: Sender<PushedItemMessage<R::PushedItem>>,
 
     phantom: PhantomData<R>,
