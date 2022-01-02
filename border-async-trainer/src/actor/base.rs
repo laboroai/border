@@ -3,7 +3,7 @@
 // use tokio::sync::broadcast;
 // use std::future::{Future, Ready};
 // use async_trait::async_trait;
-use crate::{PushedItemMessage, ReplayBufferProxy, ReplayBufferProxyConfig};
+use crate::{PushedItemMessage, ReplayBufferProxy, ReplayBufferProxyConfig, SyncModel};
 use border_core::{Agent, Env, ReplayBufferBase, StepProcessorBase, SyncSampler};
 use crossbeam_channel::Sender;
 use std::{
@@ -16,7 +16,7 @@ use std::{
 /// Samples taken will be pushed into a replay buffer via [ActorManager](crate::ActorManager).
 pub struct Actor<A, E, P, R>
 where
-    A: Agent<E, R>,
+    A: Agent<E, R> + SyncModel,
     E: Env,
     P: StepProcessorBase<E>,
     R: ReplayBufferBase<PushedItem = P::Output>,
@@ -37,7 +37,7 @@ where
 
 impl<A, E, P, R> Actor<A, E, P, R>
 where
-    A: Agent<E, R>,
+    A: Agent<E, R> + SyncModel,
     E: Env,
     P: StepProcessorBase<E>,
     R: ReplayBufferBase<PushedItem = P::Output>,
@@ -65,9 +65,31 @@ where
         }
     }
 
+    fn sync_model_first(agent: &mut A, model_info: &Arc<Mutex<(usize, A::ModelInfo)>>) {
+        let model_info = model_info.lock().unwrap();
+        agent.sync_model(model_info.1);
+    }
+
+    fn sync_model(
+        agent: &mut A,
+        n_opt_steps: &mut usize,
+        model_info: &Arc<Mutex<(usize, A::ModelInfo)>>,
+    ) {
+        let model_info = model_info.lock().unwrap();
+        if model_info.0 > *n_opt_steps {
+            *n_opt_steps = model_info.0;
+            agent.sync_model(model_info.1);
+        }
+    }
+
     /// Runs sampling loop until `self.stop` becomes `true`.
     #[allow(unused_variables, unused_mut)] // TODO: remove this
-    pub fn run(&mut self, sender: Sender<PushedItemMessage<R::PushedItem>>, guard: Arc<Mutex<bool>>) {
+    pub fn run(
+        &mut self,
+        sender: Sender<PushedItemMessage<R::PushedItem>>,
+        guard: Arc<Mutex<bool>>,
+        model_info: Arc<Mutex<(usize, A::ModelInfo)>>,
+    ) {
         let mut agent = A::build(self.agent_config.clone());
         let mut buffer =
             ReplayBufferProxy::<R>::build_with_sender(self.id, &self.replay_buffer_config, sender);
@@ -78,9 +100,16 @@ where
             SyncSampler::new(env, step_proc)
         };
         let mut env_step = 0;
+        let mut n_opt_steps = 0;
+
+        // Synchronize model
+        Self::sync_model_first(&mut agent, &model_info);
 
         // Sampling loop
         loop {
+            // Check model update and synchronize
+            Self::sync_model(&mut agent, &mut n_opt_steps, &model_info);
+
             // TODO: error handling
             let _record = sampler.sample_and_push(&mut agent, &mut buffer).unwrap();
 
