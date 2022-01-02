@@ -14,6 +14,7 @@ autoexamples = false
 
 [dependencies]
 border-core = { version = "0.0.5", path = "../border-core" }
+border-async-trainer = { version = "0.0.5", path = "../border-async-trainer", optional = true }
 serde = { version = "=1.0.126", features = ["derive"] }
 serde_yaml = "0.8.7"
 tensorboard-rs = "0.2.4"

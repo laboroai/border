@@ -1,4 +1,4 @@
-use std::{collections::HashMap, iter::FromIterator, ops::Deref};
+use std::{collections::HashMap, iter::FromIterator};
 use tch::{nn::VarStore, Device::Cpu, Tensor};
 
 /// Named tensors to send model parameters using a channel.

@@ -1,9 +1,6 @@
 //! DQN agent implemented with tch-rs.
 use super::{config::DQNConfig, explorer::DQNExplorer, model::DQNModel};
-use crate::{
-    model::{ModelBase, SubModel},
-    util::{track, OutDim},
-};
+use crate::{model::{ModelBase, SubModel}, util::{OutDim, track}};
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
@@ -240,5 +237,35 @@ where
         self.qnet_tgt
             .load(&path.as_ref().join("qnet_tgt.pt").as_path())?;
         Ok(())
+    }
+}
+
+#[cfg(feature = "border-async-trainer")]
+use {
+    crate::util::NamedTensors,
+    border_async_trainer::SyncModel,
+};
+
+#[cfg(feature = "border-async-trainer")]
+impl<E, Q, R> SyncModel for DQN<E, Q, R>
+where
+    E: Env,
+    Q: SubModel<Output = Tensor>,
+    R: ReplayBufferBase,
+    E::Obs: Into<Q::Input>,
+    E::Act: From<Q::Output>,
+    Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
+    <R::Batch as Batch>::ObsBatch: Into<Q::Input>,
+    <R::Batch as Batch>::ActBatch: Into<Tensor>,
+{
+    type ModelInfo = NamedTensors;
+
+    fn model_info(&self) -> (usize, Self::ModelInfo) {
+        (self.n_opts, NamedTensors::copy_from(self.qnet.get_var_store()))
+    }
+
+    fn sync_model(&mut self, model_info: &Self::ModelInfo) {
+        let vs = self.qnet.get_var_store_mut();
+        model_info.copy_to(vs);
     }
 }

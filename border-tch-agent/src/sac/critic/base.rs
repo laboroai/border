@@ -98,8 +98,12 @@ where
         self.opt.backward_step(loss);
     }
 
-    fn get_var_store(&mut self) -> &mut nn::VarStore {
+    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
         &mut self.var_store
+    }
+
+    fn get_var_store(&self) -> &nn::VarStore {
+        &self.var_store
     }
 
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<()> {

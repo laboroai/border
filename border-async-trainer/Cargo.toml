@@ -21,16 +21,10 @@ tokio = { version = "1.14.0", features = ["full"] }
 async-trait = "0.1.51"
 crossbeam-channel = "0.5.1"
 
-# itertools = "0.10.1"
-# fastrand = "1.4.0"
-# dirs = "3.0.1"
-
 # [[example]]
 # name = "random_pong"
 
 [dev-dependencies]
 env_logger = "0.8.2"
-tch = { version = "0.5.0" }
 border-atari-env = { version = "0.0.5", path = "../border-atari-env"}
-border-tch-agent = { version = "0.0.5", path = "../border-tch-agent" }
 test-log = "0.2.8"
