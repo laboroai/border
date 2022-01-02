@@ -9,5 +9,5 @@ pub trait SyncModel {
     fn model_info(&self) -> (usize, Self::ModelInfo);
 
     /// Synchronizes the model.
-    fn sync_model(&mut self, model_info: Self::ModelInfo);
+    fn sync_model(&mut self, model_info: &Self::ModelInfo);
 }
