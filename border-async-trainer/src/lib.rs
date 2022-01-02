@@ -19,11 +19,20 @@ pub use sync_model::SyncModel;
 
 #[cfg(test)]
 mod test {
-    use super::{ActorManager, ActorManagerConfig, AsyncTrainerConfig, AsyncTrainer, SyncModel};
+    use super::{ActorManager, ActorManagerConfig, AsyncTrainer, AsyncTrainerConfig, SyncModel};
     use border_atari_env::util::test::*;
-    use border_core::{Env as _, StepProcessorBase, record::BufferedRecorder, replay_buffer::{SimpleStepProcessor, SimpleStepProcessorConfig, SimpleReplayBuffer, SimpleReplayBufferConfig}};
+    use border_core::{
+        record::BufferedRecorder,
+        replay_buffer::{
+            SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
+            SimpleStepProcessorConfig,
+        },
+        Env as _,
+    };
     use crossbeam_channel::unbounded;
-    use tokio::sync::mpsc::unbounded_channel;
+    use log::info;
+    use std::sync::{Arc, Mutex};
+    use test_log::test;
 
     fn replay_buffer_config() -> SimpleReplayBufferConfig {
         SimpleReplayBufferConfig::default()
@@ -74,10 +83,13 @@ mod test {
         type ModelInfo = ();
 
         fn model_info(&self) -> (usize, Self::ModelInfo) {
+            info!("Returns the current model info");
             (self.n_opts_steps(), ())
         }
 
-        fn sync_model(&mut self, _model_info: &Self::ModelInfo) {}
+        fn sync_model(&mut self, _model_info: &Self::ModelInfo) {
+            info!("Sync model");
+        }
     }
 
     #[test]
@@ -105,17 +117,28 @@ mod test {
         // Synchronizing model
         let (model_s, model_r) = unbounded();
 
+        // Prevents simlutaneous initialization of env
+        let guard_init_env = Arc::new(Mutex::new(true));
+
         let mut actors = ActorManager_::build(
-            &actor_man_config, &agent_config, &env_config, &step_proc_config,
-            item_s, model_r
+            &actor_man_config,
+            &agent_config,
+            &env_config,
+            &step_proc_config,
+            item_s,
+            model_r,
         );
         let mut trainer = AsyncTrainer_::build(
-            &async_trainer_config, &agent_config, &env_config, &replay_buffer_config,
-            item_r, model_s
+            &async_trainer_config,
+            &agent_config,
+            &env_config,
+            &replay_buffer_config,
+            item_r,
+            model_s,
         );
 
-        actors.run();
-        trainer.train(&mut recorder);
+        actors.run(guard_init_env.clone());
+        trainer.train(&mut recorder, guard_init_env);
 
         actors.stop();
         actors.join();

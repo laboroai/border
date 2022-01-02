@@ -194,9 +194,13 @@ where
     }
 
     /// Runs training loop.
-    pub fn train(&mut self, recorder: &mut impl Recorder) {
+    pub fn train(&mut self, recorder: &mut impl Recorder, guard_init_env: Arc<Mutex<bool>>) {
         // TODO: error handling
-        let mut env = E::build(&self.env_config, 0).unwrap();
+        let mut env = {
+            let mut tmp = guard_init_env.lock().unwrap();
+            *tmp = true;
+            E::build(&self.env_config, 0).unwrap()
+        };
         let mut agent = A::build(self.agent_config.clone());
         let buffer = Arc::new(Mutex::new(R::build(&self.replay_buffer_config)));
         agent.train();
@@ -208,6 +212,10 @@ where
         let mut opt_steps_ = 0;
         let mut time = SystemTime::now();
 
+        info!("Send model info first in AsyncTrainer");
+        self.sync(&mut agent);
+
+        info!("Starts training loop");
         loop {
             let record = {
                 let mut buffer = buffer.lock().unwrap();
@@ -215,7 +223,6 @@ where
             };
 
             if let Some(mut record) = record {
-                println!("!!");
                 opt_steps += 1;
                 opt_steps_ += 1;
 

@@ -29,7 +29,8 @@ crossbeam-channel = "0.5.1"
 # name = "random_pong"
 
 [dev-dependencies]
-# env_logger = "0.8.2"
+env_logger = "0.8.2"
 tch = { version = "0.5.0" }
 border-atari-env = { version = "0.0.5", path = "../border-atari-env"}
 border-tch-agent = { version = "0.0.5", path = "../border-tch-agent" }
+test-log = "0.2.8"

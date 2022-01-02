@@ -1,6 +1,7 @@
 use crate::{Actor, ActorManagerConfig, PushedItemMessage, ReplayBufferProxyConfig, SyncModel};
 use border_core::{Agent, Env, ReplayBufferBase, StepProcessorBase};
 use crossbeam_channel::{unbounded, Receiver, Sender};
+use log::info;
 use std::{
     marker::PhantomData,
     sync::{Arc, Mutex},
@@ -101,7 +102,7 @@ where
     ///
     /// A thread will wait for [SyncModel::ModelInfo] from [AsyncTrainer](crate::AsyncTrainer),
     /// which blocks execution of [Actor] threads.
-    pub fn run(&mut self) {
+    pub fn run(&mut self, guard_init_env: Arc<Mutex<bool>>) {
         // Dummy model info
         self.model_info = {
             let agent = A::build(self.agent_config.clone());
@@ -117,11 +118,11 @@ where
                 Self::run_model_info_loop(model_info_receiver, model_info, stop);
             });
             self.threads.push(handle);
+            info!("Starts thread for updating model info");
         }
 
         // Create channel for [BatchMessage]
         let (s, r) = unbounded();
-        let guard = Arc::new(Mutex::new(true));
         self.batch_message_receiver = Some(r.clone());
 
         // Runs sampling processes
@@ -134,7 +135,7 @@ where
             let samples_per_push = self.samples_per_push;
             let stop = self.stop.clone();
             let seed = id;
-            let guard = guard.clone();
+            let guard = guard_init_env.clone();
             let model_info = self.model_info.as_ref().unwrap().clone();
 
             // Spawn actor thread
@@ -216,7 +217,7 @@ where
             assert_eq!(msg.0, 0);
             *model_info = msg;
         }
-    
+
         loop {
             // TODO: error handling
             let msg = model_info_receiver.recv().unwrap();
@@ -226,5 +227,5 @@ where
                 break;
             }
         }
-    }    
+    }
 }

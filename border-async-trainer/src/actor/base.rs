@@ -1,11 +1,7 @@
-// use std::marker::PhantomData;
-// use log::info;
-// use tokio::sync::broadcast;
-// use std::future::{Future, Ready};
-// use async_trait::async_trait;
 use crate::{PushedItemMessage, ReplayBufferProxy, ReplayBufferProxyConfig, SyncModel};
 use border_core::{Agent, Env, ReplayBufferBase, StepProcessorBase, SyncSampler};
 use crossbeam_channel::Sender;
+use log::info;
 use std::{
     marker::PhantomData,
     sync::{Arc, Mutex},
@@ -99,6 +95,8 @@ where
             let mut step_proc = P::build(&self.step_proc_config);
             SyncSampler::new(env, step_proc)
         };
+        info!("Starts actor {:?}", self.id);
+
         let mut env_step = 0;
         let mut n_opt_steps = 0;
 
