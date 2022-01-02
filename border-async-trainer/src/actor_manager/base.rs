@@ -52,10 +52,10 @@ where
     /// Information of the model.
     ///
     /// Also has The number of optimization steps of the current model information.
-    model_info: Arc<Mutex<(usize, Option<A::ModelInfo>)>>,
+    model_info: Option<Arc<Mutex<(usize, A::ModelInfo)>>>,
 
     /// Receives incoming model info from [AsyncTrainer](crate::AsyncTrainer).
-    model_info_receiver: Receiver<(usize, Option<A::ModelInfo>)>,
+    model_info_receiver: Receiver<(usize, A::ModelInfo)>,
 
     phantom: PhantomData<R>,
 }
@@ -79,7 +79,7 @@ where
         env_config: &E::Config,
         step_proc_config: &P::Config,
         pushed_item_message_sender: Sender<PushedItemMessage<R::PushedItem>>,
-        model_info_receiver: Receiver<(usize, Option<A::ModelInfo>)>,
+        model_info_receiver: Receiver<(usize, A::ModelInfo)>,
     ) -> Self {
         Self {
             n_actors: config.n_actors,
@@ -91,7 +91,7 @@ where
             threads: vec![],
             batch_message_receiver: None,
             pushed_item_message_sender,
-            model_info: Arc::new(Mutex::new((0, None))),
+            model_info: None,
             model_info_receiver,
             phantom: PhantomData,
         }
@@ -102,11 +102,17 @@ where
     /// A thread will wait for [SyncModel::ModelInfo] from [AsyncTrainer](crate::AsyncTrainer),
     /// which blocks execution of [Actor] threads.
     pub fn run(&mut self) {
+        // Dummy model info
+        self.model_info = {
+            let agent = A::build(self.agent_config.clone());
+            Some(Arc::new(Mutex::new(agent.model_info())))
+        };
+
         // Thread for waiting [SyncModel::ModelInfo]
         {
             let stop = self.stop.clone();
             let model_info_receiver = self.model_info_receiver.clone();
-            let model_info = self.model_info.clone();
+            let model_info = self.model_info.as_ref().unwrap().clone();
             let handle = std::thread::spawn(move || {
                 Self::run_model_info_loop(model_info_receiver, model_info, stop);
             });
@@ -129,6 +135,7 @@ where
             let stop = self.stop.clone();
             let seed = id;
             let guard = guard.clone();
+            let model_info = self.model_info.as_ref().unwrap().clone();
 
             // Spawn actor thread
             let handle = std::thread::spawn(move || {
@@ -142,7 +149,7 @@ where
                     stop,
                     seed as i64,
                 )
-                .run(sender, guard);
+                .run(sender, guard, model_info);
             });
             self.threads.push(handle);
         });
@@ -197,11 +204,11 @@ where
     }
 
     fn run_model_info_loop(
-        model_info_receiver: Receiver<(usize, Option<A::ModelInfo>)>,
-        model_info: Arc<Mutex<(usize, Option<A::ModelInfo>)>>,
+        model_info_receiver: Receiver<(usize, A::ModelInfo)>,
+        model_info: Arc<Mutex<(usize, A::ModelInfo)>>,
         stop: Arc<Mutex<bool>>,
     ) {
-        // Blocks threads sharing model_info until the first message from AsyncTrainer.
+        // Blocks threads sharing model_info until arriving the first message from AsyncTrainer.
         {
             let mut model_info = model_info.lock().unwrap();
             // TODO: error handling
