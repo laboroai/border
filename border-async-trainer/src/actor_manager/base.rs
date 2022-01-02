@@ -1,4 +1,4 @@
-use crate::{Actor, ActorManagerConfig, PushedItemMessage, ReplayBufferProxyConfig};
+use crate::{Actor, ActorManagerConfig, PushedItemMessage, ReplayBufferProxyConfig, SyncModel};
 use border_core::{Agent, Env, ReplayBufferBase, StepProcessorBase};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use std::{
@@ -15,7 +15,7 @@ use std::{
 /// * From the [Actor]s for pushing sample batch to the `LearnerManager`.
 pub struct ActorManager<A, E, R, P>
 where
-    A: Agent<E, R>,
+    A: Agent<E, R> + SyncModel,
     E: Env,
     P: StepProcessorBase<E>,
     R: ReplayBufferBase<PushedItem = P::Output>,
@@ -49,12 +49,20 @@ where
     /// Sender of [PushedItemMessage]s to [AsyncTrainer](crate::AsyncTrainer).
     pushed_item_message_sender: Sender<PushedItemMessage<R::PushedItem>>,
 
+    /// Information of the model.
+    ///
+    /// Also has The number of optimization steps of the current model information.
+    model_info: Arc<Mutex<(usize, Option<A::ModelInfo>)>>,
+
+    /// Receives incoming model info from [AsyncTrainer](crate::AsyncTrainer).
+    model_info_receiver: Receiver<(usize, Option<A::ModelInfo>)>,
+
     phantom: PhantomData<R>,
 }
 
 impl<A, E, R, P> ActorManager<A, E, R, P>
 where
-    A: Agent<E, R>,
+    A: Agent<E, R> + SyncModel,
     E: Env,
     P: StepProcessorBase<E>,
     R: ReplayBufferBase<PushedItem = P::Output> + Send + 'static,
@@ -62,6 +70,7 @@ where
     E::Config: Send + 'static,
     P::Config: Send + 'static,
     R::PushedItem: Send + 'static,
+    A::ModelInfo: Send + 'static,
 {
     /// Builds a [ActorManager].
     pub fn build(
@@ -70,6 +79,7 @@ where
         env_config: &E::Config,
         step_proc_config: &P::Config,
         pushed_item_message_sender: Sender<PushedItemMessage<R::PushedItem>>,
+        model_info_receiver: Receiver<(usize, Option<A::ModelInfo>)>,
     ) -> Self {
         Self {
             n_actors: config.n_actors,
@@ -81,12 +91,28 @@ where
             threads: vec![],
             batch_message_receiver: None,
             pushed_item_message_sender,
+            model_info: Arc::new(Mutex::new((0, None))),
+            model_info_receiver,
             phantom: PhantomData,
         }
     }
 
     /// Runs threads for [Actor]s and a thread for sending samples into the replay buffer.
+    ///
+    /// A thread will wait for [SyncModel::ModelInfo] from [AsyncTrainer](crate::AsyncTrainer),
+    /// which blocks execution of [Actor] threads.
     pub fn run(&mut self) {
+        // Thread for waiting [SyncModel::ModelInfo]
+        {
+            let stop = self.stop.clone();
+            let model_info_receiver = self.model_info_receiver.clone();
+            let model_info = self.model_info.clone();
+            let handle = std::thread::spawn(move || {
+                Self::run_model_info_loop(model_info_receiver, model_info, stop);
+            });
+            self.threads.push(handle);
+        }
+
         // Create channel for [BatchMessage]
         let (s, r) = unbounded();
         let guard = Arc::new(Mutex::new(true));
@@ -104,6 +130,7 @@ where
             let seed = id;
             let guard = guard.clone();
 
+            // Spawn actor thread
             let handle = std::thread::spawn(move || {
                 Actor::<A, E, P, R>::build(
                     id,
@@ -120,7 +147,7 @@ where
             self.threads.push(handle);
         });
 
-        // Thread for handling incoming message
+        // Thread for handling incoming samples
         {
             let stop = self.stop.clone();
             let s = self.pushed_item_message_sender.clone();
@@ -168,4 +195,29 @@ where
             }
         }
     }
+
+    fn run_model_info_loop(
+        model_info_receiver: Receiver<(usize, Option<A::ModelInfo>)>,
+        model_info: Arc<Mutex<(usize, Option<A::ModelInfo>)>>,
+        stop: Arc<Mutex<bool>>,
+    ) {
+        // Blocks threads sharing model_info until the first message from AsyncTrainer.
+        {
+            let mut model_info = model_info.lock().unwrap();
+            // TODO: error handling
+            let msg = model_info_receiver.recv().unwrap();
+            assert_eq!(msg.0, 0);
+            *model_info = msg;
+        }
+    
+        loop {
+            // TODO: error handling
+            let msg = model_info_receiver.recv().unwrap();
+            let mut model_info = model_info.lock().unwrap();
+            *model_info = msg;
+            if *stop.lock().unwrap() {
+                break;
+            }
+        }
+    }    
 }
