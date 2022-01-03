@@ -97,8 +97,7 @@ mod test {
         let replay_buffer_config = replay_buffer_config();
         let actor_man_config = actor_man_config();
         let async_trainer_config = async_trainer_config();
-        let agent_configs = vec![agent_config.clone(); 1];
-        // let agent_configs = vec![agent_config.clone(); 2];
+        let agent_configs = vec![agent_config.clone(); 2];
 
         let mut recorder = BufferedRecorder::new();
 
