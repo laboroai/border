@@ -52,7 +52,7 @@ where
     /// Configuration of [Agent].
     agent_config: A::Config,
 
-    /// Configuration of [Env].
+    /// Configuration of [Env]. Note that it is used only for evaluation, not for training.
     env_config: E::Config,
 
     /// Sender of model info.
