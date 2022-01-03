@@ -9,8 +9,8 @@ pub struct ActorManagerConfig {
     pub samples_per_push: usize,
 }
 
-impl ActorManagerConfig {
-    pub fn new()  -> Self {
+impl Default for ActorManagerConfig {
+    fn default()  -> Self {
         Self {
             samples_per_push: 100,
         }

@@ -53,7 +53,7 @@ mod test {
     }
 
     fn actor_man_config() -> ActorManagerConfig {
-        ActorManagerConfig::new()
+        ActorManagerConfig::default()
     }
 
     fn async_trainer_config() -> AsyncTrainerConfig {
