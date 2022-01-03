@@ -19,7 +19,8 @@ pub struct AsyncTrainer<A, E, R>
 where
     A: Agent<E, R> + SyncModel,
     E: Env,
-    R: ReplayBufferBase + Sync + Send + 'static,
+    // R: ReplayBufferBase + Sync + Send + 'static,
+    R: ReplayBufferBase,
     R::PushedItem: Send + 'static,
 {
     /// Where to save the trained model.
@@ -46,7 +47,7 @@ where
     /// Receiver of pushed items.
     r_bulk_pushed_item: Receiver<PushedItemMessage<R::PushedItem>>,
 
-    /// If `false`, stops the thread for replay buffer.
+    /// If `false`, stops the actor threads.
     stop: Arc<Mutex<bool>>,
 
     /// Configuration of [Agent].
@@ -68,7 +69,8 @@ impl<A, E, R> AsyncTrainer<A, E, R>
 where
     A: Agent<E, R> + SyncModel,
     E: Env,
-    R: ReplayBufferBase + Sync + Send + 'static,
+    // R: ReplayBufferBase + Sync + Send + 'static,
+    R: ReplayBufferBase,
     R::PushedItem: Send + 'static,
 {
     /// Creates [AsyncTrainer].
@@ -79,6 +81,7 @@ where
         replay_buffer_config: &R::Config,
         r_bulk_pushed_item: Receiver<PushedItemMessage<R::PushedItem>>,
         model_info_sender: Sender<(usize, A::ModelInfo)>,
+        stop: Arc<Mutex<bool>>,
     ) -> Self {
         Self {
             model_dir: config.model_dir.clone(),
@@ -93,7 +96,7 @@ where
             replay_buffer_config: replay_buffer_config.clone(),
             r_bulk_pushed_item,
             model_info_sender,
-            stop: Arc::new(Mutex::new(false)),
+            stop,
             phantom: PhantomData,
         }
     }
@@ -146,13 +149,25 @@ where
     }
 
     /// Record.
-    fn record(&mut self, record: &mut Record, opt_steps_: &mut usize, time: &mut SystemTime) {
+    fn record(
+        &mut self,
+        record: &mut Record,
+        opt_steps_: &mut usize,
+        samples: &mut usize,
+        time: &mut SystemTime,
+    ) {
         let duration = time.elapsed().unwrap().as_secs_f32();
         let ops = (*opt_steps_ as f32) / duration;
-        record.insert("Optimizations per second", Scalar(ops));
+        let sps = (*samples as f32) / duration;
+        let spo = (*samples as f32) / (*opt_steps_ as f32);
+        record.insert("Optimization steps per second", Scalar(ops));
+        record.insert("Collected samples per second", Scalar(sps));
+        record.insert("Collected samples per optimization step", Scalar(spo));
+        info!("Collected samples per optimization step = {}", spo);
 
         // Reset counter
         *opt_steps_ = 0;
+        *samples = 0;
         *time = SystemTime::now();
     }
 
@@ -176,23 +191,23 @@ where
         self.model_info_sender.send(model_info).unwrap();
     }
 
-    /// Run a thread for replay buffer.
-    fn run_replay_buffer_thread(&self, buffer: Arc<Mutex<R>>) {
-        let r = self.r_bulk_pushed_item.clone();
-        let stop = self.stop.clone();
+    // /// Run a thread for replay buffer.
+    // fn run_replay_buffer_thread(&self, buffer: Arc<Mutex<R>>) {
+    //     let r = self.r_bulk_pushed_item.clone();
+    //     let stop = self.stop.clone();
 
-        std::thread::spawn(move || loop {
-            let msg = r.recv().unwrap();
-            {
-                let mut buffer = buffer.lock().unwrap();
-                buffer.push(msg.pushed_item);
-            }
-            if *stop.lock().unwrap() {
-                break;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(100));
-        });
-    }
+    //     std::thread::spawn(move || loop {
+    //         let msg = r.recv().unwrap();
+    //         {
+    //             let mut buffer = buffer.lock().unwrap();
+    //             buffer.push(msg.pushed_item);
+    //         }
+    //         if *stop.lock().unwrap() {
+    //             break;
+    //         }
+    //         std::thread::sleep(std::time::Duration::from_millis(100));
+    //     });
+    // }
 
     /// Runs training loop.
     pub fn train(&mut self, recorder: &mut impl Recorder, guard_init_env: Arc<Mutex<bool>>) {
@@ -203,14 +218,16 @@ where
             E::build(&self.env_config, 0).unwrap()
         };
         let mut agent = A::build(self.agent_config.clone());
-        let buffer = Arc::new(Mutex::new(R::build(&self.replay_buffer_config)));
+        let mut buffer = R::build(&self.replay_buffer_config);
+        // let buffer = Arc::new(Mutex::new(R::build(&self.replay_buffer_config)));
         agent.train();
 
-        self.run_replay_buffer_thread(buffer.clone());
+        // self.run_replay_buffer_thread(buffer.clone());
 
         let mut max_eval_reward = f32::MIN;
         let mut opt_steps = 0;
         let mut opt_steps_ = 0;
+        let mut samples = 0;
         let mut time = SystemTime::now();
 
         info!("Send model info first in AsyncTrainer");
@@ -218,10 +235,17 @@ where
 
         info!("Starts training loop");
         loop {
-            let record = {
-                let mut buffer = buffer.lock().unwrap();
-                agent.opt(&mut buffer)
-            };
+            // Update replay buffer
+            let msgs: Vec<_> = self.r_bulk_pushed_item.try_iter().collect();
+            samples += msgs.len();
+            msgs.into_iter()
+                .for_each(|msg| buffer.push(msg.pushed_item));
+
+            let record = agent.opt(&mut buffer);
+            // let record = {
+            //     let mut buffer = buffer.lock().unwrap();
+            //     agent.opt(&mut buffer)
+            // };
 
             if let Some(mut record) = record {
                 opt_steps += 1;
@@ -239,7 +263,7 @@ where
                 }
                 if do_record {
                     info!("Records training logs");
-                    self.record(&mut record, &mut opt_steps_, &mut time);
+                    self.record(&mut record, &mut opt_steps_, &mut samples, &mut time);
                 }
                 if do_flush {
                     info!("Flushes records");
@@ -249,14 +273,19 @@ where
                     info!("Saves the trained model");
                     self.save(opt_steps, &mut agent);
                 }
+                if opt_steps == self.max_train_steps {
+                    // Flush channels
+                    *self.stop.lock().unwrap() = true;
+                    let _: Vec<_> = self.r_bulk_pushed_item.try_iter().collect();
+                    self.sync(&agent);
+                    break;
+                }
                 if do_sync {
                     info!("Sends the trained model info to ActorManager");
                     self.sync(&agent);
                 }
-                if opt_steps == self.max_train_steps {
-                    break;
-                }
             }
         }
+        info!("Stopped training loop");
     }
 }

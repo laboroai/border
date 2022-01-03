@@ -78,13 +78,14 @@ where
         step_proc_config: &P::Config,
         pushed_item_message_sender: Sender<PushedItemMessage<R::PushedItem>>,
         model_info_receiver: Receiver<(usize, A::ModelInfo)>,
+        stop: Arc<Mutex<bool>>,
     ) -> Self {
         Self {
             agent_configs: agent_configs.clone(),
             env_config: env_config.clone(),
             step_proc_config: step_proc_config.clone(),
             samples_per_push: config.samples_per_push,
-            stop: Arc::new(Mutex::new(false)),
+            stop,
             threads: vec![],
             batch_message_receiver: None,
             pushed_item_message_sender,
@@ -207,6 +208,7 @@ where
                 break;
             }
         }
+        info!("Stopped thread for message handling");
     }
 
     fn run_model_info_loop(
@@ -232,5 +234,6 @@ where
                 break;
             }
         }
+        info!("Stopped model info thread");
     }
 }

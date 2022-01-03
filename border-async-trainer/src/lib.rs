@@ -60,7 +60,7 @@ mod test {
         AsyncTrainerConfig {
             model_dir: Some("".to_string()),
             record_interval: 5,
-            eval_interval: 5,
+            eval_interval: 105,
             max_train_steps: 15,
             save_interval: 5,
             sync_interval: 5,
@@ -97,9 +97,13 @@ mod test {
         let replay_buffer_config = replay_buffer_config();
         let actor_man_config = actor_man_config();
         let async_trainer_config = async_trainer_config();
-        let agent_configs = vec![agent_config.clone(); 2];
+        let agent_configs = vec![agent_config.clone(); 1];
+        // let agent_configs = vec![agent_config.clone(); 2];
 
         let mut recorder = BufferedRecorder::new();
+
+        // Shared flag to stop actor threads
+        let stop = Arc::new(Mutex::new(false));
 
         // Pushed items into replay buffer
         let (item_s, item_r) = unbounded();
@@ -117,6 +121,7 @@ mod test {
             &step_proc_config,
             item_s,
             model_r,
+            stop.clone(),
         );
         let mut trainer = AsyncTrainer_::build(
             &async_trainer_config,
@@ -125,6 +130,7 @@ mod test {
             &replay_buffer_config,
             item_r,
             model_s,
+            stop,
         );
 
         actors.run(guard_init_env.clone());

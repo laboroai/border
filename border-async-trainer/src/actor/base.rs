@@ -122,5 +122,6 @@ where
                 break;
             }
         }
+        info!("Stopped thread for actor {}", self.id);
     }
 }
