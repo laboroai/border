@@ -11,6 +11,13 @@
 //! the agent in [Actor] with the trained agent in [AsyncTrainer]. The trait has
 //! the ability to import and export the information of the model as
 //! [SyncModel]`::ModelInfo`.
+//!
+//! The `Agent` in [AsyncTrainer] is responsible for training, typically with a GPU,
+//! while the `Agent`s in [Actor]s in [ActorManager] is responsible for sampling
+//! using CPU.
+//!
+//! Both [AsyncTrainer] and [ActorManager] are running in the same machine and
+//! communicate by channels.
 mod actor;
 mod actor_manager;
 mod async_trainer;
@@ -45,18 +52,18 @@ mod test {
         SimpleReplayBufferConfig::default()
     }
 
-    fn actor_man_config(n_actors: usize) -> ActorManagerConfig {
-        ActorManagerConfig::new(n_actors)
+    fn actor_man_config() -> ActorManagerConfig {
+        ActorManagerConfig::new()
     }
 
     fn async_trainer_config() -> AsyncTrainerConfig {
         AsyncTrainerConfig {
             model_dir: Some("".to_string()),
-            record_interval: 10,
-            eval_interval: 10,
-            max_train_steps: 100,
-            save_interval: 100,
-            sync_interval: 10,
+            record_interval: 5,
+            eval_interval: 5,
+            max_train_steps: 15,
+            save_interval: 5,
+            sync_interval: 5,
             eval_episodes: 1,
         }
     }
@@ -113,8 +120,9 @@ mod test {
         let agent_config = RandomAgentConfig { n_acts };
         let step_proc_config = SimpleStepProcessorConfig::default();
         let replay_buffer_config = replay_buffer_config();
-        let actor_man_config = actor_man_config(1);
+        let actor_man_config = actor_man_config();
         let async_trainer_config = async_trainer_config();
+        let agent_configs = vec![agent_config.clone(); 2];
 
         let mut recorder = BufferedRecorder::new();
 
@@ -129,7 +137,7 @@ mod test {
 
         let mut actors = ActorManager_::build(
             &actor_man_config,
-            &agent_config,
+            &agent_configs,
             &env_config,
             &step_proc_config,
             item_s,
@@ -147,7 +155,6 @@ mod test {
         actors.run(guard_init_env.clone());
         trainer.train(&mut recorder, guard_init_env);
 
-        actors.stop();
-        actors.join();
+        actors.stop_and_join();
     }
 }

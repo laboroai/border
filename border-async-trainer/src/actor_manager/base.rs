@@ -21,11 +21,8 @@ where
     P: StepProcessorBase<E>,
     R: ReplayBufferBase<PushedItem = P::Output>,
 {
-    /// The number of [Actor]s.
-    n_actors: usize,
-
-    /// Configuration of [Agent].
-    agent_config: A::Config,
+    /// Configurations of [Agent]s.
+    agent_configs: Vec<A::Config>,
 
     /// Configuration of [Env].
     env_config: E::Config,
@@ -76,15 +73,14 @@ where
     /// Builds a [ActorManager].
     pub fn build(
         config: &ActorManagerConfig,
-        agent_config: &A::Config,
+        agent_configs: &Vec<A::Config>,
         env_config: &E::Config,
         step_proc_config: &P::Config,
         pushed_item_message_sender: Sender<PushedItemMessage<R::PushedItem>>,
         model_info_receiver: Receiver<(usize, A::ModelInfo)>,
     ) -> Self {
         Self {
-            n_actors: config.n_actors,
-            agent_config: agent_config.clone(),
+            agent_configs: agent_configs.clone(),
             env_config: env_config.clone(),
             step_proc_config: step_proc_config.clone(),
             samples_per_push: config.samples_per_push,
@@ -105,7 +101,7 @@ where
     pub fn run(&mut self, guard_init_env: Arc<Mutex<bool>>) {
         // Dummy model info
         self.model_info = {
-            let agent = A::build(self.agent_config.clone());
+            let agent = A::build(self.agent_configs[0].clone());
             Some(Arc::new(Mutex::new(agent.model_info())))
         };
 
@@ -126,34 +122,37 @@ where
         self.batch_message_receiver = Some(r.clone());
 
         // Runs sampling processes
-        (0..self.n_actors).for_each(|id| {
-            let sender = s.clone();
-            let replay_buffer_proxy_config = ReplayBufferProxyConfig {};
-            let agent_config = self.agent_config.clone();
-            let env_config = self.env_config.clone();
-            let step_proc_config = self.step_proc_config.clone();
-            let samples_per_push = self.samples_per_push;
-            let stop = self.stop.clone();
-            let seed = id;
-            let guard = guard_init_env.clone();
-            let model_info = self.model_info.as_ref().unwrap().clone();
+        self.agent_configs
+            .clone()
+            .into_iter()
+            .enumerate()
+            .for_each(|(id, agent_config)| {
+                let sender = s.clone();
+                let replay_buffer_proxy_config = ReplayBufferProxyConfig {};
+                let env_config = self.env_config.clone();
+                let step_proc_config = self.step_proc_config.clone();
+                let samples_per_push = self.samples_per_push;
+                let stop = self.stop.clone();
+                let seed = id;
+                let guard = guard_init_env.clone();
+                let model_info = self.model_info.as_ref().unwrap().clone();
 
-            // Spawn actor thread
-            let handle = std::thread::spawn(move || {
-                Actor::<A, E, P, R>::build(
-                    id,
-                    agent_config,
-                    env_config,
-                    step_proc_config,
-                    replay_buffer_proxy_config,
-                    samples_per_push,
-                    stop,
-                    seed as i64,
-                )
-                .run(sender, guard, model_info);
+                // Spawn actor thread
+                let handle = std::thread::spawn(move || {
+                    Actor::<A, E, P, R>::build(
+                        id,
+                        agent_config,
+                        env_config,
+                        step_proc_config,
+                        replay_buffer_proxy_config,
+                        samples_per_push,
+                        stop,
+                        seed as i64,
+                    )
+                    .run(sender, guard, model_info);
+                });
+                self.threads.push(handle);
             });
-            self.threads.push(handle);
-        });
 
         // Thread for handling incoming samples
         {
@@ -177,6 +176,12 @@ where
     pub fn stop(&self) {
         let mut stop = self.stop.lock().unwrap();
         *stop = true;
+    }
+
+    /// Stops and joins actors.
+    pub fn stop_and_join(self) {
+        self.stop();
+        self.join();
     }
 
     /// Loop waiting [PushedItemMessage] from [Actor]s.

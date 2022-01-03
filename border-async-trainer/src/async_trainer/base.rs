@@ -141,6 +141,7 @@ where
             *max_eval_reward = eval_reward;
             let model_dir = self.model_dir.as_ref().unwrap().clone() + "/best";
             Self::save_model(agent, model_dir);
+            info!("Saved the best model");
         }
     }
 
