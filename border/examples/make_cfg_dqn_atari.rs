@@ -1,18 +1,26 @@
 mod util_dqn_atari;
 use anyhow::Result;
-use border_core::{replay_buffer::{SimpleReplayBufferConfig, PerConfig}, TrainerConfig};
+use border_async_trainer::AsyncTrainerConfig;
+use border_core::{
+    replay_buffer::{PerConfig, SimpleReplayBufferConfig},
+    TrainerConfig,
+};
 use border_tch_agent::{
     cnn::{CNNConfig, CNN},
     dqn::{DQNConfig, DQNModelConfig}, //, EpsilonGreedy, DQNExplorer},
     opt::OptimizerConfig,
 };
 use std::{default::Default, path::Path};
-use util_dqn_atari::{Params, model_dir};
+use util_dqn_atari::{model_dir, model_dir_async, Params};
 
 fn make_dqn_config(params: &Params) -> DQNConfig<CNN> {
     let n_stack = 4;
     let out_dim = 0; // Set before training/evaluation
-    let lr = if params.per { params.lr / 4.0 } else { params.lr };
+    let lr = if params.per {
+        params.lr / 4.0
+    } else {
+        params.lr
+    };
     let clip_td_err = if params.per { Some((-1.0, 1.0)) } else { None };
 
     let model_config = DQNModelConfig::default()
@@ -34,8 +42,7 @@ fn make_dqn_config(params: &Params) -> DQNConfig<CNN> {
 }
 
 fn make_replay_buffer_config(params: &Params) -> SimpleReplayBufferConfig {
-    let mut config = SimpleReplayBufferConfig::default()
-        .capacity(params.replay_buffer_capacity);
+    let mut config = SimpleReplayBufferConfig::default().capacity(params.replay_buffer_capacity);
 
     if params.per {
         config = config.per_config(Some(PerConfig::default().n_opts_final(200_000_000)));
@@ -63,12 +70,53 @@ fn make_trainer_config(env_name: String, params: &Params) -> Result<TrainerConfi
         .save_interval(params.save_interval))
 }
 
+fn make_async_trainer_config(env_name: String, params: &Params) -> Result<AsyncTrainerConfig> {
+    let model_dir = model_dir(env_name, params)? + "_async/";
+
+    let (max_opts, record_interval) = if !params.debug {
+        (params.max_opts, params.record_interval)
+    } else {
+        (1000, 100)
+    };
+
+    Ok(AsyncTrainerConfig {
+        model_dir: Some(model_dir),
+        record_interval,
+        eval_interval: params.eval_interval,
+        max_train_steps: max_opts,
+        save_interval: params.save_interval,
+        sync_interval: 100,
+        eval_episodes: params.eval_episodes,
+    })
+}
+
 fn make_cfg(env_name: impl Into<String> + Clone, params: &Params) -> Result<()> {
     let agent_config = make_dqn_config(params);
     let replay_buffer_config = make_replay_buffer_config(params);
     let trainer_config = make_trainer_config(env_name.clone().into(), params)?;
 
     let model_dir = model_dir(env_name.into(), params)?;
+    let agent_path = Path::new(&model_dir).join("agent.yaml");
+    let replay_buffer_path = Path::new(&model_dir).join("replay_buffer.yaml");
+    let trainer_path = Path::new(&model_dir).join("trainer.yaml");
+
+    agent_config.save(&agent_path)?;
+    replay_buffer_config.save(&replay_buffer_path)?;
+    trainer_config.save(&trainer_path)?;
+
+    println!("{:?}", agent_path);
+    println!("{:?}", replay_buffer_path);
+    println!("{:?}", trainer_path);
+
+    Ok(())
+}
+
+fn make_cfg_async(env_name: impl Into<String> + Clone, params: &Params) -> Result<()> {
+    let agent_config = make_dqn_config(params);
+    let replay_buffer_config = make_replay_buffer_config(params);
+    let trainer_config = make_async_trainer_config(env_name.clone().into(), params)?;
+
+    let model_dir = model_dir_async(env_name.into(), params)?;
     let agent_path = Path::new(&model_dir).join("agent.yaml");
     let replay_buffer_path = Path::new(&model_dir).join("replay_buffer.yaml");
     let trainer_path = Path::new(&model_dir).join("trainer.yaml");
@@ -91,6 +139,7 @@ fn main() -> Result<()> {
     make_cfg("PongNoFrameskip-v4", &params)?;
     make_cfg("PongNoFrameskip-v4", &params.clone().debug())?;
     make_cfg("pong", &params.clone().ddqn().per())?;
+    make_cfg_async("pong", &params)?;
 
     // Hero
     let params = Params::default()

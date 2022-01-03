@@ -1,0 +1,8 @@
+---
+model_dir: "./border/examples/model/dqn_pong_async/"
+record_interval: 50000
+eval_interval: 50000
+max_train_steps: 3000000
+save_interval: 500000
+sync_interval: 100
+eval_episodes: 1
