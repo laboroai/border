@@ -21,7 +21,7 @@ use border_tch_agent::{
 };
 use clap::{App, Arg, ArgMatches};
 use std::{sync::{Arc, Mutex}, default::Default};
-use util_dqn_atari::{model_dir as model_dir_, Params};
+use util_dqn_atari::{model_dir_async as model_dir_async_, Params};
 use crossbeam_channel::unbounded;
 
 type ObsDtype = u8;
@@ -120,15 +120,17 @@ fn init<'a>() -> ArgMatches<'a> {
 fn show_config(
     env_config: &EnvConfig,
     agent_config: &DQNConfig<CNN>,
+    actor_man_config: &ActorManagerConfig,
     trainer_config: &AsyncTrainerConfig,
 ) {
     println!("Device: {:?}", tch::Device::cuda_if_available());
     println!("{}", serde_yaml::to_string(&env_config).unwrap());
     println!("{}", serde_yaml::to_string(&agent_config).unwrap());
+    println!("{}", serde_yaml::to_string(&actor_man_config).unwrap());
     println!("{}", serde_yaml::to_string(&trainer_config).unwrap());
 }
 
-fn model_dir(matches: &ArgMatches) -> Result<String> {
+fn model_dir_async(matches: &ArgMatches) -> Result<String> {
     let name = matches
         .value_of("name")
         .expect("The name of the environment was not given")
@@ -147,9 +149,9 @@ fn model_dir(matches: &ArgMatches) -> Result<String> {
         params = params.debug();
     }
 
-    let model_dir = model_dir_(name, &params)?;
+    let model_dir = model_dir_async_(name, &params)?;
 
-    Ok(model_dir + "_async")
+    Ok(model_dir)
 }
 
 fn n_actions(env_config: &EnvConfig) -> Result<usize> {
@@ -163,8 +165,7 @@ fn load_dqn_config<'a>(model_dir: impl Into<&'a str>) -> Result<DQNConfig<CNN>> 
 
 fn load_async_trainer_config<'a>(model_dir: impl Into<&'a str>) -> Result<AsyncTrainerConfig> {
     let config_path = format!("{}/trainer.yaml", model_dir.into());
-    // TrainerConfig::load(config_path)
-    unimplemented!();
+    AsyncTrainerConfig::load(config_path)
 }
 
 fn load_replay_buffer_config<'a>(
@@ -176,13 +177,14 @@ fn load_replay_buffer_config<'a>(
 
 fn train(matches: ArgMatches) -> Result<()> {
     let name = matches.value_of("name").unwrap();
-    let model_dir = model_dir(&matches)?;
+    let model_dir = model_dir_async(&matches)?;
     let env_config_train = env_config(name);
     let n_actions = n_actions(&env_config_train)?;
 
     // Configurations
-    let agent_config = load_dqn_config(model_dir.as_str())?.out_dim(n_actions as _);
-    let agent_configs = vec![agent_config.clone(); 4];
+    let agent_config = load_dqn_config(model_dir.as_str())?.out_dim(n_actions as _)
+        .device(tch::Device::cuda_if_available());
+    let agent_configs = vec![agent_config.clone().device(tch::Device::Cpu); 4];
     let env_config_eval = env_config(name).eval();
     let replay_buffer_config = load_replay_buffer_config(model_dir.as_str())?;
     let step_proc_config = SimpleStepProcessorConfig::default();
@@ -193,7 +195,7 @@ fn train(matches: ArgMatches) -> Result<()> {
         show_config(
             &env_config_train,
             &agent_config,
-            // &actor_man_config,
+            &actor_man_config,
             &async_trainer_config,
         );
     } else {

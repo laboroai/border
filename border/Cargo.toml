@@ -92,6 +92,7 @@ required-features = ["tch"]
 
 [[example]]
 name = "make_cfg_dqn_atari"
+required-features = ["border-async-trainer"]
 
 [dev-dependencies]
 clap = "2.33.3"

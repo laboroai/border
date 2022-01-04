@@ -111,6 +111,7 @@ impl<'a> Params<'a> {
     }
 }
 
+#[allow(dead_code)]
 pub fn model_dir(env_name: String, params: &Params) -> Result<String> {
     let per = params.per;
     let ddqn = params.double_dqn;
@@ -136,6 +137,7 @@ pub fn model_dir(env_name: String, params: &Params) -> Result<String> {
     Ok(model_dir)
 }
 
+#[allow(dead_code)]
 pub fn model_dir_async(env_name: String, params: &Params) -> Result<String> {
     let per = params.per;
     let ddqn = params.double_dqn;
