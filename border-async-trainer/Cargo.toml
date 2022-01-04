@@ -20,6 +20,7 @@ log = "0.4"
 tokio = { version = "1.14.0", features = ["full"] }
 async-trait = "0.1.51"
 crossbeam-channel = "0.5.1"
+serde_yaml = "0.8.7"
 
 # [[example]]
 # name = "random_pong"

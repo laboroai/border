@@ -1,4 +1,10 @@
 use serde::{Deserialize, Serialize};
+use anyhow::Result;
+use std::{
+    fs::File,
+    io::{BufReader, Write},
+    path::Path,
+};
 
 /// Configuration of [AsyncTrainer](crate::AsyncTrainer)
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -23,4 +29,21 @@ pub struct AsyncTrainerConfig {
 
     /// The number of episodes for evaluation
     pub eval_episodes: usize,
+}
+
+impl AsyncTrainerConfig {
+    /// Constructs [TrainerConfig] from YAML file.
+    pub fn load(path: impl AsRef<Path>) -> Result<Self> {
+        let file = File::open(path)?;
+        let rdr = BufReader::new(file);
+        let b = serde_yaml::from_reader(rdr)?;
+        Ok(b)
+    }
+
+    /// Saves [TrainerConfig].
+    pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
+        let mut file = File::create(path)?;
+        file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;
+        Ok(())
+    }
 }
