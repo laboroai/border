@@ -129,7 +129,7 @@ where
             .enumerate()
             .for_each(|(id, agent_config)| {
                 let sender = s.clone();
-                let replay_buffer_proxy_config = ReplayBufferProxyConfig {};
+                let replay_buffer_proxy_config = ReplayBufferProxyConfig { n_buffer: 1 };
                 let env_config = self.env_config.clone();
                 let step_proc_config = self.step_proc_config.clone();
                 let samples_per_push = self.samples_per_push;

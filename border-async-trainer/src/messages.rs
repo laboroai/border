@@ -6,5 +6,5 @@ pub struct PushedItemMessage<T> {
     pub id: usize,
 
     /// A batch.
-    pub pushed_item: T,
+    pub pushed_items: Vec<T>,
 }

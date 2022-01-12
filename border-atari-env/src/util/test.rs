@@ -44,6 +44,7 @@ impl SubBatch for ObsBatch {
         }
     }
 
+    #[inline]
     fn push(&mut self, i: usize, data: &Self) {
         unsafe {
             let src: *const u8 = &data.buf[0];
@@ -98,6 +99,7 @@ impl SubBatch for ActBatch {
         }
     }
 
+    #[inline]
     fn push(&mut self, i: usize, data: &Self) {
         unsafe {
             let src: *const u8 = &data.buf[0];

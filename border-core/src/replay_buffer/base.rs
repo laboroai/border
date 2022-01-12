@@ -50,6 +50,7 @@ where
     O: SubBatch,
     A: SubBatch,
 {
+    #[inline]
     fn push_reward(&mut self, i: usize, b: &Vec<f32>) {
         let mut j = i;
         for r in b.iter() {
@@ -61,6 +62,7 @@ where
         }
     }
 
+    #[inline]
     fn push_is_done(&mut self, i: usize, b: &Vec<i8>) {
         let mut j = i;
         for d in b.iter() {

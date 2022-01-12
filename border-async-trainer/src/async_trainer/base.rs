@@ -237,9 +237,12 @@ where
         loop {
             // Update replay buffer
             let msgs: Vec<_> = self.r_bulk_pushed_item.try_iter().collect();
-            samples += msgs.len();
-            msgs.into_iter()
-                .for_each(|msg| buffer.push(msg.pushed_item));
+            msgs.into_iter().for_each(|msg| {
+                samples += msg.pushed_items.len();
+                msg.pushed_items
+                    .into_iter()
+                    .for_each(|pushed_item| buffer.push(pushed_item))
+            });
 
             let record = agent.opt(&mut buffer);
             // let record = {
