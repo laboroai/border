@@ -62,7 +62,7 @@ impl<R: ReplayBufferBase> ReplayBufferBase for ReplayBufferProxy<R> {
                 id: self.id,
                 pushed_items: buffer,
             };
-            self.sender.send(msg).unwrap();
+            self.sender.try_send(msg).unwrap();
         }
     }
 

@@ -1,6 +1,6 @@
 use crate::{Actor, ActorManagerConfig, PushedItemMessage, ReplayBufferProxyConfig, SyncModel};
 use border_core::{Agent, Env, ReplayBufferBase, StepProcessorBase};
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use crossbeam_channel::{bounded, /*unbounded,*/ Receiver, Sender};
 use log::info;
 use std::{
     marker::PhantomData,
@@ -119,7 +119,8 @@ where
         }
 
         // Create channel for [BatchMessage]
-        let (s, r) = unbounded();
+        // let (s, r) = unbounded();
+        let (s, r) = bounded(1000);
         self.batch_message_receiver = Some(r.clone());
 
         // Runs sampling processes
@@ -200,7 +201,7 @@ where
             // TODO: stats
             let msg = receiver.recv().unwrap();
             _n_samples += 1;
-            sender.send(msg).unwrap();
+            sender.try_send(msg).unwrap();
             // println!("{:?}", (_msg.id, n_samples));
 
             // Stop the loop
