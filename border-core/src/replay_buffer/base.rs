@@ -4,8 +4,9 @@ mod sum_tree;
 use super::{config::PerConfig, Batch, SimpleReplayBufferConfig, SubBatch};
 use crate::{Batch as BatchBase, ReplayBufferBase};
 // use fastrand::Rng;
-use rand::{SeedableRng, RngCore, rngs::StdRng};
+use anyhow::Result;
 use iw_scheduler::IwScheduler;
+use rand::{rngs::StdRng, RngCore, SeedableRng};
 use sum_tree::SumTree;
 pub use sum_tree::WeightNormalizer;
 
@@ -160,7 +161,7 @@ where
         })
     }
 
-    fn push(&mut self, tr: Self::PushedItem) {
+    fn push(&mut self, tr: Self::PushedItem) -> Result<()> {
         let len = tr.len(); // batch size
         let (obs, act, next_obs, reward, is_done, _, _) = tr.unpack();
         self.obs.push(self.i, &obs);
@@ -178,6 +179,8 @@ where
         if self.size >= self.capacity {
             self.size = self.capacity;
         }
+
+        Ok(())
     }
 
     fn update_priority(&mut self, ixs: &Option<Vec<usize>>, td_errs: &Option<Vec<f32>>) {

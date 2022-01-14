@@ -1,5 +1,6 @@
 use crate::PushedItemMessage;
-use border_core::{ReplayBufferBase};
+use anyhow::Result;
+use border_core::ReplayBufferBase;
 use crossbeam_channel::Sender;
 use std::marker::PhantomData;
 
@@ -7,7 +8,7 @@ use std::marker::PhantomData;
 #[derive(Clone, Debug)]
 pub struct ReplayBufferProxyConfig {
     /// Number of samples buffered until sent to the trainer.
-    pub n_buffer: usize
+    pub n_buffer: usize,
 }
 
 /// A wrapper of replay buffer for asynchronous trainer.
@@ -52,7 +53,7 @@ impl<R: ReplayBufferBase> ReplayBufferBase for ReplayBufferProxy<R> {
         unimplemented!();
     }
 
-    fn push(&mut self, tr: Self::PushedItem) {
+    fn push(&mut self, tr: Self::PushedItem) -> Result<()> {
         self.buffer.push(tr);
         if self.buffer.len() == self.n_buffer {
             let mut buffer = Vec::with_capacity(self.n_buffer);
@@ -62,8 +63,16 @@ impl<R: ReplayBufferBase> ReplayBufferBase for ReplayBufferProxy<R> {
                 id: self.id,
                 pushed_items: buffer,
             };
-            self.sender.try_send(msg).unwrap();
+
+            match self.sender.try_send(msg) {
+                Ok(()) => {}
+                Err(_e) => {
+                    return Err(crate::BorderAsyncTrainerError::SendMsgForPush)?;
+                }
+            }
         }
+
+        Ok(())
     }
 
     fn len(&self) -> usize {

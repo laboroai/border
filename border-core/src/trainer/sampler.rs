@@ -60,7 +60,7 @@ where
 
         // Create and push transition(s)
         let transition = self.producer.process(step);
-        buffer.push(transition);
+        buffer.push(transition)?;
 
         // For counting FPS
         if let Ok(time) = now.elapsed() {

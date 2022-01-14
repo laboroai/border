@@ -241,7 +241,7 @@ where
                 samples += msg.pushed_items.len();
                 msg.pushed_items
                     .into_iter()
-                    .for_each(|pushed_item| buffer.push(pushed_item))
+                    .for_each(|pushed_item| buffer.push(pushed_item).unwrap())
             });
 
             let record = agent.opt(&mut buffer);

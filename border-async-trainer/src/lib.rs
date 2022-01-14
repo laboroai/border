@@ -24,12 +24,14 @@ mod async_trainer;
 mod messages;
 mod replay_buffer_proxy;
 mod sync_model;
+mod error;
 pub use actor::Actor;
 pub use actor_manager::{ActorManager, ActorManagerConfig};
 pub use async_trainer::{AsyncTrainer, AsyncTrainerConfig};
 pub use messages::PushedItemMessage;
 pub use replay_buffer_proxy::{ReplayBufferProxy, ReplayBufferProxyConfig};
 pub use sync_model::SyncModel;
+pub use error::BorderAsyncTrainerError;
 
 #[cfg(test)]
 mod test {
