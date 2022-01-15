@@ -17,17 +17,17 @@ cargo run --example random_ant
 ### DQN
 
 ```bash
-cargo run --example dqn_cartpole
+cargo run --example dqn_cartpole --features="tch"
 ```
 
 ### SAC
 
 ```bash
-cargo run --example sac_pendulum
+cargo run --example sac_pendulum --features="tch"
 ```
 
 ```bash
-cargo run --example sac_lunarlander_cont
+cargo run --example sac_lunarlander_cont --features="tch"
 ```
 
 ## Atari

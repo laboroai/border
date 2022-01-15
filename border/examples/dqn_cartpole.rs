@@ -5,7 +5,7 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig, SubBatch,
     },
-    shape, util, Agent, Env as _, Trainer, TrainerConfig,
+    shape, util, Agent, Env as _, Policy, Trainer, TrainerConfig,
 };
 use border_py_gym_env::{
     PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter,
@@ -213,9 +213,10 @@ fn create_agent(in_dim: i64, out_dim: i64) -> DQN<Env, MLP, ReplayBuffer> {
             .discount_factor(DISCOUNT_FACTOR)
             .tau(TAU)
             .model_config(model_config)
+            .device(device)
     };
 
-    DQN::build(config, device)
+    DQN::build(config)
 }
 
 fn env_config() -> PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
@@ -246,6 +247,7 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
         let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
             config,
             env_config,
+            None,
             step_proc_config,
             replay_buffer_config,
         );

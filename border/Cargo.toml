@@ -34,9 +34,9 @@ required-features = ["tch"]
 # [[example]]
 # name = "iqn_cartpole"
 
-# [[example]]
-# name = "sac_pendulum"
-# test = true
+[[example]]
+name = "sac_pendulum"
+test = true
 
 # [[example]]
 # name = "quantile_loss"

@@ -5,18 +5,18 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    shape, util, Agent, Env as _, Trainer, TrainerConfig,
+    shape, util, Agent, Env as _, Policy, Trainer, TrainerConfig,
 };
 use border_derive::{Act, Obs, SubBatch};
 use border_py_gym_env::{
-    PyGymEnv, PyGymEnvObsFilter, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvContinuousAct,
-    PyGymEnvContinuousActRawFilter, PyGymEnvObs, PyGymEnvObsRawFilter,
+    PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvContinuousAct,
+    PyGymEnvContinuousActRawFilter, PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
 };
 use border_tch_agent::{
+    mlp::{MLPConfig, MLP, MLP2},
     opt::OptimizerConfig,
-    sac::{SACConfig, ActorConfig, CriticConfig, SAC},
-    mlp::{MLP, MLP2, MLPConfig},
-    TensorSubBatch
+    sac::{ActorConfig, CriticConfig, SACConfig, SAC},
+    TensorSubBatch,
 };
 use clap::{App, Arg};
 use csv::WriterBuilder;
@@ -99,18 +99,19 @@ impl TryFrom<&Record> for LunarlanderRecord {
 fn create_agent(in_dim: i64, out_dim: i64) -> SAC<Env, MLP, MLP2, ReplayBuffer> {
     let device = tch::Device::cuda_if_available();
     let actor_config = ActorConfig::default()
-        .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR } )
+        .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
         .out_dim(out_dim)
         .pi_config(MLPConfig::new(in_dim, vec![64, 64], out_dim));
     let critic_config = CriticConfig::default()
-        .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC } )
+        .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
         .q_config(MLPConfig::new(in_dim + out_dim, vec![64, 64], 1));
     let sac_config = SACConfig::default()
         .batch_size(BATCH_SIZE)
         .min_transitions_warmup(N_TRANSITIONS_WARMUP)
         .actor_config(actor_config)
-        .critic_config(critic_config);
-    SAC::build(sac_config, device).unwrap()
+        .critic_config(critic_config)
+        .device(device);
+    SAC::build(sac_config)
 }
 
 fn env_config() -> PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
@@ -137,6 +138,7 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
         let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
             config,
             env_config,
+            None,
             step_proc_config,
             replay_buffer_config,
         );
@@ -198,7 +200,7 @@ fn main() -> Result<()> {
         train(MAX_OPTS, MODEL_DIR)?;
     }
 
-    let model_dir = if matches.is_present("model directory") {
+    let model_dir = if !matches.is_present("model directory") {
         format!("{}{}", MODEL_DIR, "/best")
     } else {
         matches.value_of("model directory").unwrap().to_string()

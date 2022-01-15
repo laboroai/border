@@ -207,7 +207,7 @@ fn train(matches: ArgMatches) -> Result<()> {
     let n_actions = n_actions(&env_config_train)?;
 
     // Configurations
-    let mut agent_config = load_dqn_config(model_dir.as_str())?.out_dim(n_actions as _)
+    let agent_config = load_dqn_config(model_dir.as_str())?.out_dim(n_actions as _)
         .device(tch::Device::cuda_if_available());
     let trainer_config = load_trainer_config(model_dir.as_str())?;
     let replay_buffer_config = load_replay_buffer_config(model_dir.as_str())?;
