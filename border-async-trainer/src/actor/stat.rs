@@ -12,7 +12,7 @@ pub struct ActorStat {
 
 /// Returns a formatted string of the set of [ActorStat] for reporting.
 pub fn actor_stats_fmt(stats: &Vec<ActorStat>) -> String {
-    let mut s = "actor id, samples, duration [sec], samples per sec\n".to_string();
+    let mut s = "actor_id, samples, samples/sec, duration\n".to_string();
     for (i, stat) in stats.iter().enumerate() {
         let n = stat.env_steps;
         let d = stat.duration.as_secs_f32();

@@ -27,7 +27,7 @@ mod sync_model;
 mod error;
 pub use actor::{Actor, ActorStat, actor_stats_fmt};
 pub use actor_manager::{ActorManager, ActorManagerConfig};
-pub use async_trainer::{AsyncTrainer, AsyncTrainerConfig};
+pub use async_trainer::{AsyncTrainer, AsyncTrainerConfig, AsyncTrainStat};
 pub use messages::PushedItemMessage;
 pub use replay_buffer_proxy::{ReplayBufferProxy, ReplayBufferProxyConfig};
 pub use sync_model::SyncModel;

@@ -1,4 +1,4 @@
-use crate::{AsyncTrainerConfig, PushedItemMessage, SyncModel};
+use crate::{AsyncTrainerConfig, PushedItemMessage, SyncModel, AsyncTrainStat};
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue::Scalar, Recorder},
@@ -210,7 +210,7 @@ where
     // }
 
     /// Runs training loop.
-    pub fn train(&mut self, recorder: &mut impl Recorder, guard_init_env: Arc<Mutex<bool>>) {
+    pub fn train(&mut self, recorder: &mut impl Recorder, guard_init_env: Arc<Mutex<bool>>) -> AsyncTrainStat {
         // TODO: error handling
         let mut env = {
             let mut tmp = guard_init_env.lock().unwrap();
@@ -228,6 +228,8 @@ where
         let mut opt_steps = 0;
         let mut opt_steps_ = 0;
         let mut samples = 0;
+        let time_total = SystemTime::now();
+        let mut samples_total = 0;
         let mut time = SystemTime::now();
 
         info!("Send model info first in AsyncTrainer");
@@ -239,16 +241,13 @@ where
             let msgs: Vec<_> = self.r_bulk_pushed_item.try_iter().collect();
             msgs.into_iter().for_each(|msg| {
                 samples += msg.pushed_items.len();
+                samples_total += msg.pushed_items.len();
                 msg.pushed_items
                     .into_iter()
                     .for_each(|pushed_item| buffer.push(pushed_item).unwrap())
             });
 
             let record = agent.opt(&mut buffer);
-            // let record = {
-            //     let mut buffer = buffer.lock().unwrap();
-            //     agent.opt(&mut buffer)
-            // };
 
             if let Some(mut record) = record {
                 opt_steps += 1;
@@ -290,5 +289,15 @@ where
             }
         }
         info!("Stopped training loop");
+
+        let duration = time_total.elapsed().unwrap();
+        let time_total = duration.as_secs_f32();
+        let samples_per_sec = samples_total as f32 / time_total;
+        let opt_per_sec = self.max_train_steps as f32 / time_total;
+        AsyncTrainStat {
+            samples_per_sec,
+            duration,
+            opt_per_sec,
+        }
     }
 }

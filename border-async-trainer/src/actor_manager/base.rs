@@ -104,7 +104,7 @@ where
 
     /// Runs threads for [Actor]s and a thread for sending samples into the replay buffer.
     ///
-    /// A thread will wait for [SyncModel::ModelInfo] from [AsyncTrainer](crate::AsyncTrainer),
+    /// A thread will wait for the initial [SyncModel::ModelInfo] from [AsyncTrainer](crate::AsyncTrainer),
     /// which blocks execution of [Actor] threads.
     pub fn run(&mut self, guard_init_env: Arc<Mutex<bool>>) {
         // Dummy model info
