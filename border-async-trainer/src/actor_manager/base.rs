@@ -1,4 +1,7 @@
-use crate::{Actor, ActorManagerConfig, PushedItemMessage, ReplayBufferProxyConfig, SyncModel};
+use crate::{
+    Actor, ActorManagerConfig, ActorStat, PushedItemMessage, ReplayBufferProxyConfig,
+    SyncModel,
+};
 use border_core::{Agent, Env, ReplayBufferBase, StepProcessorBase};
 use crossbeam_channel::{bounded, /*unbounded,*/ Receiver, Sender};
 use log::info;
@@ -55,6 +58,9 @@ where
     /// Receives incoming model info from [AsyncTrainer](crate::AsyncTrainer).
     model_info_receiver: Receiver<(usize, A::ModelInfo)>,
 
+    /// Stats of [Actor]s, shared with actor threads.
+    actor_stats: Vec<Arc<Mutex<Option<ActorStat>>>>,
+
     phantom: PhantomData<R>,
 }
 
@@ -91,6 +97,7 @@ where
             pushed_item_message_sender,
             model_info: None,
             model_info_receiver,
+            actor_stats: vec![],
             phantom: PhantomData,
         }
     }
@@ -138,6 +145,8 @@ where
                 let seed = id;
                 let guard = guard_init_env.clone();
                 let model_info = self.model_info.as_ref().unwrap().clone();
+                let stats = Arc::new(Mutex::new(None));
+                self.actor_stats.push(stats.clone());
 
                 // Spawn actor thread
                 let handle = std::thread::spawn(move || {
@@ -150,6 +159,7 @@ where
                         samples_per_push,
                         stop,
                         seed as i64,
+                        stats,
                     )
                     .run(sender, guard, model_info);
                 });
@@ -168,10 +178,14 @@ where
     }
 
     /// Waits until all actors finish.
-    pub fn join(self) {
+    pub fn join(self) -> Vec<ActorStat> {
         for h in self.threads {
             h.join().unwrap();
         }
+
+        self.actor_stats.iter().map(|e| {
+            e.lock().unwrap().clone().unwrap()
+        }).collect::<Vec<_>>()
     }
 
     /// Stops actor threads.
@@ -181,9 +195,9 @@ where
     }
 
     /// Stops and joins actors.
-    pub fn stop_and_join(self) {
+    pub fn stop_and_join(self) -> Vec<ActorStat> {
         self.stop();
-        self.join();
+        self.join()
     }
 
     /// Loop waiting [PushedItemMessage] from [Actor]s.

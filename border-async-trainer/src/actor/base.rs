@@ -1,4 +1,4 @@
-use crate::{PushedItemMessage, ReplayBufferProxy, ReplayBufferProxyConfig, SyncModel};
+use crate::{ActorStat, PushedItemMessage, ReplayBufferProxy, ReplayBufferProxyConfig, SyncModel};
 use border_core::{Agent, Env, ReplayBufferBase, StepProcessorBase, SyncSampler};
 use crossbeam_channel::Sender;
 use log::info;
@@ -28,6 +28,7 @@ where
     #[allow(dead_code)] // TODO: remove this
     samples_per_push: usize,
     env_seed: i64,
+    stats: Arc<Mutex<Option<ActorStat>>>,
     phantom: PhantomData<(A, E, P, R)>,
 }
 
@@ -47,6 +48,7 @@ where
         samples_per_push: usize,
         stop: Arc<Mutex<bool>>,
         env_seed: i64,
+        stats: Arc<Mutex<Option<ActorStat>>>,
     ) -> Self {
         Self {
             id,
@@ -57,6 +59,7 @@ where
             replay_buffer_config: replay_buffer_config.clone(),
             samples_per_push,
             env_seed,
+            stats,
             phantom: PhantomData,
         }
     }
@@ -85,7 +88,8 @@ where
     }
 
     /// Runs sampling loop until `self.stop` becomes `true`.
-    #[allow(unused_variables, unused_mut)] // TODO: remove this
+    ///
+    /// When finishes, this method sets [ActorStat].
     pub fn run(
         &mut self,
         sender: Sender<PushedItemMessage<R::PushedItem>>,
@@ -96,15 +100,17 @@ where
         let mut buffer =
             ReplayBufferProxy::<R>::build_with_sender(self.id, &self.replay_buffer_config, sender);
         let mut sampler = {
-            let tmp = guard.lock().unwrap();
-            let mut env = E::build(&self.env_config, self.env_seed).unwrap();
-            let mut step_proc = P::build(&self.step_proc_config);
+            let mut tmp = guard.lock().unwrap();
+            let env = E::build(&self.env_config, self.env_seed).unwrap();
+            let step_proc = P::build(&self.step_proc_config);
+            *tmp = true;
             SyncSampler::new(env, step_proc)
         };
         info!("Starts actor {:?}", self.id);
 
-        let mut env_step = 0;
+        let mut env_steps = 0;
         let mut n_opt_steps = 0;
+        let time = std::time::SystemTime::now();
 
         // Synchronize model
         Self::sync_model_first(&mut agent, &model_info, self.id);
@@ -116,9 +122,16 @@ where
 
             // TODO: error handling
             let _record = sampler.sample_and_push(&mut agent, &mut buffer).unwrap();
+            env_steps += 1;
 
-            // Stop the sampling loop
+            // Stop sampling loop
             if *self.stop.lock().unwrap() {
+                *self.stats.lock().unwrap() = Some(
+                    ActorStat {
+                        env_steps,
+                        duration: time.elapsed().unwrap(),
+                    }
+                );
                 break;
             }
         }

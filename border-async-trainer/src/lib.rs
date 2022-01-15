@@ -25,7 +25,7 @@ mod messages;
 mod replay_buffer_proxy;
 mod sync_model;
 mod error;
-pub use actor::Actor;
+pub use actor::{Actor, ActorStat, actor_stats_fmt};
 pub use actor_manager::{ActorManager, ActorManagerConfig};
 pub use async_trainer::{AsyncTrainer, AsyncTrainerConfig};
 pub use messages::PushedItemMessage;
