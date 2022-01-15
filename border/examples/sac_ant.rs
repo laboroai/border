@@ -6,7 +6,7 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    shape, util, Agent, Env as _, Trainer, TrainerConfig,
+    shape, util, Agent, Env as _, Policy, Trainer, TrainerConfig,
 };
 use border_derive::{Act, Obs, SubBatch};
 use border_py_gym_env::{
@@ -16,7 +16,7 @@ use border_py_gym_env::{
 use border_tch_agent::{
     mlp::{MLPConfig, MLP, MLP2},
     opt::OptimizerConfig,
-    sac::{ActorConfig, CriticConfig, SACConfig, SAC, EntCoefMode},
+    sac::{ActorConfig, CriticConfig, EntCoefMode, SACConfig, SAC},
     util::CriticLoss,
     TensorSubBatch,
 };
@@ -96,8 +96,9 @@ fn create_agent(in_dim: i64, out_dim: i64) -> SAC<Env, MLP, MLP2, ReplayBuffer> 
         .tau(TAU)
         .critic_loss(CRITIC_LOSS)
         .n_critics(N_CRITICS)
-        .ent_coef_mode(EntCoefMode::Auto(TARGET_ENTROPY, LR_ENT_COEF));
-    SAC::build(sac_config, device).unwrap()
+        .ent_coef_mode(EntCoefMode::Auto(TARGET_ENTROPY, LR_ENT_COEF))
+        .device(device);
+    SAC::build(sac_config)
 }
 
 fn env_config() -> PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter> {

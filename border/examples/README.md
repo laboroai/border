@@ -30,6 +30,28 @@ cargo run --example sac_pendulum --features="tch"
 cargo run --example sac_lunarlander_cont --features="tch"
 ```
 
+## PyBullet Env Ant-v0
+
+* Training
+
+  ```bash
+  cargo run --release --example sac_ant --features="tch"
+  ```
+
+* Evaluation
+
+  ```bash
+  cargo run --example sac_ant --features="tch" -- --play=$./border/examples/model/sac_ant
+  ```
+
+* Evaluation with a pretrained model, downloaded from google drive
+
+  ```bash
+  cargo run --example sac_ant --features="tch" -- --play-gdrive
+  ```
+
+  <img src="https://drive.google.com/uc?id=16TEKfby6twCP6PxYoSlBqzOPEwVk1o4Q" width="256">
+
 ## Atari
 
 ### DQN
@@ -62,26 +84,4 @@ cargo run --example sac_lunarlander_cont --features="tch"
 
   ```bash
   PYTHONPATH=./border/examples cargo run --example iqn_atari -- SeaquestNoFrameskip-v4 --play-gdrive
-  ```
-
-## PyBullet Env Ant-v0
-
-* Training
-
-  ```bash
-  $ cargo run --example sac_ant
-  ```
-
-  <img src="https://drive.google.com/uc?id=16TEKfby6twCP6PxYoSlBqzOPEwVk1o4Q" width="256">
-
-* Evaluation
-
-  ```bash
-  cargo run --example sac_ant -- --play=$./border/examples/model/sac_ant
-  ```
-
-* Evaluation with a pretrained model, downloaded from google drive
-
-  ```bash
-  cargo run --example sac_ant -- --play-gdrive
   ```
