@@ -1,6 +1,8 @@
 mod util_dqn_atari;
 use anyhow::Result;
-use border_async_trainer::{ActorManager, ActorManagerConfig, AsyncTrainer, AsyncTrainerConfig};
+use border_async_trainer::{
+    actor_stats_fmt, ActorManager, ActorManagerConfig, AsyncTrainer, AsyncTrainerConfig,
+};
 use border_atari_env::{
     BorderAtariAct, BorderAtariActRawFilter, BorderAtariEnv, BorderAtariEnvConfig, BorderAtariObs,
     BorderAtariObsRawFilter,
@@ -20,9 +22,12 @@ use border_tch_agent::{
     TensorSubBatch,
 };
 use clap::{App, Arg, ArgMatches};
-use std::{sync::{Arc, Mutex}, default::Default};
-use util_dqn_atari::{model_dir_async as model_dir_async_, Params};
 use crossbeam_channel::unbounded;
+use std::{
+    default::Default,
+    sync::{Arc, Mutex},
+};
+use util_dqn_atari::{model_dir_async as model_dir_async_, Params};
 
 type ObsDtype = u8;
 shape!(ObsShape, [4, 1, 84, 84]);
@@ -182,7 +187,8 @@ fn train(matches: ArgMatches) -> Result<()> {
     let n_actions = n_actions(&env_config_train)?;
 
     // Configurations
-    let agent_config = load_dqn_config(model_dir.as_str())?.out_dim(n_actions as _)
+    let agent_config = load_dqn_config(model_dir.as_str())?
+        .out_dim(n_actions as _)
         .device(tch::Device::cuda_if_available());
     let agent_configs = vec![agent_config.clone().device(tch::Device::Cpu); 4];
     let env_config_eval = env_config(name).eval();
@@ -233,9 +239,13 @@ fn train(matches: ArgMatches) -> Result<()> {
 
         // Starts sampling and training
         actors.run(guard_init_env.clone());
-        trainer.train(&mut recorder, guard_init_env);
+        let stats = trainer.train(&mut recorder, guard_init_env);
+        println!("Stats of async trainer");
+        println!("{}", stats.fmt());
 
-        actors.stop_and_join();
+        let stats = actors.stop_and_join();
+        println!("Stats of generated samples in actors");
+        println!("{}", actor_stats_fmt(&stats));
     }
 
     Ok(())

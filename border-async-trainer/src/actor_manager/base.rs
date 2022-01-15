@@ -1,6 +1,5 @@
 use crate::{
-    Actor, ActorManagerConfig, ActorStat, PushedItemMessage, ReplayBufferProxyConfig,
-    SyncModel,
+    Actor, ActorManagerConfig, ActorStat, PushedItemMessage, ReplayBufferProxyConfig, SyncModel,
 };
 use border_core::{Agent, Env, ReplayBufferBase, StepProcessorBase};
 use crossbeam_channel::{bounded, /*unbounded,*/ Receiver, Sender};
@@ -107,6 +106,9 @@ where
     /// A thread will wait for the initial [SyncModel::ModelInfo] from [AsyncTrainer](crate::AsyncTrainer),
     /// which blocks execution of [Actor] threads.
     pub fn run(&mut self, guard_init_env: Arc<Mutex<bool>>) {
+        // Guard for sync of the initial model
+        let guard_init_model = Arc::new(Mutex::new(true));
+
         // Dummy model info
         self.model_info = {
             let agent = A::build(self.agent_configs[0].clone());
@@ -118,8 +120,14 @@ where
             let stop = self.stop.clone();
             let model_info_receiver = self.model_info_receiver.clone();
             let model_info = self.model_info.as_ref().unwrap().clone();
+            let guard_init_model = guard_init_model.clone();
             let handle = std::thread::spawn(move || {
-                Self::run_model_info_loop(model_info_receiver, model_info, stop);
+                Self::run_model_info_loop(
+                    model_info_receiver,
+                    model_info,
+                    stop,
+                    guard_init_model,
+                );
             });
             self.threads.push(handle);
             info!("Starts thread for updating model info");
@@ -144,6 +152,7 @@ where
                 let stop = self.stop.clone();
                 let seed = id;
                 let guard = guard_init_env.clone();
+                let guard_init_model = guard_init_model.clone();
                 let model_info = self.model_info.as_ref().unwrap().clone();
                 let stats = Arc::new(Mutex::new(None));
                 self.actor_stats.push(stats.clone());
@@ -161,7 +170,7 @@ where
                         seed as i64,
                         stats,
                     )
-                    .run(sender, guard, model_info);
+                    .run(sender, model_info, guard, guard_init_model);
                 });
                 self.threads.push(handle);
             });
@@ -183,9 +192,10 @@ where
             h.join().unwrap();
         }
 
-        self.actor_stats.iter().map(|e| {
-            e.lock().unwrap().clone().unwrap()
-        }).collect::<Vec<_>>()
+        self.actor_stats
+            .iter()
+            .map(|e| e.lock().unwrap().clone().unwrap())
+            .collect::<Vec<_>>()
     }
 
     /// Stops actor threads.
@@ -230,14 +240,17 @@ where
         model_info_receiver: Receiver<(usize, A::ModelInfo)>,
         model_info: Arc<Mutex<(usize, A::ModelInfo)>>,
         stop: Arc<Mutex<bool>>,
+        guard_init_model: Arc<Mutex<bool>>,
     ) {
         // Blocks threads sharing model_info until arriving the first message from AsyncTrainer.
         {
+            let mut guard_init_model = guard_init_model.lock().unwrap();
             let mut model_info = model_info.lock().unwrap();
             // TODO: error handling
             let msg = model_info_receiver.recv().unwrap();
             assert_eq!(msg.0, 0);
             *model_info = msg;
+            *guard_init_model = true;
         }
 
         loop {

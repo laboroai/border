@@ -93,8 +93,9 @@ where
     pub fn run(
         &mut self,
         sender: Sender<PushedItemMessage<R::PushedItem>>,
-        guard: Arc<Mutex<bool>>,
         model_info: Arc<Mutex<(usize, A::ModelInfo)>>,
+        guard: Arc<Mutex<bool>>,
+        guard_init_model: Arc<Mutex<bool>>,
     ) {
         let mut agent = A::build(self.agent_config.clone());
         let mut buffer =
@@ -112,10 +113,15 @@ where
         let mut n_opt_steps = 0;
         let time = std::time::SystemTime::now();
 
-        // Synchronize model
-        Self::sync_model_first(&mut agent, &model_info, self.id);
+        // Waits and syncs the initial model
+        {
+            let mut guard_init_model = guard_init_model.lock().unwrap();
+            Self::sync_model_first(&mut agent, &model_info, self.id);
+            *guard_init_model = true;
+        }
 
         // Sampling loop
+        info!("Starts sampling loop in actor {}", self.id);
         loop {
             // Check model update and synchronize
             Self::sync_model(&mut agent, &mut n_opt_steps, &model_info, self.id);
