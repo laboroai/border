@@ -1,75 +1,80 @@
-//! Constructs IQN agent.
+//! Configuration of IQN agent.
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
-    cell::RefCell,
     default::Default,
     fs::File,
     io::{BufReader, Write},
-    marker::PhantomData,
     path::Path,
 };
-use tch::{Device, Tensor};
+use tch::Device;
 
 use crate::{
-    iqn::{EpsilonGreedy, IQNExplorer, IQNModel, IQN},
+    iqn::{EpsilonGreedy, IQNExplorer, Iqn},
     model::SubModel,
-    replay_buffer::{ExperienceSampling, ReplayBuffer, TchBuffer},
-    util::{OptInterval, OptIntervalCounter},
 };
-use border_core::Env;
 
-use super::model::IQNSample;
+use super::{IqnModelConfig, IqnSample};
 
-#[allow(clippy::clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
-/// Constructs IQN agent.
-pub struct IQNBuilder {
-    opt_interval_counter: OptIntervalCounter,
-    soft_update_interval: usize,
-    n_updates_per_opt: usize,
-    min_transitions_warmup: usize,
-    batch_size: usize,
-    discount_factor: f64,
-    tau: f64,
-    train: bool,
-    explorer: IQNExplorer,
-    replay_buffer_capacity: usize,
-    sample_percents_pred: IQNSample,
-    sample_percents_tgt: IQNSample,
-    sample_percents_act: IQNSample,
-    #[serde(default = "ExperienceSampling::default")]
-    expr_sampling: ExperienceSampling,
+/// Configuration of [Iqn](super::Iqn) agent.
+pub struct IqnConfig<F, M>
+where
+    F: SubModel,
+    M: SubModel,
+    F::Config: DeserializeOwned + Serialize,
+    M::Config: DeserializeOwned + Serialize,
+{
+    pub(super) model_config: IqnModelConfig<F, M>,
+    pub(super) soft_update_interval: usize,
+    pub(super) n_updates_per_opt: usize,
+    pub(super) min_transitions_warmup: usize,
+    pub(super) batch_size: usize,
+    pub(super) discount_factor: f64,
+    pub(super) tau: f64,
+    pub(super) train: bool,
+    pub(super) explorer: IQNExplorer,
+    pub(super) replay_buffer_capacity: usize,
+    pub(super) sample_percents_pred: IqnSample,
+    pub(super) sample_percents_tgt: IqnSample,
+    pub(super) sample_percents_act: IqnSample,
+    pub device: Option<Device>,
 }
 
-impl Default for IQNBuilder {
+impl<F, M> Default for IqnConfig<F, M>
+where
+    F: SubModel,
+    M: SubModel,
+    F::Config: DeserializeOwned + Serialize,
+    M::Config: DeserializeOwned + Serialize,
+{
     fn default() -> Self {
         Self {
-            opt_interval_counter: OptInterval::Steps(1).counter(),
+            model_config: Default::default(),
             soft_update_interval: 1,
             n_updates_per_opt: 1,
             min_transitions_warmup: 1,
             batch_size: 1,
             discount_factor: 0.99,
             tau: 0.005,
-            sample_percents_pred: IQNSample::Uniform64,
-            sample_percents_tgt: IQNSample::Uniform64,
-            sample_percents_act: IQNSample::Uniform32, // Const10,
+            sample_percents_pred: IqnSample::Uniform64,
+            sample_percents_tgt: IqnSample::Uniform64,
+            sample_percents_act: IqnSample::Uniform32, // Const10,
             train: false,
             explorer: IQNExplorer::EpsilonGreedy(EpsilonGreedy::default()),
             replay_buffer_capacity: 1,
-            expr_sampling: ExperienceSampling::Uniform,
+            device: None,
         }
     }
 }
 
-impl IQNBuilder {
-    /// Set optimization interval.
-    pub fn opt_interval(mut self, v: OptInterval) -> Self {
-        self.opt_interval_counter = v.counter();
-        self
-    }
-
+impl<F, M> IqnConfig<F, M>
+where
+    F: SubModel,
+    M: SubModel,
+    F::Config: DeserializeOwned + Serialize,
+    M::Config: DeserializeOwned + Serialize,
+{
     /// Set soft update interval.
     pub fn soft_update_interval(mut self, v: usize) -> Self {
         self.soft_update_interval = v;
@@ -113,19 +118,19 @@ impl IQNBuilder {
     }
 
     /// Sampling percent points.
-    pub fn sample_percent_pred(mut self, v: IQNSample) -> Self {
+    pub fn sample_percent_pred(mut self, v: IqnSample) -> Self {
         self.sample_percents_pred = v;
         self
     }
 
     /// Sampling percent points.
-    pub fn sample_percent_tgt(mut self, v: IQNSample) -> Self {
+    pub fn sample_percent_tgt(mut self, v: IqnSample) -> Self {
         self.sample_percents_tgt = v;
         self
     }
 
     /// Sampling percent points.
-    pub fn sample_percent_act(mut self, v: IQNSample) -> Self {
+    pub fn sample_percent_act(mut self, v: IqnSample) -> Self {
         self.sample_percents_act = v;
         self
     }
@@ -151,90 +156,90 @@ impl IQNBuilder {
         Ok(())
     }
 
-    /// Constructs [IQN] agent.
-    pub fn build<E, F, M, O, A>(
-        self,
-        iqn_model: IQNModel<F, M>,
-        device: Device,
-    ) -> IQN<E, F, M, O, A>
-    where
-        E: Env,
-        F: SubModel<Output = Tensor>,
-        M: SubModel<Input = Tensor, Output = Tensor>,
-        E::Obs: Into<F::Input>,
-        E::Act: From<Tensor>,
-        O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
-        A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
-    {
-        let iqn = iqn_model;
-        let iqn_tgt = iqn.clone();
-        let replay_buffer = ReplayBuffer::new(self.replay_buffer_capacity, &self.expr_sampling);
+    // /// Constructs [IQN] agent.
+    // pub fn build<E, F, M, O, A>(
+    //     self,
+    //     iqn_model: IQNModel<F, M>,
+    //     device: Device,
+    // ) -> IQN<E, F, M, O, A>
+    // where
+    //     E: Env,
+    //     F: SubModel<Output = Tensor>,
+    //     M: SubModel<Input = Tensor, Output = Tensor>,
+    //     E::Obs: Into<F::Input>,
+    //     E::Act: From<Tensor>,
+    //     O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
+    //     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
+    // {
+    //     let iqn = iqn_model;
+    //     let iqn_tgt = iqn.clone();
+    //     let replay_buffer = ReplayBuffer::new(self.replay_buffer_capacity, &self.expr_sampling);
 
-        IQN {
-            iqn,
-            iqn_tgt,
-            replay_buffer,
-            prev_obs: RefCell::new(None),
-            opt_interval_counter: self.opt_interval_counter,
-            soft_update_interval: self.soft_update_interval,
-            soft_update_counter: 0,
-            n_updates_per_opt: self.n_updates_per_opt,
-            min_transitions_warmup: self.min_transitions_warmup,
-            batch_size: self.batch_size,
-            discount_factor: self.discount_factor,
-            tau: self.tau,
-            sample_percents_pred: self.sample_percents_pred,
-            sample_percents_tgt: self.sample_percents_tgt,
-            sample_percents_act: self.sample_percents_act,
-            train: self.train,
-            explorer: self.explorer,
-            // expr_sampling: self.expr_sampling,
-            device,
-            phantom: PhantomData,
-        }
-    }
+    //     IQN {
+    //         iqn,
+    //         iqn_tgt,
+    //         replay_buffer,
+    //         prev_obs: RefCell::new(None),
+    //         opt_interval_counter: self.opt_interval_counter,
+    //         soft_update_interval: self.soft_update_interval,
+    //         soft_update_counter: 0,
+    //         n_updates_per_opt: self.n_updates_per_opt,
+    //         min_transitions_warmup: self.min_transitions_warmup,
+    //         batch_size: self.batch_size,
+    //         discount_factor: self.discount_factor,
+    //         tau: self.tau,
+    //         sample_percents_pred: self.sample_percents_pred,
+    //         sample_percents_tgt: self.sample_percents_tgt,
+    //         sample_percents_act: self.sample_percents_act,
+    //         train: self.train,
+    //         explorer: self.explorer,
+    //         // expr_sampling: self.expr_sampling,
+    //         device,
+    //         phantom: PhantomData,
+    //     }
+    // }
 
-    /// Constructs [IQN] agent with the given replay buffer.
-    pub fn build_with_replay_bufferbuild<E, F, M, O, A>(
-        self,
-        iqn_model: IQNModel<F, M>,
-        replay_buffer: ReplayBuffer<E, O, A>,
-        expr_sampling: ExperienceSampling,
-        device: Device,
-    ) -> IQN<E, F, M, O, A>
-    where
-        E: Env,
-        F: SubModel<Output = Tensor>,
-        M: SubModel<Input = Tensor, Output = Tensor>,
-        E::Obs: Into<F::Input>,
-        E::Act: From<Tensor>,
-        O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
-        A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
-    {
-        let iqn = iqn_model;
-        let iqn_tgt = iqn.clone();
+    // /// Constructs [IQN] agent with the given replay buffer.
+    // pub fn build_with_replay_bufferbuild<E, F, M, O, A>(
+    //     self,
+    //     iqn_model: IQNModel<F, M>,
+    //     replay_buffer: ReplayBuffer<E, O, A>,
+    //     expr_sampling: ExperienceSampling,
+    //     device: Device,
+    // ) -> IQN<E, F, M, O, A>
+    // where
+    //     E: Env,
+    //     F: SubModel<Output = Tensor>,
+    //     M: SubModel<Input = Tensor, Output = Tensor>,
+    //     E::Obs: Into<F::Input>,
+    //     E::Act: From<Tensor>,
+    //     O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
+    //     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
+    // {
+    //     let iqn = iqn_model;
+    //     let iqn_tgt = iqn.clone();
 
-        IQN {
-            iqn,
-            iqn_tgt,
-            replay_buffer,
-            prev_obs: RefCell::new(None),
-            opt_interval_counter: self.opt_interval_counter,
-            soft_update_interval: self.soft_update_interval,
-            soft_update_counter: 0,
-            n_updates_per_opt: self.n_updates_per_opt,
-            min_transitions_warmup: self.min_transitions_warmup,
-            batch_size: self.batch_size,
-            discount_factor: self.discount_factor,
-            tau: self.tau,
-            sample_percents_pred: self.sample_percents_pred,
-            sample_percents_tgt: self.sample_percents_tgt,
-            sample_percents_act: self.sample_percents_act,
-            train: self.train,
-            explorer: self.explorer,
-            // expr_sampling,
-            device,
-            phantom: PhantomData,
-        }
-    }
+    //     IQN {
+    //         iqn,
+    //         iqn_tgt,
+    //         replay_buffer,
+    //         prev_obs: RefCell::new(None),
+    //         opt_interval_counter: self.opt_interval_counter,
+    //         soft_update_interval: self.soft_update_interval,
+    //         soft_update_counter: 0,
+    //         n_updates_per_opt: self.n_updates_per_opt,
+    //         min_transitions_warmup: self.min_transitions_warmup,
+    //         batch_size: self.batch_size,
+    //         discount_factor: self.discount_factor,
+    //         tau: self.tau,
+    //         sample_percents_pred: self.sample_percents_pred,
+    //         sample_percents_tgt: self.sample_percents_tgt,
+    //         sample_percents_act: self.sample_percents_act,
+    //         train: self.train,
+    //         explorer: self.explorer,
+    //         // expr_sampling,
+    //         device,
+    //         phantom: PhantomData,
+    //     }
+    // }
 }

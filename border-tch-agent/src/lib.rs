@@ -1,7 +1,7 @@
 //! RL agents implemented with [tch](https://crates.io/crates/tch).
 pub mod cnn;
 pub mod dqn;
-// pub mod iqn;
+pub mod iqn;
 pub mod mlp;
 pub mod model;
 pub mod opt;

@@ -9,17 +9,15 @@ use std::{
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
-/// Constructs [DQNModel](super::DQNModel).
+/// Configuration of [DQNModel](super::DQNModel).
 pub struct DQNModelConfig<Q>
 where
     // Q: SubModel<Output = Tensor>,
     // Q::Config: DeserializeOwned + Serialize + OutDim,
     Q: OutDim,
 {
-    // q_config: Option<Q::Config>,
     pub(super) q_config: Option<Q>,
     pub(super) opt_config: OptimizerConfig,
-    // phantom: PhantomData<Q>,
 }
 
 // impl<Q: SubModel<Output = Tensor>> Default for DQNModelConfig<Q>
@@ -33,7 +31,6 @@ where
         Self {
             q_config: None,
             opt_config: OptimizerConfig::Adam { lr: 0.0 },
-            // phantom: PhantomData,
         }
     }
 }
@@ -82,33 +79,4 @@ where
         file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;
         Ok(())
     }
-
-    // /// Constructs [DQNModel] with the given configurations of sub models.
-    // pub fn build(self, device: Device) -> Result<DQNModel<Q>> {
-    //     let q_config = self.q_config.context("q_config is not set.")?;
-    //     let out_dim = q_config.get_out_dim();
-    //     let opt_config = self.opt_config;
-    //     let var_store = nn::VarStore::new(device);
-    //     let q = Q::build(&var_store, q_config);
-
-    //     Ok(DQNModel::_build(
-    //         device, out_dim, opt_config, q, var_store, None,
-    //     ))
-    // }
-
-    // /// Constructs [DQNModel] with the given configurations of sub models.
-    // pub fn build_with_submodel_configs(
-    //     &self,
-    //     q_config: Q::Config,
-    //     device: Device,
-    // ) -> Result<DQNModel<Q>> {
-    //     let out_dim = q_config.get_out_dim();
-    //     let opt_config = self.opt_config.clone();
-    //     let var_store = nn::VarStore::new(device);
-    //     let q = Q::build(&var_store, q_config);
-
-    //     Ok(DQNModel::_build(
-    //         device, out_dim, opt_config, q, var_store, None,
-    //     ))
-    // }
 }

@@ -1,99 +1,80 @@
 //! IQN agent implemented with tch-rs.
+use super::{IQNExplorer, IqnConfig, IqnModel, IqnSample, average};
 use crate::{
-    iqn::{
-        model::{average, IQNSample},
-        IQNExplorer, IQNModel,
-    },
     model::{ModelBase, SubModel},
-    replay_buffer::{ExperienceSampling, ReplayBuffer, TchBatch, TchBuffer},
-    util::{quantile_huber_loss, track, OptIntervalCounter},
+    util::{quantile_huber_loss, track, OutDim},
 };
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, Env, Obs, Policy, Step,
+    Agent, Batch, Env, Obs, Policy, ReplayBufferBase, Step,
 };
 use log::trace;
-use std::{cell::RefCell, fs, marker::PhantomData, path::Path};
+use serde::{de::DeserializeOwned, Serialize};
+use std::{fs, marker::PhantomData, path::Path};
 use tch::{no_grad, Device, Tensor};
 
-#[allow(clippy::upper_case_acronyms)]
 /// IQN agent implemented with tch-rs.
 ///
 /// The type parameter `M` is a feature extractor, which takes
 /// `M::Input` and returns feature vectors.
-pub struct IQN<E, F, M, O, A>
+pub struct Iqn<E, F, M, O, A, R>
 where
     E: Env,
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
+    R: ReplayBufferBase,
     E::Obs: Into<F::Input>,
     E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
+    <R::Batch as Batch>::ObsBatch: Into<F::Input>,
+    <R::Batch as Batch>::ActBatch: Into<Tensor>,
 {
-    pub(super) opt_interval_counter: OptIntervalCounter,
-    pub(super) soft_update_interval: usize,
-    pub(super) soft_update_counter: usize,
-    pub(super) n_updates_per_opt: usize,
-    pub(super) min_transitions_warmup: usize,
-    pub(super) batch_size: usize,
-    pub(super) iqn: IQNModel<F, M>,
-    pub(super) iqn_tgt: IQNModel<F, M>,
-    pub(super) train: bool,
-    pub(super) phantom: PhantomData<E>,
-    pub(super) prev_obs: RefCell<Option<E::Obs>>,
-    pub(super) replay_buffer: ReplayBuffer<E, O, A>,
-    pub(super) discount_factor: f64,
-    pub(super) tau: f64,
-    pub(super) sample_percents_pred: IQNSample,
-    pub(super) sample_percents_tgt: IQNSample,
-    pub(super) sample_percents_act: IQNSample,
-    pub(super) explorer: IQNExplorer,
-    // pub(super) expr_sampling: ExperienceSampling,
-    pub(super) device: Device,
+    pub(in crate::iqn) soft_update_interval: usize,
+    pub(in crate::iqn) soft_update_counter: usize,
+    pub(in crate::iqn) n_updates_per_opt: usize,
+    pub(in crate::iqn) min_transitions_warmup: usize,
+    pub(in crate::iqn) batch_size: usize,
+    pub(in crate::iqn) iqn: IqnModel<F, M>,
+    pub(in crate::iqn) iqn_tgt: IqnModel<F, M>,
+    pub(in crate::iqn) train: bool,
+    pub(in crate::iqn) phantom: PhantomData<E>,
+    pub(in crate::iqn) discount_factor: f64,
+    pub(in crate::iqn) tau: f64,
+    pub(in crate::iqn) sample_percents_pred: IqnSample,
+    pub(in crate::iqn) sample_percents_tgt: IqnSample,
+    pub(in crate::iqn) sample_percents_act: IqnSample,
+    pub(in crate::iqn) explorer: IQNExplorer,
+    pub(in crate::iqn) device: Device,
 }
 
-impl<E, F, M, O, A> IQN<E, F, M, O, A>
+impl<E, F, M, O, A, R> Iqn<E, F, M, O, A, R>
 where
     E: Env,
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
+    R: ReplayBufferBase,
     E::Obs: Into<F::Input>,
     E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
+    <R::Batch as Batch>::ObsBatch: Into<F::Input>,
+    <R::Batch as Batch>::ActBatch: Into<Tensor>,
 {
-    fn push_transition(&mut self, step: Step<E>) {
-        trace!("IQN::push_transition()");
-
-        let next_obs = step.obs;
-        let obs = self.prev_obs.replace(None).unwrap();
-        let reward = Tensor::of_slice(&step.reward[..]);
-        let not_done = Tensor::from(1f32) - Tensor::of_slice(&step.is_done[..]);
-        self.replay_buffer
-            .push(&obs, &step.act, &reward, &next_obs, &not_done);
-        let _ = self.prev_obs.replace(Some(next_obs));
-    }
-
-    fn update_critic(&mut self, batch: TchBatch<E, O, A>) -> f32 {
+    fn update_critic(&mut self, buffer: &mut R) -> f32 {
         trace!("IQN::update_critic()");
-
-        let obs = batch.obs;
-        let a = batch.actions.to(self.device);
-        let r = batch.rewards.to(self.device);
-        let next_obs = batch.next_obs;
-        let not_done = batch.not_dones.to(self.device);
+        let batch = buffer.batch(self.batch_size).unwrap();
+        let (obs, act, next_obs, reward, is_done, ixs, weight) = batch.unpack();
+        let obs = obs.into();
+        let act = act.into().to(self.device);
+        let next_obs = next_obs.into();
+        let reward = Tensor::of_slice(&reward[..]).to(self.device);
+        let is_done = Tensor::of_slice(&is_done[..]).to(self.device);
 
         let batch_size = self.batch_size as _;
         let n_percent_points_pred = self.sample_percents_pred.n_percent_points();
         let n_percent_points_tgt = self.sample_percents_tgt.n_percent_points();
 
-        debug_assert_eq!(r.size().as_slice(), &[batch_size, 1]);
-        debug_assert_eq!(not_done.size().as_slice(), &[batch_size, 1]);
-
-        // Expect discrete action, thus action is a scalar
-        debug_assert_eq!(a.size().as_slice(), &[batch_size, 1]);
+        debug_assert_eq!(reward.size().as_slice(), &[batch_size, 1]);
+        debug_assert_eq!(is_done.size().as_slice(), &[batch_size, 1]);
+        debug_assert_eq!(act.size().as_slice(), &[batch_size, 1]);
 
         let loss = {
             // predictions of z(s, a), where a is from minibatch
@@ -114,7 +95,7 @@ where
                 );
 
                 // Reshape action for applying torch.gather
-                let a = a.unsqueeze(1).repeat(&[1, n_percent_points, 1]);
+                let a = act.unsqueeze(1).repeat(&[1, n_percent_points, 1]);
                 debug_assert_eq!(a.size().as_slice(), &[batch_size, n_percent_points, 1]);
 
                 // takes z(s, a) with a from minibatch
@@ -155,7 +136,7 @@ where
                 debug_assert_eq!(z.size().as_slice(), &[batch_size, n_percent_points]);
 
                 // target value
-                let tgt = r + not_done * self.discount_factor * z;
+                let tgt = reward + (1 - is_done) * self.discount_factor * z;
                 debug_assert_eq!(tgt.size().as_slice(), &[batch_size, n_percent_points]);
 
                 tgt.unsqueeze(-1)
@@ -166,6 +147,7 @@ where
                 diff.size().as_slice(),
                 &[batch_size, n_percent_points_tgt, n_percent_points_pred]
             );
+            buffer.update_priority(&ixs, &Some(diff));
 
             let tau = tau.unsqueeze(1).repeat(&[1, n_percent_points_tgt, 1]);
 
@@ -177,22 +159,67 @@ where
         f32::from(loss)
     }
 
-    fn soft_update(&mut self) {
-        trace!("IQN::soft_update()");
-        track(&mut self.iqn_tgt, &mut self.iqn, self.tau);
+    fn opt_(&mut self, buffer: &mut R) -> Record {
+        let mut loss_critic = 0f32;
+
+        for _ in 0..self.n_updates_per_opt {
+            let loss = self.update_critic(buffer);
+            loss_critic += loss;
+        }
+
+        self.soft_update_counter += 1;
+        if self.soft_update_counter == self.soft_update_interval {
+            self.soft_update_counter = 0;
+            track(&mut self.iqn_tgt, &mut self.iqn, self.tau);
+        }
+
+        loss_critic /= self.n_updates_per_opt as f32;
+
+        self.n_opts += 1;
+
+        Record::from_slice(&[("loss_critic", RecordValue::Scalar(loss_critic))])
     }
 }
 
-impl<E, F, M, O, A> Policy<E> for IQN<E, F, M, O, A>
+impl<E, F, M, O, A, R> Policy<E> for Iqn<E, F, M, O, A, R>
 where
     E: Env,
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
+    R: ReplayBufferBase,
     E::Obs: Into<F::Input>,
     E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
+    <R::Batch as Batch>::ObsBatch: Into<F::Input>,
+    <R::Batch as Batch>::ActBatch: Into<Tensor>,
 {
+    type Config = IqnConfig<F, M>;
+
+    /// Constructs [Iqn] agent.
+    fn build(config: Self::Config) -> Self {
+        let device = config.device.expect("No device is given for IQN agent").into();
+        let iqn = IqnModel::build(config.model_config, device);
+        let iqn_tgt = iqn.clone();
+
+        Iqn {
+            iqn,
+            iqn_tgt,
+            soft_update_interval: config.soft_update_interval,
+            soft_update_counter: 0,
+            n_updates_per_opt: config.n_updates_per_opt,
+            min_transitions_warmup: config.min_transitions_warmup,
+            batch_size: config.batch_size,
+            discount_factor: config.discount_factor,
+            tau: config.tau,
+            sample_percents_pred: config.sample_percents_pred,
+            sample_percents_tgt: config.sample_percents_tgt,
+            sample_percents_act: config.sample_percents_act,
+            train: config.train,
+            explorer: config.explorer,
+            device,
+            phantom: PhantomData,
+        }
+    }
+
     fn sample(&mut self, obs: &E::Obs) -> E::Act {
         // Depending on the context, it can be interpreted as the nuber of processes.
         let batch_size = obs.batch_size() as _;
@@ -220,15 +247,16 @@ where
     }
 }
 
-impl<E, F, M, O, A> Agent<E> for IQN<E, F, M, O, A>
+impl<E, F, M, O, A, R> Agent<E, R> for Iqn<E, F, M, O, A, R>
 where
     E: Env,
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
+    R: ReplayBufferBase,
     E::Obs: Into<F::Input>,
     E::Act: From<Tensor>,
-    O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
-    A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
+    <R::Batch as Batch>::ObsBatch: Into<F::Input>,
+    <R::Batch as Batch>::ActBatch: Into<Tensor>,
 {
     fn train(&mut self) {
         self.train = true;
@@ -242,56 +270,60 @@ where
         self.train
     }
 
-    fn push_obs(&self, obs: &E::Obs) {
-        self.prev_obs.replace(Some(obs.clone()));
-    }
-
-    /// Update model parameters.
-    ///
-    /// When the return value is `Some(Record)`, it includes:
-    /// * `loss_critic`: Loss of critic
-    fn observe(&mut self, step: Step<E>) -> Option<Record> {
-        trace!("DQN::observe()");
-
-        // Check if doing optimization
-        let do_optimize = self.opt_interval_counter.do_optimize(&step.is_done)
-            && self.replay_buffer.len() + 1 >= self.min_transitions_warmup;
-
-        // Push transition to the replay buffer
-        self.push_transition(step);
-        trace!("Push transition");
-
-        // Do optimization
-        if do_optimize {
-            let mut loss_critic = 0f32;
-
-            for _ in 0..self.n_updates_per_opt {
-                let batch = self
-                    .replay_buffer
-                    .random_batch(self.batch_size, 0f32)
-                    .unwrap();
-                trace!("Sample random batch");
-
-                loss_critic += self.update_critic(batch);
-            }
-
-            self.soft_update_counter += 1;
-            if self.soft_update_counter == self.soft_update_interval {
-                self.soft_update_counter = 0;
-                self.soft_update();
-                trace!("Update target network");
-            }
-
-            loss_critic /= self.n_updates_per_opt as f32;
-
-            Some(Record::from_slice(&[(
-                "loss_critic",
-                RecordValue::Scalar(loss_critic),
-            )]))
+    fn opt(&mut self, buffer: &mut R) -> Option<Record> {
+        if buffer.len() >= self.min_transitions_warmup {
+            Some(self.opt_(buffer))
         } else {
             None
         }
     }
+
+    // /// Update model parameters.
+    // ///
+    // /// When the return value is `Some(Record)`, it includes:
+    // /// * `loss_critic`: Loss of critic
+    // fn observe(&mut self, step: Step<E>) -> Option<Record> {
+    //     trace!("DQN::observe()");
+
+    //     // Check if doing optimization
+    //     let do_optimize = self.opt_interval_counter.do_optimize(&step.is_done)
+    //         && self.replay_buffer.len() + 1 >= self.min_transitions_warmup;
+
+    //     // Push transition to the replay buffer
+    //     self.push_transition(step);
+    //     trace!("Push transition");
+
+    //     // Do optimization
+    //     if do_optimize {
+    //         let mut loss_critic = 0f32;
+
+    //         for _ in 0..self.n_updates_per_opt {
+    //             let batch = self
+    //                 .replay_buffer
+    //                 .random_batch(self.batch_size, 0f32)
+    //                 .unwrap();
+    //             trace!("Sample random batch");
+
+    //             loss_critic += self.update_critic(batch);
+    //         }
+
+    //         self.soft_update_counter += 1;
+    //         if self.soft_update_counter == self.soft_update_interval {
+    //             self.soft_update_counter = 0;
+    //             self.soft_update();
+    //             trace!("Update target network");
+    //         }
+
+    //         loss_critic /= self.n_updates_per_opt as f32;
+
+    //         Some(Record::from_slice(&[(
+    //             "loss_critic",
+    //             RecordValue::Scalar(loss_critic),
+    //         )]))
+    //     } else {
+    //         None
+    //     }
+    // }
 
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<()> {
         // TODO: consider to rename the path if it already exists
