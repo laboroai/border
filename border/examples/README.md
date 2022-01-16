@@ -63,11 +63,11 @@ cargo run --example sac_lunarlander_cont --features="tch"
   ```
 
   ```bash
-  PYTHONPATH=./border/examples cargo run --example dqn_atari -- PongNoFrameskip-v4 --play ./examples/model/dqn_PongNoFrameskip-v4
+  PYTHONPATH=./border/examples cargo run --release --example dqn_atari --features="tch" -- PongNoFrameskip-v4 --play ./examples/model/dqn_PongNoFrameskip-v4
   ```
 
   ```bash
-  PYTHONPATH=./border/examples cargo run --example dqn_atari --features="tch" -- PongNoFrameskip-v4 --play-gdrive
+  PYTHONPATH=./border/examples cargo run --release --example dqn_atari --features="tch" -- PongNoFrameskip-v4 --play-gdrive
   ```
 
 ### IQN
