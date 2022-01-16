@@ -1,14 +1,15 @@
 mod util_dqn_atari;
 use anyhow::Result;
+use border::util::get_model_from_url;
 use border_core::{
-    record::{TensorboardRecorder, BufferedRecorder},
+    record::{BufferedRecorder, TensorboardRecorder},
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    shape, Policy, Agent, Env as _, Trainer, TrainerConfig, util
+    shape, util, Agent, Env as _, Policy, Trainer, TrainerConfig,
 };
-use border_derive::{Act, Obs, SubBatch};
+use border_derive::{Act, SubBatch};
 use border_py_gym_env::{
     FrameStackFilter, PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct,
     PyGymEnvDiscreteActRawFilter, PyGymEnvObs,
@@ -20,9 +21,6 @@ use border_tch_agent::{
 };
 use clap::{App, Arg, ArgMatches};
 use util_dqn_atari::{model_dir as model_dir_, Params};
-use std::convert::TryFrom;
-// #[cfg(feature = "tch")]
-// use tch::Tensor;
 
 const N_STACK: i64 = 4;
 
@@ -167,7 +165,23 @@ fn model_dir(matches: &ArgMatches) -> Result<String> {
 }
 
 fn model_dir_for_play(matches: &ArgMatches) -> String {
-    matches.value_of("play").unwrap().to_string()
+    let name = matches.value_of("name").unwrap();
+
+    if matches.is_present("play") {
+        matches.value_of("play").unwrap().to_string()
+    } else if matches.is_present("play-gdrive") {
+        if name == "PongNoFrameskip-v4" {
+            let file_base = "dqn_PongNoFrameskip-v4_20210428_ec2";
+            let url =
+                "https://drive.google.com/uc?export=download&id=1TF5aN9fH5wd4APFHj9RP1JxuVNoi6lqJ";
+            let model_dir = get_model_from_url(url, file_base).unwrap();
+            model_dir.as_ref().to_str().unwrap().to_string()
+        } else {
+            panic!("Failed to download the model for {:?}", name);
+        }
+    } else {
+        panic!("Failed to download the model for {:?}", name);
+    }
 }
 
 fn env_config(name: &str) -> EnvConfig {
@@ -202,12 +216,15 @@ fn load_replay_buffer_config<'a>(
 fn train(matches: ArgMatches) -> Result<()> {
     let name = matches.value_of("name").unwrap();
     let model_dir = model_dir(&matches)?;
-    let env_config_train = env_config(name).atari_wrapper(Some(border_py_gym_env::AtariWrapper::Train));
-    let env_config_eval = env_config(name).atari_wrapper(Some(border_py_gym_env::AtariWrapper::Eval));
+    let env_config_train =
+        env_config(name).atari_wrapper(Some(border_py_gym_env::AtariWrapper::Train));
+    let env_config_eval =
+        env_config(name).atari_wrapper(Some(border_py_gym_env::AtariWrapper::Eval));
     let n_actions = n_actions(&env_config_train)?;
 
     // Configurations
-    let agent_config = load_dqn_config(model_dir.as_str())?.out_dim(n_actions as _)
+    let agent_config = load_dqn_config(model_dir.as_str())?
+        .out_dim(n_actions as _)
         .device(tch::Device::cuda_if_available());
     let trainer_config = load_trainer_config(model_dir.as_str())?;
     let replay_buffer_config = load_replay_buffer_config(model_dir.as_str())?;
@@ -236,7 +253,8 @@ fn play(matches: ArgMatches) -> Result<()> {
     let model_dir = model_dir_for_play(&matches);
     let env_config = env_config(name);
     let n_actions = n_actions(&env_config)?;
-    let agent_config = load_dqn_config(model_dir.as_str())?.out_dim(n_actions as _)
+    let agent_config = load_dqn_config(model_dir.as_str())?
+        .out_dim(n_actions as _)
         .device(tch::Device::cuda_if_available());
     let mut agent = DQN::build(agent_config);
     let mut env = Env::build(&env_config, 0)?;

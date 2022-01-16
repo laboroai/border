@@ -22,6 +22,13 @@ pub fn get_model_from_url<T: AsRef<Path>>(
     let mut path_zip = path_dir.clone();
     path_zip.push(&file_base);
     path_zip.set_extension("zip");
+
+    if path_zip.as_path().exists() {
+        info!("Exists zip file {:?}, skips download", path_zip);
+        path_dir.push(&file_base);
+        return Ok(path_dir)
+    }
+
     let mut zip_file = File::create(&path_zip.as_path()).context(format!(
         "Failed to create file {:?}\n\
              You may need to create directory: \"mkdir ~/.border/model\"
