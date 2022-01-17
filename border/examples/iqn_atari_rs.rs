@@ -1,6 +1,9 @@
 mod util_iqn_atari;
 use anyhow::Result;
-use border::util::get_model_from_url;
+use border_atari_env::{
+    BorderAtariAct, BorderAtariActRawFilter, BorderAtariEnv, BorderAtariEnvConfig, BorderAtariObs,
+    BorderAtariObsRawFilter,
+};
 use border_core::{
     record::{BufferedRecorder, TensorboardRecorder},
     replay_buffer::{
@@ -10,14 +13,10 @@ use border_core::{
     shape, util, Agent, Env as _, Policy, Trainer, TrainerConfig,
 };
 use border_derive::{Act, SubBatch};
-use border_py_gym_env::{
-    FrameStackFilter, PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct,
-    PyGymEnvDiscreteActRawFilter, PyGymEnvObs,
-};
 use border_tch_agent::{
     cnn::CNN,
-    mlp::MLP,
     iqn::{Iqn as Iqn_, IqnConfig as IqnConfig_},
+    mlp::MLP,
     TensorSubBatch,
 };
 use clap::{App, Arg, ArgMatches};
@@ -25,15 +24,13 @@ use util_iqn_atari::{model_dir as model_dir_, Params};
 
 const N_STACK: i64 = 4;
 
-type PyObsDtype = u8;
 type ObsDtype = u8;
 
 shape!(ObsShape, [N_STACK as usize, 1, 84, 84]);
-shape!(ActShape, [1]);
 
-// #[derive(Clone, Debug, Obs)]
-// struct Obs(PyGymEnvObs<ObsShape, PyObsDtype, ObsDtype>);
-type Obs = PyGymEnvObs<ObsShape, PyObsDtype, ObsDtype>;
+// #[derive(Debug, Clone, Obs)]
+// struct Obs(BorderAtariObs);
+type Obs = BorderAtariObs;
 
 #[derive(Clone, SubBatch)]
 struct ObsBatch(TensorSubBatch<ObsShape, ObsDtype>);
@@ -45,11 +42,7 @@ impl From<Obs> for ObsBatch {
     }
 }
 
-// Wrap `PyGymEnvDiscreteAct` to make a new type.
-// Act also implements Into<Tensor>.
-// TODO: Consider to implement Into<Tensor> on PyGymEnvDiscreteAct when feature=tch.
-#[derive(Clone, Debug, Act)]
-struct Act(PyGymEnvDiscreteAct);
+shape!(ActShape, [1]);
 
 #[derive(SubBatch)]
 struct ActBatch(TensorSubBatch<ActShape, i64>);
@@ -61,10 +54,16 @@ impl From<Act> for ActBatch {
     }
 }
 
-type ObsFilter = FrameStackFilter<ObsShape, PyObsDtype, ObsDtype, Obs>;
-type ActFilter = PyGymEnvDiscreteActRawFilter<Act>;
-type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
-type EnvConfig = PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
+// Wrap `BorderAtariAct` to make a new type.
+// Act also implements Into<Tensor>.
+// TODO: Consider to implement Into<Tensor> on BorderAtariAct when feature=tch.
+#[derive(Debug, Clone, Act)]
+struct Act(BorderAtariAct);
+
+type ObsFilter = BorderAtariObsRawFilter<Obs>;
+type ActFilter = BorderAtariActRawFilter<Act>;
+type EnvConfig = BorderAtariEnvConfig<Obs, Act, ObsFilter, ActFilter>;
+type Env = BorderAtariEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
 type Iqn = Iqn_<Env, CNN, MLP, ReplayBuffer>;
@@ -138,31 +137,11 @@ fn model_dir(matches: &ArgMatches) -> Result<String> {
 }
 
 fn model_dir_for_play(matches: &ArgMatches) -> String {
-    let name = matches.value_of("name").unwrap();
-
-    if matches.is_present("play") {
-        matches.value_of("play").unwrap().to_string()
-    } else if matches.is_present("play-gdrive") {
-        if name == "SeaquestNoFrameskip-v4" {
-            let file_base = "iqn_SeaquestNoFrameskip-v4_20210530_adam_eps_tuned";
-            let url =
-                "https://drive.google.com/uc?export=download&id=1zDPd9ls0SewpmwlCd0Ui5OrcPt8Krld5";
-            let model_dir = get_model_from_url(url, file_base).unwrap();
-            model_dir.as_ref().to_str().unwrap().to_string()
-        } else {
-            panic!("Failed to download the model for {:?}", name);
-        }
-    } else {
-        panic!("Failed to download the model for {:?}", name);
-    }
+    matches.value_of("play").unwrap().to_string()
 }
 
-fn env_config(name: &str) -> EnvConfig {
-    PyGymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
-        .name(name.to_string())
-        .obs_filter_config(ObsFilter::default_config())
-        .act_filter_config(ActFilter::default_config())
-        .atari_wrapper(Some(border_py_gym_env::AtariWrapper::Eval))
+fn env_config(name: impl Into<String>) -> EnvConfig {
+    BorderAtariEnvConfig::default().name(name.into())
 }
 
 fn n_actions(env_config: &EnvConfig) -> Result<usize> {
@@ -189,13 +168,12 @@ fn load_iqn_config<'a>(model_dir: impl Into<&'a str>) -> Result<IqnConfig> {
 fn train(matches: ArgMatches) -> Result<()> {
     let name = matches.value_of("name").unwrap();
     let model_dir = model_dir(&matches)?;
-    let env_config_train =
-        env_config(name).atari_wrapper(Some(border_py_gym_env::AtariWrapper::Train));
-    let env_config_eval =
-        env_config(name).atari_wrapper(Some(border_py_gym_env::AtariWrapper::Eval));
+    let env_config_train = env_config(name);
+    let env_config_eval = env_config(name).eval();
     let n_actions = n_actions(&env_config_train)?;
 
     // Configurations
+    println!("{}", model_dir);
     let agent_config = load_iqn_config(model_dir.as_str())?
         .out_dim(n_actions as _)
         .device(tch::Device::cuda_if_available());
@@ -224,7 +202,7 @@ fn train(matches: ArgMatches) -> Result<()> {
 fn play(matches: ArgMatches) -> Result<()> {
     let name = matches.value_of("name").unwrap();
     let model_dir = model_dir_for_play(&matches);
-    let env_config = env_config(name);
+    let env_config = env_config(name).eval();
     let n_actions = n_actions(&env_config)?;
     let agent_config = load_iqn_config(model_dir.as_str())?
         .out_dim(n_actions as _)
@@ -233,7 +211,7 @@ fn play(matches: ArgMatches) -> Result<()> {
     let mut env = Env::build(&env_config, 0)?;
     let mut recorder = BufferedRecorder::new();
 
-    env.set_render(true);
+    env.open()?;
     agent.load(model_dir + "/best")?;
     agent.eval();
 

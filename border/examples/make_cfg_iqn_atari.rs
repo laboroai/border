@@ -147,6 +147,7 @@ fn main() -> Result<()> {
 
     // Seaquest
     let params = Params::default();
+    make_cfg("seaquest", &params)?;
     make_cfg("SeaquestNoFrameskip-v4", &params)?;
     // make_cfg("hero", &params)?;
     // make_cfg("hero", &params.clone().ddqn())?;

@@ -70,8 +70,8 @@ where
         let obs = obs.into();
         let act = act.into().to(self.device);
         let next_obs = next_obs.into();
-        let reward = Tensor::of_slice(&reward[..]).to(self.device);
-        let is_done = Tensor::of_slice(&is_done[..]).to(self.device);
+        let reward = Tensor::of_slice(&reward[..]).to(self.device).unsqueeze(-1);
+        let is_done = Tensor::of_slice(&is_done[..]).to(self.device).unsqueeze(-1);
 
         let batch_size = self.batch_size as _;
         let n_percent_points_pred = self.sample_percents_pred.n_percent_points();

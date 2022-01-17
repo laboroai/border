@@ -62,6 +62,10 @@ name = "iqn_atari"
 required-features = ["tch"]
 # # required_features = [ "adam_eps" ]
 
+[[example]]
+name = "iqn_atari_rs"
+required-features = ["tch"]
+
 # [[example]]
 # name = "iqn_regression"
 
