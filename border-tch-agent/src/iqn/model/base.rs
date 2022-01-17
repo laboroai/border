@@ -1,9 +1,11 @@
 //! IQN model.
+use super::IqnModelConfig;
 use crate::{
     model::{ModelBase, SubModel},
     opt::{Optimizer, OptimizerConfig},
+    util::OutDim,
 };
-use anyhow::Result;
+use anyhow::{Context, Result};
 use log::{info, trace};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{default::Default, f64::consts::PI, marker::PhantomData, path::Path};
@@ -14,8 +16,6 @@ use tch::{
     Kind::Float,
     Tensor,
 };
-
-use super::IqnModelConfig;
 
 #[allow(clippy::upper_case_acronyms)]
 /// Constructs IQN output layer, which takes input features and percent points.
@@ -61,7 +61,7 @@ where
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
     F::Config: DeserializeOwned + Serialize,
-    M::Config: DeserializeOwned + Serialize,
+    M::Config: DeserializeOwned + Serialize + OutDim,
 {
     /// Constructs [IqnModel].
     pub fn build(
@@ -110,54 +110,53 @@ where
         })
     }
 
-    //     /// Constructs [IQNModel] with the given configurations of sub models.
-    //     pub fn build_with_submodel_configs(
-    //         &self,
-    //         f_config: F::Config,
-    //         m_config: M::Config,
-    //         device: Device,
-    //     ) -> IQNModel<F, M> {
-    //         let feature_dim = self.feature_dim;
-    //         let embed_dim = self.embed_dim;
-    //         let out_dim = m_config.get_out_dim();
-    //         let opt_config = self.opt_config.clone();
-    //         let var_store = nn::VarStore::new(device);
+    /// Constructs [IqnModel] with the given configurations of sub models.
+    pub fn build_with_submodel_configs(
+        config: IqnModelConfig<F::Config, M::Config>,
+        f_config: F::Config,
+        m_config: M::Config,
+        device: Device,
+    ) -> IqnModel<F, M> {
+        let feature_dim = config.feature_dim;
+        let embed_dim = config.embed_dim;
+        let out_dim = m_config.get_out_dim();
+        let opt_config = config.opt_config.clone();
+        let var_store = nn::VarStore::new(device);
 
-    //         // Feature extractor
-    //         let psi = F::build(&var_store, f_config);
+        // Feature extractor
+        let psi = F::build(&var_store, f_config);
 
-    //         // Cosine embedding
-    //         let phi = IQNModel::<F, M>::cos_embed_nn(&var_store, feature_dim, embed_dim);
+        // Cosine embedding
+        let phi = IqnModel::<F, M>::cos_embed_nn(&var_store, feature_dim, embed_dim);
 
-    //         // Merge
-    //         let f = M::build(&var_store, m_config);
+        // Merge
+        let f = M::build(&var_store, m_config);
 
-    //         // Optimizer
-    //         // TODO: remove unwrap()
-    //         let opt = opt_config.build(&var_store).unwrap();
+        // Optimizer
+        // TODO: remove unwrap()
+        let opt = opt_config.build(&var_store).unwrap();
 
-    //         // let mut adam = nn::Adam::default();
-    //         // adam.eps = 0.01 / 32.0;
-    //         // let opt = adam.build(&var_store, learning_rate).unwrap();
-    //         // let opt = nn::Adam::default()
-    //         //     .build(&var_store, learning_rate)
-    //         //     .unwrap();
+        // let mut adam = nn::Adam::default();
+        // adam.eps = 0.01 / 32.0;
+        // let opt = adam.build(&var_store, learning_rate).unwrap();
+        // let opt = nn::Adam::default()
+        //     .build(&var_store, learning_rate)
+        //     .unwrap();
 
-    //         IQNModel {
-    //             device,
-    //             var_store,
-    //             feature_dim,
-    //             embed_dim,
-    //             out_dim,
-    //             psi,
-    //             phi,
-    //             f,
-    //             opt_config,
-    //             opt,
-    //             phantom: PhantomData,
-    //         }
-    //     }
-    // }
+        IqnModel {
+            device,
+            var_store,
+            feature_dim,
+            embed_dim,
+            out_dim,
+            psi,
+            phi,
+            f,
+            opt_config,
+            opt,
+            phantom: PhantomData,
+        }
+    }
 
     // Cosine embedding.
     fn cos_embed_nn(var_store: &VarStore, feature_dim: i64, embed_dim: i64) -> nn::Sequential {
@@ -240,7 +239,7 @@ where
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
     F::Config: DeserializeOwned + Serialize,
-    M::Config: DeserializeOwned + Serialize,
+    M::Config: DeserializeOwned + Serialize + OutDim,
 {
     fn clone(&self) -> Self {
         let device = self.device;
@@ -298,7 +297,11 @@ where
         self.opt.backward_step(loss);
     }
 
-    fn get_var_store(&mut self) -> &mut nn::VarStore {
+    fn get_var_store(&self) -> &nn::VarStore {
+        &self.var_store
+    }
+
+    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
         &mut self.var_store
     }
 
@@ -390,6 +393,8 @@ pub fn average<F, M>(
 where
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
+    F::Config: DeserializeOwned + Serialize,
+    M::Config: DeserializeOwned + Serialize + OutDim,
 {
     let tau = mode.sample(batch_size).to(device);
     let averaged_action_value = iqn.forward(obs, &tau).mean_dim(&[1], false, Float);
@@ -478,11 +483,12 @@ mod test {
         let device = Device::Cpu;
         let learning_rate = 1e-4;
 
-        IqnModelConfig::default()
+        let config = IqnModelConfig::default()
             .feature_dim(feature_dim)
             .embed_dim(embed_dim)
-            .learning_rate(learning_rate)
-            .build_with_submodel_configs(fe_config, m_config, device)
+            .learning_rate(learning_rate);
+        
+        IqnModel::build_with_submodel_configs(config, fe_config, m_config, device)
     }
 
     #[test]

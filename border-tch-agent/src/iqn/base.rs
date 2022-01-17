@@ -1,5 +1,5 @@
 //! IQN agent implemented with tch-rs.
-use super::{IQNExplorer, IqnConfig, IqnModel, IqnSample, average};
+use super::{average, IqnExplorer, IqnConfig, IqnModel, IqnSample};
 use crate::{
     model::{ModelBase, SubModel},
     util::{quantile_huber_loss, track, OutDim},
@@ -7,7 +7,7 @@ use crate::{
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, Batch, Env, Obs, Policy, ReplayBufferBase, Step,
+    Agent, Batch, Env, Policy, ReplayBufferBase,
 };
 use log::trace;
 use serde::{de::DeserializeOwned, Serialize};
@@ -18,7 +18,7 @@ use tch::{no_grad, Device, Tensor};
 ///
 /// The type parameter `M` is a feature extractor, which takes
 /// `M::Input` and returns feature vectors.
-pub struct Iqn<E, F, M, O, A, R>
+pub struct Iqn<E, F, M, R>
 where
     E: Env,
     F: SubModel<Output = Tensor>,
@@ -26,6 +26,8 @@ where
     R: ReplayBufferBase,
     E::Obs: Into<F::Input>,
     E::Act: From<Tensor>,
+    F::Config: DeserializeOwned + Serialize,
+    M::Config: DeserializeOwned + Serialize,
     <R::Batch as Batch>::ObsBatch: Into<F::Input>,
     <R::Batch as Batch>::ActBatch: Into<Tensor>,
 {
@@ -37,17 +39,18 @@ where
     pub(in crate::iqn) iqn: IqnModel<F, M>,
     pub(in crate::iqn) iqn_tgt: IqnModel<F, M>,
     pub(in crate::iqn) train: bool,
-    pub(in crate::iqn) phantom: PhantomData<E>,
+    pub(in crate::iqn) phantom: PhantomData<(E, R)>,
     pub(in crate::iqn) discount_factor: f64,
     pub(in crate::iqn) tau: f64,
     pub(in crate::iqn) sample_percents_pred: IqnSample,
     pub(in crate::iqn) sample_percents_tgt: IqnSample,
     pub(in crate::iqn) sample_percents_act: IqnSample,
-    pub(in crate::iqn) explorer: IQNExplorer,
+    pub(in crate::iqn) explorer: IqnExplorer,
     pub(in crate::iqn) device: Device,
+    pub(in crate::iqn) n_opts: usize,
 }
 
-impl<E, F, M, O, A, R> Iqn<E, F, M, O, A, R>
+impl<E, F, M, R> Iqn<E, F, M, R>
 where
     E: Env,
     F: SubModel<Output = Tensor>,
@@ -55,13 +58,15 @@ where
     R: ReplayBufferBase,
     E::Obs: Into<F::Input>,
     E::Act: From<Tensor>,
+    F::Config: DeserializeOwned + Serialize,
+    M::Config: DeserializeOwned + Serialize + OutDim,
     <R::Batch as Batch>::ObsBatch: Into<F::Input>,
     <R::Batch as Batch>::ActBatch: Into<Tensor>,
 {
     fn update_critic(&mut self, buffer: &mut R) -> f32 {
         trace!("IQN::update_critic()");
         let batch = buffer.batch(self.batch_size).unwrap();
-        let (obs, act, next_obs, reward, is_done, ixs, weight) = batch.unpack();
+        let (obs, act, next_obs, reward, is_done, _ixs, _weight) = batch.unpack();
         let obs = obs.into();
         let act = act.into().to(self.device);
         let next_obs = next_obs.into();
@@ -136,7 +141,7 @@ where
                 debug_assert_eq!(z.size().as_slice(), &[batch_size, n_percent_points]);
 
                 // target value
-                let tgt = reward + (1 - is_done) * self.discount_factor * z;
+                let tgt: Tensor = reward + (1 - is_done) * self.discount_factor * z;
                 debug_assert_eq!(tgt.size().as_slice(), &[batch_size, n_percent_points]);
 
                 tgt.unsqueeze(-1)
@@ -147,7 +152,8 @@ where
                 diff.size().as_slice(),
                 &[batch_size, n_percent_points_tgt, n_percent_points_pred]
             );
-            buffer.update_priority(&ixs, &Some(diff));
+            // need to convert diff to vec<f32>
+            // buffer.update_priority(&ixs, &Some(diff));
 
             let tau = tau.unsqueeze(1).repeat(&[1, n_percent_points_tgt, 1]);
 
@@ -181,7 +187,7 @@ where
     }
 }
 
-impl<E, F, M, O, A, R> Policy<E> for Iqn<E, F, M, O, A, R>
+impl<E, F, M, R> Policy<E> for Iqn<E, F, M, R>
 where
     E: Env,
     F: SubModel<Output = Tensor>,
@@ -189,6 +195,8 @@ where
     R: ReplayBufferBase,
     E::Obs: Into<F::Input>,
     E::Act: From<Tensor>,
+    F::Config: DeserializeOwned + Serialize + Clone,
+    M::Config: DeserializeOwned + Serialize + Clone + OutDim,
     <R::Batch as Batch>::ObsBatch: Into<F::Input>,
     <R::Batch as Batch>::ActBatch: Into<Tensor>,
 {
@@ -196,8 +204,11 @@ where
 
     /// Constructs [Iqn] agent.
     fn build(config: Self::Config) -> Self {
-        let device = config.device.expect("No device is given for IQN agent").into();
-        let iqn = IqnModel::build(config.model_config, device);
+        let device = config
+            .device
+            .expect("No device is given for IQN agent")
+            .into();
+        let iqn = IqnModel::build(config.model_config, device).unwrap();
         let iqn_tgt = iqn.clone();
 
         Iqn {
@@ -216,13 +227,14 @@ where
             train: config.train,
             explorer: config.explorer,
             device,
+            n_opts: 0,
             phantom: PhantomData,
         }
     }
 
     fn sample(&mut self, obs: &E::Obs) -> E::Act {
-        // Depending on the context, it can be interpreted as the nuber of processes.
-        let batch_size = obs.batch_size() as _;
+        // Do not support vectorized env
+        let batch_size = 1;
 
         let a = no_grad(|| {
             let obs = obs.clone().into();
@@ -236,7 +248,7 @@ where
 
             if self.train {
                 match &mut self.explorer {
-                    IQNExplorer::EpsilonGreedy(egreedy) => egreedy.action(action_value),
+                    IqnExplorer::EpsilonGreedy(egreedy) => egreedy.action(action_value),
                 }
             } else {
                 action_value.argmax(-1, true)
@@ -247,7 +259,7 @@ where
     }
 }
 
-impl<E, F, M, O, A, R> Agent<E, R> for Iqn<E, F, M, O, A, R>
+impl<E, F, M, R> Agent<E, R> for Iqn<E, F, M, R>
 where
     E: Env,
     F: SubModel<Output = Tensor>,
@@ -255,6 +267,8 @@ where
     R: ReplayBufferBase,
     E::Obs: Into<F::Input>,
     E::Act: From<Tensor>,
+    F::Config: DeserializeOwned + Serialize + Clone,
+    M::Config: DeserializeOwned + Serialize + Clone + OutDim,
     <R::Batch as Batch>::ObsBatch: Into<F::Input>,
     <R::Batch as Batch>::ActBatch: Into<Tensor>,
 {

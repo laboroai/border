@@ -6,7 +6,7 @@ use tch::Tensor;
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 /// Explorers for IQN.
-pub enum IQNExplorer {
+pub enum IqnExplorer {
     // /// Softmax action selection.
     // Softmax(Softmax),
     /// Epsilon-greedy action selection.
@@ -53,8 +53,8 @@ impl Default for EpsilonGreedy {
 #[allow(clippy::new_without_default)]
 impl EpsilonGreedy {
     /// Constructs epsilon-greedy explorer.
-    pub fn with_params(eps_start: f64, eps_final: f64, final_step: usize) -> IQNExplorer {
-        IQNExplorer::EpsilonGreedy(Self {
+    pub fn with_params(eps_start: f64, eps_final: f64, final_step: usize) -> IqnExplorer {
+        IqnExplorer::EpsilonGreedy(Self {
             n_opts: 0,
             eps_start,
             eps_final,
@@ -65,8 +65,8 @@ impl EpsilonGreedy {
     /// Constructs epsilon-greedy explorer.
     ///
     /// TODO: improve interface.
-    pub fn with_final_step(final_step: usize) -> IQNExplorer {
-        IQNExplorer::EpsilonGreedy(Self {
+    pub fn with_final_step(final_step: usize) -> IqnExplorer {
+        IqnExplorer::EpsilonGreedy(Self {
             n_opts: 0,
             eps_start: 1.0,
             eps_final: 0.02,

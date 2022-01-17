@@ -1,31 +1,31 @@
 //! Configuration of IQN agent.
+use super::{IqnModelConfig, IqnSample};
+use crate::{
+    iqn::{EpsilonGreedy, IqnExplorer},
+    model::SubModel,
+    util::OutDim,
+    Device,
+};
 use anyhow::Result;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
     default::Default,
     fs::File,
     io::{BufReader, Write},
+    marker::PhantomData,
     path::Path,
 };
-use tch::Device;
 
-use crate::{
-    iqn::{EpsilonGreedy, IQNExplorer, Iqn},
-    model::SubModel,
-};
-
-use super::{IqnModelConfig, IqnSample};
-
-#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 /// Configuration of [Iqn](super::Iqn) agent.
 pub struct IqnConfig<F, M>
 where
     F: SubModel,
     M: SubModel,
-    F::Config: DeserializeOwned + Serialize,
-    M::Config: DeserializeOwned + Serialize,
+    F::Config: DeserializeOwned + Serialize + Clone,
+    M::Config: DeserializeOwned + Serialize + Clone + OutDim,
 {
-    pub(super) model_config: IqnModelConfig<F, M>,
+    pub(super) model_config: IqnModelConfig<F::Config, M::Config>,
     pub(super) soft_update_interval: usize,
     pub(super) n_updates_per_opt: usize,
     pub(super) min_transitions_warmup: usize,
@@ -33,20 +33,20 @@ where
     pub(super) discount_factor: f64,
     pub(super) tau: f64,
     pub(super) train: bool,
-    pub(super) explorer: IQNExplorer,
-    pub(super) replay_buffer_capacity: usize,
+    pub(super) explorer: IqnExplorer,
     pub(super) sample_percents_pred: IqnSample,
     pub(super) sample_percents_tgt: IqnSample,
     pub(super) sample_percents_act: IqnSample,
     pub device: Option<Device>,
+    phantom: PhantomData<(F, M)>,
 }
 
 impl<F, M> Default for IqnConfig<F, M>
 where
     F: SubModel,
     M: SubModel,
-    F::Config: DeserializeOwned + Serialize,
-    M::Config: DeserializeOwned + Serialize,
+    F::Config: DeserializeOwned + Serialize + Clone,
+    M::Config: DeserializeOwned + Serialize + Clone + OutDim,
 {
     fn default() -> Self {
         Self {
@@ -61,9 +61,9 @@ where
             sample_percents_tgt: IqnSample::Uniform64,
             sample_percents_act: IqnSample::Uniform32, // Const10,
             train: false,
-            explorer: IQNExplorer::EpsilonGreedy(EpsilonGreedy::default()),
-            replay_buffer_capacity: 1,
+            explorer: IqnExplorer::EpsilonGreedy(EpsilonGreedy::default()),
             device: None,
+            phantom: PhantomData,
         }
     }
 }
@@ -72,9 +72,15 @@ impl<F, M> IqnConfig<F, M>
 where
     F: SubModel,
     M: SubModel,
-    F::Config: DeserializeOwned + Serialize,
-    M::Config: DeserializeOwned + Serialize,
+    F::Config: DeserializeOwned + Serialize + Clone,
+    M::Config: DeserializeOwned + Serialize + Clone + OutDim,
 {
+    /// Sets the configuration of the model.
+    pub fn model_config(mut self, model_config: IqnModelConfig<F::Config, M::Config>) -> Self {
+        self.model_config = model_config;
+        self
+    }
+
     /// Set soft update interval.
     pub fn soft_update_interval(mut self, v: usize) -> Self {
         self.soft_update_interval = v;
@@ -112,8 +118,15 @@ where
     }
 
     /// Set explorer.
-    pub fn explorer(mut self, v: IQNExplorer) -> Self {
+    pub fn explorer(mut self, v: IqnExplorer) -> Self {
         self.explorer = v;
+        self
+    }
+
+    /// Sets the output dimention of the iqn model.
+    pub fn out_dim(mut self, out_dim: i64) -> Self {
+        let model_config = self.model_config.clone();
+        self.model_config = model_config.out_dim(out_dim);
         self
     }
 
@@ -135,13 +148,13 @@ where
         self
     }
 
-    /// Replay buffer capacity.
-    pub fn replay_buffer_capacity(mut self, v: usize) -> Self {
-        self.replay_buffer_capacity = v;
+    /// Device.
+    pub fn device(mut self, device: tch::Device) -> Self {
+        self.device = Some(device.into());
         self
     }
 
-    /// Constructs [IQNBuilder] from YAML file.
+    /// Constructs [IqnConfig] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let file = File::open(path)?;
         let rdr = BufReader::new(file);
@@ -149,55 +162,12 @@ where
         Ok(b)
     }
 
-    /// Saves [IQNBuilder].
+    /// Saves [IqnConfig].
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let mut file = File::create(path)?;
         file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;
         Ok(())
     }
-
-    // /// Constructs [IQN] agent.
-    // pub fn build<E, F, M, O, A>(
-    //     self,
-    //     iqn_model: IQNModel<F, M>,
-    //     device: Device,
-    // ) -> IQN<E, F, M, O, A>
-    // where
-    //     E: Env,
-    //     F: SubModel<Output = Tensor>,
-    //     M: SubModel<Input = Tensor, Output = Tensor>,
-    //     E::Obs: Into<F::Input>,
-    //     E::Act: From<Tensor>,
-    //     O: TchBuffer<Item = E::Obs, SubBatch = F::Input>,
-    //     A: TchBuffer<Item = E::Act, SubBatch = Tensor>,
-    // {
-    //     let iqn = iqn_model;
-    //     let iqn_tgt = iqn.clone();
-    //     let replay_buffer = ReplayBuffer::new(self.replay_buffer_capacity, &self.expr_sampling);
-
-    //     IQN {
-    //         iqn,
-    //         iqn_tgt,
-    //         replay_buffer,
-    //         prev_obs: RefCell::new(None),
-    //         opt_interval_counter: self.opt_interval_counter,
-    //         soft_update_interval: self.soft_update_interval,
-    //         soft_update_counter: 0,
-    //         n_updates_per_opt: self.n_updates_per_opt,
-    //         min_transitions_warmup: self.min_transitions_warmup,
-    //         batch_size: self.batch_size,
-    //         discount_factor: self.discount_factor,
-    //         tau: self.tau,
-    //         sample_percents_pred: self.sample_percents_pred,
-    //         sample_percents_tgt: self.sample_percents_tgt,
-    //         sample_percents_act: self.sample_percents_act,
-    //         train: self.train,
-    //         explorer: self.explorer,
-    //         // expr_sampling: self.expr_sampling,
-    //         device,
-    //         phantom: PhantomData,
-    //     }
-    // }
 
     // /// Constructs [IQN] agent with the given replay buffer.
     // pub fn build_with_replay_bufferbuild<E, F, M, O, A>(
@@ -242,4 +212,31 @@ where
     //         phantom: PhantomData,
     //     }
     // }
+}
+
+impl<F, M> Clone for IqnConfig<F, M>
+where
+    F: SubModel,
+    M: SubModel,
+    F::Config: DeserializeOwned + Serialize + Clone,
+    M::Config: DeserializeOwned + Serialize + Clone + OutDim,
+{
+    fn clone(&self) -> Self {
+        Self {
+            model_config: self.model_config.clone(),
+            soft_update_interval: self.soft_update_interval,
+            n_updates_per_opt: self.n_updates_per_opt,
+            min_transitions_warmup: self.min_transitions_warmup,
+            batch_size: self.batch_size,
+            discount_factor: self.discount_factor,
+            tau: self.tau,
+            sample_percents_pred: self.sample_percents_pred.clone(),
+            sample_percents_tgt: self.sample_percents_tgt.clone(),
+            sample_percents_act: self.sample_percents_act.clone(),
+            train: self.train,
+            explorer: self.explorer.clone(),
+            device: self.device.clone(),
+            phantom: PhantomData,
+        }
+    }
 }

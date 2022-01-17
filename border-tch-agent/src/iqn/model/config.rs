@@ -1,11 +1,10 @@
 //! IQN model.
 use crate::{
-    model::SubModel,
     opt::OptimizerConfig,
     util::OutDim,
 };
 use anyhow::Result;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, de::DeserializeOwned, Serialize};
 use std::{
     default::Default,
     fs::File,
@@ -14,10 +13,10 @@ use std::{
 };
 
 #[cfg(not(feature = "adam_eps"))]
-impl<F: SubModel, M: SubModel> IqnModelConfig<F, M>
+impl<F, M> IqnModelConfig<F, M>
 where
-    F::Config: DeserializeOwned + Serialize,
-    M::Config: DeserializeOwned + Serialize,
+    F: DeserializeOwned + Serialize,
+    M: DeserializeOwned + Serialize + OutDim,
 {
     /// Sets the learning rate.
     pub fn learning_rate(mut self, v: f64) -> Self {
@@ -45,15 +44,14 @@ where
 // }
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
-/// Configuration of [IqnModel].
+/// Configuration of [IqnModel](super::IqnModel).
 ///
 /// The type parameter `F` represents a configuration struct of a feature extractor.
 /// The type parameter `M` represents a configuration struct of a model for merging
 /// cosine-embedded percent points and feature vectors.
 pub struct IqnModelConfig<F, M>
 where
-    F: DeserializeOwned + Serialize,
-    M: DeserializeOwned + Serialize,
+    M: OutDim,
 {
     /// Dimension of feature vector.
     pub feature_dim: i64,
@@ -73,8 +71,7 @@ where
 
 impl<F, M> Default for IqnModelConfig<F, M>
 where
-    F: DeserializeOwned + Serialize,
-    M: DeserializeOwned + Serialize,
+    M: OutDim,
 {
     fn default() -> Self {
         Self {
@@ -90,7 +87,7 @@ where
 impl<F, M> IqnModelConfig<F, M>
 where
     F: DeserializeOwned + Serialize,
-    M: DeserializeOwned + Serialize,
+    M: DeserializeOwned + Serialize + OutDim,
 {
     /// Sets the dimension of cos-embedding of percent points.
     pub fn embed_dim(mut self, v: i64) -> Self {
@@ -105,23 +102,22 @@ where
     }
 
     /// Sets configurations for feature extractor.
-    pub fn f_config(mut self, v: F::Config) -> Self {
+    pub fn f_config(mut self, v: F) -> Self {
         self.f_config = Some(v);
         self
     }
 
     /// Sets configurations for output model.
-    pub fn m_config(mut self, v: M::Config) -> Self {
+    pub fn m_config(mut self, v: M) -> Self {
         self.m_config = Some(v);
         self
     }
 
     /// Sets output dimension of the model.
-    pub fn out_dim(mut self, v: i64) -> Self {
-        match &mut self.m_config {
-            None => {}
-            Some(m_config) => m_config.set_out_dim(v),
-        };
+    pub fn out_dim(mut self, out_dim: i64) -> Self {
+        if self.m_config.is_some() {
+            self.m_config.as_mut().unwrap().set_out_dim(out_dim);
+        }
         self
     }
 
@@ -131,7 +127,7 @@ where
         self
     }
 
-    /// Constructs [IQNModelBuilder] from YAML file.
+    /// Constructs [IqnModelConfig] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let file = File::open(path)?;
         let rdr = BufReader::new(file);
@@ -139,7 +135,7 @@ where
         Ok(b)
     }
 
-    /// Saves [IQNModelBuilder].
+    /// Saves [IqnModelConfig].
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let mut file = File::create(path)?;
         file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;

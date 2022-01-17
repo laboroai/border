@@ -1,18 +1,31 @@
 use crate::util::OutDim;
 use serde::{Deserialize, Serialize};
 
+fn default_skip_linear() -> bool {
+    false
+}
+
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 /// Configuration of [CNN](super::CNN).
+///
+/// If `skip_linear` is `true`, `out_dim` is not used.
 pub struct CNNConfig {
-    pub(super) n_stack: i64,
-    pub(super) out_dim: i64,
+    pub n_stack: i64,
+    pub out_dim: i64,
+    #[serde(default = "default_skip_linear")]
+    pub skip_linear: bool,
 }
 
 impl CNNConfig {
     /// Constructs [CNNConfig]
     pub fn new(n_stack: i64, out_dim: i64) -> Self {
-        Self { n_stack, out_dim }
+        Self { n_stack, out_dim, skip_linear: false }
+    }
+
+    pub fn skip_linear(mut self, skip_linear: bool) -> Self {
+        self.skip_linear = skip_linear;
+        self
     }
 }
 

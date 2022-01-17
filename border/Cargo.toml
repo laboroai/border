@@ -57,8 +57,9 @@ required-features = ["tch"]
 name = "dqn_atari_async"
 required-features = ["tch", "border-async-trainer"]
 
-# [[example]]
-# name = "iqn_atari"
+[[example]]
+name = "iqn_atari"
+required-features = ["tch"]
 # # required_features = [ "adam_eps" ]
 
 # [[example]]
@@ -92,6 +93,10 @@ required-features = ["tch"]
 
 [[example]]
 name = "make_cfg_dqn_atari"
+required-features = ["border-async-trainer"]
+
+[[example]]
+name = "make_cfg_iqn_atari"
 required-features = ["border-async-trainer"]
 
 [dev-dependencies]

@@ -9,6 +9,7 @@ pub struct CNN {
     out_dim: i64,
     device: Device,
     seq: nn::Sequential,
+    skip_linear: bool,
 }
 
 impl CNN {
@@ -33,6 +34,18 @@ impl CNN {
             .add_fn(|xs| xs.relu())
             .add(nn::linear(p / "l2", 512, out_dim as _, Default::default()))
     }
+
+    fn create_net_wo_linear(var_store: &nn::VarStore, n_stack: i64) -> nn::Sequential {
+        let p = &var_store.root();
+        nn::seq()
+            .add_fn(|xs| xs.squeeze_dim(2).internal_cast_float(true) / 255)
+            .add(nn::conv2d(p / "c1", n_stack, 32, 8, Self::stride(4)))
+            .add_fn(|xs| xs.relu())
+            .add(nn::conv2d(p / "c2", 32, 64, 4, Self::stride(2)))
+            .add_fn(|xs| xs.relu())
+            .add(nn::conv2d(p / "c3", 64, 64, 3, Self::stride(1)))
+            .add_fn(|xs| xs.relu().flat_view())
+    }
 }
 
 impl SubModel for CNN {
@@ -48,27 +61,39 @@ impl SubModel for CNN {
         let n_stack = config.n_stack;
         let out_dim = config.out_dim;
         let device = var_store.device();
-        let seq = Self::create_net(var_store, n_stack, out_dim);
+        let skip_linear = config.skip_linear;
+        let seq = if config.skip_linear {
+            Self::create_net_wo_linear(var_store, n_stack)
+        } else {
+            Self::create_net(var_store, n_stack, out_dim)
+        };
 
         Self {
             n_stack,
             out_dim,
             device,
             seq,
+            skip_linear,
         }
     }
 
     fn clone_with_var_store(&self, var_store: &nn::VarStore) -> Self {
         let n_stack = self.n_stack;
         let out_dim = self.out_dim;
+        let skip_linear = self.skip_linear;
         let device = var_store.device();
-        let seq = Self::create_net(&var_store, n_stack, out_dim);
+        let seq = if skip_linear {
+            Self::create_net_wo_linear(&var_store, n_stack)
+        } else {
+            Self::create_net(&var_store, n_stack, out_dim)
+        };
 
         Self {
             n_stack,
             out_dim,
             device,
             seq,
+            skip_linear,
         }
     }
 }
