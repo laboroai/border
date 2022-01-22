@@ -1,5 +1,5 @@
 #![warn(missing_docs)]
-//! A library for reinforcement learning.
+//! Core components for reinforcement learning.
 pub mod error;
 pub mod record;
 pub mod util;
@@ -17,10 +17,6 @@ pub use base::{
     ReplayBufferBase,
     Step,
     StepProcessorBase,
-    // trainer::{Trainer, TrainerBuilder},
-    // util::eval, util::eval_with_recorder,
-    // util,
-    // record,
 };
 
 mod shape;

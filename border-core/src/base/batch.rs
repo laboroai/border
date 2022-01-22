@@ -1,6 +1,8 @@
 //! Batch.
 
-/// Represents a batch.
+/// A batch of samples.
+///
+/// It is used to train agents.
 pub trait Batch {
     /// A set of observation in a batch.
     type ObsBatch;
@@ -8,7 +10,10 @@ pub trait Batch {
     /// A set of observation in a batch.
     type ActBatch;
 
-    /// Unpack the data `(o_t, a_t, o_t+1, r_t, is_done_t, weight)`.
+    /// Unpack the data `(o_t, a_t, o_t+1, r_t, is_done_t)`.
+    ///
+    /// Optionally, the return value has sample indices in the replay buffer and
+    /// thier weights. Those are used for prioritized experience replay (PER).
     fn unpack(
         self,
     ) -> (
@@ -21,7 +26,7 @@ pub trait Batch {
         Option<Vec<f32>>,
     );
 
-    /// Returns the length.
+    /// Returns the number of samples in the batch.
     fn len(&self) -> usize;
 
     /// Returns `o_t`.
@@ -39,9 +44,9 @@ pub trait Batch {
     /// Returns `is_done_t`.
     fn is_done(&self) -> &Vec<i8>;
 
-    /// Returns `weight`. It is used for prioritized experience replay.
+    /// Returns `weight`. It is used for PER.
     fn weight(&self) -> &Option<Vec<f32>>;
 
-    /// Returns `ix_sample`. It is used for prioritized experience replay.
+    /// Returns `ix_sample`. It is used for PER.
     fn ix_sample(&self) -> &Option<Vec<usize>>;
 }

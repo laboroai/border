@@ -17,7 +17,7 @@ pub trait Env {
     /// Information in the [self::Step] object.
     type Info: Info;
 
-    /// Builds an environment.
+    /// Builds an environment with a given random seed.
     fn build(config: &Self::Config, seed: i64) -> Result<Self>
     where
         Self: Sized;
@@ -27,8 +27,11 @@ pub trait Env {
     where
         Self: Sized;
 
-    /// Resets the i-th environment if `is_done[i] == 1`.
-    /// The i-th return value should be ignored if `is_done[i] == 0`.
+    /// Resets the environment if `is_done[0] == 1`. or `is_done.is_none()`.
+    ///
+    /// Old versions of the library supports vectorized environments and `is_done` was
+    /// used to reset a part of the vectorized environments. Currenly, vecorized environment
+    /// is not supported and `is_done.len()` is expected to be 1.
     fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<Self::Obs>;
 
     /// Performes an environment step and reset the environment if an episode ends.

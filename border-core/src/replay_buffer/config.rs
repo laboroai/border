@@ -8,7 +8,6 @@ use std::{
     path::Path,
 };
 use super::{WeightNormalizer, WeightNormalizer::All};
-// use super::{WeightNormalizer, WeightNormalizer::{All, Batch}};
 
 /// Configuration for prioritized experience replay.
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]

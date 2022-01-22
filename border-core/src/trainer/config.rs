@@ -1,4 +1,4 @@
-//! Trainer.
+//! Configuration of [Trainer](super::Trainer).
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{

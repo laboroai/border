@@ -2,7 +2,7 @@
 use super::Batch;
 use anyhow::Result;
 
-/// Represents a replay buffer.
+/// Interface of replay buffers.
 pub trait ReplayBufferBase {
     /// Configuration of the replay buffer.
     type Config: Clone;
@@ -27,6 +27,8 @@ pub trait ReplayBufferBase {
     /// Pushes a transition into the buffer.
     fn push(&mut self, tr: Self::PushedItem) -> Result<()>;
 
-    /// Updates priority based on TD error.
+    /// Updates priority.
+    ///
+    /// Priority is commonly based on TD error.
     fn update_priority(&mut self, ixs: &Option<Vec<usize>>, td_err: &Option<Vec<f32>>);
 }

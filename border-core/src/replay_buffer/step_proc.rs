@@ -6,14 +6,11 @@ use super::{Batch, SubBatch};
 /// Configuration of [SimpleStepProcessor].
 #[derive(Clone, Debug)]
 pub struct SimpleStepProcessorConfig {
-    // gamma: f32,
 }
 
 impl Default for SimpleStepProcessorConfig {
     fn default() -> Self {
-        Self {
-            // gamma: 0.99
-        }
+        Self {}
     }
 }
 
@@ -22,7 +19,6 @@ impl Default for SimpleStepProcessorConfig {
 /// It supports 1-step TD backup for non-vectorized environment:
 /// `E::Obs.len()` must be 1.
 pub struct SimpleStepProcessor<E, O, A> {
-    // gamma: f32,
     prev_obs: Option<O>,
     phantom: PhantomData<(E, A)>
 }
@@ -38,7 +34,6 @@ where
 
     fn build(_config: &Self::Config) -> Self {
         Self {
-            // gamma: config.gamma,
             prev_obs: None,
             phantom: PhantomData
         }

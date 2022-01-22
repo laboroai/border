@@ -1,11 +1,14 @@
 //! Environment step.
 use super::Env;
 
-/// Represents additional information to `Obs` and `Act`.
+/// Additional information to `Obs` and `Act`.
 pub trait Info {}
 
-/// Represents all information given at every step of agent-envieronment interaction.
-/// `reward` and `is_done` have the same length, the number of processes (environments).
+/// All information given at every step of agent-envieronment interaction.
+///
+/// Old versions of the library support veectorized environments, which requires
+/// elements in [Step] to be able to handle multiple values.
+/// This is why `reward` and `is_done` are vector.
 pub struct Step<E: Env> {
     /// Action.
     pub act: E::Act,

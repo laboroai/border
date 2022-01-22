@@ -1,6 +1,7 @@
 //! Scheduling the exponent of importance weight for PER.
 use serde::{Deserialize, Serialize};
 
+/// Scheduler of the exponent of importance weight for PER.
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 pub struct IwScheduler {
     /// Initial value of $\beta$.
