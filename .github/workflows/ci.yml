@@ -58,7 +58,7 @@ jobs:
           name: Set PYTHONPATH (Windows)
           run: |
             echo "PYTHONPATH=%cd%\border-py-gym-env\examples" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf-8 -Append
-            echo $PYTHONPATH
+            echo "${env.PYTHONPATH}"
 
         # - name: Test border-core
         #   run: cargo test -p border-core
