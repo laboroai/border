@@ -40,7 +40,7 @@ const MODEL_DIR: &str = "./border/examples/model/dqn_cartpole";
 shape!(ObsShape, [DIM_OBS as usize]);
 shape!(ActShape, [1]);
 
-type PyObsDtype = f64;
+type PyObsDtype = f32;
 
 #[derive(Clone, Debug)]
 struct Obs(PyGymEnvObs<ObsShape, PyObsDtype, f32>);

@@ -35,7 +35,7 @@ const EVAL_INTERVAL: usize = 2_000;
 const REPLAY_BUFFER_CAPACITY: usize = 100_000;
 const N_EPISODES_PER_EVAL: usize = 5;
 
-type PyObsDtype = f64;
+type PyObsDtype = f32;
 
 shape!(ObsShape, [DIM_OBS as _]);
 shape!(ActShape, [DIM_ACT as _]);

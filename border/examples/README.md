@@ -75,9 +75,9 @@ PYTHONPATH=./border-py-gym-env/examples cargo run --example sac_lunarlander_cont
 * Evaluation with pretrained models
 
   ```bash
-  PYTHONPATH=./border-py-gym-env/examples cargo run --example iqn_atari -- PongNoFrameskip-v4 --play-gdrive
+  PYTHONPATH=./border-py-gym-env/examples cargo run --example iqn_atari --features="tch" -- PongNoFrameskip-v4 --play-gdrive
   ```
 
   ```bash
-  PYTHONPATH=./border-py-gym-env/examples cargo run --example iqn_atari -- SeaquestNoFrameskip-v4 --play-gdrive
+  PYTHONPATH=./border-py-gym-env/examples cargo run --example iqn_atari --features="tch" -- SeaquestNoFrameskip-v4 --play-gdrive
   ```
