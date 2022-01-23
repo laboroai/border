@@ -55,3 +55,18 @@ fn main() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn test_lunalander_cont() {
+    fastrand::seed(42);
+
+    let env_config = PyGymEnvConfig::default()
+        .name("LunarLanderContinuous-v2".to_string())
+        .obs_filter_config(<ObsFilter as PyGymEnvObsFilter<Obs>>::Config::default())
+        .act_filter_config(<ActFilter as PyGymEnvActFilter<Act>>::Config::default());
+    let mut env = Env::build(&env_config, 0).unwrap();
+    let mut recorder = BufferedRecorder::new();
+    let mut policy = RandomPolicy;
+
+    let _ = util::eval_with_recorder(&mut env, &mut policy, 1, &mut recorder).unwrap();
+}

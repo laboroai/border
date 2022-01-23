@@ -71,8 +71,7 @@ pub trait PyGymEnvActFilter<A: Act> {
     }
 }
 
-/// Represents an environment in [OpenAI gym](https://github.com/openai/gym).
-/// The code is adapted from [tch-rs RL example](https://github.com/LaurentMazare/tch-rs/tree/master/examples/reinforcement-learning).
+/// An environment in [OpenAI gym](https://github.com/openai/gym).
 #[derive(Debug)]
 pub struct PyGymEnv<O, A, OF, AF>
 where
@@ -83,7 +82,9 @@ where
 {
     render: bool,
     env: PyObject,
+    #[allow(dead_code)]
     action_space: i64,
+    #[allow(dead_code)]
     observation_space: Vec<usize>,
     count_steps: usize,
     max_steps: Option<usize>,
@@ -347,14 +348,14 @@ where
                 AtariWrapper::Eval => false,
             };
             let gym = py.import("atari_wrappers")?;
-            // let env = gym.call("make_env_single_proc", (name, true, mode), None)?;
             let env = gym.getattr("make_env_single_proc")?.call((name, true, mode), None)?;
             env.call_method("seed", (seed,), None)?;
             env
         } else {
-            let gym = py.import("gym")?;
-            // let env = gym.call("make", (name,), None)?;
-            let env = gym.getattr("make")?.call((name,), None)?;
+            let gym = py.import("f32_wrapper")?;
+            let env = gym.getattr("make_f32")?.call((name,), None)?;
+            // let gym = py.import("gym")?;
+            // let env = gym.getattr("make")?.call((name,), None)?;
             env.call_method("seed", (seed,), None)?;
             env
         };

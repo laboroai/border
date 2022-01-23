@@ -66,9 +66,9 @@ where
     /// No filter is applied after conversion.
     /// The shape of the observation is `S` in [PyGymEnv](crate::PyGymEnv).
     ///
-    /// For [crate::PyVecGymEnv], which is a vectorized environments,
-    /// the shape becomes `[n_procs, S]`, where `n_procs` is the number of processes
-    /// of the vectorized environment.
+    // /// For [crate::PyVecGymEnv], which is a vectorized environments,
+    // /// the shape becomes `[n_procs, S]`, where `n_procs` is the number of processes
+    // /// of the vectorized environment.
     ///
     /// [Record] in the returned value has `obs`, which is a flattened array of
     /// observation, for either of single and vectorized environments.

@@ -12,7 +12,7 @@ use std::{convert::TryFrom, fs::File};
 
 shape!(ObsShape, [4]);
 
-type PyObsDtype = f64;
+type PyObsDtype = f32;
 
 type Obs = PyGymEnvObs<ObsShape, PyObsDtype, f32>;
 type Act = PyGymEnvDiscreteAct;
@@ -88,4 +88,19 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+#[test]
+fn test_random_cartpole() {
+    fastrand::seed(42);
+
+    let env_config = PyGymEnvConfig::default()
+        .name("CartPole-v0".to_string())
+        .obs_filter_config(<ObsFilter as PyGymEnvObsFilter<Obs>>::Config::default())
+        .act_filter_config(<ActFilter as PyGymEnvActFilter<Act>>::Config::default());
+    let mut env = Env::build(&env_config, 0).unwrap();
+    let mut recorder = BufferedRecorder::new();
+    let mut policy = RandomPolicy;
+
+    let _ = util::eval_with_recorder(&mut env, &mut policy, 1, &mut recorder).unwrap();
 }

@@ -38,14 +38,27 @@ jobs:
           run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
 
         - name: Install gym
-          run: pip install gym[atari]
+          run: |
+            pip install Box2D
+            pip install box2d-py
+            pip install gym[atari]
+            pip install gym[Box_2D]
+
+        - name: Install pybullet-gym
+          run:  |
+            git clone https://github.com/benelot/pybullet-gym.git
+            cd pybullet-gym
+            pip install -e .
 
         - name: Set PYTHONPATH
-          run: echo "PYTHONPATH=./border/examples" >> $GITHUB_ENV
+          run: echo "PYTHONPATH=$PWD/border-py-gym-env/examples" >> $GITHUB_ENV
 
         - if: matrix.os == 'windows-latest'
           name: Set PYTHONPATH (Windows)
           run: echo "PYTHONPATH=.\border\examples" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
 
-        - name: Test
-          run: cargo test --no-default-features
+        - name: Test border-core
+          run: cargo test -p border-core
+
+        - name: Test border-py-gym-env
+          run: cargo test -p border-py-gym-env

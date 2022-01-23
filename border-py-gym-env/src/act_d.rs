@@ -1,4 +1,4 @@
-//! Discrete action for [`super::PyGymEnv`] and [`super::PyVecGymEnv`].
+//! Discrete action for [PyGymEnv](crate::PyGymEnv).
 mod base;
 mod raw_filter;
 pub use base::PyGymEnvDiscreteAct;

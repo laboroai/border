@@ -13,12 +13,25 @@ where
     OF: PyGymEnvObsFilter<O>,
     AF: PyGymEnvActFilter<A>,
 {
-    pub(super) max_steps: Option<usize>,
-    pub(super) atari_wrapper: Option<AtariWrapper>,
-    pub(super) pybullet: bool,
-    pub(super) name: String,
-    pub(super) obs_filter_config: Option<OF::Config>,
-    pub(super) act_filter_config: Option<AF::Config>,
+    /// The maximum interaction steps in an episode.
+    pub max_steps: Option<usize>,
+
+    /// If not `None`, a function in `examples/atari_wrappers.py` is called and
+    /// environment wrappers for Atari will be applied.
+    /// Otherwise, a function in `f32_wrappers.py` is called to make an environment (not Atari).
+    pub atari_wrapper: Option<AtariWrapper>,
+
+    /// `true` to support rendering for PyBullet gym environment.
+    pub pybullet: bool,
+
+    /// Name of the environment, e.g., `CartPole-v0`.
+    pub name: String,
+
+    /// Configuration of [PyGymEnvObsFilter].
+    pub obs_filter_config: Option<OF::Config>,
+
+    /// Configuration of [PyGymEnvActFilter].
+    pub act_filter_config: Option<AF::Config>,
 }
 
 impl<O, A, OF, AF> Clone for PyGymEnvConfig<O, A, OF, AF>

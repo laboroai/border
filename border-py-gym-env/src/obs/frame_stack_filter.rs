@@ -37,7 +37,6 @@ impl Default for FrameStackFilterConfig {
 
 /// An observation filter with stacking sequence of original observations.
 ///
-/// This filter supports vectorized environments ([crate::PyVecGymEnv]).
 /// The first element of the shape `S` denotes the number of stacks (`n_stack`) and the following elements
 /// denote the shape of the partial observation, which is the observation of each environment
 /// in the vectorized environment.
@@ -50,6 +49,7 @@ where
     U: Obs + From<PyGymEnvObs<S, T1, T2>>,
 {
     buffer: Vec<ArrayD<T2>>,
+    #[allow(dead_code)]
     n_procs: i64,
     n_stack: i64,
     vectorized: bool,

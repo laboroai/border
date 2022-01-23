@@ -16,8 +16,9 @@ autoexamples = false
 anyhow = "1.0.38"
 pixels = "0.2.0"
 winit = "0.24.0"
-# atari-env = { version = "0.1.1" }
-atari-env = { git = "https://github.com/elbaro/gym-rs.git", rev = "5f295f9" }
+atari-env = { version = "0.1.1" }
+# atari-env = { git = "https://github.com/elbaro/gym-rs.git", rev = "5f295f9" }
+# atari-env = { version = "0.1.1", path = "../../../elbaro/gym-rs/atari-env" }
 dirs = "3.0.1"
 border-core = { version = "0.0.5", path = "../border-core" }
 image = "0.23.14"

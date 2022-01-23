@@ -37,9 +37,12 @@ default = ["tch"]
 
 [[example]]
 name = "random_cartpole"
+test = true
 
 [[example]]
 name = "random_lunarlander_cont"
+test = true
 
 [[example]]
 name = "random_ant"
+test = true

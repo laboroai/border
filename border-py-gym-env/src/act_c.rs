@@ -1,4 +1,4 @@
-//! Continuous action for [`super::PyGymEnv`] and [`super::PyVecGymEnv`].
+//! Continuous action for [PyGymEnv](crate::PyGymEnv).
 mod base;
 mod raw_filter;
 pub use base::PyGymEnvContinuousAct;
