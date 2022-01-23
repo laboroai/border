@@ -351,11 +351,14 @@ where
             let env = gym.getattr("make_env_single_proc")?.call((name, true, mode), None)?;
             env.call_method("seed", (seed,), None)?;
             env
-        } else {
+        } else if !config.pybullet {
             let gym = py.import("f32_wrapper")?;
             let env = gym.getattr("make_f32")?.call((name,), None)?;
-            // let gym = py.import("gym")?;
-            // let env = gym.getattr("make")?.call((name,), None)?;
+            env.call_method("seed", (seed,), None)?;
+            env
+        } else {
+            let gym = py.import("gym")?;
+            let env = gym.getattr("make")?.call((name,), None)?;
             env.call_method("seed", (seed,), None)?;
             env
         };
