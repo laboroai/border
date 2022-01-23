@@ -55,7 +55,7 @@ jobs:
 
         - if: matrix.os == 'windows-latest'
           name: Set PYTHONPATH (Windows)
-          run: echo "PYTHONPATH=.\border\examples" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+          run: echo "PYTHONPATH=%cd%\border\examples" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
 
         - name: Test border-core
           run: cargo test -p border-core
