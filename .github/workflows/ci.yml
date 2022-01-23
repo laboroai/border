@@ -57,7 +57,7 @@ jobs:
         - if: matrix.os == 'windows-latest'
           name: Set PYTHONPATH (Windows)
           run: |
-            echo "PYTHONPATH=%cd%\border-py-gym-env\examples" >> $env:GITHUB_ENV
+            echo "$env:PYTHONPATH=%cd%\border-py-gym-env\examples" >> $env:GITHUB_ENV
             echo $env:PYTHONPATH
 
         # - name: Test border-core
