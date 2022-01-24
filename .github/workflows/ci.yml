@@ -51,15 +51,14 @@ jobs:
             cd pybullet-gym
             pip install -e .
 
-        - name: Set PYTHONPATH
+        - if: matrix.os != 'windows-latest'
+          name: Set PYTHONPATH (Linux, macOS)
           run: echo "PYTHONPATH=$PWD/border-py-gym-env/examples" >> $GITHUB_ENV
           shell: bash
 
-        # - if: matrix.os == 'windows-latest'
-        #   name: Set PYTHONPATH (Windows)
-        #   run: |
-        #     echo "PYTHONPATH=%cd%\border-py-gym-env\examples" >> $env:GITHUB_ENV
-        #     echo $env:PYTHONPATH
+        - if: matrix.os == 'windows-latest'
+          name: Set PYTHONPATH (Windows)
+          run: echo "PYTHONPATH=$pwd\border-py-gym-env\examples" >> $env:GITHUB_ENV
 
         - name: Test border-core
           run: cargo test -p border-core
