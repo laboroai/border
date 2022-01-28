@@ -1,5 +1,5 @@
 use anyhow::Result;
-use atari_env::AtariEnv;
+use crate::atari_env::AtariEnv;
 // use atari_env::{AtariAction, AtariEnv, EmulatorConfig};
 use pixels::{Pixels, SurfaceTexture};
 use winit::{

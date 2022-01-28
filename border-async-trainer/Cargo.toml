@@ -23,10 +23,6 @@ crossbeam-channel = "0.5.1"
 serde_yaml = "0.8.7"
 thiserror = "1.0"
 
-# [[example]]
-# name = "random_pong"
-
 [dev-dependencies]
 env_logger = "0.8.2"
-border-atari-env = { version = "0.0.5", path = "../border-atari-env"}
 test-log = "0.2.8"

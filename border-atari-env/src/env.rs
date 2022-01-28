@@ -2,7 +2,7 @@ mod config;
 mod window;
 use super::BorderAtariAct;
 use anyhow::Result;
-use atari_env::{AtariAction, AtariEnv, EmulatorConfig};
+use crate::atari_env::{AtariAction, AtariEnv, EmulatorConfig};
 use border_core::{record::Record, Env, Info, Obs, Act, Step};
 pub use config::BorderAtariEnvConfig;
 use image::{
