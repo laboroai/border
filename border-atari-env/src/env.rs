@@ -12,6 +12,7 @@ use image::{
 use std::{default::Default, marker::PhantomData};
 use std::ptr::copy;
 use window::AtariWindow;
+#[cfg(not(doc))]
 use winit::{event_loop::ControlFlow, platform::run_return::EventLoopExtRunReturn};
 use super::{BorderAtariObsFilter, BorderAtariActFilter};
 use itertools::izip;
@@ -317,32 +318,38 @@ where
     where
         Self: Sized,
     {
-        let act_org = act.clone();
-        let (act, _record) = self.act_filter.filt(act_org.clone());
-        let (obs, reward, is_done) = self.skip_and_max(&act);
-        let (w, h) = (self.env.width() as u32, self.env.height() as u32);
-        let obs = Self::warp_and_grayscale(w, h, obs);
-        let reward = self.clip_reward(reward); // in training
-        self.stack_frame(obs);
-        let (obs, _record) = self.obs_filter.filt(self.frames.clone().into());
-        let step = Step::new(
-            obs,
-            act_org,
-            reward,
-            is_done,
-            NullInfo,
-            Self::Obs::dummy(1),
-        );
-        let record = Record::empty();
+        #[cfg(not(doc))]
+        {
+            let act_org = act.clone();
+            let (act, _record) = self.act_filter.filt(act_org.clone());
+            let (obs, reward, is_done) = self.skip_and_max(&act);
+            let (w, h) = (self.env.width() as u32, self.env.height() as u32);
+            let obs = Self::warp_and_grayscale(w, h, obs);
+            let reward = self.clip_reward(reward); // in training
+            self.stack_frame(obs);
+            let (obs, _record) = self.obs_filter.filt(self.frames.clone().into());
+            let step = Step::new(
+                obs,
+                act_org,
+                reward,
+                is_done,
+                NullInfo,
+                Self::Obs::dummy(1),
+            );
+            let record = Record::empty();
 
-        if let Some(window) = self.window.as_mut() {
-            window.event_loop.run_return(|_event, _, control_flow| {
-                *control_flow = ControlFlow::Exit;
-            });
-            self.env.render_rgb32(window.get_frame());
-            window.render_and_request_redraw();
+            if let Some(window) = self.window.as_mut() {
+                window.event_loop.run_return(|_event, _, control_flow| {
+                    *control_flow = ControlFlow::Exit;
+                });
+                self.env.render_rgb32(window.get_frame());
+                window.render_and_request_redraw();
+            }
+
+            (step, record)
         }
 
-        (step, record)
+        #[cfg(doc)]
+        unimplemented!();
     }
 }
