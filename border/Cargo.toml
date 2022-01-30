@@ -8,7 +8,7 @@ description = "Reinforcement learning library"
 repository = "https://github.com/taku-y/border"
 keywords = ["rl"]
 categories = ["science"]
-license = "MIT OR Apache-2.0"
+license = "GPL-2.0-or-later"
 readme = "README.md"
 autoexamples = false
 
