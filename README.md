@@ -15,7 +15,7 @@ Border consists of the following crates:
 * [border-tch-agent](https://crates.io/crates/border-tch-agent) is a collection of RL agents based on [tch](https://crates.io/crates/tch). Deep Q network (DQN), implicit quantile network (IQN), and soft actor critic (SAC) are includes.
 * [border-async-trainer](https://crates.io/crates/border-async-trainer) defines some traits and functions for asynchronous training of RL agents by multiple actors, each of which runs a sampling process of an agent and an environment in parallel.
 
-You can use a part of these crates for your purposes, though [border-core](https://crates.io/crates/border-core) is mandatory. [This crate](https://crates.io/crates/border) is just a collection of examples. See [Documentation](https://docs.rs/border) for more details. 
+You can use a part of these crates for your purposes, though [border-core](https://crates.io/crates/border-core) is mandatory. [This crate](https://crates.io/crates/border) is just a collection of examples. See [Documentation](https://docs.rs/border) for more details.
 
 ## Status
 

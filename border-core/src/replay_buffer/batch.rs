@@ -8,13 +8,26 @@ where
     O: SubBatch,
     A: SubBatch,
 {
-    pub(super) obs: O,
-    pub(super) act: A,
-    pub(super) next_obs: O,
-    pub(super) reward: Vec<f32>,
-    pub(super) is_done: Vec<i8>,
-    pub(super) weight: Option<Vec<f32>>,
-    pub(super) ix_sample: Option<Vec<usize>>,
+    /// Observations.
+    pub obs: O,
+
+    /// Actions.
+    pub act: A,
+
+    /// Next observations.
+    pub next_obs: O,
+
+    /// Rewards.
+    pub reward: Vec<f32>,
+
+    /// Done flags.
+    pub is_done: Vec<i8>,
+
+    /// Priority weights.
+    pub weight: Option<Vec<f32>>,
+
+    /// Sample indices.
+    pub ix_sample: Option<Vec<usize>>,
 }
 
 impl<O, A> BatchBase for Batch<O, A>
