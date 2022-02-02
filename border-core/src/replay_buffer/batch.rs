@@ -91,4 +91,16 @@ where
     fn ix_sample(&self) -> &Option<Vec<usize>> {
         &self.ix_sample
     }
+
+    fn empty() -> Self {
+        Self {
+            obs: O::new(0),
+            act: A::new(0),
+            next_obs: O::new(0),
+            reward: vec![],
+            is_done: vec![],
+            ix_sample: None,
+            weight: None,
+        }
+    }
 }
