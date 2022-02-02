@@ -49,4 +49,7 @@ pub trait Batch {
 
     /// Returns `ix_sample`. It is used for PER.
     fn ix_sample(&self) -> &Option<Vec<usize>>;
+
+    /// Creates an empty batch.
+    fn empty() -> Self;
 }
