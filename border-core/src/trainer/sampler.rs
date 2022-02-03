@@ -56,7 +56,11 @@ where
         // Sample action(s) and apply it to environment(s)
         let act = agent.sample(self.prev_obs.as_ref().unwrap());
         let (step, record) = self.env.step_with_reset(&act);
-        self.prev_obs = Some(step.obs.clone());
+        self.prev_obs = if step.is_done[0] == 1 { // not support vectorized env
+            Some(step.init_obs.clone())
+        } else {
+            Some(step.obs.clone())
+        };
 
         // Create and push transition(s)
         let transition = self.producer.process(step);
