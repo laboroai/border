@@ -57,6 +57,7 @@ where
         let act = agent.sample(self.prev_obs.as_ref().unwrap());
         let (step, record) = self.env.step_with_reset(&act);
         self.prev_obs = if step.is_done[0] == 1 { // not support vectorized env
+            self.producer.reset(step.init_obs.clone());
             Some(step.init_obs.clone())
         } else {
             Some(step.obs.clone())
