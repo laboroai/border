@@ -56,8 +56,10 @@ where
         // Sample action(s) and apply it to environment(s)
         let act = agent.sample(self.prev_obs.as_ref().unwrap());
         let (step, record) = self.env.step_with_reset(&act);
-        self.prev_obs = if step.is_done[0] == 1 { // not support vectorized env
-            self.producer.reset(step.init_obs.clone());
+        let terminate_episode = step.is_done[0] == 1; // not support vectorized env
+
+        // Update previouos observation
+        self.prev_obs = if terminate_episode {
             Some(step.init_obs.clone())
         } else {
             Some(step.obs.clone())
@@ -66,6 +68,11 @@ where
         // Create and push transition(s)
         let transition = self.producer.process(step);
         buffer.push(transition)?;
+
+        // Reset producer
+        if terminate_episode {
+            self.producer.reset(self.prev_obs.as_ref().unwrap().clone());
+        }
 
         // For counting FPS
         if let Ok(time) = now.elapsed() {
