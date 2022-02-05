@@ -9,7 +9,7 @@ repository = "https://github.com/taku-y/border"
 keywords = ["rl"]
 categories = ["science"]
 license = "MIT OR Apache-2.0"
-readme = "README.md"
+# readme = "README.md"
 autoexamples = false
 
 [lib]
