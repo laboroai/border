@@ -1,0 +1,71 @@
+use anyhow::Result;
+use crate::atari_env::AtariEnv;
+#[cfg(not(doc))]
+use {
+    pixels::{Pixels, SurfaceTexture},
+    winit::{
+        event_loop::EventLoop,
+        // platform::run_return::EventLoopExtRunReturn,
+        window::{Window, WindowBuilder},
+    }
+};
+
+pub(super) struct AtariWindow {
+    #[cfg(not(doc))]
+    pub(super) event_loop: EventLoop<()>,
+    #[cfg(not(doc))]
+    window: Window,
+    #[cfg(not(doc))]
+    pixels: Pixels<Window>,
+}
+
+impl AtariWindow {
+    pub fn new(env: &AtariEnv) -> Result<Self> {
+        #[cfg(not(doc))]
+        {
+            let event_loop = EventLoop::new();
+            let window = WindowBuilder::new()
+                .with_title("A fantastic window!")
+                .with_inner_size(winit::dpi::LogicalSize::new(128.0, 128.0))
+                .build(&event_loop)?;
+            let surface_texture = SurfaceTexture::new(128, 128, &window);
+            let pixels = Pixels::new(
+                env.width() as u32,
+                env.height() as u32,
+                surface_texture,
+            )
+            .unwrap();
+            // event_loop.run_return(move |_event, _, _control_flow| {});
+
+            Ok(Self {
+                event_loop: event_loop,
+                window,
+                pixels,
+            })
+        }
+
+        #[cfg(doc)]
+        unimplemented!();
+    }
+
+    pub fn get_frame(&mut self) -> &mut [u8] {
+        #[cfg(not(doc))]
+        {
+            self.pixels.get_frame()
+        }
+
+        #[cfg(doc)]
+        unimplemented!();
+    }
+
+    pub fn render_and_request_redraw(&mut self) {
+        #[cfg(not(doc))]
+        {
+            self.pixels.render().unwrap();
+            self.window.request_redraw();
+        }
+
+        #[cfg(doc)]
+        unimplemented!();
+    }
+}

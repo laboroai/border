@@ -1,0 +1,9 @@
+---
+max_opts: 3000000
+eval_episodes: 1
+eval_threshold: ~
+model_dir: "./border/examples/model/dqn_PongNoFrameskip-v4"
+opt_interval: 1
+eval_interval: 50000
+record_interval: 50000
+save_interval: 500000

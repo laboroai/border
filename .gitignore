@@ -21,3 +21,9 @@ tmp.csv
 
 iqn_regression*.csv
 **.ipynb_checkpoints
+
+copy*
+results
+**/test.png
+abci/**
+venv/**

@@ -1,15 +1,18 @@
 //! Definition of interfaces of neural networks.
+use anyhow::Result;
 use std::path::Path;
 use tch::{nn, nn::VarStore, Tensor};
-use anyhow::Result;
 
 /// Base interface.
 pub trait ModelBase {
     /// Trains the network given a loss.
     fn backward_step(&mut self, loss: &Tensor);
 
+    /// Returns `var_store` as mutable reference.
+    fn get_var_store_mut(&mut self) -> &mut nn::VarStore;
+
     /// Returns `var_store`.
-    fn get_var_store(&mut self) -> &mut nn::VarStore;
+    fn get_var_store(&self) -> &nn::VarStore;
 
     /// Save parameters of the neural network.
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<()>;

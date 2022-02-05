@@ -1,0 +1,26 @@
+---
+model_config:
+  q_config:
+    n_stack: 4
+    out_dim: 0
+  opt_config:
+    Adam:
+      lr: 0.0001
+soft_update_interval: 10000
+n_updates_per_opt: 1
+min_transitions_warmup: 2500
+batch_size: 32
+discount_factor: 0.99
+tau: 1.0
+train: false
+explorer:
+  EpsilonGreedy:
+    n_opts: 0
+    eps_start: 1.0
+    eps_final: 0.02
+    final_step: 1000000
+clip_reward: 1.0
+double_dqn: false
+clip_td_err: ~
+device: ~
+phantom: ~

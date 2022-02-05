@@ -1,6 +1,6 @@
 [package]
 name = "border-tch-agent"
-version = "0.0.4"
+version = "0.0.5"
 authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
 edition = "2018"
 
@@ -13,8 +13,9 @@ readme = "README.md"
 autoexamples = false
 
 [dependencies]
-border-core = { version = "0.0.4", path = "../border-core" }
-serde = { version = "1.0.117", features = ["derive"] }
+border-core = { version = "0.0.5", path = "../border-core" }
+border-async-trainer = { version = "0.0.5", path = "../border-async-trainer", optional = true }
+serde = { version = "=1.0.126", features = ["derive"] }
 serde_yaml = "0.8.7"
 tensorboard-rs = "0.2.4"
 log = "0.4"
@@ -24,6 +25,13 @@ chrono = "0.4"
 aquamarine = "0.1"
 tch = "0.5.0"
 fastrand = "1.4.0"
+segment-tree = "2.0.0"
 
 [dev-dependencies]
 tempdir = "0.3.7"
+
+[package.metadata.docs.rs]
+features = [ "doc-only" ]
+
+[features]
+doc-only = ["tch/doc-only"]

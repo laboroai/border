@@ -1,106 +1,11 @@
-[package]
-name = "border"
-version = "0.0.5"
-authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
-edition = "2018"
+[workspace]
 
-description = "Reinforcement learning library"
-repository = "https://github.com/taku-y/border"
-keywords = ["rl"]
-categories = ["science"]
-license = "MIT OR Apache-2.0"
-readme = "README.md"
-autoexamples = false
-
-[dependencies]
-ndarray = { version = "0.14", features = ["serde"] }
-tch = "0.5.0"
-# tch = { git = "https://github.com/taku-y/tch-rs", branch = "adam_eps" }
-numpy = "0.13.0"
-pyo3 = { version = "=0.13.0", default-features = false }
-fastrand = "1.4.0"
-log = "0.4"
-env_logger = "0.8.2"
-rayon = "1.1"
-num-traits = "0.2.14"
-chrono = "0.4"
-tensorboard-rs = "0.2.4"
-thiserror = "1.0"
-aquamarine = "0.1"
-reqwest = { version = "0.11.3", features = ["blocking"]}
-dirs = "3.0.2"
-anyhow = "1.0.38"
-zip = "0.5.12"
-serde = { version = "1.0.117", features = ["derive"] }
-serde_yaml = "0.8.7"
-border-core = { version = "0.0.4", path = "border-core" }
-border-tch-agent = { version = "0.0.4", path = "border-tch-agent" }
-border-py-gym-env = { version = "0.0.4", path = "border-py-gym-env" }
-
-[[example]]
-name = "random_cartpole"
-
-[[example]]
-name = "dqn_cartpole"
-test = true
-
-[[example]]
-name = "iqn_cartpole"
-
-[[example]]
-name = "sac_pendulum"
-test = true
-
-[[example]]
-name = "quantile_loss"
-
-[[example]]
-name = "dqn_atari"
-
-[[example]]
-name = "iqn_atari"
-# required_features = [ "adam_eps" ]
-
-[[example]]
-name = "iqn_regression"
-
-[[example]]
-name = "random_ant"
-
-[[example]]
-name = "sac_ant"
-
-[[example]]
-name = "dqn_atari_vec"
-# test = true
-
-[[example]]
-name = "sac_lunarlander_cont"
-
-[[example]]
-name = "macro"
-
-[[example]]
-name = "random_lunarlander_cont"
-
-[[example]]
-name = "sac_lunarlander_cont_vec"
-
-[[example]]
-name = "pyo3"
-
-[dev-dependencies]
-clap = "2.33.3"
-csv = "1.1.5"
-tempdir = "0.3.7"
-
-[package.metadata.docs.rs]
-features = [ "doc-only" ]
-
-[features]
-# default = [ "adam_eps" ]
-doc-only = ["tch/doc-only"]
-adam_eps = []
-
-#[target.'cfg(feature="adam_eps")'.patch.crates-io]
-#tch = { git = "https://github.com/taku-y/tch-rs", branch = "adam_eps" }
+members = [
+    "border-core",
+    "border-py-gym-env",
+    "border-tch-agent",
+    "border-derive",
+    "border-atari-env",
+    "border-async-trainer",
+    "border"
+]

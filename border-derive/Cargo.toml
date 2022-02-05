@@ -1,0 +1,38 @@
+[package]
+name = "border-derive"
+version = "0.0.5"
+authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
+edition = "2018"
+
+description = "Derive macros for observation and action in RL environments of border"
+repository = "https://github.com/taku-y/border"
+keywords = ["rl"]
+categories = ["science"]
+license = "MIT OR Apache-2.0"
+# readme = "README.md"
+autoexamples = false
+
+[lib]
+proc-macro = true
+
+[dependencies]
+darling = "0.13"
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "1.0", features = ["full"] }
+tch = { version = "0.5.0", optional = true }
+
+[dev-dependencies]
+border-tch-agent = { version = "0.0.5", path = "../border-tch-agent" }
+border-py-gym-env = { version = "0.0.5", path = "../border-py-gym-env" }
+border-core = { version = "0.0.5", path = "../border-core" }
+tch = "0.5.0"
+
+[features]
+# default = ["tch"]
+
+[[example]]
+name = "test1"
+
+[package.metadata.docs.rs]
+features = [ "doc-only" ]

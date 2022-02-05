@@ -1,0 +1,138 @@
+[package]
+name = "border"
+version = "0.0.5"
+authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
+edition = "2018"
+
+description = "Reinforcement learning library"
+repository = "https://github.com/taku-y/border"
+keywords = ["rl"]
+categories = ["science"]
+license = "GPL-2.0-or-later"
+readme = "README.md"
+autoexamples = false
+
+[dependencies]
+aquamarine = "0.1"
+tch = { version = "0.5.0", optional = true }
+border-async-trainer = { version = "0.0.5", path = "../border-async-trainer", optional = true }
+anyhow = "1.0.38"
+log = "0.4"
+dirs = "3.0.2"
+zip = "0.5.12"
+reqwest = { version = "0.11.3", features = ["blocking"]}
+border-core = { version = "0.0.5", path = "../border-core" }
+
+[[example]]
+name = "dqn_cartpole"
+required-features = ["tch"]
+test = true
+
+[[example]]
+name = "sac_lunarlander_cont"
+required-features = ["tch"]
+
+# [[example]]
+# name = "iqn_cartpole"
+
+[[example]]
+name = "sac_pendulum"
+test = true
+
+# [[example]]
+# name = "quantile_loss"
+
+[[example]]
+name = "random_atari"
+required-features = ["tch"]
+
+[[example]]
+name = "dqn_atari"
+required-features = ["tch"]
+
+[[example]]
+name = "dqn_atari_rs"
+required-features = ["tch"]
+
+[[example]]
+name = "dqn_atari_async"
+required-features = ["tch", "border-async-trainer"]
+
+[[example]]
+name = "iqn_atari"
+required-features = ["tch"]
+# # required_features = [ "adam_eps" ]
+
+[[example]]
+name = "iqn_atari_rs"
+required-features = ["tch"]
+
+# [[example]]
+# name = "iqn_regression"
+
+# [[example]]
+# name = "random_ant"
+
+[[example]]
+name = "sac_ant"
+required-features = ["tch"]
+
+# [[example]]
+# name = "dqn_atari_vec"
+# # test = true
+
+# [[example]]
+# name = "sac_lunarlander_cont"
+
+# [[example]]
+# name = "macro"
+
+# [[example]]
+# name = "random_lunarlander_cont"
+
+# [[example]]
+# name = "sac_lunarlander_cont_vec"
+
+# [[example]]
+# name = "pyo3"
+
+[[example]]
+name = "make_cfg_dqn_atari"
+required-features = ["border-async-trainer"]
+
+[[example]]
+name = "make_cfg_iqn_atari"
+required-features = ["border-async-trainer"]
+
+[dev-dependencies]
+clap = "2.33.3"
+csv = "1.1.5"
+tempdir = "0.3.7"
+border-derive = { version = "0.0.5", path = "../border-derive" }
+border-core = { version = "0.0.5", path = "../border-core" }
+border-tch-agent = { version = "0.0.5", path = "../border-tch-agent" }
+border-py-gym-env = { version = "0.0.5", path = "../border-py-gym-env" }
+border-atari-env = { version = "0.0.5", path = "../border-atari-env" }
+serde = { version = "1.0.117", features = ["derive"] }
+crossbeam-channel = "0.5.1"
+env_logger = "0.8.2"
+numpy = "0.14.1"
+ndarray = { version = "0.15", features = ["serde"] }
+num-traits = "0.2.14"
+pyo3 = { version = "=0.14.5", default-features = false }
+fastrand = "1.4.0"
+chrono = "0.4"
+tensorboard-rs = "0.2.4"
+thiserror = "1.0"
+serde_yaml = "0.8.7"
+
+[package.metadata.docs.rs]
+features = [ "doc-only" ]
+
+[features]
+# default = [ "adam_eps" ]
+doc-only = ["tch/doc-only"]
+adam_eps = []
+
+#[target.'cfg(feature="adam_eps")'.patch.crates-io]
+#tch = { git = "https://github.com/taku-y/tch-rs", branch = "adam_eps" }
