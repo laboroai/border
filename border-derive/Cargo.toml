@@ -4,7 +4,7 @@ version = "0.0.5"
 authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
 edition = "2018"
 
-description = "Reinforcement learning library"
+description = "Derive macros for observation and action in RL environments of border"
 repository = "https://github.com/taku-y/border"
 keywords = ["rl"]
 categories = ["science"]
@@ -33,3 +33,6 @@ tch = "0.5.0"
 
 [[example]]
 name = "test1"
+
+[package.metadata.docs.rs]
+features = [ "doc-only" ]
