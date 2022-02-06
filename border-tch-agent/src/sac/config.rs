@@ -18,7 +18,7 @@ use std::{
 };
 use tch::Tensor;
 
-/// Constructs [SAC](super::SAC).
+/// Constructs [Sac](super::Sac).
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct SacConfig<Q, P>
@@ -196,7 +196,7 @@ where
         self
     }
 
-    /// Constructs [SACConfig] from YAML file.
+    /// Constructs [SacConfig] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let path_ = path.as_ref().to_owned();
         let file = File::open(path)?;
@@ -206,7 +206,7 @@ where
         Ok(b)
     }
 
-    /// Saves [SACConfig].
+    /// Saves [SacConfig].
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let path_ = path.as_ref().to_owned();
         let mut file = File::create(path)?;

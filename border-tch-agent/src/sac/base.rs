@@ -210,7 +210,7 @@ where
 {
     type Config = SacConfig<Q, P>;
 
-    /// Constructs [SAC] agent.
+    /// Constructs [Sac] agent.
     fn build(config: Self::Config) -> Self {
         let device = config.device.expect("No device is given for SAC agent").into();
         let n_critics = config.n_critics;
