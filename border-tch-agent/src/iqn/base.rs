@@ -7,7 +7,7 @@ use crate::{
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, Batch, Env, Policy, ReplayBufferBase,
+    Agent, BatchBase, Env, Policy, ReplayBufferBase,
 };
 use log::trace;
 use serde::{de::DeserializeOwned, Serialize};
@@ -28,8 +28,8 @@ where
     E::Act: From<Tensor>,
     F::Config: DeserializeOwned + Serialize,
     M::Config: DeserializeOwned + Serialize,
-    <R::Batch as Batch>::ObsBatch: Into<F::Input>,
-    <R::Batch as Batch>::ActBatch: Into<Tensor>,
+    <R::Batch as BatchBase>::ObsBatch: Into<F::Input>,
+    <R::Batch as BatchBase>::ActBatch: Into<Tensor>,
 {
     pub(in crate::iqn) soft_update_interval: usize,
     pub(in crate::iqn) soft_update_counter: usize,
@@ -60,8 +60,8 @@ where
     E::Act: From<Tensor>,
     F::Config: DeserializeOwned + Serialize,
     M::Config: DeserializeOwned + Serialize + OutDim,
-    <R::Batch as Batch>::ObsBatch: Into<F::Input>,
-    <R::Batch as Batch>::ActBatch: Into<Tensor>,
+    <R::Batch as BatchBase>::ObsBatch: Into<F::Input>,
+    <R::Batch as BatchBase>::ActBatch: Into<Tensor>,
 {
     fn update_critic(&mut self, buffer: &mut R) -> f32 {
         trace!("IQN::update_critic()");
@@ -197,8 +197,8 @@ where
     E::Act: From<Tensor>,
     F::Config: DeserializeOwned + Serialize + Clone,
     M::Config: DeserializeOwned + Serialize + Clone + OutDim,
-    <R::Batch as Batch>::ObsBatch: Into<F::Input>,
-    <R::Batch as Batch>::ActBatch: Into<Tensor>,
+    <R::Batch as BatchBase>::ObsBatch: Into<F::Input>,
+    <R::Batch as BatchBase>::ActBatch: Into<Tensor>,
 {
     type Config = IqnConfig<F, M>;
 
@@ -269,8 +269,8 @@ where
     E::Act: From<Tensor>,
     F::Config: DeserializeOwned + Serialize + Clone,
     M::Config: DeserializeOwned + Serialize + Clone + OutDim,
-    <R::Batch as Batch>::ObsBatch: Into<F::Input>,
-    <R::Batch as Batch>::ActBatch: Into<Tensor>,
+    <R::Batch as BatchBase>::ObsBatch: Into<F::Input>,
+    <R::Batch as BatchBase>::ActBatch: Into<Tensor>,
 {
     fn train(&mut self) {
         self.train = true;

@@ -2,7 +2,7 @@
 mod iw_scheduler;
 mod sum_tree;
 use super::{config::PerConfig, Batch, SimpleReplayBufferConfig, SubBatch};
-use crate::{Batch as BatchBase, ReplayBufferBase};
+use crate::{BatchBase, ReplayBufferBase};
 use anyhow::Result;
 pub use iw_scheduler::IwScheduler;
 use rand::{rngs::StdRng, RngCore, SeedableRng};

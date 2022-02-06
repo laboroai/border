@@ -6,7 +6,7 @@ mod policy;
 mod step;
 mod replay_buffer;
 pub use agent::Agent;
-pub use batch::Batch;
+pub use batch::BatchBase;
 pub use env::Env;
 pub use policy::Policy;
 use std::fmt::Debug;

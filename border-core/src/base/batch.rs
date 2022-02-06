@@ -3,7 +3,7 @@
 /// A batch of samples.
 ///
 /// It is used to train agents.
-pub trait Batch {
+pub trait BatchBase {
     /// A set of observation in a batch.
     type ObsBatch;
 

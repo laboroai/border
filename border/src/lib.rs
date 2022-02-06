@@ -42,7 +42,7 @@
 //!
 //! * [`Agent`](border_core::Agent) - trainable RL agents, inheritating [`Policy`](border_core::Policy).
 //! * [`StepProcessorBase`](border_core::ReplayBufferBase) - making
-//!   [`Batch`](border_core::Batch), which will be fed into a replay buffer.
+//!   [`BatchBase`](border_core::BatchBase), which will be pushed into a replay buffer.
 //! * [`ReplayBufferBase`](border_core::ReplayBufferBase) - replay buffers.
 //!
 //! See [`Trainer`](border_core::Trainer) for how these components interact.

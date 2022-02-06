@@ -1,5 +1,5 @@
 //! Replay buffer.
-use super::Batch;
+use super::BatchBase;
 use anyhow::Result;
 
 /// Interface of replay buffers.
@@ -11,7 +11,7 @@ pub trait ReplayBufferBase {
     type PushedItem;
 
     /// Batch generated from the buffer.
-    type Batch: Batch;
+    type Batch: BatchBase;
 
     /// Build a replay buffer from [Self::Config].
     fn build(config: &Self::Config) -> Self;

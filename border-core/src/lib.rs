@@ -9,7 +9,7 @@ mod base;
 pub use base::{
     Act,
     Agent,
-    Batch,
+    BatchBase,
     Env,
     Info,
     Obs,
