@@ -15,7 +15,7 @@ use border_py_gym_env::{
 use border_tch_agent::{
     mlp::{MLPConfig, MLP, MLP2},
     opt::OptimizerConfig,
-    sac::{ActorConfig, CriticConfig, SACConfig, SAC},
+    sac::{ActorConfig, CriticConfig, SacConfig, Sac},
     TensorSubBatch,
 };
 use csv::WriterBuilder;
@@ -126,7 +126,7 @@ impl TryFrom<&Record> for PendulumRecord {
     }
 }
 
-fn create_agent(in_dim: i64, out_dim: i64) -> SAC<Env, MLP, MLP2, ReplayBuffer> {
+fn create_agent(in_dim: i64, out_dim: i64) -> Sac<Env, MLP, MLP2, ReplayBuffer> {
     let device = tch::Device::cuda_if_available();
     let actor_config = ActorConfig::default()
         .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
@@ -135,13 +135,13 @@ fn create_agent(in_dim: i64, out_dim: i64) -> SAC<Env, MLP, MLP2, ReplayBuffer> 
     let critic_config = CriticConfig::default()
         .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
         .q_config(MLPConfig::new(in_dim + out_dim, vec![64, 64], 1));
-    let sac_config = SACConfig::default()
+    let sac_config = SacConfig::default()
         .batch_size(BATCH_SIZE)
         .min_transitions_warmup(N_TRANSITIONS_WARMUP)
         .actor_config(actor_config)
         .critic_config(critic_config)
         .device(device);
-    SAC::build(sac_config)
+    Sac::build(sac_config)
 }
 
 fn env_config() -> PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter> {

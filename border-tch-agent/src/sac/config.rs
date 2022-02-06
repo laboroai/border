@@ -21,7 +21,7 @@ use tch::Tensor;
 /// Constructs [SAC](super::SAC).
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
-pub struct SACConfig<Q, P>
+pub struct SacConfig<Q, P>
 where
     Q: SubModel2<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + Debug + PartialEq + Clone,
@@ -48,7 +48,7 @@ where
     // expr_sampling: ExperienceSampling,
 }
 
-impl<Q, P> Clone for SACConfig<Q, P>
+impl<Q, P> Clone for SacConfig<Q, P>
 where
     Q: SubModel2<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + Debug + PartialEq + Clone,
@@ -78,7 +78,7 @@ where
     }
 }
 
-impl<Q, P> Default for SACConfig<Q, P>
+impl<Q, P> Default for SacConfig<Q, P>
 where
     Q: SubModel2<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + Debug + PartialEq + Clone,
@@ -109,7 +109,7 @@ where
     }
 }
 
-impl<Q, P> SACConfig<Q, P>
+impl<Q, P> SacConfig<Q, P>
 where
     Q: SubModel2<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + Debug + PartialEq + Clone,

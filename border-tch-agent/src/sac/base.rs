@@ -1,4 +1,4 @@
-use super::{SACConfig, Actor, Critic, EntCoef};
+use super::{SacConfig, Actor, Critic, EntCoef};
 use crate::{
     model::{ModelBase, SubModel, SubModel2},
     util::{track, CriticLoss, OutDim},
@@ -25,7 +25,7 @@ fn normal_logp(x: &Tensor) -> Tensor {
 
 /// Soft actor critic (SAC) agent.
 #[allow(clippy::upper_case_acronyms)]
-pub struct SAC<E, Q, P, R>
+pub struct Sac<E, Q, P, R>
 where
     E: Env,
     Q: SubModel2<Output = ActionValue>,
@@ -59,7 +59,7 @@ where
     pub(super) device: tch::Device,
 }
 
-impl<E, Q, P, R> SAC<E, Q, P, R>
+impl<E, Q, P, R> Sac<E, Q, P, R>
 where
     E: Env,
     Q: SubModel2<Output = ActionValue>,
@@ -194,7 +194,7 @@ where
     }
 }
 
-impl<E, Q, P, R> Policy<E> for SAC<E, Q, P, R>
+impl<E, Q, P, R> Policy<E> for Sac<E, Q, P, R>
 where
     E: Env,
     Q: SubModel2<Output = ActionValue>,
@@ -208,7 +208,7 @@ where
     <R::Batch as Batch>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
     <R::Batch as Batch>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
-    type Config = SACConfig<Q, P>;
+    type Config = SacConfig<Q, P>;
 
     /// Constructs [SAC] agent.
     fn build(config: Self::Config) -> Self {
@@ -223,7 +223,7 @@ where
             qnets_tgt.push(critic);
         }
 
-        SAC {
+        Sac {
             qnets,
             qnets_tgt,
             pi,
@@ -258,7 +258,7 @@ where
     }
 }
 
-impl<E, Q, P, R> Agent<E, R> for SAC<E, Q, P, R>
+impl<E, Q, P, R> Agent<E, R> for Sac<E, Q, P, R>
 where
     E: Env,
     Q: SubModel2<Output = ActionValue>,
