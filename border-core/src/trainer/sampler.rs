@@ -2,7 +2,7 @@
 use crate::{Env, Agent, ReplayBufferBase, StepProcessorBase, record::Record};
 use anyhow::Result;
 
-/// Gets an [Agent] interacts with an [Env] and takes samples.
+/// Gets an [`Agent`] interacts with an [`Env`] and takes samples.
 ///
 /// TODO: Rename to `Sampler`.
 pub struct SyncSampler<E, P>
@@ -83,7 +83,7 @@ where
         Ok(record)
     }
 
-    /// Returns FPS, including taking action, applying it to the, environment,
+    /// Returns frames per second, including taking action, applying it to the environment,
     /// producing transition, and pushing it into the replay buffer.
     pub fn fps(&self) -> f32 {
         self.n_frames as f32 / self.time * 1000f32

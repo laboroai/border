@@ -1,4 +1,4 @@
-//! Configuration of [Trainer](super::Trainer).
+//! Configuration of [`Trainer`](super::Trainer).
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -7,7 +7,7 @@ use std::{
     path::Path,
 };
 
-/// Configuration of [Trainer](super::Trainer).
+/// Configuration of [`Trainer`](super::Trainer).
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct TrainerConfig {
     pub(super) max_opts: usize,

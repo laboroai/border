@@ -1,5 +1,6 @@
 //! Shape of tensor.
 use core::fmt::Debug;
+
 /// Shape of observation or action.
 pub trait Shape: Clone + Debug {
     /// Returns the shape of Shape of an array.
@@ -18,7 +19,7 @@ pub trait Shape: Clone + Debug {
     }
 }
 
-/// Defines a struct that implements [Shape].
+/// Defines a struct that implements [`Shape`].
 ///
 /// # Example
 ///

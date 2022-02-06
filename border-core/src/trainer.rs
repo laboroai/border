@@ -12,6 +12,38 @@ pub use sampler::SyncSampler;
 
 #[cfg_attr(doc, aquamarine::aquamarine)]
 /// Manages training loop and related objects.
+///
+/// # Training loop
+///
+/// In [`Trainer::train()`] method, objects interact as shown below:
+///
+/// ```mermaid
+/// graph LR
+///     A[Agent]-->|Env::Act|B[Env]
+///     B -->|Env::Obs|A
+///     B -->|Step|C[StepProcessor]
+///     C -->|PushedItem|D[ReplayBufferBase]
+///     D -->|Batch|A
+/// ```
+///
+/// * First, [`Agent`] emits an [`Env::Act`] `a_t` based on [`Env::Obs`] `o_t` received from
+///   [`Env`]. Given `a_t`, [`Env`] changes its state and creates the observation at the
+///   next step, `o_t+1`. This step of interaction between [`Agent`] and [`Env`] is
+///   referred to as an *environment step*.
+/// * Next, [`Step<E>`] will be created with the next observation `o_t+1`, reward `r_t`,
+///   and `a_t`.
+/// * The [`Step<E>`] object will be processed by [`StepProcessorBase`] and
+///   creates [`ReplayBufferBase::PushedItem`]. Typically, it creates an item including
+///   a quadruple `(o_t, a_t, o_t+1, r_t)`, where `o_t` is kept in the
+///   [`StepProcessorBase`], while other items in the given [`Step<E>`].
+/// * Finally, the [`ReplayBufferBase::PushedItem`] will be used to create a [`Batch`],
+///   which will be used to train the [`Agent`]. A [`Batch`] will be used in an
+///   *optimization step*, where the agent updates its parameters.
+///
+/// [`Trainer::train()`]: Trainer::train
+/// [`Act`]: crate::Act
+/// [`Batch`]: crate::Batch
+/// [`Step<E>`]: crate::Step
 pub struct Trainer<E, P, R>
 where
     E: Env,
@@ -60,6 +92,8 @@ where
     P: StepProcessorBase<E>,
     R: ReplayBufferBase<PushedItem = P::Output>,
 {
+    /// test.
+    pub fn f() {}
     /// Constructs a trainer.
     pub fn build(
         config: TrainerConfig,
