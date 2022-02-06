@@ -16,7 +16,7 @@ use border_py_gym_env::{
 };
 use border_tch_agent::{
     cnn::CNN,
-    dqn::{DQNConfig, DQN as DQN_},
+    dqn::{DqnConfig, Dqn as Dqn_},
     TensorSubBatch,
 };
 use clap::{App, Arg, ArgMatches};
@@ -66,7 +66,7 @@ type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type EnvConfig = PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
-type DQN = DQN_<Env, CNN, ReplayBuffer>;
+type Dqn = Dqn_<Env, CNN, ReplayBuffer>;
 
 fn init<'a>() -> ArgMatches<'a> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
@@ -133,7 +133,7 @@ fn init<'a>() -> ArgMatches<'a> {
 
 fn show_config(
     env_config: &EnvConfig,
-    agent_config: &DQNConfig<CNN>,
+    agent_config: &DqnConfig<CNN>,
     trainer_config: &TrainerConfig,
 ) {
     println!("Device: {:?}", tch::Device::cuda_if_available());
@@ -196,9 +196,9 @@ fn n_actions(env_config: &EnvConfig) -> Result<usize> {
     Ok(Env::build(env_config, 0)?.get_num_actions_atari() as usize)
 }
 
-fn load_dqn_config<'a>(model_dir: impl Into<&'a str>) -> Result<DQNConfig<CNN>> {
+fn load_dqn_config<'a>(model_dir: impl Into<&'a str>) -> Result<DqnConfig<CNN>> {
     let config_path = format!("{}/agent.yaml", model_dir.into());
-    DQNConfig::<CNN>::load(config_path)
+    DqnConfig::<CNN>::load(config_path)
 }
 
 fn load_trainer_config<'a>(model_dir: impl Into<&'a str>) -> Result<TrainerConfig> {
@@ -241,7 +241,7 @@ fn train(matches: ArgMatches) -> Result<()> {
             replay_buffer_config,
         );
         let mut recorder = TensorboardRecorder::new(model_dir);
-        let mut agent = DQN::build(agent_config);
+        let mut agent = Dqn::build(agent_config);
         trainer.train(&mut agent, &mut recorder)?;
     }
 
@@ -256,7 +256,7 @@ fn play(matches: ArgMatches) -> Result<()> {
     let agent_config = load_dqn_config(model_dir.as_str())?
         .out_dim(n_actions as _)
         .device(tch::Device::cuda_if_available());
-    let mut agent = DQN::build(agent_config);
+    let mut agent = Dqn::build(agent_config);
     let mut env = Env::build(&env_config, 0)?;
     let mut recorder = BufferedRecorder::new();
 

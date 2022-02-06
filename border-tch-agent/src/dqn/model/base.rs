@@ -1,4 +1,4 @@
-use super::DQNModelConfig;
+use super::DqnModelConfig;
 use crate::{
     model::{ModelBase, SubModel},
     opt::{Optimizer, OptimizerConfig},
@@ -12,7 +12,7 @@ use tch::{nn, Device, Tensor};
 
 #[allow(clippy::upper_case_acronyms)]
 /// Represents value functions for DQN agents.
-pub struct DQNModel<Q>
+pub struct DqnModel<Q>
 where
     Q: SubModel<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + OutDim,
@@ -33,12 +33,12 @@ where
     phantom: PhantomData<Q>,
 }
 
-impl<Q> DQNModel<Q>
+impl<Q> DqnModel<Q>
 where
     Q: SubModel<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + OutDim,
 {
-    pub fn build(config: DQNModelConfig<Q::Config>, device: Device) -> Self {
+    pub fn build(config: DqnModelConfig<Q::Config>, device: Device) -> Self {
         let out_dim = config.q_config.as_ref().unwrap().get_out_dim();
         let opt_config = config.opt_config.clone();
         let var_store = nn::VarStore::new(device);
@@ -82,7 +82,7 @@ where
     }
 }
 
-impl<Q> Clone for DQNModel<Q>
+impl<Q> Clone for DqnModel<Q>
 where
     Q: SubModel<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + OutDim,
@@ -105,7 +105,7 @@ where
     }
 }
 
-impl<Q> ModelBase for DQNModel<Q>
+impl<Q> ModelBase for DqnModel<Q>
 where
     Q: SubModel<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + OutDim,

@@ -39,7 +39,7 @@ fn env(rom_dir: &str, name: &str) -> AtariEnv {
 /// A wrapper of atari learning environment.
 ///
 /// Preprocessing is the same in the link:
-/// https://stable-baselines3.readthedocs.io/en/master/common/atari_wrappers.html#stable_baselines3.common.atari_wrappers.AtariWrapper.
+/// <https://stable-baselines3.readthedocs.io/en/master/common/atari_wrappers.html#stable_baselines3.common.atari_wrappers.AtariWrapper>.
 pub struct BorderAtariEnv<O, A, OF, AF>
 where
     O: Obs,

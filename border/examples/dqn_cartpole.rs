@@ -12,7 +12,7 @@ use border_py_gym_env::{
     PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
 };
 use border_tch_agent::{
-    dqn::{DQNConfig, DQNModelConfig, DQN},
+    dqn::{DqnConfig, DqnModelConfig, Dqn},
     mlp::{MLPConfig, MLP},
     TensorSubBatch,
 };
@@ -197,16 +197,16 @@ impl TryFrom<&Record> for CartpoleRecord {
     }
 }
 
-fn create_agent(in_dim: i64, out_dim: i64) -> DQN<Env, MLP, ReplayBuffer> {
+fn create_agent(in_dim: i64, out_dim: i64) -> Dqn<Env, MLP, ReplayBuffer> {
     let device = tch::Device::cuda_if_available();
     let config = {
         let opt_config = border_tch_agent::opt::OptimizerConfig::Adam { lr: LR_CRITIC };
         let mlp_config = MLPConfig::new(in_dim, vec![256, 256], out_dim);
-        let model_config = DQNModelConfig::default()
+        let model_config = DqnModelConfig::default()
             .q_config(mlp_config)
             .out_dim(out_dim)
             .opt_config(opt_config);
-        DQNConfig::default()
+        DqnConfig::default()
             .n_updates_per_opt(N_UPDATES_PER_OPT)
             .min_transitions_warmup(N_TRANSITIONS_WARMUP)
             .batch_size(BATCH_SIZE)
@@ -216,7 +216,7 @@ fn create_agent(in_dim: i64, out_dim: i64) -> DQN<Env, MLP, ReplayBuffer> {
             .device(device)
     };
 
-    DQN::build(config)
+    Dqn::build(config)
 }
 
 fn env_config() -> PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter> {

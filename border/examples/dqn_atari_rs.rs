@@ -15,7 +15,7 @@ use border_core::{
 use border_derive::{Act, SubBatch};
 use border_tch_agent::{
     cnn::CNN,
-    dqn::{DQNConfig, DQN as DQN_},
+    dqn::{DqnConfig, Dqn as Dqn_},
     TensorSubBatch,
 };
 use clap::{App, Arg, ArgMatches};
@@ -63,7 +63,7 @@ type EnvConfig = BorderAtariEnvConfig<Obs, Act, ObsFilter, ActFilter>;
 type Env = BorderAtariEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
-type DQN = DQN_<Env, CNN, ReplayBuffer>;
+type Dqn = Dqn_<Env, CNN, ReplayBuffer>;
 
 fn env_config(name: impl Into<String>) -> EnvConfig {
     BorderAtariEnvConfig::default().name(name.into())
@@ -134,7 +134,7 @@ fn init<'a>() -> ArgMatches<'a> {
 
 fn show_config(
     env_config: &EnvConfig,
-    agent_config: &DQNConfig<CNN>,
+    agent_config: &DqnConfig<CNN>,
     trainer_config: &TrainerConfig,
 ) {
     println!("Device: {:?}", tch::Device::cuda_if_available());
@@ -173,9 +173,9 @@ fn n_actions(env_config: &EnvConfig) -> Result<usize> {
     Ok(Env::build(env_config, 0)?.get_num_actions_atari() as usize)
 }
 
-fn load_dqn_config<'a>(model_dir: impl Into<&'a str>) -> Result<DQNConfig<CNN>> {
+fn load_dqn_config<'a>(model_dir: impl Into<&'a str>) -> Result<DqnConfig<CNN>> {
     let config_path = format!("{}/agent.yaml", model_dir.into());
-    DQNConfig::<CNN>::load(config_path)
+    DqnConfig::<CNN>::load(config_path)
 }
 
 fn load_trainer_config<'a>(model_dir: impl Into<&'a str>) -> Result<TrainerConfig> {
@@ -215,7 +215,7 @@ fn train(matches: ArgMatches) -> Result<()> {
         );
         let mut recorder = TensorboardRecorder::new(model_dir);
         let agent_config = agent_config.device(tch::Device::cuda_if_available());
-        let mut agent = DQN::build(agent_config);
+        let mut agent = Dqn::build(agent_config);
         trainer.train(&mut agent, &mut recorder)?;
     }
 
@@ -231,7 +231,7 @@ fn play(matches: ArgMatches) -> Result<()> {
     let agent_config = load_dqn_config(model_dir.as_str())?
         .out_dim(n_actions as _)
         .device(device);
-    let mut agent = DQN::build(agent_config);
+    let mut agent = Dqn::build(agent_config);
     let mut env = Env::build(&env_config, 0)?;
     let mut recorder = BufferedRecorder::new();
 

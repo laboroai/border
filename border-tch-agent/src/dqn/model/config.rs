@@ -7,10 +7,9 @@ use std::{
     path::Path,
 };
 
-#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
-/// Configuration of [DQNModel](super::DQNModel).
-pub struct DQNModelConfig<Q>
+/// Configuration of [DqnModel](super::DqnModel).
+pub struct DqnModelConfig<Q>
 where
     // Q: SubModel<Output = Tensor>,
     // Q::Config: DeserializeOwned + Serialize + OutDim,
@@ -21,7 +20,7 @@ where
 }
 
 // impl<Q: SubModel<Output = Tensor>> Default for DQNModelConfig<Q>
-impl<Q> Default for DQNModelConfig<Q>
+impl<Q> Default for DqnModelConfig<Q>
 where
     // Q: SubModel<Output = Tensor>,
     // Q::Config: DeserializeOwned + Serialize + OutDim,
@@ -36,7 +35,7 @@ where
 }
 
 // impl<Q: SubModel<Output = Tensor>> DQNModelConfig<Q>
-impl<Q> DQNModelConfig<Q>
+impl<Q> DqnModelConfig<Q>
 where
     // Q: SubModel<Output = Tensor>,
     // Q::Config: DeserializeOwned + Serialize + OutDim,
@@ -65,7 +64,7 @@ where
         self
     }
 
-    /// Constructs [DQNModelConfig] from YAML file.
+    /// Constructs [DqnModelConfig] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let file = File::open(path)?;
         let rdr = BufReader::new(file);
@@ -73,7 +72,7 @@ where
         Ok(b)
     }
 
-    /// Saves [DQNModelConfig].
+    /// Saves [DqnModelConfig].
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let mut file = File::create(path)?;
         file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;

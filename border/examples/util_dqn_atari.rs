@@ -1,5 +1,5 @@
 use anyhow::Result;
-use border_tch_agent::dqn::{DQNExplorer, EpsilonGreedy};
+use border_tch_agent::dqn::{DqnExplorer, EpsilonGreedy};
 use std::{default::Default, path::Path};
 
 #[derive(Clone)]
@@ -15,7 +15,7 @@ pub struct Params<'a> {
     pub soft_update_interval: usize,
     pub lr: f64,
     pub clip_reward: Option<f64>,
-    pub explorer: DQNExplorer,
+    pub explorer: DqnExplorer,
     pub tau: f64,
 
     // Trainer parameters

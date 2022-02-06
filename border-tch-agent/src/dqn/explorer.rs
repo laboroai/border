@@ -2,10 +2,9 @@
 use serde::{Deserialize, Serialize};
 use tch::Tensor;
 
-#[allow(clippy::upper_case_acronyms)]
 /// Explorers for DQN.
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
-pub enum DQNExplorer {
+pub enum DqnExplorer {
     /// Softmax action selection.
     Softmax(Softmax),
 
@@ -54,8 +53,8 @@ impl EpsilonGreedy {
     /// Constructs epsilon-greedy explorer.
     ///
     /// TODO: improve interface.
-    pub fn with_final_step(final_step: usize) -> DQNExplorer {
-        DQNExplorer::EpsilonGreedy(Self {
+    pub fn with_final_step(final_step: usize) -> DqnExplorer {
+        DqnExplorer::EpsilonGreedy(Self {
             n_opts: 0,
             eps_start: 1.0,
             eps_final: 0.02,
