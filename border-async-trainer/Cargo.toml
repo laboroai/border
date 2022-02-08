@@ -14,6 +14,7 @@ autoexamples = false
 
 [dependencies]
 anyhow = "1.0.38"
+aquamarine = "0.1"
 border-core = { version = "0.0.5", path = "../border-core" }
 serde = { version = "=1.0.126", features = ["derive"] }
 log = "0.4"

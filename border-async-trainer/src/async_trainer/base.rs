@@ -12,9 +12,47 @@ use std::{
     time::SystemTime,
 };
 
+#[cfg_attr(doc, aquamarine::aquamarine)]
 /// Manages asynchronous training loop in a single machine.
 ///
-/// It will be used with [ActorManager](crate::ActorManager)
+/// It interacts with [`ActorManager`] as shown below:
+///
+/// ```mermaid
+/// flowchart LR
+///   subgraph ActorManager
+///     E[Actor]-->|ReplayBufferBase::PushedItem|H[ReplayBufferProxy]
+///     F[Actor]-->H
+///     G[Actor]-->H
+///   end
+///   K-->|SyncModel::ModelInfo|E
+///   K-->|SyncModel::ModelInfo|F
+///   K-->|SyncModel::ModelInfo|G
+///
+///   subgraph I[AsyncTrainer]
+///     H-->|PushedItemMessage|J[ReplayBuffer]
+///     J-->|ReplayBufferBase::Batch|K[Agent]
+///   end
+/// ```
+///
+/// * In [`ActorManager`] (right), [`Actor`]s sample transitions, which have type
+///   [`ReplayBufferBase::PushedItem`], in parallel and push the transitions into
+///   [`ReplayBufferProxy`]. It should be noted that [`ReplayBufferProxy`] has a
+///   type parameter of [`ReplayBufferBase`] and the proxy accepts
+///   [`ReplayBufferBase::PushedItem`].
+/// * The proxy sends the transitions into the replay buffer, implementing
+///   [`ReplayBufferBase`], in the [`AsyncTrainer`].
+/// * The [`Agent`] in [`AsyncTrainer`] trains its model parameters by using batches
+///   of type [`ReplayBufferBase::Batch`], which are taken from the replay buffer.
+/// * The model parameters of the [`Agent`] in [`AsyncTrainer`] are wrapped in
+///   [`SyncModel::ModelInfo`] and periodically sent to the [`Agent`]s in [`Actor`]s.
+///   [`Agent`] must implement [`SyncModel`] to synchronize its model.
+/// 
+/// [`ActorManager`]: crate::ActorManager
+/// [`Actor`]: crate::Actor
+/// [`ReplayBufferBase::PushedItem`]: border_core::ReplayBufferBase::PushedItem
+/// [`ReplayBufferProxy`]: crate::ReplayBufferProxy
+/// [`ReplayBufferBase`]: border_core::ReplayBufferBase
+/// [`SyncModel::ModelInfo`]: crate::SyncModel::ModelInfo
 pub struct AsyncTrainer<A, E, R>
 where
     A: Agent<E, R> + SyncModel,
@@ -73,7 +111,7 @@ where
     R: ReplayBufferBase,
     R::PushedItem: Send + 'static,
 {
-    /// Creates [AsyncTrainer].
+    /// Creates [`AsyncTrainer`].
     pub fn build(
         config: &AsyncTrainerConfig,
         agent_config: &A::Config,
