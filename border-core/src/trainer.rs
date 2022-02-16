@@ -15,6 +15,43 @@ pub use sampler::SyncSampler;
 ///
 /// # Training loop
 ///
+/// Training loop looks like following:
+///
+/// 0. Given an agent implementing [`Agent`]  and a recorder implementing [`Recorder`].
+/// 1. Initialize the objects used in the training loop, involving instances of [`Env`],
+///    [`StepProcessorBase`], [`SyncSampler`].
+///    * Reset a counter of the environment steps: `env_steps = 0`
+///    * Reset a counter of the optimization steps: `opt_steps = 0`
+///    * Reset objects for computing optimization steps per sec (OSPS):
+///        * A timer `timer = SystemTime::now()`.
+///        * A counter `opt_steps_ops = 0`
+/// 2. Reset [`Env`].
+/// 3. Do an environment step and push a transition to the replaybuffer, implementing
+///    [`ReplayBufferBase`].
+/// 4. `env_steps += 1`
+/// 5. If `env_steps % opt_interval == 0`:
+///     1. Do an optimization step for the agent with transition batches
+///        sampled from the replay buffer.
+///         * NOTE: Here, the agent can skip an optimization step because of some reason,
+///           for example, during a warmup period for the replay buffer.
+///           In this case, the following steps are skipped as well.
+///     2. `opt_steps += 1, opt_steps_ops += 1`
+///     3. If `opt_steps % eval_interval == 0`:
+///         * Do an evaluation of the agent and add the evaluation result to the as
+///           `"eval_reward"`.
+///         * Reset `timer` and `opt_steps_ops`.
+///         * If the evaluation result is the best, agent's model parameters are saved
+///           in directory `(model_dir)/best`.
+///     4. If `opt_steps % record_interval == 0`, compute OSPS as
+///        `opt_steps_ops / timer.elapsed()?.as_secs_f32()` and add it to the
+///        recorder as `"opt_steps_per_sec"`.
+///     5. If `opt_steps % save_interval == 0`, agent's model parameters are saved
+///        in directory `(model_dir)/(opt_steps)`.
+///     6. If `opt_steps == max_opts`, finish training loop.
+/// 6. Back to step 3.
+///
+/// # Interaction of objects
+///
 /// In [`Trainer::train()`] method, objects interact as shown below:
 ///
 /// ```mermaid
@@ -254,7 +291,7 @@ where
                     record.insert("fps", Scalar(sampler.fps()));
                     sampler.reset();
                     let ops = opt_steps_ops as f32 * 1000. / opt_time;
-                    record.insert("ops", Scalar(ops));
+                    record.insert("opt_steps_per_sec", Scalar(ops));
                     opt_steps_ops = 0;
                     opt_time = 0.;
                 }
