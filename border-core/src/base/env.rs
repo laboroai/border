@@ -38,4 +38,13 @@ pub trait Env {
     fn step_with_reset(&mut self, a: &Self::Act) -> (Step<Self>, Record)
     where
         Self: Sized;
+
+    /// Resets the environment with a given index.
+    ///
+    /// The index is used in an arbitrary way. For example, it can be used as a random seed,
+    /// which is useful when evaluation of a trained agent. Actually, this method is called
+    /// in [`Trainer`] for evaluation. This method does not support vectorized environments.
+    ///
+    /// [`Trainer`]: crate::Trainer
+    fn reset_with_index(&mut self, ix: usize) -> Result<Self::Obs>;
 }

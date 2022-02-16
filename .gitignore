@@ -27,3 +27,5 @@ results
 **/test.png
 abci/**
 venv/**
+
+.markdownlint.json

@@ -151,8 +151,8 @@ where
         let mut env = E::build(env_config, 0)?; // TODO use eval_env_config
         let mut r_total = 0f32;
 
-        for _ in 0..self.eval_episodes {
-            let mut prev_obs = env.reset(None)?;
+        for ix in 0..self.eval_episodes {
+            let mut prev_obs = env.reset_with_index(ix)?;
             assert_eq!(prev_obs.len(), 1); // env must be non-vectorized
 
             loop {

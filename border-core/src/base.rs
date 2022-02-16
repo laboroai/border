@@ -3,22 +3,22 @@ mod agent;
 mod batch;
 mod env;
 mod policy;
-mod step;
 mod replay_buffer;
+mod step;
 pub use agent::Agent;
 pub use batch::BatchBase;
 pub use env::Env;
 pub use policy::Policy;
+pub use replay_buffer::ReplayBufferBase;
 use std::fmt::Debug;
 pub use step::{Info, Step, StepProcessorBase};
-pub use replay_buffer::ReplayBufferBase;
 
 /// A set of observations of an environment.
 ///
 /// Old versions of the library support vectorized environment and
 /// [Obs] was able to handle multiple observations.
 /// In the current version, no vectorized environment is implemented.
-/// Thus, [Obs]`::len()` always returns 1. 
+/// Thus, [Obs]`::len()` always returns 1.
 pub trait Obs: Clone + Debug {
     /// Returns a dummy observation.
     ///

@@ -287,6 +287,11 @@ where
         Ok(self.obs_filter.filt(self.frames.clone().into()).0)
     }
 
+    fn reset_with_index(&mut self, ix: usize) -> Result<Self::Obs> {
+        self.env.seed(ix as i32);
+        self.reset(None)
+    }
+
     /// Currently it supports non-vectorized environment.
     fn step_with_reset(
         &mut self,

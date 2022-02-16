@@ -81,3 +81,11 @@ PYTHONPATH=./border-py-gym-env/examples cargo run --example sac_lunarlander_cont
   ```bash
   PYTHONPATH=./border-py-gym-env/examples cargo run --example iqn_atari --features="tch" -- SeaquestNoFrameskip-v4 --play-gdrive
   ```
+
+## Atari (not python)
+
+### Random policy
+
+```bash
+cargo run --example random_pong
+```

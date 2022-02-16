@@ -103,73 +103,6 @@ where
     OF: PyGymEnvObsFilter<O>,
     AF: PyGymEnvActFilter<A>,
 {
-    // /// Constructs an environment.
-    // ///
-    // /// `name` is the name of the environment, which is implemented in OpenAI gym.
-    // pub fn new(
-    //     name: &str,
-    //     obs_filter: OF,
-    //     act_filter: AF,
-    //     atari_wrapper: Option<AtariWrapper>,
-    // ) -> PyResult<Self> {
-    //     let gil = Python::acquire_gil();
-    //     let py = gil.python();
-
-    //     // sys.argv is used by pyglet library, which is responsible for rendering.
-    //     // Depending on the python interpreter, however, sys.argv can be empty.
-    //     // For that case, sys argv is set here.
-    //     // See https://github.com/PyO3/pyo3/issues/1241#issuecomment-715952517
-    //     let locals = [("sys", py.import("sys")?)].into_py_dict(py);
-    //     let _ = py.eval("sys.argv.insert(0, 'PyGymEnv')", None, Some(&locals))?;
-
-    //     // import pybullet-gym if it exists
-    //     if py.import("pybulletgym").is_ok() {}
-
-    //     let env = if let Some(mode) = atari_wrapper {
-    //         let mode = match mode {
-    //             AtariWrapper::Train => true,
-    //             AtariWrapper::Eval => false,
-    //         };
-    //         let gym = py.import("atari_wrappers")?;
-    //         let env = gym.call("make_env_single_proc", (name, true, mode), None)?;
-    //         env.call_method("seed", (42,), None)?;
-    //         env
-    //     } else {
-    //         let gym = py.import("gym")?;
-    //         let env = gym.call("make", (name,), None)?;
-    //         env.call_method("seed", (42,), None)?;
-    //         env
-    //     };
-
-    //     // TODO: consider removing action_space and observation_space.
-    //     // Act/obs types are specified by type parameters.
-    //     let action_space = env.getattr("action_space")?;
-    //     let action_space = if let Ok(val) = action_space.getattr("n") {
-    //         val.extract()?
-    //     } else {
-    //         let action_space: Vec<i64> = action_space.getattr("shape")?.extract()?;
-    //         action_space[0]
-    //     };
-    //     let observation_space = env.getattr("observation_space")?;
-    //     let observation_space = observation_space.getattr("shape")?.extract()?;
-
-    //     Ok(PyGymEnv {
-    //         render: false,
-    //         env: env.into(),
-    //         action_space,
-    //         observation_space,
-    //         // TODO: consider remove RefCell, raw value instead
-    //         count_steps: RefCell::new(0),
-    //         max_steps: None,
-    //         obs_filter,
-    //         act_filter,
-    //         wait_in_render: Duration::from_millis(0),
-    //         pybullet: false,
-    //         pybullet_state: None,
-    //         phantom: PhantomData,
-    //     })
-    // }
-
     /// Set rendering mode.
     ///
     /// If `true`, it renders the state at every step.
@@ -271,6 +204,16 @@ where
                 Ok(self.obs_filter.reset(obs))
             })
         }
+    }
+
+    /// Resets the environment with the given index.
+    ///
+    /// The index is used as the random seed.
+    fn reset_with_index(&mut self, ix: usize) -> Result<Self::Obs> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        self.env.call_method(py, "seed", (ix,), None)?;
+        self.reset(None)
     }
 
     /// Runs a step of the environment's dynamics.

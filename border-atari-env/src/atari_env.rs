@@ -73,6 +73,9 @@ impl AtariEnv {
     pub fn into_rgb_env(self) -> AtariRgbEnv {
         AtariRgbEnv::new(self)
     }
+    pub fn seed(&self, seed: i32) {
+        self.ale.seed(seed);
+    }
 }
 
 pub struct AtariRamEnv {

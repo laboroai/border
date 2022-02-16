@@ -124,6 +124,10 @@ where
         })
     }
 
+    fn reset_with_index(&mut self, ix: usize) -> Result<Self::Obs> {
+        unimplemented!();
+    }
+
     fn step(&mut self, a: &A) -> (Step<Self>, Record) {
         trace!("PyVecGymEnv::step()");
         trace!("{:?}", &a);

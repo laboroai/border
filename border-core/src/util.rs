@@ -107,7 +107,8 @@ where
     let mut rs = Vec::new();
 
     for episode in 0..n_episodes {
-        let mut prev_obs = env.reset(None)?;
+        // let mut prev_obs = env.reset(None)?;
+        let mut prev_obs = env.reset_with_index(episode)?;
         let mut count_step = 0;
         let mut r_total = 0.0;
 
