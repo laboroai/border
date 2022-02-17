@@ -187,6 +187,7 @@ where
     }
 
     /// Record.
+    #[inline]
     fn record(
         &mut self,
         record: &mut Record,
@@ -198,10 +199,10 @@ where
         let ops = (*opt_steps_ as f32) / duration;
         let sps = (*samples as f32) / duration;
         let spo = (*samples as f32) / (*opt_steps_ as f32);
-        record.insert("Optimization steps per second", Scalar(ops));
-        record.insert("Collected samples per second", Scalar(sps));
-        record.insert("Collected samples per optimization step", Scalar(spo));
-        info!("Collected samples per optimization step = {}", spo);
+        record.insert("opt_steps_per_sec", Scalar(ops));
+        record.insert("samples_per_sec", Scalar(sps));
+        record.insert("samples_per_opt_steps", Scalar(spo));
+        // info!("Collected samples per optimization step = {}", spo);
 
         // Reset counter
         *opt_steps_ = 0;
@@ -210,12 +211,14 @@ where
     }
 
     /// Flush record.
+    #[inline]
     fn flush(&mut self, opt_steps: usize, mut record: Record, recorder: &mut impl Recorder) {
         record.insert("opt_steps", Scalar(opt_steps as _));
         recorder.write(record);
     }
 
     /// Save model.
+    #[inline]
     fn save(&mut self, opt_steps: usize, agent: &A) {
         let model_dir =
             self.model_dir.as_ref().unwrap().clone() + format!("/{}", opt_steps).as_str();
@@ -223,6 +226,7 @@ where
     }
 
     /// Sync model.
+    #[inline]
     fn sync(&mut self, agent: &A) {
         let model_info = agent.model_info();
         // TODO: error handling
