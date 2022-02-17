@@ -215,7 +215,7 @@ where
         buffer: &mut R,
         sampler: &mut SyncSampler<E, P>,
         env_steps: &mut usize,
-    ) -> Result<(Option<Record>, Option<std::time::Duration>)>
+    ) -> Result<Option<Record>>
     where
         A: Agent<E, R>,
     {
@@ -226,12 +226,10 @@ where
         *env_steps += 1;
 
         if *env_steps % self.opt_interval == 0 {
-            let now = std::time::SystemTime::now();
             let record = agent.opt(buffer).map_or(None, |r| Some(record_.merge(r)));
-            let time = now.elapsed()?;
-            Ok((record, Some(time)))
+            Ok(record)
         } else {
-            Ok((None, None))
+            Ok(None)
         }
     }
 
@@ -248,27 +246,20 @@ where
         let mut max_eval_reward = f32::MIN;
         let mut env_steps: usize = 0;
         let mut opt_steps: usize = 0;
-        let mut opt_time: f32 = 0.;
         let mut opt_steps_ops: usize = 0; // optimizations per second
+        let mut timer = std::time::SystemTime::now();
         sampler.reset();
         agent.train();
 
         loop {
-            let (record, time) =
-                self.train_step(agent, &mut buffer, &mut sampler, &mut env_steps)?;
+            let record = self.train_step(agent, &mut buffer, &mut sampler, &mut env_steps)?;
 
             // Postprocessing after each training step
             if let Some(mut record) = record {
                 use crate::record::RecordValue::Scalar;
 
                 opt_steps += 1;
-
-                // For calculating optimizations per seconds
-                if let Some(time) = time {
-                    opt_steps_ops += 1;
-                    opt_time += time.as_millis() as f32;
-                }
-
+                opt_steps_ops += 1;
                 let do_eval = opt_steps % self.eval_interval == 0;
                 let do_rec = opt_steps % self.record_interval == 0;
 
@@ -290,10 +281,11 @@ where
                     record.insert("env_steps", Scalar(env_steps as f32));
                     record.insert("fps", Scalar(sampler.fps()));
                     sampler.reset();
-                    let ops = opt_steps_ops as f32 * 1000. / opt_time;
-                    record.insert("opt_steps_per_sec", Scalar(ops));
+                    let time = timer.elapsed()?.as_secs_f32();
+                    let osps = opt_steps_ops as f32 / time;
+                    record.insert("opt_steps_per_sec", Scalar(osps));
                     opt_steps_ops = 0;
-                    opt_time = 0.;
+                    timer = std::time::SystemTime::now();
                 }
 
                 // Flush record to the recorder
