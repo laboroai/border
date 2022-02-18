@@ -140,6 +140,9 @@ where
             *guard_init_model = true;
         }
 
+        // Set agent training mode for exploration
+        agent.train();
+
         // Sampling loop
         info!("Starts sampling loop in actor {}", self.id);
         loop {
