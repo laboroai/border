@@ -28,26 +28,27 @@ use std::{
 /// * `replay_buffer_config` - Configuration of the replay buffer.
 /// * `actor_man_config` - Configuration of [`ActorManager`].
 /// * `async_trainer_config` - Configuration of [`AsyncTrainer`].
-pub fn train_async<A, E, R, P>(
-    model_dir: &impl AsRef<Path>,
+pub fn train_async<A, E, R, S, P>(
+    model_dir: &P,
     agent_config: &A::Config,
     agent_configs: &Vec<A::Config>,
     env_config_train: &E::Config,
     env_config_eval: &E::Config,
-    step_proc_config: &P::Config,
+    step_proc_config: &S::Config,
     replay_buffer_config: &R::Config,
     actor_man_config: &ActorManagerConfig,
     async_trainer_config: &AsyncTrainerConfig,
 ) where
     A: Agent<E, R> + SyncModel,
     E: Env,
-    R: ReplayBufferBase<PushedItem = P::Output> + Send + 'static,
-    P: StepProcessorBase<E>,
+    R: ReplayBufferBase<PushedItem = S::Output> + Send + 'static,
+    S: StepProcessorBase<E>,
     A::Config: Send + 'static,
     E::Config: Send + 'static,
-    P::Config: Send + 'static,
+    S::Config: Send + 'static,
     R::PushedItem: Send + 'static,
     A::ModelInfo: Send + 'static,
+    P: AsRef<Path>,
 {
     let mut recorder = TensorboardRecorder::new(model_dir);
 
@@ -62,7 +63,7 @@ pub fn train_async<A, E, R, P>(
     let guard_init_env = Arc::new(Mutex::new(true));
 
     // Actor manager and async trainer
-    let mut actors = ActorManager::<A, E, R, P>::build(
+    let mut actors = ActorManager::<A, E, R, S>::build(
         actor_man_config,
         agent_configs,
         env_config_train,
