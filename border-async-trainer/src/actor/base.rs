@@ -46,7 +46,6 @@ where
     step_proc_config: P::Config,
     replay_buffer_config: ReplayBufferProxyConfig,
     #[allow(dead_code)] // TODO: remove this
-    samples_per_push: usize,
     env_seed: i64,
     stats: Arc<Mutex<Option<ActorStat>>>,
     phantom: PhantomData<(A, E, P, R)>,
@@ -65,7 +64,6 @@ where
         env_config: E::Config,
         step_proc_config: P::Config,
         replay_buffer_config: ReplayBufferProxyConfig,
-        samples_per_push: usize,
         stop: Arc<Mutex<bool>>,
         env_seed: i64,
         stats: Arc<Mutex<Option<ActorStat>>>,
@@ -77,7 +75,6 @@ where
             env_config: env_config.clone(),
             step_proc_config: step_proc_config.clone(),
             replay_buffer_config: replay_buffer_config.clone(),
-            samples_per_push,
             env_seed,
             stats,
             phantom: PhantomData,

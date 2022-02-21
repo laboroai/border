@@ -8,6 +8,8 @@ use std::marker::PhantomData;
 #[derive(Clone, Debug)]
 pub struct ReplayBufferProxyConfig {
     /// Number of samples buffered until sent to the trainer.
+    ///
+    /// Here, a sample corresponds to a `R::PushedItem` for [`ReplayBufferProxy`]`<R>`.
     pub n_buffer: usize,
 }
 
