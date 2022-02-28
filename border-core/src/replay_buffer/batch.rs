@@ -104,3 +104,22 @@ where
         }
     }
 }
+
+impl<O, A> Batch<O, A>
+where
+    O: SubBatch,
+    A: SubBatch,
+{
+    /// Creates new batch with the given capacity.
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            obs: O::new(capacity),
+            act: A::new(capacity),
+            next_obs: O::new(capacity),
+            reward: vec![0.0; capacity],
+            is_done: vec![0; capacity],
+            ix_sample: None,
+            weight: None,
+        }
+    }
+}
