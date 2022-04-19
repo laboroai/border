@@ -194,11 +194,13 @@ where
         opt_steps_: &mut usize,
         samples: &mut usize,
         time: &mut SystemTime,
+        samples_total: usize,
     ) {
         let duration = time.elapsed().unwrap().as_secs_f32();
         let ops = (*opt_steps_ as f32) / duration;
         let sps = (*samples as f32) / duration;
         let spo = (*samples as f32) / (*opt_steps_ as f32);
+        record.insert("samples_total", Scalar(samples_total as _));
         record.insert("opt_steps_per_sec", Scalar(ops));
         record.insert("samples_per_sec", Scalar(sps));
         record.insert("samples_per_opt_steps", Scalar(spo));
@@ -252,6 +254,16 @@ where
     // }
 
     /// Runs training loop.
+    ///
+    /// In the training loop, the following values will be pushed into the given recorder:
+    ///
+    /// * `samples_total` - Total number of samples pushed into the replay buffer.
+    ///   Here, a "sample" means an item in [`ReplayBufferBase::PushedItem`].
+    /// * `opt_steps_per_sec` - The number of optimization steps per second.
+    /// * `samples_per_sec` - The number of samples per second.
+    /// * `samples_per_opt_steps` - The number of samples per optimization step.
+    ///
+    /// These values will typically be monitored with tensorboard.
     pub fn train(&mut self, recorder: &mut impl Recorder, guard_init_env: Arc<Mutex<bool>>) -> AsyncTrainStat {
         // TODO: error handling
         let mut env = {
@@ -307,7 +319,7 @@ where
                 }
                 if do_record {
                     info!("Records training logs");
-                    self.record(&mut record, &mut opt_steps_, &mut samples, &mut time);
+                    self.record(&mut record, &mut opt_steps_, &mut samples, &mut time, samples_total);
                 }
                 if do_flush {
                     info!("Flushes records");
