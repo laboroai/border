@@ -1,8 +1,15 @@
 //! Batch.
 
-/// A batch of samples.
+/// A batch of transitions for training agents.
 ///
-/// It is used to train agents.
+/// This trait represents a standard transition `(o, a, o', r, is_done)`,
+/// where `o` is an observation, `a` is an action, `o'` is an observation
+/// after some time steps. Typically, `o'` is for the next step and used as
+/// single-step backup. `o'` can also be for the multiple steps after `o` and
+/// in this case it is sometimes called n-step backup.
+///
+/// The type of `o` and `o'` is the associated type `ObsBatch`.
+/// The type of `a` is the associated type `ActBatch`.
 pub trait BatchBase {
     /// A set of observation in a batch.
     type ObsBatch;
@@ -10,7 +17,7 @@ pub trait BatchBase {
     /// A set of observation in a batch.
     type ActBatch;
 
-    /// Unpack the data `(o_t, a_t, o_t+1, r_t, is_done_t)`.
+    /// Unpack the data `(o_t, a_t, o_t+n, r_t, is_done_t)`.
     ///
     /// Optionally, the return value has sample indices in the replay buffer and
     /// thier weights. Those are used for prioritized experience replay (PER).
