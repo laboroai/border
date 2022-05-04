@@ -1,7 +1,7 @@
 //! A generic implementation of [StepProcessorBase](crate::StepProcessorBase).
 use std::{default::Default, marker::PhantomData};
 use crate::{Obs, Env, StepProcessorBase};
-use super::{Batch, SubBatch};
+use super::{StdBatch, SubBatch};
 
 /// Configuration of [SimpleStepProcessor].
 #[derive(Clone, Debug)]
@@ -30,7 +30,7 @@ where
     A: SubBatch + From<E::Act>,
 {
     type Config = SimpleStepProcessorConfig;
-    type Output = Batch<O, A>;
+    type Output = StdBatch<O, A>;
 
     fn build(_config: &Self::Config) -> Self {
         Self {
@@ -61,7 +61,7 @@ where
                 self.prev_obs.replace(step.init_obs.into());
             }
 
-            Batch {obs, act, next_obs, reward, is_done, ix_sample, weight}
+            StdBatch {obs, act, next_obs, reward, is_done, ix_sample, weight}
         };
 
         batch

@@ -3,7 +3,7 @@ use super::SubBatch;
 use crate::StdBatchBase;
 
 /// A generic implementation of [`BatchBase`](`crate::BatchBase`).
-pub struct Batch<O, A>
+pub struct StdBatch<O, A>
 where
     O: SubBatch,
     A: SubBatch,
@@ -30,7 +30,7 @@ where
     pub ix_sample: Option<Vec<usize>>,
 }
 
-impl<O, A> StdBatchBase for Batch<O, A>
+impl<O, A> StdBatchBase for StdBatch<O, A>
 where
     O: SubBatch,
     A: SubBatch,
@@ -105,7 +105,7 @@ where
     }
 }
 
-impl<O, A> Batch<O, A>
+impl<O, A> StdBatch<O, A>
 where
     O: SubBatch,
     A: SubBatch,

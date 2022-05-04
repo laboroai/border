@@ -1,7 +1,7 @@
 //! Simple generic replay buffer.
 mod iw_scheduler;
 mod sum_tree;
-use super::{config::PerConfig, Batch, SimpleReplayBufferConfig, SubBatch};
+use super::{config::PerConfig, StdBatch, SimpleReplayBufferConfig, SubBatch};
 use crate::{StdBatchBase, ExperienceBufferBase, ReplayBufferBase};
 use anyhow::Result;
 pub use iw_scheduler::IwScheduler;
@@ -99,7 +99,7 @@ where
     O: SubBatch,
     A: SubBatch,
 {
-    type PushedItem = Batch<O, A>;
+    type PushedItem = StdBatch<O, A>;
 
     fn len(&self) -> usize {
         if self.i < self.capacity {
@@ -139,7 +139,7 @@ where
     A: SubBatch,
 {
     type Config = SimpleReplayBufferConfig;
-    type Batch = Batch<O, A>;
+    type Batch = StdBatch<O, A>;
 
     fn build(config: &Self::Config) -> Self {
         let capacity = config.capacity;
