@@ -1,6 +1,6 @@
 use crate::PushedItemMessage;
 use anyhow::Result;
-use border_core::ReplayBufferBase;
+use border_core::{ExperienceBufferBase, ReplayBufferBase};
 use crossbeam_channel::Sender;
 use std::marker::PhantomData;
 
@@ -46,14 +46,8 @@ impl<R: ReplayBufferBase> ReplayBufferProxy<R> {
     }
 }
 
-impl<R: ReplayBufferBase> ReplayBufferBase for ReplayBufferProxy<R> {
-    type Config = ReplayBufferProxyConfig;
+impl<R: ReplayBufferBase> ExperienceBufferBase for ReplayBufferProxy<R> {
     type PushedItem = R::PushedItem;
-    type Batch = R::Batch;
-
-    fn build(_config: &Self::Config) -> Self {
-        unimplemented!();
-    }
 
     fn push(&mut self, tr: Self::PushedItem) -> Result<()> {
         self.buffer.push(tr);
@@ -78,6 +72,15 @@ impl<R: ReplayBufferBase> ReplayBufferBase for ReplayBufferProxy<R> {
     }
 
     fn len(&self) -> usize {
+        unimplemented!();
+    }
+}
+
+impl<R: ReplayBufferBase> ReplayBufferBase for ReplayBufferProxy<R> {
+    type Config = ReplayBufferProxyConfig;
+    type Batch = R::Batch;
+
+    fn build(_config: &Self::Config) -> Self {
         unimplemented!();
     }
 

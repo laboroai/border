@@ -2,7 +2,7 @@
 mod iw_scheduler;
 mod sum_tree;
 use super::{config::PerConfig, Batch, SimpleReplayBufferConfig, SubBatch};
-use crate::{BatchBase, ReplayBufferBase};
+use crate::{StdBatchBase, ExperienceBufferBase, ReplayBufferBase};
 use anyhow::Result;
 pub use iw_scheduler::IwScheduler;
 use rand::{rngs::StdRng, RngCore, SeedableRng};
@@ -94,13 +94,51 @@ where
     }
 }
 
+impl<O, A> ExperienceBufferBase for SimpleReplayBuffer<O, A>
+where
+    O: SubBatch,
+    A: SubBatch,
+{
+    type PushedItem = Batch<O, A>;
+
+    fn len(&self) -> usize {
+        if self.i < self.capacity {
+            self.i
+        } else {
+            self.capacity
+        }
+    }
+
+    fn push(&mut self, tr: Self::PushedItem) -> Result<()> {
+        let len = tr.len(); // batch size
+        let (obs, act, next_obs, reward, is_done, _, _) = tr.unpack();
+        self.obs.push(self.i, &obs);
+        self.act.push(self.i, &act);
+        self.next_obs.push(self.i, &next_obs);
+        self.push_reward(self.i, &reward);
+        self.push_is_done(self.i, &is_done);
+
+        if self.per_state.is_some() {
+            self.set_priority(len)
+        };
+
+        self.i = (self.i + len) % self.capacity;
+        self.size += len;
+        if self.size >= self.capacity {
+            self.size = self.capacity;
+        }
+
+        Ok(())
+    }
+}
+
+
 impl<O, A> ReplayBufferBase for SimpleReplayBuffer<O, A>
 where
     O: SubBatch,
     A: SubBatch,
 {
     type Config = SimpleReplayBufferConfig;
-    type PushedItem = Batch<O, A>;
     type Batch = Batch<O, A>;
 
     fn build(config: &Self::Config) -> Self {
@@ -122,14 +160,6 @@ where
             // rng: Rng::with_seed(config.seed),
             rng: StdRng::seed_from_u64(config.seed as _),
             per_state,
-        }
-    }
-
-    fn len(&self) -> usize {
-        if self.i < self.capacity {
-            self.i
-        } else {
-            self.capacity
         }
     }
 
@@ -158,28 +188,6 @@ where
             ix_sample: Some(ixs),
             weight,
         })
-    }
-
-    fn push(&mut self, tr: Self::PushedItem) -> Result<()> {
-        let len = tr.len(); // batch size
-        let (obs, act, next_obs, reward, is_done, _, _) = tr.unpack();
-        self.obs.push(self.i, &obs);
-        self.act.push(self.i, &act);
-        self.next_obs.push(self.i, &next_obs);
-        self.push_reward(self.i, &reward);
-        self.push_is_done(self.i, &is_done);
-
-        if self.per_state.is_some() {
-            self.set_priority(len)
-        };
-
-        self.i = (self.i + len) % self.capacity;
-        self.size += len;
-        if self.size >= self.capacity {
-            self.size = self.capacity;
-        }
-
-        Ok(())
     }
 
     fn update_priority(&mut self, ixs: &Option<Vec<usize>>, td_errs: &Option<Vec<f32>>) {

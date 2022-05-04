@@ -6,7 +6,7 @@ use crate::{
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, BatchBase, Env, Policy, ReplayBufferBase,
+    Agent, StdBatchBase, Env, Policy, ReplayBufferBase,
 };
 use serde::{de::DeserializeOwned, Serialize};
 // use log::info;
@@ -36,8 +36,9 @@ where
     Q::Input2: From<ActMean>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
     P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    <R::Batch as BatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
-    <R::Batch as BatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
     pub(super) qnets: Vec<Critic<Q>>,
     pub(super) qnets_tgt: Vec<Critic<Q>>,
@@ -70,8 +71,9 @@ where
     Q::Input2: From<ActMean>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
     P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    <R::Batch as BatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
-    <R::Batch as BatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
     fn action_logp(&self, o: &P::Input) -> (Tensor, Tensor) {
         let (mean, lstd) = self.pi.forward(o);
@@ -205,8 +207,9 @@ where
     Q::Input2: From<ActMean>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
     P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    <R::Batch as BatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
-    <R::Batch as BatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
     type Config = SacConfig<Q, P>;
 
@@ -269,8 +272,9 @@ where
     Q::Input2: From<ActMean>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
     P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    <R::Batch as BatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
-    <R::Batch as BatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
     fn train(&mut self) {
         self.train = true;

@@ -4,7 +4,7 @@ use crate::{model::{ModelBase, SubModel}, util::{OutDim, track}};
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, BatchBase, Env, Policy, ReplayBufferBase,
+    Agent, StdBatchBase, Env, Policy, ReplayBufferBase,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use std::{fs, marker::PhantomData, path::Path};
@@ -20,8 +20,9 @@ where
     E::Obs: Into<Q::Input>,
     E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    <R::Batch as BatchBase>::ObsBatch: Into<Q::Input>,
-    <R::Batch as BatchBase>::ActBatch: Into<Tensor>,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
     pub(in crate::dqn) soft_update_interval: usize,
     pub(in crate::dqn) soft_update_counter: usize,
@@ -50,8 +51,9 @@ where
     E::Obs: Into<Q::Input>,
     E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    <R::Batch as BatchBase>::ObsBatch: Into<Q::Input>,
-    <R::Batch as BatchBase>::ActBatch: Into<Tensor>,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
     fn update_critic(&mut self, buffer: &mut R) -> f32 {
         let batch = buffer.batch(self.batch_size).unwrap();
@@ -138,8 +140,9 @@ where
     E::Obs: Into<Q::Input>,
     E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    <R::Batch as BatchBase>::ObsBatch: Into<Q::Input>,
-    <R::Batch as BatchBase>::ActBatch: Into<Tensor>,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
     type Config = DqnConfig<Q>;
 
@@ -200,8 +203,9 @@ where
     E::Obs: Into<Q::Input>,
     E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    <R::Batch as BatchBase>::ObsBatch: Into<Q::Input>,
-    <R::Batch as BatchBase>::ActBatch: Into<Tensor>,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
     fn train(&mut self) {
         self.train = true;
@@ -255,8 +259,9 @@ where
     E::Obs: Into<Q::Input>,
     E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    <R::Batch as BatchBase>::ObsBatch: Into<Q::Input>,
-    <R::Batch as BatchBase>::ActBatch: Into<Tensor>,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
     type ModelInfo = NamedTensors;
 

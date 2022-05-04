@@ -6,10 +6,10 @@ mod policy;
 mod replay_buffer;
 mod step;
 pub use agent::Agent;
-pub use batch::BatchBase;
+pub use batch::StdBatchBase;
 pub use env::Env;
 pub use policy::Policy;
-pub use replay_buffer::ReplayBufferBase;
+pub use replay_buffer::{ExperienceBufferBase, ReplayBufferBase};
 use std::fmt::Debug;
 pub use step::{Info, Step, StepProcessorBase};
 
