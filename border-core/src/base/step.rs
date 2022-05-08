@@ -4,7 +4,11 @@ use super::Env;
 /// Additional information to `Obs` and `Act`.
 pub trait Info {}
 
-/// All information given at every step of agent-envieronment interaction.
+/// Represents an action, observation and reward tuple `(a_t, o_t+1, r_t)`
+/// with some additional information.
+///
+/// An environment emits [`Step`] object at every interaction steps.
+/// This object might be used to create transitions `(o_t, a_t, o_t+1, r_t)`.
 ///
 /// Old versions of the library support veectorized environments, which requires
 /// elements in [`Step`] to be able to handle multiple values.
@@ -54,11 +58,11 @@ impl<E: Env> Step<E> {
 ///
 /// This trait is used in [`Trainer`](crate::Trainer). [`Step`] object is transformed to
 /// [`Self::Output`], which will be pushed into a replay buffer implementing
-/// [`ReplayBufferBase`](crate::ReplayBufferBase). The type [`Self::Output`] must be the
-/// same with [`ReplayBufferBase::PushedItem`].
+/// [`ExperienceBufferBase`](crate::ExperienceBufferBase).
+/// The type [`Self::Output`] should be the same with [`ExperienceBufferBase::PushedItem`].
 ///
 /// [`Self::Output`]: StepProcessorBase::Output
-/// [`ReplayBufferBase::PushedItem`]: crate::ReplayBufferBase::PushedItem
+/// [`ExperienceBufferBase::PushedItem`]: crate::ExperienceBufferBase::PushedItem
 pub trait StepProcessorBase<E: Env> {
     /// Configuration.
     type Config: Clone;

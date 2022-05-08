@@ -258,12 +258,14 @@ where
     /// In the training loop, the following values will be pushed into the given recorder:
     ///
     /// * `samples_total` - Total number of samples pushed into the replay buffer.
-    ///   Here, a "sample" means an item in [`ReplayBufferBase::PushedItem`].
+    ///   Here, a "sample" is an item in [`ExperienceBufferBase::PushedItem`].
     /// * `opt_steps_per_sec` - The number of optimization steps per second.
     /// * `samples_per_sec` - The number of samples per second.
     /// * `samples_per_opt_steps` - The number of samples per optimization step.
     ///
     /// These values will typically be monitored with tensorboard.
+    ///
+    /// [`ExperienceBufferBase::PushedItem`]: border_core::ExperienceBufferBase::PushedItem
     pub fn train(&mut self, recorder: &mut impl Recorder, guard_init_env: Arc<Mutex<bool>>) -> AsyncTrainStat {
         // TODO: error handling
         let mut env = {

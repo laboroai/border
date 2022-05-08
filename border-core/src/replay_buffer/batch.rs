@@ -1,8 +1,8 @@
-//! A generic implementation of [`BatchBase`](crate::BatchBase).
+//! A generic implementation of [`StdBatchBase`](crate::StdBatchBase).
 use super::SubBatch;
 use crate::StdBatchBase;
 
-/// A generic implementation of [`BatchBase`](`crate::BatchBase`).
+/// A generic implementation of [`StdBatchBase`](`crate::StdBatchBase`).
 pub struct StdBatch<O, A>
 where
     O: SubBatch,

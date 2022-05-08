@@ -43,16 +43,19 @@
 //!
 //! * [`Agent`] is a trainable [`Policy`].
 //! * [`StepProcessorBase`] provieds methods for converting a [`Step<E: Env>`] object,
-//!   representing a transition happens in `E`, and being pushed into a replay buffer
-//!   implementing [`ReplayBufferBase`].
-//! * [`BatchBase`] represents a batch generated from [`ReplayBufferBase`].
-//!   Strictly, it is a trait that must be implemented on [`ReplayBufferBase::Batch`].
+//!   representing a transition happens in `E`, into an object of type
+//!   [`ExperienceBufferBase::PushedItem`]. The converted items are pushed into a 
+//!   replay buffer implementing [`ExperienceBufferBase`].
+//! * [`ReplayBufferBase`] generates batches of [`ReplayBufferBase::Batch`],
+//!   from experiences in the buffer. [`Agent::opt()`] uses these batches to train
+//!   the [`Agent`].
+//! * [`ReplayBufferBase::Batch`] might implements [`StdBatchBase`], which is a batch of a
+//!   standard representation of a trainsition: `(o_t, a_t, o_t+1, r_t, is_done)`, where
+//!   the types of `o_t` and `o_t+1` are the same.
+//!   [`SimpleReplayBuffer`] is an example. You can implement a your own agent by using
+//!   this struct.
 //!
-//! [`Agent::opt()`] is supposed to implement a function that takes a mutable reference
-//! to a replay buffer, implementing [`ReplayBufferBase`], and update model parameters
-//! of the agent by using batches, implementing [`BatchBase`], taken from the replay buffer.
-//!
-//! See [`Trainer`](border_core::Trainer) for how these components interact.
+//! See [`Trainer`](border_core::Trainer) for how these components interact with each other.
 //!
 //! [`border-core`]: https://crates.io/crates/border-core
 //! [`Env`]: border_core::Env
@@ -66,9 +69,12 @@
 //! [`StepProcessorBase`]: border_core::ReplayBufferBase
 //! [`Step<E: Env>`]: border_core::Step
 //! [`ReplayBufferBase`]: border_core::ReplayBufferBase
-//! [`BatchBase`]: border_core::BatchBase
 //! [`ReplayBufferBase::Batch`]: border_core::ReplayBufferBase::Batch
-//! [`AAAgent::opt()`]: ../border_core/trait.Agent.html#tymethod.opt
+//! [`StdBatchBase`]: border_core::StdBatchBase
+//! [`ReplayBufferBase::Batch`]: border_core::ReplayBufferBase::Batch
 //! [`Agent::opt()`]: border_core::Agent::opt
+//! [`ExperienceBufferBase`]: border_core::ExperienceBufferBase
+//! [`ExperienceBufferBase::PushedItem`]: border_core::ExperienceBufferBase::PushedItem
+//! [`SimpleReplayBuffer`]: border_core::replay_buffer::SimpleReplayBuffer
 
 pub mod util;
