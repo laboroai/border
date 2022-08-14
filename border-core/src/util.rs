@@ -116,9 +116,6 @@ where
             let act = policy.sample(&prev_obs);
             let (step, mut record) = env.step(&act);
             r_total += step.reward[0];
-            if step.is_done[0] == 1 {
-                break;
-            }
             prev_obs = step.obs;
 
             record.insert("reward", RecordValue::Scalar(step.reward[0] as _));
