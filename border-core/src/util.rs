@@ -151,7 +151,7 @@ pub fn eval_with_recorder2<E, P, R>(
     n_steps: usize,
     recorder: &mut R,
     prev_obs: Option<<E as Env>::Obs>,
-) -> Result<f32>
+) -> Result<(f32, <E as Env>::Obs)>
 where
     E: Env,
     P: Policy<E>,
@@ -179,5 +179,5 @@ where
         }
     }
 
-    Ok(r_total)
+    Ok((r_total, prev_obs))
 }
