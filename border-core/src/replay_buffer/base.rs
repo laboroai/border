@@ -102,11 +102,7 @@ where
     type PushedItem = StdBatch<O, A>;
 
     fn len(&self) -> usize {
-        if self.i < self.capacity {
-            self.i
-        } else {
-            self.capacity
-        }
+        self.size
     }
 
     fn push(&mut self, tr: Self::PushedItem) -> Result<()> {
