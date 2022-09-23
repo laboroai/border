@@ -89,39 +89,39 @@ where
     R: ReplayBufferBase<PushedItem = P::Output>,
 {
     /// Configuration of the environment for training.
-    pub env_config_train: E::Config,
+    env_config_train: E::Config,
 
     /// Configuration of the environment for evaluation.
     ///
     /// If `None`, `env_config_train` is used.
-    pub env_config_eval: Option<E::Config>,
+    env_config_eval: Option<E::Config>,
 
     /// Configuration of the transition producer.
-    pub step_proc_config: P::Config,
+    step_proc_config: P::Config,
 
     /// Configuration of the replay buffer.
-    pub replay_buffer_config: R::Config,
+    replay_buffer_config: R::Config,
 
     /// Where to save the trained model.
-    pub model_dir: Option<String>,
+    model_dir: Option<String>,
 
     /// Interval of optimization in environment steps.
-    pub opt_interval: usize,
+    opt_interval: usize,
 
     /// Interval of recording in optimization steps.
-    pub record_interval: usize,
+    record_interval: usize,
 
     /// Interval of evaluation in optimization steps.
-    pub eval_interval: usize,
+    eval_interval: usize,
 
     /// Interval of saving the model in optimization steps.
-    pub save_interval: usize,
+    save_interval: usize,
 
     /// The maximal number of optimization steps.
-    pub max_opts: usize,
+    max_opts: usize,
 
     /// The number of episodes for evaluation.
-    pub eval_episodes: usize,
+    eval_episodes: usize,
 }
 
 impl<E, P, R> Trainer<E, P, R>
