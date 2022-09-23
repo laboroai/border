@@ -130,8 +130,6 @@ where
     P: StepProcessorBase<E>,
     R: ReplayBufferBase<PushedItem = P::Output>,
 {
-    /// test.
-    pub fn f() {}
     /// Constructs a trainer.
     pub fn build(
         config: TrainerConfig,
