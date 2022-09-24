@@ -32,15 +32,9 @@ test = true
 name = "sac_lunarlander_cont"
 required-features = ["tch"]
 
-# [[example]]
-# name = "iqn_cartpole"
-
 [[example]]
 name = "sac_pendulum"
 test = true
-
-# [[example]]
-# name = "quantile_loss"
 
 [[example]]
 name = "random_atari"
@@ -67,34 +61,9 @@ required-features = ["tch"]
 name = "iqn_atari_rs"
 required-features = ["tch"]
 
-# [[example]]
-# name = "iqn_regression"
-
-# [[example]]
-# name = "random_ant"
-
 [[example]]
 name = "sac_ant"
 required-features = ["tch"]
-
-# [[example]]
-# name = "dqn_atari_vec"
-# # test = true
-
-# [[example]]
-# name = "sac_lunarlander_cont"
-
-# [[example]]
-# name = "macro"
-
-# [[example]]
-# name = "random_lunarlander_cont"
-
-# [[example]]
-# name = "sac_lunarlander_cont_vec"
-
-# [[example]]
-# name = "pyo3"
 
 [[example]]
 name = "make_cfg_dqn_atari"
