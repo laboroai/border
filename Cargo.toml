@@ -9,3 +9,4 @@ members = [
     "border-async-trainer",
     "border"
 ]
+exclude = ["docker/"]
