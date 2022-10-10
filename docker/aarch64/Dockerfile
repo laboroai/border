@@ -92,6 +92,13 @@ RUN pip3 install -U 'mujoco-py<2.2,>=2.1'
 #     ln -sf $PWD/mujoco-2.1.1/model/ $PWD/mujoco210/model
 # RUN cp /test_mujoco_py.py $HOME
 
+# PyBullet
+RUN cd $HOME && \
+    git clone https://github.com/benelot/pybullet-gym.git && \
+    cd pybullet-gym && \
+    git checkout -b tmp bc68201c8101c4e30dde95f425647a0709ee2f29 && \
+    pip install -e .
+
 # .bashrc
 RUN echo 'export LIBTORCH=$HOME/.local/lib/python3.8/site-packages/torch' >> ~/.bashrc
 RUN echo 'export LD_LIBRARY_PATH=$LIBTORCH/lib' >> ~/.bashrc
