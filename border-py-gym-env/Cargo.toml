@@ -43,3 +43,6 @@ test = true
 [[example]]
 name = "random_ant"
 test = true
+
+[[example]]
+name = "pybullet_pyo3"
