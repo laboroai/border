@@ -111,6 +111,7 @@ where
         if self.pybullet {
             pyo3::Python::with_gil(|py| {
                 self.env.call_method0(py, "render").unwrap();
+                // self.env.call_method(py, "render", ("human",), None).unwrap();
             });
         }
     }
@@ -294,17 +295,19 @@ where
             let env = gym.getattr("make_env_single_proc")?.call((name, true, mode), None)?;
             env.call_method("seed", (seed,), None)?;
             env
-        } else if !config.pybullet {
+        // } else if !config.pybullet {
+        } else {
             let gym = py.import("f32_wrapper")?;
             let env = gym.getattr("make_f32")?.call((name,), None)?;
             env.call_method("seed", (seed,), None)?;
             env
-        } else {
-            let gym = py.import("gym")?;
-            let env = gym.getattr("make")?.call((name,), None)?;
-            env.call_method("seed", (seed,), None)?;
-            env
         };
+        // } else {
+        //     let gym = py.import("gym")?;
+        //     let env = gym.getattr("make")?.call((name,), None)?;
+        //     env.call_method("seed", (seed,), None)?;
+        //     env
+        // };
 
         // TODO: consider removing action_space and observation_space.
         // Act/obs types are specified by type parameters.
