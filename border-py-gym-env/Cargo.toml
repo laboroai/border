@@ -21,7 +21,7 @@ log = "0.4"
 num-traits = "0.2.14"
 ndarray = { version = "0.15", features = ["serde"] }
 anyhow = "1.0.38"
-tch = { version = "0.5.0", optional = true }
+tch = { version = "0.8.0", optional = true }
 image = "0.23.14"
 
 [dev-dependencies]

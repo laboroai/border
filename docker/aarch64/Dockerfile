@@ -68,7 +68,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 # python
 RUN pip3 install --upgrade pip
 RUN pip3 install pyyaml typing-extensions
-RUN pip3 install torch==1.9.0
+RUN pip3 install torch==1.12.0
 RUN pip3 install ipython jupyterlab
 RUN pip3 install numpy==1.21.3
 # RUN pip3 install gym[box2d]==0.25.1
@@ -95,11 +95,12 @@ RUN cd $HOME && mkdir -p .border/model
 # RUN cp /test_mujoco_py.py $HOME
 
 # PyBulletGym
-RUN pip3 install pybullet==3.2.5
+# RUN pip3 install pybullet==3.2.5
+RUN pip3 install pybullet==2.7.1
 RUN cd $HOME && \
     git clone https://github.com/benelot/pybullet-gym.git && \
     cd pybullet-gym && \
-    # git checkout -b tmp 79396fccc1d0e170a092b50137148da48ee2edab && \
+    git checkout -b tmp 79396fccc1d0e170a092b50137148da48ee2edab && \
     pip install -e .
 
 # .bashrc

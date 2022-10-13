@@ -1,4 +1,4 @@
-use super::{SacConfig, Actor, Critic, EntCoef};
+use super::{Actor, Critic, EntCoef, SacConfig};
 use crate::{
     model::{ModelBase, SubModel, SubModel2},
     util::{track, CriticLoss, OutDim},
@@ -6,7 +6,7 @@ use crate::{
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, StdBatchBase, Env, Policy, ReplayBufferBase,
+    Agent, Env, Policy, ReplayBufferBase, StdBatchBase,
 };
 use serde::{de::DeserializeOwned, Serialize};
 // use log::info;
@@ -18,8 +18,8 @@ type ActMean = Tensor;
 type ActStd = Tensor;
 
 fn normal_logp(x: &Tensor) -> Tensor {
-    let tmp: Tensor =
-        Tensor::from(-0.5 * (2.0 * std::f32::consts::PI).ln() as f32) - 0.5 * x.pow(2);
+    let tmp: Tensor = Tensor::from(-0.5 * (2.0 * std::f32::consts::PI).ln() as f32)
+        - 0.5 * x.pow_tensor_scalar(2);
     tmp.sum_dim_intlist(&[-1], false, tch::Kind::Float)
 }
 
@@ -81,7 +81,7 @@ where
         let z = Tensor::randn(mean.size().as_slice(), tch::kind::FLOAT_CPU).to(self.device);
         let a = (&std * &z + &mean).tanh();
         let log_p = normal_logp(&z)
-            - (Tensor::from(1f32) - a.pow(2.0) + Tensor::from(self.epsilon))
+            - (Tensor::from(1f32) - a.pow_tensor_scalar(2.0) + Tensor::from(self.epsilon))
                 .log()
                 .sum_dim_intlist(&[-1], false, tch::Kind::Float);
 
@@ -215,7 +215,10 @@ where
 
     /// Constructs [Sac] agent.
     fn build(config: Self::Config) -> Self {
-        let device = config.device.expect("No device is given for SAC agent").into();
+        let device = config
+            .device
+            .expect("No device is given for SAC agent")
+            .into();
         let n_critics = config.n_critics;
         let pi = Actor::build(config.actor_config, device).unwrap();
         let mut qnets = vec![];

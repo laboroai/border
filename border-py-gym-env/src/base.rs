@@ -331,15 +331,23 @@ where
 _torsoId = None
 _floor = False
 
+def unwrap(env):
+    while True:
+        if hasattr(env, "_p"):
+            return env
+        else:
+            env = env.env
+
 def add_floor(env):
     global _floor
     if not _floor:
-        p = env.env._p
+        env = unwrap(env)
+        p = env._p
         import pybullet_data
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
         p.loadURDF("plane.urdf")
         _floor = True
-        env.env.stateId = p.saveState()
+        env.stateId = p.saveState()
 
 def get_torso_id(p):
     global _torsoId
@@ -355,8 +363,9 @@ def get_torso_id(p):
     return _torsoId
 
 def update_camera_pos(env):
-    p = env.env._p
-    torsoId = get_torso_id(env.env._p)
+    env = unwrap(env)
+    p = env._p
+    torsoId = get_torso_id(p)
     if torsoId >= 0:
         distance = 5
         yaw = 0
