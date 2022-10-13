@@ -22,7 +22,7 @@ use border_tch_agent::{
 };
 use clap::{App, Arg};
 use log::info;
-use std::convert::TryFrom;
+use std::{convert::TryFrom, time::Duration};
 
 const DIM_OBS: i64 = 28;
 const DIM_ACT: i64 = 8;
@@ -144,6 +144,7 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
 
 fn eval(model_dir: &str) -> Result<()> {
     let mut env = Env::build(&env_config(), 0)?;
+    env.set_wait_in_render(Duration::from_millis(10));
     let mut agent = create_agent(DIM_OBS, DIM_ACT);
     let mut recorder = BufferedRecorder::new();
     env.set_render(true);
