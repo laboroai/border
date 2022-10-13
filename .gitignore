@@ -31,3 +31,5 @@ venv/**
 .markdownlint.json
 
 __pycache__
+
+.vscode/**
