@@ -73,7 +73,6 @@ RUN pip3 install ipython jupyterlab
 RUN pip3 install numpy==1.21.3
 # RUN pip3 install gym[box2d]==0.25.1
 RUN pip3 install gym[box2d]==0.17.1
-RUN pip3 install pybullet==2.7.1
 RUN pip3 install robosuite==1.3.2
 RUN pip3 install -U 'mujoco-py<2.2,>=2.1'
 
@@ -95,12 +94,12 @@ RUN cd $HOME && mkdir -p .border/model
 #     ln -sf $PWD/mujoco-2.1.1/model/ $PWD/mujoco210/model
 # RUN cp /test_mujoco_py.py $HOME
 
-# PyBullet
+# PyBulletGym
+RUN pip3 install pybullet==3.2.5
 RUN cd $HOME && \
     git clone https://github.com/benelot/pybullet-gym.git && \
     cd pybullet-gym && \
-
-    git checkout -b tmp 79396fccc1d0e170a092b50137148da48ee2edab && \
+    # git checkout -b tmp 79396fccc1d0e170a092b50137148da48ee2edab && \
     pip install -e .
 
 # .bashrc
