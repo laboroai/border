@@ -17,6 +17,10 @@ Border consists of the following crates:
 
 You can use a part of these crates for your purposes, though [border-core](https://crates.io/crates/border-core) is mandatory. [This crate](https://crates.io/crates/border) is just a collection of examples. See [Documentation](https://docs.rs/border) for more details.
 
+## News
+
+The owner of this repository will be changed from [taku-y](https://github.com/taku-y) to [laboroai](https://github.com/laboroai).
+
 ## Status
 
 Border is experimental and currently under development. API is unstable.
@@ -24,6 +28,18 @@ Border is experimental and currently under development. API is unstable.
 ## Examples
 
 In examples directory, you can see how to run some examples. Python>=3.7 and [gym](https://gym.openai.com) must be installed for running examples using [border-py-gym-env](https://crates.io/crates/border-py-gym-env). Some examples requires [PyBullet Gym](https://github.com/benelot/pybullet-gym). As the agents used in the examples are based on [tch-rs](https://github.com/LaurentMazare/tch-rs), libtorch is required to be installed.
+
+## Docker
+
+In `docker` directory, there are scripts for running a Docker container, in which you can try the examples described above. Currently, only `aarch64` is supported.
+
+## Tests
+
+The following command has been tested in the Docker container running on M2 Macbook air.
+
+```bash
+cargo test --features=tch
+```
 
 ## License
 
