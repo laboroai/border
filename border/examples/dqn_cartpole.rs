@@ -158,7 +158,7 @@ impl From<ActBatch> for Tensor {
 }
 
 impl From<Tensor> for Act {
-    // `t` must be a 1-dimentional tensor of `f32` (?)
+    // `t` must be a 1-dimentional tensor of `f32`
     fn from(t: Tensor) -> Self {
         let data: Vec<i64> = t.into();
         let data: Vec<_> = data.iter().map(|e| *e as i32).collect();
@@ -228,10 +228,6 @@ fn env_config() -> PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
 
 fn train(max_opts: usize, model_dir: &str) -> Result<()> {
     let mut trainer = {
-        // let env_config = PyGymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
-        //     .name("CartPole-v0".to_string())
-        //     .obs_filter_config(ObsFilter::default_config())
-        //     .act_filter_config(ActFilter::default_config());
         let env_config = env_config();
         let step_proc_config = SimpleStepProcessorConfig {};
         let replay_buffer_config =
@@ -263,11 +259,14 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
     Ok(())
 }
 
-fn eval(model_dir: &str) -> Result<()> {
+fn eval(model_dir: &str, render: bool) -> Result<()> {
     let mut env = Env::build(&env_config(), 0)?;
     let mut agent = create_agent(DIM_OBS, DIM_ACT);
     let mut recorder = BufferedRecorder::new();
-    env.set_render(true);
+    env.set_render(render);
+    if render {
+        env.set_wait_in_render(std::time::Duration::from_millis(10));
+    }
     agent.load(model_dir)?;
     agent.eval();
 
@@ -303,26 +302,26 @@ fn main() -> Result<()> {
         train(MAX_OPTS, MODEL_DIR)?;
     }
 
-    eval(&format!("{}{}", MODEL_DIR, "/best")[..])?;
+    eval(&(MODEL_DIR.to_owned() + "/best"), true)?;
 
     Ok(())
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::train;
-//     use anyhow::Result;
-//     use tempdir::TempDir; //, eval};
+#[cfg(test)]
+mod tests {
+    use super::{train, eval};
+    use anyhow::Result;
+    use tempdir::TempDir;
 
-//     #[test]
-//     fn test_dqn_cartpole() -> Result<()> {
-//         let tmp_dir = TempDir::new("dqn_cartpole")?;
-//         let model_dir = match tmp_dir.as_ref().to_str() {
-//             Some(s) => s,
-//             None => panic!("Failed to get string of temporary directory"),
-//         };
-//         train(100, model_dir, false)?;
-//         // eval(model_dir, false)?;
-//         Ok(())
-//     }
-// }
+    #[test]
+    fn test_dqn_cartpole() -> Result<()> {
+        let tmp_dir = TempDir::new("dqn_cartpole")?;
+        let model_dir = match tmp_dir.as_ref().to_str() {
+            Some(s) => s,
+            None => panic!("Failed to get string of temporary directory"),
+        };
+        train(100, model_dir)?;
+        eval(&(model_dir.to_owned() + "/best"), false)?;
+        Ok(())
+    }
+}
