@@ -11,7 +11,8 @@ mod subbatch;
 mod act;
 use proc_macro::{self, TokenStream};
 
-/// Implements `border_core::Obs` for the newtype.
+/// Implements `border_core::Obs` for the newtype that wraps
+/// PyGymEnvObs or BorderAtariObs.
 #[proc_macro_derive(Obs, attributes(my_trait))]
 pub fn derive1(input: TokenStream) -> TokenStream {
     obs::derive(input)
