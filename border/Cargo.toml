@@ -29,6 +29,11 @@ required-features = ["tch"]
 test = true
 
 [[example]]
+name = "iqn_cartpole"
+required-features = ["tch"]
+test = true
+
+[[example]]
 name = "sac_lunarlander_cont"
 required-features = ["tch"]
 
