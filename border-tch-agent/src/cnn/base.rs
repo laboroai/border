@@ -1,10 +1,10 @@
 use crate::model::SubModel;
 use tch::{nn, nn::Module, Device, Tensor};
-use super::CNNConfig;
+use super::CnnConfig;
 
 #[allow(clippy::upper_case_acronyms)]
 /// Convolutional neural network, which has the same architecture of the DQN paper.
-pub struct CNN {
+pub struct Cnn {
     n_stack: i64,
     out_dim: i64,
     device: Device,
@@ -12,7 +12,7 @@ pub struct CNN {
     skip_linear: bool,
 }
 
-impl CNN {
+impl Cnn {
     fn stride(s: i64) -> nn::ConvConfig {
         nn::ConvConfig {
             stride: s,
@@ -48,8 +48,8 @@ impl CNN {
     }
 }
 
-impl SubModel for CNN {
-    type Config = CNNConfig;
+impl SubModel for Cnn {
+    type Config = CnnConfig;
     type Input = Tensor;
     type Output = Tensor;
 

@@ -5,5 +5,5 @@
 //! pixel intensities with casting from `u8` to `f32`.
 mod base;
 mod config;
-pub use base::CNN;
-pub use config::CNNConfig;
+pub use base::Cnn;
+pub use config::CnnConfig;

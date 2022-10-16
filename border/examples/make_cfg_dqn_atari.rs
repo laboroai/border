@@ -6,14 +6,14 @@ use border_core::{
     TrainerConfig,
 };
 use border_tch_agent::{
-    cnn::{CNNConfig, CNN},
+    cnn::{CnnConfig, Cnn},
     dqn::{DqnConfig, DqnModelConfig}, //, EpsilonGreedy, DQNExplorer},
     opt::OptimizerConfig,
 };
 use std::{default::Default, path::Path};
 use util_dqn_atari::{model_dir, model_dir_async, Params};
 
-fn make_dqn_config(params: &Params) -> DqnConfig<CNN> {
+fn make_dqn_config(params: &Params) -> DqnConfig<Cnn> {
     let n_stack = 4;
     let out_dim = 0; // Set before training/evaluation
     let lr = if params.per {
@@ -24,7 +24,7 @@ fn make_dqn_config(params: &Params) -> DqnConfig<CNN> {
     let clip_td_err = if params.per { Some((-1.0, 1.0)) } else { None };
 
     let model_config = DqnModelConfig::default()
-        .q_config(CNNConfig::new(n_stack, out_dim))
+        .q_config(CnnConfig::new(n_stack, out_dim))
         .out_dim(out_dim)
         .opt_config(OptimizerConfig::Adam { lr });
 

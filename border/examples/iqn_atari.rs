@@ -15,7 +15,7 @@ use border_py_gym_env::{
     PyGymEnvDiscreteActRawFilter, PyGymEnvObs,
 };
 use border_tch_agent::{
-    cnn::CNN,
+    cnn::Cnn,
     mlp::Mlp,
     iqn::{Iqn as Iqn_, IqnConfig as IqnConfig_},
     TensorSubBatch,
@@ -67,8 +67,8 @@ type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type EnvConfig = PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
-type Iqn = Iqn_<Env, CNN, Mlp, ReplayBuffer>;
-type IqnConfig = IqnConfig_<CNN, Mlp>;
+type Iqn = Iqn_<Env, Cnn, Mlp, ReplayBuffer>;
+type IqnConfig = IqnConfig_<Cnn, Mlp>;
 
 fn init<'a>() -> ArgMatches<'a> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();

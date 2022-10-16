@@ -15,7 +15,7 @@ use border_py_gym_env::{
     PyGymEnvDiscreteActRawFilter, PyGymEnvObs,
 };
 use border_tch_agent::{
-    cnn::CNN,
+    cnn::Cnn,
     dqn::{DqnConfig, Dqn as Dqn_},
     TensorSubBatch,
 };
@@ -66,7 +66,7 @@ type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type EnvConfig = PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
-type Dqn = Dqn_<Env, CNN, ReplayBuffer>;
+type Dqn = Dqn_<Env, Cnn, ReplayBuffer>;
 
 fn init<'a>() -> ArgMatches<'a> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
@@ -133,7 +133,7 @@ fn init<'a>() -> ArgMatches<'a> {
 
 fn show_config(
     env_config: &EnvConfig,
-    agent_config: &DqnConfig<CNN>,
+    agent_config: &DqnConfig<Cnn>,
     trainer_config: &TrainerConfig,
 ) {
     println!("Device: {:?}", tch::Device::cuda_if_available());
@@ -196,9 +196,9 @@ fn n_actions(env_config: &EnvConfig) -> Result<usize> {
     Ok(Env::build(env_config, 0)?.get_num_actions_atari() as usize)
 }
 
-fn load_dqn_config<'a>(model_dir: impl Into<&'a str>) -> Result<DqnConfig<CNN>> {
+fn load_dqn_config<'a>(model_dir: impl Into<&'a str>) -> Result<DqnConfig<Cnn>> {
     let config_path = format!("{}/agent.yaml", model_dir.into());
-    DqnConfig::<CNN>::load(config_path)
+    DqnConfig::<Cnn>::load(config_path)
 }
 
 fn load_trainer_config<'a>(model_dir: impl Into<&'a str>) -> Result<TrainerConfig> {

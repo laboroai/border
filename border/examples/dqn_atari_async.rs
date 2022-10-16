@@ -17,7 +17,7 @@ use border_core::{
 };
 use border_derive::{Act, SubBatch};
 use border_tch_agent::{
-    cnn::CNN,
+    cnn::Cnn,
     dqn::{DqnConfig, Dqn},
     TensorSubBatch,
 };
@@ -70,7 +70,7 @@ type EnvConfig = BorderAtariEnvConfig<Obs, Act, ObsFilter, ActFilter>;
 type Env_ = BorderAtariEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc_ = SimpleStepProcessor<Env_, ObsBatch, ActBatch>;
 type ReplayBuffer_ = SimpleReplayBuffer<ObsBatch, ActBatch>;
-type Agent_ = Dqn<Env_, CNN, ReplayBuffer_>;
+type Agent_ = Dqn<Env_, Cnn, ReplayBuffer_>;
 type ActorManager_ = ActorManager<Agent_, Env_, ReplayBuffer_, StepProc_>;
 type AsyncTrainer_ = AsyncTrainer<Agent_, Env_, ReplayBuffer_>;
 
@@ -124,7 +124,7 @@ fn init<'a>() -> ArgMatches<'a> {
 
 fn show_config(
     env_config: &EnvConfig,
-    agent_config: &DqnConfig<CNN>,
+    agent_config: &DqnConfig<Cnn>,
     actor_man_config: &ActorManagerConfig,
     trainer_config: &AsyncTrainerConfig,
 ) {
@@ -163,9 +163,9 @@ fn n_actions(env_config: &EnvConfig) -> Result<usize> {
     Ok(Env_::build(env_config, 0)?.get_num_actions_atari() as usize)
 }
 
-fn load_dqn_config<'a>(model_dir: impl Into<&'a str>) -> Result<DqnConfig<CNN>> {
+fn load_dqn_config<'a>(model_dir: impl Into<&'a str>) -> Result<DqnConfig<Cnn>> {
     let config_path = format!("{}/agent.yaml", model_dir.into());
-    DqnConfig::<CNN>::load(config_path)
+    DqnConfig::<Cnn>::load(config_path)
 }
 
 fn load_async_trainer_config<'a>(model_dir: impl Into<&'a str>) -> Result<AsyncTrainerConfig> {
