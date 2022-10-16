@@ -1,17 +1,16 @@
 use crate::model::{SubModel, SubModel2};
 use tch::{nn, nn::Module, Device, Tensor};
-use super::{MLPConfig, mlp};
+use super::{MlpConfig, mlp};
 
-#[allow(clippy::clippy::upper_case_acronyms)]
 /// Multilayer perceptron.
-pub struct MLP {
-    config: MLPConfig,
+pub struct Mlp {
+    config: MlpConfig,
     device: Device,
     seq: nn::Sequential,
 }
 
-impl MLP {
-    fn create_net(var_store: &nn::VarStore, config: &MLPConfig) -> nn::Sequential {
+impl Mlp {
+    fn create_net(var_store: &nn::VarStore, config: &MlpConfig) -> nn::Sequential {
         let p = &var_store.root();
         let seq = mlp("cl", var_store, config).add(nn::linear(
             p / format!("cl{}", config.units.len() + 1),
@@ -24,8 +23,8 @@ impl MLP {
     }
 }
 
-impl SubModel for MLP {
-    type Config = MLPConfig;
+impl SubModel for Mlp {
+    type Config = MlpConfig;
     type Input = Tensor;
     type Output = Tensor;
 
@@ -57,8 +56,8 @@ impl SubModel for MLP {
     }
 }
 
-impl SubModel2 for MLP {
-    type Config = MLPConfig;
+impl SubModel2 for Mlp {
+    type Config = MlpConfig;
     type Input1 = Tensor;
     type Input2 = Tensor;
     type Output = Tensor;

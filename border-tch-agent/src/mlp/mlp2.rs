@@ -1,10 +1,10 @@
 use crate::model::SubModel;
 use tch::{nn, nn::Module, Device, Tensor};
-use super::{MLPConfig, mlp};
+use super::{MlpConfig, mlp};
 
 #[allow(clippy::clippy::upper_case_acronyms)]
 /// Multilayer perceptron that outputs two tensors of the same size.
-pub struct MLP2 {
+pub struct Mlp2 {
     in_dim: i64,
     units: Vec<i64>,
     out_dim: i64,
@@ -14,8 +14,8 @@ pub struct MLP2 {
     seq: nn::Sequential,
 }
 
-impl SubModel for MLP2 {
-    type Config = MLPConfig;
+impl SubModel for Mlp2 {
+    type Config = MlpConfig;
     type Input = Tensor;
     type Output = (Tensor, Tensor);
 

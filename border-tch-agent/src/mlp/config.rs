@@ -4,13 +4,13 @@ use serde::{Deserialize, Serialize};
 #[allow(clippy::clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 /// Configuration of [MLP](super::MLP).
-pub struct MLPConfig {
+pub struct MlpConfig {
     pub(super) in_dim: i64,
     pub(super) units: Vec<i64>,
     pub(super) out_dim: i64,
 }
 
-impl MLPConfig {
+impl MlpConfig {
     pub fn new(in_dim: i64, units: Vec<i64>, out_dim: i64) -> Self {
         Self {
             in_dim,
@@ -20,7 +20,7 @@ impl MLPConfig {
     }
 }
 
-impl OutDim for MLPConfig {
+impl OutDim for MlpConfig {
     fn get_out_dim(&self) -> i64 {
         self.out_dim
     }

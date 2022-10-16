@@ -7,13 +7,13 @@ use border_core::{
 };
 use border_tch_agent::{
     cnn::{CNNConfig, CNN},
-    mlp::{MLPConfig, MLP},
+    mlp::{MlpConfig, Mlp},
     iqn::{IqnConfig, IqnModelConfig}, //, EpsilonGreedy, DQNExplorer},
 };
 use std::{default::Default, path::Path};
 use util_iqn_atari::{model_dir, /*model_dir_async,*/ Params};
 
-fn make_iqn_config(params: &Params) -> IqnConfig<CNN, MLP> {
+fn make_iqn_config(params: &Params) -> IqnConfig<CNN, Mlp> {
     let n_stack = 4;
     let out_dim = 0; // Set before training/evaluation
     // let lr = if params.per {
@@ -27,7 +27,7 @@ fn make_iqn_config(params: &Params) -> IqnConfig<CNN, MLP> {
     let hidden_dim = params.hidden_dim;
     let f_config = CNNConfig::new(n_stack, feature_dim)
         .skip_linear(true);
-    let m_config = MLPConfig::new(feature_dim, vec![hidden_dim], out_dim);
+    let m_config = MlpConfig::new(feature_dim, vec![hidden_dim], out_dim);
     let model_config = IqnModelConfig::default()
         .feature_dim(feature_dim)
         .embed_dim(params.embed_dim)

@@ -16,7 +16,7 @@ use border_derive::{Act, SubBatch};
 use border_tch_agent::{
     cnn::CNN,
     iqn::{Iqn as Iqn_, IqnConfig as IqnConfig_},
-    mlp::MLP,
+    mlp::Mlp,
     TensorSubBatch,
 };
 use clap::{App, Arg, ArgMatches};
@@ -66,8 +66,8 @@ type EnvConfig = BorderAtariEnvConfig<Obs, Act, ObsFilter, ActFilter>;
 type Env = BorderAtariEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
-type Iqn = Iqn_<Env, CNN, MLP, ReplayBuffer>;
-type IqnConfig = IqnConfig_<CNN, MLP>;
+type Iqn = Iqn_<Env, CNN, Mlp, ReplayBuffer>;
+type IqnConfig = IqnConfig_<CNN, Mlp>;
 
 fn init<'a>() -> ArgMatches<'a> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();

@@ -14,7 +14,7 @@ use border_py_gym_env::{
     PyGymEnvContinuousActRawFilter, PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
 };
 use border_tch_agent::{
-    mlp::{MLPConfig, MLP, MLP2},
+    mlp::{MlpConfig, Mlp, Mlp2},
     opt::OptimizerConfig,
     sac::{ActorConfig, CriticConfig, EntCoefMode, SacConfig, Sac},
     util::CriticLoss,
@@ -79,15 +79,15 @@ type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
 
-fn create_agent(in_dim: i64, out_dim: i64) -> Sac<Env, MLP, MLP2, ReplayBuffer> {
+fn create_agent(in_dim: i64, out_dim: i64) -> Sac<Env, Mlp, Mlp2, ReplayBuffer> {
     let device = tch::Device::cuda_if_available();
     let actor_config = ActorConfig::default()
         .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
         .out_dim(out_dim)
-        .pi_config(MLPConfig::new(in_dim, vec![400, 300], out_dim));
+        .pi_config(MlpConfig::new(in_dim, vec![400, 300], out_dim));
     let critic_config = CriticConfig::default()
         .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
-        .q_config(MLPConfig::new(in_dim + out_dim, vec![400, 300], 1));
+        .q_config(MlpConfig::new(in_dim + out_dim, vec![400, 300], 1));
     let sac_config = SacConfig::default()
         .batch_size(BATCH_SIZE)
         .min_transitions_warmup(N_TRANSITIONS_WARMUP)

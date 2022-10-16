@@ -13,7 +13,7 @@ use border_py_gym_env::{
 };
 use border_tch_agent::{
     dqn::{DqnConfig, DqnModelConfig, Dqn},
-    mlp::{MLPConfig, MLP},
+    mlp::{MlpConfig, Mlp},
     TensorSubBatch,
 };
 use clap::{App, Arg};
@@ -197,11 +197,11 @@ impl TryFrom<&Record> for CartpoleRecord {
     }
 }
 
-fn create_agent(in_dim: i64, out_dim: i64) -> Dqn<Env, MLP, ReplayBuffer> {
+fn create_agent(in_dim: i64, out_dim: i64) -> Dqn<Env, Mlp, ReplayBuffer> {
     let device = tch::Device::cuda_if_available();
     let config = {
         let opt_config = border_tch_agent::opt::OptimizerConfig::Adam { lr: LR_CRITIC };
-        let mlp_config = MLPConfig::new(in_dim, vec![256, 256], out_dim);
+        let mlp_config = MlpConfig::new(in_dim, vec![256, 256], out_dim);
         let model_config = DqnModelConfig::default()
             .q_config(mlp_config)
             .out_dim(out_dim)
