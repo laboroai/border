@@ -1,6 +1,6 @@
+use super::{mlp, MlpConfig};
 use crate::model::{SubModel, SubModel2};
 use tch::{nn, nn::Module, Device, Tensor};
-use super::{MlpConfig, mlp};
 
 /// Multilayer perceptron.
 pub struct Mlp {
@@ -12,12 +12,30 @@ pub struct Mlp {
 impl Mlp {
     fn create_net(var_store: &nn::VarStore, config: &MlpConfig) -> nn::Sequential {
         let p = &var_store.root();
-        let seq = mlp("cl", var_store, config).add(nn::linear(
-            p / format!("cl{}", config.units.len() + 1),
-            *config.units.last().unwrap(),
+        let mut seq = nn::seq();
+        let mut in_dim = config.in_dim;
+
+        for (i, &out_dim) in config.units.iter().enumerate() {
+            seq = seq.add(nn::linear(
+                p / format!("{}{}", "cl", i + 1),
+                in_dim,
+                out_dim,
+                Default::default(),
+            ));
+            seq = seq.add_fn(|x| x.relu());
+            in_dim = out_dim;
+        }
+
+        seq = seq.add(nn::linear(
+            p / format!("{}{}", "cl", config.units.len() + 1),
+            in_dim,
             config.out_dim,
             Default::default(),
         ));
+
+        if !config.activation_out {
+            seq = seq.add_fn(|x| x.relu());
+        }
 
         seq
     }

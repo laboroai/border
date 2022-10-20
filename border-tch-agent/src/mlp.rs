@@ -5,7 +5,7 @@ mod mlp2;
 pub use base::Mlp;
 pub use config::MlpConfig;
 pub use mlp2::Mlp2;
-use tch::{nn};
+use tch::nn;
 
 fn mlp(prefix: &str, var_store: &nn::VarStore, config: &MlpConfig) -> nn::Sequential {
     let mut seq = nn::seq();
