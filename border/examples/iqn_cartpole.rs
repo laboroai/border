@@ -26,22 +26,22 @@ use std::{convert::TryFrom, fs::File};
 const DIM_OBS: i64 = 4;
 const DIM_FEATURE: i64 = 256;
 const DIM_EMBED: i64 = 64;
-const DIM_ACT: i64 = 1;
+const DIM_ACT: i64 = 2;
 const LR_CRITIC: f64 = 0.001;
 const DISCOUNT_FACTOR: f64 = 0.99;
 const BATCH_SIZE: usize = 64;
 const N_TRANSITIONS_WARMUP: usize = 100;
 const N_UPDATES_PER_OPT: usize = 1;
-const TAU: f64 = 0.005;
+const TAU: f64 = 0.1; //0.005;
 const SOFT_UPDATE_INTERVAL: usize = 100;
-const OPT_INTERVAL: usize = 1;
+const OPT_INTERVAL: usize = 50;
 const MAX_OPTS: usize = 10000;
 const EVAL_INTERVAL: usize = 500;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const EPS_START: f64 = 1.0;
 const EPS_FINAL: f64 = 0.1;
-const FINAL_STEP: usize = 5000; // MAX_OPTS;
+const FINAL_STEP: usize = MAX_OPTS;
 const MODEL_DIR: &str = "border/examples/model/iqn_cartpole";
 
 shape!(ObsShape, [DIM_OBS as usize]);
@@ -119,8 +119,8 @@ fn create_agent(in_dim: i64, out_dim: i64) -> Iqn {
     let device = tch::Device::cuda_if_available();
     let config = {
         let opt_config = border_tch_agent::opt::OptimizerConfig::Adam { lr: LR_CRITIC };
-        let f_config = MlpConfig::new(in_dim, vec![], DIM_FEATURE);
-        let m_config = MlpConfig::new(DIM_FEATURE, vec![], out_dim);
+        let f_config = MlpConfig::new(in_dim, vec![], DIM_FEATURE, true);
+        let m_config = MlpConfig::new(DIM_FEATURE, vec![], out_dim, false);
         let model_config = IqnModelConfig::default()
             .feature_dim(DIM_FEATURE)
             .embed_dim(DIM_EMBED)
