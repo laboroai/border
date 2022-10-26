@@ -1,7 +1,7 @@
 use border_derive::{Obs, SubBatch, Act};
 use border_py_gym_env::{PyGymEnvObs, PyGymEnvDiscreteAct};
 use border_core::shape;
-use std::convert::TryFrom;
+// use std::convert::TryFrom;
 use border_tch_agent::TensorSubBatch;
 
 shape!(ObsShape, [4]);

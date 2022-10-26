@@ -131,10 +131,10 @@ fn create_agent(in_dim: i64, out_dim: i64) -> Sac<Env, Mlp, Mlp2, ReplayBuffer> 
     let actor_config = ActorConfig::default()
         .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
         .out_dim(out_dim)
-        .pi_config(MlpConfig::new(in_dim, vec![64, 64], out_dim));
+        .pi_config(MlpConfig::new(in_dim, vec![64, 64], out_dim, true));
     let critic_config = CriticConfig::default()
         .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
-        .q_config(MlpConfig::new(in_dim + out_dim, vec![64, 64], 1));
+        .q_config(MlpConfig::new(in_dim + out_dim, vec![64, 64], 1, true));
     let sac_config = SacConfig::default()
         .batch_size(BATCH_SIZE)
         .min_transitions_warmup(N_TRANSITIONS_WARMUP)
@@ -189,6 +189,9 @@ fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
     let mut agent = create_agent(DIM_OBS, DIM_ACT);
     let mut recorder = BufferedRecorder::new();
     env.set_render(render);
+    if render {
+        env.set_wait_in_render(std::time::Duration::from_millis(10));
+    }
     agent.load(model_dir)?;
     agent.eval();
 
@@ -226,7 +229,7 @@ mod test {
 
         let model_dir = TempDir::new("sac_pendulum")?;
         let model_dir = model_dir.path().to_str().unwrap();
-        train(4_000, model_dir)?;
+        train(2_000, model_dir)?;
         eval(1, false, (model_dir.to_string() + "/best").as_str())?;
     
         Ok(())
