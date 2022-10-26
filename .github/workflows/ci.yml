@@ -63,3 +63,6 @@ jobs:
 
         - name: Test border-py-gym-env
           run: cargo test -p border-py-gym-env
+
+        - name: Test border
+          run: cargo test -p border --features=tch test_sac_pendulum
