@@ -29,7 +29,7 @@ border-core = { version = "0.0.5", path = "../border-core" }
 tch = "0.8.0"
 
 [features]
-# default = ["tch"]
+default = ["tch"]
 
 [[example]]
 name = "test1"

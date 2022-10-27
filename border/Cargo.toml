@@ -34,49 +34,60 @@ required-features = ["tch"]
 test = true
 
 [[example]]
-name = "sac_lunarlander_cont"
+name = "sac_pendulum"
 required-features = ["tch"]
+test = true
 
 [[example]]
-name = "sac_pendulum"
-test = true
+name = "sac_lunarlander_cont"
+required-features = ["tch"]
+test = false
 
 [[example]]
 name = "random_atari"
 required-features = ["tch"]
+test = false
 
 [[example]]
 name = "dqn_atari"
 required-features = ["tch"]
+test = false
 
-[[example]]
-name = "dqn_atari_rs"
-required-features = ["tch"]
+# [[example]]
+# name = "dqn_atari_rs"
+# required-features = ["tch"]
+# test = false
 
 [[example]]
 name = "dqn_atari_async"
 required-features = ["tch", "border-async-trainer"]
+test = false
 
 [[example]]
 name = "iqn_atari"
 required-features = ["tch"]
+test = false
 # # required_features = [ "adam_eps" ]
 
-[[example]]
-name = "iqn_atari_rs"
-required-features = ["tch"]
+# [[example]]
+# name = "iqn_atari_rs"
+# required-features = ["tch"]
+# test = false
 
 [[example]]
 name = "sac_ant"
 required-features = ["tch"]
+test = false
 
 [[example]]
 name = "make_cfg_dqn_atari"
 required-features = ["border-async-trainer"]
+test = false
 
 [[example]]
 name = "make_cfg_iqn_atari"
 required-features = ["border-async-trainer"]
+test = false
 
 [dev-dependencies]
 clap = "2.33.3"

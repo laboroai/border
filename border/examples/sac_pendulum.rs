@@ -151,7 +151,7 @@ fn env_config() -> PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
         .act_filter_config(ActFilter::default_config())
 }
 
-fn train(max_opts: usize, model_dir: &str) -> Result<()> {
+fn train(max_opts: usize, model_dir: &str, eval_interval: usize) -> Result<()> {
     let mut trainer = {
         let env_config = env_config();
         let step_proc_config = SimpleStepProcessorConfig {};
@@ -160,9 +160,9 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
         let config = TrainerConfig::default()
             .max_opts(max_opts)
             .opt_interval(OPT_INTERVAL)
-            .eval_interval(EVAL_INTERVAL)
-            .record_interval(EVAL_INTERVAL)
-            .save_interval(EVAL_INTERVAL)
+            .eval_interval(eval_interval)
+            .record_interval(eval_interval)
+            .save_interval(eval_interval)
             .eval_episodes(N_EPISODES_PER_EVAL)
             .model_dir(model_dir);
         let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
@@ -212,7 +212,7 @@ fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
 
-    train(MAX_OPTS, "./border/examples/model/sac_pendulum")?;
+    train(MAX_OPTS, "./border/examples/model/sac_pendulum", EVAL_INTERVAL)?;
     eval(5, true, "./border/examples/model/sac_pendulum/best")?;
 
     Ok(())
@@ -229,7 +229,7 @@ mod test {
 
         let model_dir = TempDir::new("sac_pendulum")?;
         let model_dir = model_dir.path().to_str().unwrap();
-        train(2_000, model_dir)?;
+        train(100, model_dir, 100)?;
         eval(1, false, (model_dir.to_string() + "/best").as_str())?;
     
         Ok(())

@@ -143,7 +143,7 @@ fn create_agent(in_dim: i64, out_dim: i64) -> Iqn {
     Iqn::build(config)
 }
 
-fn train(max_opts: usize, model_dir: &str) -> Result<()> {
+fn train(max_opts: usize, model_dir: &str, eval_interval: usize) -> Result<()> {
     let mut trainer = {
         let env_config = env_config();
         let step_proc_config = SimpleStepProcessorConfig {};
@@ -152,9 +152,9 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
         let config = TrainerConfig::default()
             .max_opts(max_opts)
             .opt_interval(OPT_INTERVAL)
-            .eval_interval(EVAL_INTERVAL)
-            .record_interval(EVAL_INTERVAL)
-            .save_interval(EVAL_INTERVAL)
+            .eval_interval(eval_interval)
+            .record_interval(eval_interval)
+            .save_interval(eval_interval)
             .eval_episodes(N_EPISODES_PER_EVAL)
             .model_dir(model_dir);
         let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
@@ -176,7 +176,7 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
     Ok(())
 }
 
-fn eval(model_dir: &str, render: bool) -> Result<()> {
+fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
     let mut env = Env::build(&env_config(), 0)?;
     let mut agent = create_agent(DIM_OBS, DIM_ACT);
     let mut recorder = BufferedRecorder::new();
@@ -187,7 +187,7 @@ fn eval(model_dir: &str, render: bool) -> Result<()> {
     agent.load(model_dir)?;
     agent.eval();
 
-    let _ = util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder)?;
+    let _ = util::eval_with_recorder(&mut env, &mut agent, n_episodes, &mut recorder)?;
 
     // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
     let mut wtr = WriterBuilder::new()
@@ -216,10 +216,28 @@ fn main() -> Result<()> {
         .get_matches();
 
     if !matches.is_present("skip training") {
-        train(MAX_OPTS, MODEL_DIR)?;
+        train(MAX_OPTS, MODEL_DIR, EVAL_INTERVAL)?;
     }
 
-    eval(&(MODEL_DIR.to_owned() + "/best"), true)?;
+    eval(1, true, &(MODEL_DIR.to_owned() + "/best"))?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use tempdir::TempDir;
+
+    #[test]
+    fn test_iqn_cartpole() -> Result<()> {
+        tch::manual_seed(42);
+
+        let model_dir = TempDir::new("sac_pendulum")?;
+        let model_dir = model_dir.path().to_str().unwrap();
+        train(100, model_dir, 100)?;
+        eval(1, false, (model_dir.to_string() + "/best").as_str())?;
+    
+        Ok(())
+    }
 }
