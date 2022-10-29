@@ -53,10 +53,10 @@ name = "dqn_atari"
 required-features = ["tch"]
 test = false
 
-# [[example]]
-# name = "dqn_atari_rs"
-# required-features = ["tch"]
-# test = false
+[[example]]
+name = "dqn_atari_rs"
+required-features = ["tch"]
+test = false
 
 [[example]]
 name = "dqn_atari_async"
@@ -69,10 +69,10 @@ required-features = ["tch"]
 test = false
 # # required_features = [ "adam_eps" ]
 
-# [[example]]
-# name = "iqn_atari_rs"
-# required-features = ["tch"]
-# test = false
+[[example]]
+name = "iqn_atari_rs"
+required-features = ["tch"]
+test = false
 
 [[example]]
 name = "sac_ant"
