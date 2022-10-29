@@ -8,7 +8,7 @@ use super::{BorderAtariObsFilter, BorderAtariActFilter};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
-/// Configuration of [BorderAtariEnv](super::BorderAtariEnv).
+/// Configurations of [`BorderAtariEnv`](super::BorderAtariEnv).
 pub struct BorderAtariEnvConfig<O, A, OF, AF>
 where
     O: Obs,
