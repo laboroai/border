@@ -46,6 +46,7 @@ doc = []
 
 [[example]]
 name = "random_pong"
+test = false
 
 [dev-dependencies]
 env_logger = "0.8.2"

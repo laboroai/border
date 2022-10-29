@@ -40,7 +40,7 @@ jobs:
         - name: Install gym
           run: |
             pip install box2d-py==2.3.8
-            pip install gym[atari]==0.18.3
+            # pip install gym[atari]==0.18.3
             pip install gym[Box_2D]==0.18.3
 
         - name: Install pybullet-gym
