@@ -27,7 +27,6 @@ pollster = "=0.2.4"
 
 # The following crates are required by the code adapted from atari-env
 atari-env-sys = { version = "0.1.0", optional = true }
-# atari-env-sys = { version = "0.1.0", path = "../../../elbaro/gym-rs/atari-env-sys", optional = true }
 gym-core = { version = "0.1.0" }
 c_str_macro = "1.0.2"
 minifb = { version = "0.19.2", optional = true }
