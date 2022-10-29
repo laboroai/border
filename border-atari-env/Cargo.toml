@@ -39,7 +39,7 @@ num-traits = "0.2.14"
 num-derive = "0.3.3"
 
 [features]
-default = ["atari-env-sys", "winit", "winit_input_helper", "wgpu", "minifb", "pixels"]
+default = ["atari-env-sys", "winit", "winit_input_helper", "wgpu", "minifb", "pixels", "tch"]
 sdl = ["atari-env-sys/sdl"]
 doc = []
 
