@@ -80,19 +80,19 @@ RUN pip3 install -U 'mujoco-py<2.2,>=2.1'
 # RUN cd $HOME && git clone https://github.com/taku-y/border.git
 RUN cd $HOME && mkdir -p .border/model
 
-# # Mujoco aarch64 binary
-# RUN cd $HOME && \
-#     mkdir .mujoco && \
-#     cd .mujoco && \
-#     wget https://github.com/deepmind/mujoco/releases/download/2.1.1/mujoco-2.1.1-linux-aarch64.tar.gz
-# RUN cd $HOME/.mujoco && \
-#     tar zxf mujoco-2.1.1-linux-aarch64.tar.gz && \
-#     mkdir -p mujoco210/bin && \
-#     ln -sf $PWD/mujoco-2.1.1/lib/libmujoco.so.2.1.1 $PWD/mujoco210/bin/libmujoco210.so && \
-#     ln -sf $PWD/mujoco-2.1.1/lib/libglewosmesa.so $PWD/mujoco210/bin/libglewosmesa.so && \
-#     ln -sf $PWD/mujoco-2.1.1/include/ $PWD/mujoco210/include && \
-#     ln -sf $PWD/mujoco-2.1.1/model/ $PWD/mujoco210/model
-# RUN cp /test_mujoco_py.py $HOME
+# Mujoco aarch64 binary
+RUN cd $HOME && \
+    mkdir .mujoco && \
+    cd .mujoco && \
+    wget https://github.com/deepmind/mujoco/releases/download/2.1.1/mujoco-2.1.1-linux-aarch64.tar.gz
+RUN cd $HOME/.mujoco && \
+    tar zxf mujoco-2.1.1-linux-aarch64.tar.gz && \
+    mkdir -p mujoco210/bin && \
+    ln -sf $PWD/mujoco-2.1.1/lib/libmujoco.so.2.1.1 $PWD/mujoco210/bin/libmujoco210.so && \
+    ln -sf $PWD/mujoco-2.1.1/lib/libglewosmesa.so $PWD/mujoco210/bin/libglewosmesa.so && \
+    ln -sf $PWD/mujoco-2.1.1/include/ $PWD/mujoco210/include && \
+    ln -sf $PWD/mujoco-2.1.1/model/ $PWD/mujoco210/model
+RUN cp /test_mujoco_py.py $HOME
 
 # PyBulletGym
 # RUN pip3 install pybullet==3.2.5
@@ -109,7 +109,8 @@ RUN echo 'export LD_LIBRARY_PATH=$LIBTORCH/lib' >> ~/.bashrc
 RUN echo 'export LIBTORCH_CXX11_ABI=0' >> ~/.bashrc
 RUN echo 'export PATH=$HOME/.local/bin:$PATH' >> ~/.bashrc
 RUN echo 'export PYTHONPATH=$HOME/border/border-py-gym-env/examples:$PYTHONPATH' >> ~/.bashrc
-# RUN echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.mujoco/mujoco210/bin' >> ~/.bashrc
+RUN echo 'export CARGO_TARGET_DIR=$HOME/target' >> ~/.bashrc
+RUN echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.mujoco/mujoco210/bin' >> ~/.bashrc
 
 USER root
 ENV USER ubuntu
