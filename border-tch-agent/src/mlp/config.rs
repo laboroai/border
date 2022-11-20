@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[allow(clippy::clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
-/// Configuration of [MLP](super::MLP).
+/// Configuration of [`Mlp`](super::Mlp).
 pub struct MlpConfig {
     pub(super) in_dim: i64,
     pub(super) units: Vec<i64>,
