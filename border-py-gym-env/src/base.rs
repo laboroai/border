@@ -4,7 +4,7 @@ use crate::{AtariWrapper, PyGymEnvConfig};
 use anyhow::Result;
 use border_core::{record::Record, Act, Env, Info, Obs, Step};
 use log::{info, trace};
-use pyo3::IntoPy;
+// use pyo3::IntoPy;
 use pyo3::types::{IntoPyDict, PyTuple};
 use pyo3::{types::PyModule, PyObject, Python, ToPyObject};
 use std::marker::PhantomData;
@@ -217,15 +217,18 @@ where
             Ok(O::dummy(1))
         } else {
             pyo3::Python::with_gil(|py| {
-                let obs = if let Some(seed) = self.initial_seed {
-                    self.initial_seed = None;
-                    let kwargs = Some(vec![("seed", seed)].into_py_dict(py));
-                    let ret_values = self.env.call_method(py, "reset", (), kwargs)?;
+                let obs = {
+                    let ret_values = if let Some(seed) = self.initial_seed {
+                        self.initial_seed = None;
+                        let kwargs = Some(vec![("seed", seed)].into_py_dict(py));
+                        self.env.call_method(py, "reset", (), kwargs)?
+                    } else {
+                        self.env.call_method0(py, "reset")?
+                    };
                     let ret_values_: &PyTuple = ret_values.extract(py).unwrap();
                     ret_values_.get_item(0).extract().unwrap()
-                } else {
-                    self.env.call_method0(py, "reset")?
                 };
+
                 if self.pybullet && self.render {
                     let floor: &PyModule =
                         self.pybullet_state.as_ref().unwrap().extract(py).unwrap();

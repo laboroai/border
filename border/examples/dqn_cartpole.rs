@@ -260,12 +260,16 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
 }
 
 fn eval(model_dir: &str, render: bool) -> Result<()> {
-    let mut env = Env::build(&env_config(), 0)?;
+    let mut env_config = env_config();
+    if render {
+        env_config = env_config.render_mode(Some("human".to_string()));
+    }
+    let mut env = Env::build(&env_config, 0)?;
     let mut agent = create_agent(DIM_OBS, DIM_ACT);
     let mut recorder = BufferedRecorder::new();
     env.set_render(render);
     if render {
-        env.set_wait_in_render(std::time::Duration::from_millis(10));
+        env.set_wait_in_step(std::time::Duration::from_millis(10));
     }
     agent.load(model_dir)?;
     agent.eval();
