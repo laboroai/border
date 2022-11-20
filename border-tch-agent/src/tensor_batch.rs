@@ -1,6 +1,6 @@
-use border_core::{Shape, replay_buffer::SubBatch};
-use tch::{Tensor, Device};
+use border_core::{replay_buffer::SubBatch, Shape};
 use std::marker::PhantomData;
+use tch::{Device, Tensor};
 
 /// Adds capability of constructing [Tensor] with a static method.
 pub trait ZeroTensor {
@@ -32,22 +32,29 @@ impl ZeroTensor for i64 {
     }
 }
 
-/// A buffer consisting of a [Tensor](tch::Tensor).
+/// A buffer consisting of a [`Tensor`](tch::Tensor).
 ///
-/// Type parameter `D` is the data type of the buffer.
-/// S is the shape of items in the buffer.
+/// The internal buffer of this struct has the shape of `[n_capacity, shape[1..]]`,
+/// where `shape` is obtained from the data pushed at the first time via
+/// [`TensorSubBatch::push`] method. `[1..]` means that the first axis of the
+/// given data is ignored as it might be batch size.
 pub struct TensorSubBatch<S, D> {
-    buf: Tensor,
+    buf: Option<Tensor>,
     capacity: i64,
     phantom: PhantomData<(S, D)>,
 }
 
 impl<S, D> Clone for TensorSubBatch<S, D> {
     fn clone(&self) -> Self {
+        let buf = match self.buf.is_none() {
+            true => None,
+            false => Some(self.buf.as_ref().unwrap().copy()),
+        };
+
         Self {
-            buf: self.buf.copy(),
+            buf,
             capacity: self.capacity,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 }
@@ -60,7 +67,7 @@ where
     pub fn from_tensor(t: Tensor) -> Self {
         let capacity = t.size()[0] as _;
         Self {
-            buf: t,
+            buf: Some(t),
             capacity,
             phantom: PhantomData,
         }
@@ -73,34 +80,53 @@ where
     D: 'static + Copy + tch::kind::Element + ZeroTensor,
 {
     fn new(capacity: usize) -> Self {
-        let capacity = capacity as i64;
-        let mut shape: Vec<_> = S::shape().to_vec().iter().map(|e| *e as i64).collect();
-        shape.insert(0, capacity);
-        let buf = D::zeros(shape.as_slice());
+        // let capacity = capacity as i64;
+        // let mut shape: Vec<_> = S::shape().to_vec().iter().map(|e| *e as i64).collect();
+        // shape.insert(0, capacity);
+        // let buf = D::zeros(shape.as_slice());
 
         Self {
-            buf,
-            capacity,
+            buf: None,
+            capacity: capacity as _,
             phantom: PhantomData,
         }
     }
 
+    /// Pushes given data.
+    ///
+    /// If the internal buffer is empty, it will be initialized with the shape
+    /// `[capacity, data.buf.size()[1..]]`.
     fn push(&mut self, index: usize, data: &Self) {
+        if data.buf.is_none() {
+            return;
+        }
+
+        let batch_size = data.buf.as_ref().unwrap().size()[0];
+        if batch_size == 0 {
+            return;
+        }
+
+        if self.buf.is_none() {
+            let mut shape = data.buf.as_ref().unwrap().size().clone();
+            shape[0] = self.capacity;
+            let kind = data.buf.as_ref().unwrap().kind();
+            let device = tch::Device::Cpu;
+            self.buf = Some(Tensor::zeros(&shape, (kind, device)));
+        }
+
         let index = index as i64;
-        let val: Tensor = data.buf.copy();
-        let batch_size = val.size()[0];
-        debug_assert_eq!(&val.size()[1..], &self.buf.size()[1..]);
+        let val: Tensor = data.buf.as_ref().unwrap().copy();
 
         for i_ in 0..batch_size {
             let i = (i_ + index) % self.capacity;
-            self.buf.get(i).copy_(&val.get(i_));
+            self.buf.as_ref().unwrap().get(i).copy_(&val.get(i_));
         }
     }
 
     fn sample(&self, ixs: &Vec<usize>) -> Self {
         let ixs = ixs.iter().map(|&ix| ix as i64).collect::<Vec<_>>();
         let batch_indexes = Tensor::of_slice(&ixs);
-        let buf = self.buf.index_select(0, &batch_indexes);
+        let buf = Some(self.buf.as_ref().unwrap().index_select(0, &batch_indexes));
         Self {
             buf,
             capacity: ixs.len() as i64,
@@ -111,6 +137,6 @@ where
 
 impl<S, D> From<TensorSubBatch<S, D>> for Tensor {
     fn from(b: TensorSubBatch<S, D>) -> Self {
-        b.buf
+        b.buf.unwrap()
     }
 }
