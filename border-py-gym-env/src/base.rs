@@ -4,6 +4,7 @@ use crate::{AtariWrapper, PyGymEnvConfig};
 use anyhow::Result;
 use border_core::{record::Record, Act, Env, Info, Obs, Step};
 use log::{info, trace};
+use pyo3::IntoPy;
 use pyo3::types::{IntoPyDict, PyTuple};
 use pyo3::{types::PyModule, PyObject, Python, ToPyObject};
 use std::marker::PhantomData;
@@ -81,18 +82,34 @@ where
     AF: PyGymEnvActFilter<A>,
 {
     render: bool,
+
     env: PyObject,
+
     #[allow(dead_code)]
     action_space: i64,
+
     #[allow(dead_code)]
     observation_space: Vec<usize>,
+
     count_steps: usize,
+
     max_steps: Option<usize>,
+
     obs_filter: OF,
+
     act_filter: AF,
-    wait_in_render: Duration,
+
+    wait_in_step: Duration,
+
     pybullet: bool,
+
     pybullet_state: Option<PyObject>,
+
+    /// Initial seed.
+    /// 
+    /// This value will be used at the first call of the reset method.
+    initial_seed: Option<i64>,
+
     phantom: PhantomData<(O, A)>,
 }
 
@@ -122,9 +139,9 @@ where
         self
     }
 
-    /// Set time for sleep in rendering.
-    pub fn set_wait_in_render(&mut self, d: Duration) {
-        self.wait_in_render = d;
+    /// Set time for sleep when calling step method.
+    pub fn set_wait_in_step(&mut self, d: Duration) {
+        self.wait_in_step = d;
     }
 
     /// Get the number of available actions of atari environments
@@ -172,9 +189,14 @@ where
         (step, record)
     }
 
-    /// Resets the environment, the obs/act filters and returns the observation tensor.
+    /// Resets the environment and returns an observation.
+    /// 
+    /// This method also resets the [`PyGymObsFilter`] adn [`PyGymActFilter`].
     ///
     /// In this environment, the length of `is_done` is assumed to be 1.
+    /// 
+    /// [`PyGymObsFilter`]: crate::PyGymEnvObsFilter
+    /// [`PyGymActFilter`]: crate::PyGymEnvActFilter
     fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<O> {
         trace!("PyGymEnv::reset()");
 
@@ -195,11 +217,18 @@ where
             Ok(O::dummy(1))
         } else {
             pyo3::Python::with_gil(|py| {
-                let obs = self.env.call_method0(py, "reset")?;
+                let obs = if let Some(seed) = self.initial_seed {
+                    self.initial_seed = None;
+                    let kwargs = Some(vec![("seed", seed)].into_py_dict(py));
+                    let ret_values = self.env.call_method(py, "reset", (), kwargs)?;
+                    let ret_values_: &PyTuple = ret_values.extract(py).unwrap();
+                    ret_values_.get_item(0).extract().unwrap()
+                } else {
+                    self.env.call_method0(py, "reset")?
+                };
                 if self.pybullet && self.render {
                     let floor: &PyModule =
                         self.pybullet_state.as_ref().unwrap().extract(py).unwrap();
-                    // floor.call1("add_floor", (&self.env,)).unwrap();
                     floor.getattr("add_floor")?.call1((&self.env,)).unwrap();
                 }
                 Ok(self.obs_filter.reset(obs))
@@ -209,11 +238,9 @@ where
 
     /// Resets the environment with the given index.
     ///
-    /// The index is used as the random seed.
+    /// Specifically, env.reset(seed=ix) is called in the Python interpreter.
     fn reset_with_index(&mut self, ix: usize) -> Result<Self::Obs> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        self.env.call_method(py, "seed", (ix,), None)?;
+        self.initial_seed = Some(ix as _);
         self.reset(None)
     }
 
@@ -234,7 +261,7 @@ where
                     // cam.call1("update_camera_pos", (&self.env,)).unwrap();
                     cam.getattr("update_camera_pos").unwrap().call1((&self.env,)).unwrap();
                 }
-                std::thread::sleep(self.wait_in_render);
+                std::thread::sleep(self.wait_in_step);
             }
 
             let (a_py, record_a) = self.act_filter.filt(a.clone());
@@ -265,7 +292,10 @@ where
         })
     }
 
-    /// Constructs [PyGymEnv].
+    /// Constructs [`PyGymEnv`].
+    /// 
+    /// * `seed` - The seed value of the random number generator.
+    ///   This value will be used at the first call of the reset method.
     fn build(config: &Self::Config, seed: i64) -> Result<Self> {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -293,21 +323,17 @@ where
             };
             let gym = py.import("atari_wrappers")?;
             let env = gym.getattr("make_env_single_proc")?.call((name, true, mode), None)?;
-            env.call_method("seed", (seed,), None)?;
             env
-        // } else if !config.pybullet {
         } else {
             let gym = py.import("f32_wrapper")?;
-            let env = gym.getattr("make_f32")?.call((name,), None)?;
-            env.call_method("seed", (seed,), None)?;
+            let kwargs = if let Some(render_mode) = config.render_mode.clone() {
+                Some(vec![("render_mode", render_mode)].into_py_dict(py))
+            } else {
+                None
+            };
+            let env = gym.getattr("make_f32")?.call((name,), kwargs)?;
             env
         };
-        // } else {
-        //     let gym = py.import("gym")?;
-        //     let env = gym.getattr("make")?.call((name,), None)?;
-        //     env.call_method("seed", (seed,), None)?;
-        //     env
-        // };
 
         // TODO: consider removing action_space and observation_space.
         // Act/obs types are specified by type parameters.
@@ -390,10 +416,11 @@ def update_camera_pos(env):
             act_filter: AF::build(&config.act_filter_config.as_ref().unwrap())?,
             render: false,
             count_steps: 0,
-            wait_in_render: Duration::from_millis(0),
+            wait_in_step: Duration::from_millis(0),
             max_steps: config.max_steps,
             pybullet: config.pybullet,
             pybullet_state,
+            initial_seed: Some(seed),
             phantom: PhantomData,
         })
     }

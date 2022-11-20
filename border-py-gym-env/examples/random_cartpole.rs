@@ -68,7 +68,8 @@ fn main() -> Result<()> {
     fastrand::seed(42);
 
     let env_config = PyGymEnvConfig::default()
-        .name("CartPole-v0".to_string())
+        .name("CartPole-v1".to_string())
+        .render_mode(Some("human".to_string()))
         .obs_filter_config(<ObsFilter as PyGymEnvObsFilter<Obs>>::Config::default())
         .act_filter_config(<ActFilter as PyGymEnvActFilter<Act>>::Config::default());
     let mut env = Env::build(&env_config, 0)?;
@@ -95,7 +96,7 @@ fn test_random_cartpole() {
     fastrand::seed(42);
 
     let env_config = PyGymEnvConfig::default()
-        .name("CartPole-v0".to_string())
+        .name("CartPole-v1".to_string())
         .obs_filter_config(<ObsFilter as PyGymEnvObsFilter<Obs>>::Config::default())
         .act_filter_config(<ActFilter as PyGymEnvActFilter<Act>>::Config::default());
     let mut env = Env::build(&env_config, 0).unwrap();

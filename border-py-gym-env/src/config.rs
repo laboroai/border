@@ -27,6 +27,9 @@ where
     /// Name of the environment, e.g., `CartPole-v0`.
     pub name: String,
 
+    /// Rendering mode, e.g., "human" or "rgb_array".
+    pub render_mode: Option<String>,
+
     /// Configuration of [PyGymEnvObsFilter].
     pub obs_filter_config: Option<OF::Config>,
 
@@ -47,6 +50,7 @@ where
             atari_wrapper: self.atari_wrapper.clone(),
             pybullet: self.pybullet,
             name: self.name.clone(),
+            render_mode: self.render_mode.clone(),
             obs_filter_config: self.obs_filter_config.clone(),
             act_filter_config: self.act_filter_config.clone(),
         }
@@ -66,6 +70,7 @@ where
             atari_wrapper: None,
             pybullet: false,
             name: "".to_string(),
+            render_mode: None,
             obs_filter_config: None,
             act_filter_config: None,
         }
@@ -94,6 +99,11 @@ where
     /// Set the name of the environment.
     pub fn name(mut self, name: String) -> Self {
         self.name = name;
+        self
+    }
+
+    pub fn render_mode(mut self, render_mode: Option<String>) -> Self {
+        self.render_mode = render_mode;
         self
     }
 
