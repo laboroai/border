@@ -12,8 +12,8 @@ use border_py_gym_env::{
     PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
 };
 use border_tch_agent::{
-    dqn::{DqnConfig, DqnModelConfig, Dqn},
-    mlp::{MlpConfig, Mlp},
+    dqn::{Dqn, DqnConfig, DqnModelConfig},
+    mlp::{Mlp, MlpConfig},
     TensorSubBatch,
 };
 use clap::{App, Arg};
@@ -71,7 +71,7 @@ impl From<Obs> for Tensor {
     }
 }
 
-struct ObsBatch(TensorSubBatch<ObsShape, f32>);
+struct ObsBatch(TensorSubBatch);
 
 impl SubBatch for ObsBatch {
     fn new(capacity: usize) -> Self {
@@ -116,7 +116,7 @@ impl Into<PyGymEnvDiscreteAct> for Act {
     }
 }
 
-struct ActBatch(TensorSubBatch<ActShape, i64>);
+struct ActBatch(TensorSubBatch);
 
 impl SubBatch for ActBatch {
     fn new(capacity: usize) -> Self {
@@ -313,7 +313,7 @@ fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{train, eval};
+    use super::{eval, train};
     use anyhow::Result;
     use tempdir::TempDir;
 

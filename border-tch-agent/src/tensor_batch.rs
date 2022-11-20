@@ -1,5 +1,4 @@
-use border_core::{replay_buffer::SubBatch, Shape};
-use std::marker::PhantomData;
+use border_core::replay_buffer::SubBatch;
 use tch::{Device, Tensor};
 
 /// Adds capability of constructing [Tensor] with a static method.
@@ -38,13 +37,12 @@ impl ZeroTensor for i64 {
 /// where `shape` is obtained from the data pushed at the first time via
 /// [`TensorSubBatch::push`] method. `[1..]` means that the first axis of the
 /// given data is ignored as it might be batch size.
-pub struct TensorSubBatch<S, D> {
+pub struct TensorSubBatch {
     buf: Option<Tensor>,
     capacity: i64,
-    phantom: PhantomData<(S, D)>,
 }
 
-impl<S, D> Clone for TensorSubBatch<S, D> {
+impl Clone for TensorSubBatch {
     fn clone(&self) -> Self {
         let buf = match self.buf.is_none() {
             true => None,
@@ -54,31 +52,21 @@ impl<S, D> Clone for TensorSubBatch<S, D> {
         Self {
             buf,
             capacity: self.capacity,
-            phantom: PhantomData,
         }
     }
 }
 
-impl<S, D> TensorSubBatch<S, D>
-where
-    S: Shape,
-    D: 'static + Copy + tch::kind::Element + ZeroTensor,
-{
+impl TensorSubBatch {
     pub fn from_tensor(t: Tensor) -> Self {
         let capacity = t.size()[0] as _;
         Self {
             buf: Some(t),
             capacity,
-            phantom: PhantomData,
         }
     }
 }
 
-impl<S, D> SubBatch for TensorSubBatch<S, D>
-where
-    S: Shape,
-    D: 'static + Copy + tch::kind::Element + ZeroTensor,
-{
+impl SubBatch for TensorSubBatch {
     fn new(capacity: usize) -> Self {
         // let capacity = capacity as i64;
         // let mut shape: Vec<_> = S::shape().to_vec().iter().map(|e| *e as i64).collect();
@@ -88,7 +76,6 @@ where
         Self {
             buf: None,
             capacity: capacity as _,
-            phantom: PhantomData,
         }
     }
 
@@ -130,13 +117,12 @@ where
         Self {
             buf,
             capacity: ixs.len() as i64,
-            phantom: PhantomData,
         }
     }
 }
 
-impl<S, D> From<TensorSubBatch<S, D>> for Tensor {
-    fn from(b: TensorSubBatch<S, D>) -> Self {
+impl From<TensorSubBatch> for Tensor {
+    fn from(b: TensorSubBatch) -> Self {
         b.buf.unwrap()
     }
 }
