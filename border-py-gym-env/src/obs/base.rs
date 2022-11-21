@@ -7,7 +7,7 @@ use pyo3::PyObject;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 #[cfg(feature = "tch")]
-use {tch::Tensor, std::convert::TryFrom};
+use {std::convert::TryFrom, tch::Tensor};
 
 fn any(is_done: &[i8]) -> bool {
     is_done.iter().fold(0, |x, v| x + *v as i32) > 0
@@ -30,17 +30,22 @@ where
         let obs = obs.to_owned_array();
         // let obs = obs.mapv(|elem| elem as f32);
         let obs = obs.mapv(|elem| elem.as_());
-        let obs = {
-            if obs.shape().len() == S::shape().len() + 1 {
-                // In this case obs has an axis for len
-                obs
-            } else if obs.shape().len() == S::shape().len() {
-                // add axis for the number of samples in obs
-                obs.insert_axis(Axis(0))
-            } else {
-                panic!();
-            }
-        };
+
+        // Insert sample dimension
+        let obs = obs.insert_axis(Axis(0));
+
+        // let obs = {
+        //     if obs.shape().len() == S::shape().len() + 1 {
+        //         panic!();
+        //         // In this case obs has an axis for len
+        //         obs
+        //     } else if obs.shape().len() == S::shape().len() {
+        //         // add axis for the number of samples in obs
+        //         obs.insert_axis(Axis(0))
+        //     } else {
+        //         panic!();
+        //     }
+        // };
         obs
     })
 }
@@ -87,10 +92,11 @@ where
     T1: Debug + Element,
     T2: 'static + Copy + Debug + num_traits::Zero,
 {
-    fn dummy(n_procs: usize) -> Self {
-        let shape = &mut S::shape().to_vec();
-        shape.insert(0, n_procs as _);
-        trace!("Shape of TchPyGymEnvObs: {:?}", shape);
+    fn dummy(_n_procs: usize) -> Self {
+        // let shape = &mut S::shape().to_vec();
+        // shape.insert(0, n_procs as _);
+        // trace!("Shape of TchPyGymEnvObs: {:?}", shape);
+        let shape = vec![0];
         Self {
             obs: ArrayD::zeros(IxDyn(&shape[..])),
             phantom: PhantomData,
