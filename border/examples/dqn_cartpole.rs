@@ -43,7 +43,7 @@ shape!(ActShape, [1]);
 type PyObsDtype = f32;
 
 #[derive(Clone, Debug)]
-struct Obs(PyGymEnvObs<ObsShape, PyObsDtype, f32>);
+struct Obs(PyGymEnvObs<PyObsDtype, f32>);
 
 impl border_core::Obs for Obs {
     fn dummy(n: usize) -> Self {
@@ -59,8 +59,8 @@ impl border_core::Obs for Obs {
     }
 }
 
-impl From<PyGymEnvObs<ObsShape, PyObsDtype, f32>> for Obs {
-    fn from(obs: PyGymEnvObs<ObsShape, PyObsDtype, f32>) -> Self {
+impl From<PyGymEnvObs<PyObsDtype, f32>> for Obs {
+    fn from(obs: PyGymEnvObs<PyObsDtype, f32>) -> Self {
         Obs(obs)
     }
 }
@@ -166,7 +166,7 @@ impl From<Tensor> for Act {
     }
 }
 
-type ObsFilter = PyGymEnvObsRawFilter<ObsShape, PyObsDtype, f32, Obs>;
+type ObsFilter = PyGymEnvObsRawFilter<PyObsDtype, f32, Obs>;
 type ActFilter = PyGymEnvDiscreteActRawFilter<Act>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;

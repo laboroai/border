@@ -46,7 +46,7 @@ where
     S: Shape,
     T1: Element + Debug + num_traits::identities::Zero + AsPrimitive<T2>,
     T2: 'static + Copy + num_traits::Zero,
-    U: Obs + From<PyGymEnvObs<S, T1, T2>>,
+    U: Obs + From<PyGymEnvObs<T1, T2>>,
 {
     buffer: Vec<ArrayD<T2>>,
     #[allow(dead_code)]
@@ -61,7 +61,7 @@ where
     S: Shape,
     T1: Element + Debug + num_traits::identities::Zero + AsPrimitive<T2>,
     T2: 'static + Copy + num_traits::Zero,
-    U: Obs + From<PyGymEnvObs<S, T1, T2>>,
+    U: Obs + From<PyGymEnvObs<T1, T2>>,
 {
     /// Returns the default configuration.
     pub fn default_config() -> FrameStackFilterConfig {
@@ -128,7 +128,7 @@ where
     S: Shape,
     T1: Element + Debug + num_traits::identities::Zero + AsPrimitive<T2>,
     T2: 'static + Copy + num_traits::Zero + Into<f32>,
-    U: Obs + From<PyGymEnvObs<S, T1, T2>>,
+    U: Obs + From<PyGymEnvObs<T1, T2>>,
 {
     type Config = FrameStackFilterConfig;
 
