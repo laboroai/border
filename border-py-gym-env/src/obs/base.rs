@@ -115,6 +115,21 @@ where
     }
 }
 
+/// Convert numpy array of Python into [`PyGymEnvObs`].
+impl<S, T1, T2> From<PyObject> for PyGymEnvObs<S, T1, T2>
+where
+    S: Shape,
+    T1: Element + AsPrimitive<T2> + std::fmt::Debug,
+    T2: 'static + Copy,
+{
+    fn from(obs: PyObject) -> Self {
+        Self {
+            obs: pyobj_to_arrayd::<S, T1, T2>(obs),
+            phantom: PhantomData,
+        }
+    }
+}
+
 // #[cfg(feature = "tch")]
 // impl<S, T1, T2> From<PyGymEnvObs<S, T1, T2>> for Tensor
 // where
