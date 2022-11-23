@@ -1,7 +1,7 @@
 use anyhow::Result;
 use border_core::{
     record::{BufferedRecorder, Record},
-    shape, util, Env as _, Policy,
+    util, Env as _, Policy,
 };
 use border_py_gym_env::{
     PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter,
@@ -10,13 +10,11 @@ use border_py_gym_env::{
 use serde::Serialize;
 use std::{convert::TryFrom, fs::File};
 
-shape!(ObsShape, [4]);
-
 type PyObsDtype = f32;
 
-type Obs = PyGymEnvObs<ObsShape, PyObsDtype, f32>;
+type Obs = PyGymEnvObs<PyObsDtype, f32>;
 type Act = PyGymEnvDiscreteAct;
-type ObsFilter = PyGymEnvObsRawFilter<ObsShape, PyObsDtype, f32, Obs>;
+type ObsFilter = PyGymEnvObsRawFilter<PyObsDtype, f32, Obs>;
 type ActFilter = PyGymEnvDiscreteActRawFilter<Act>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 
