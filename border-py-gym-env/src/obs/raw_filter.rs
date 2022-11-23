@@ -2,7 +2,7 @@ use super::{pyobj_to_arrayd, PyGymEnvObs};
 use crate::PyGymEnvObsFilter;
 use border_core::{
     record::{Record, RecordValue},
-    Obs, Shape,
+    Obs,
 };
 use num_traits::cast::AsPrimitive;
 use numpy::Element;

@@ -7,7 +7,7 @@ use border_core::{
     Obs,
 };
 use ndarray::{ArrayD, Axis, SliceInfoElem}; //, SliceOrIndex};
-// use ndarray::{stack, ArrayD, Axis, IxDyn, SliceInfo, SliceInfoElem};
+                                            // use ndarray::{stack, ArrayD, Axis, IxDyn, SliceInfo, SliceInfoElem};
 use num_traits::cast::AsPrimitive;
 use numpy::{Element, PyArrayDyn};
 use pyo3::{PyAny, PyObject};
@@ -48,11 +48,19 @@ where
     T2: 'static + Copy + num_traits::Zero,
     U: Obs + From<PyGymEnvObs<T1, T2>>,
 {
-    buffer: Vec<ArrayD<T2>>,
+    // Each element in the vector corresponds to a process.
+    buffers: Vec<Option<ArrayD<T2>>>,
+
     #[allow(dead_code)]
     n_procs: i64,
+
     n_stack: i64,
+
+    shape: Option<Vec<usize>>,
+
+    // Verctorized environment is not supported
     vectorized: bool,
+
     phantom: PhantomData<(S, T1, U)>,
 }
 
@@ -71,13 +79,13 @@ where
     /// Create slice for a dynamic array: equivalent to arr[j:(j+1), ::] in numpy.
     ///
     /// See https://github.com/rust-ndarray/ndarray/issues/501
-    fn s(j: usize) -> Vec<SliceInfoElem> {
-        // The first index of S::shape() corresponds to stacking dimension,
+    fn s(shape: &Option<Vec<usize>>, j: usize) -> Vec<SliceInfoElem> {
+        // The first index of self.shape corresponds to stacking dimension,
         // specific index.
         let mut slicer = vec![SliceInfoElem::Index(j as isize)];
 
         // For remaining dimensions, all elements will be taken.
-        let n = S::shape().len() - 1;
+        let n = shape.as_ref().unwrap().len() - 1;
         let (start, end, step) = (0, None, 1);
 
         slicer.extend(vec![SliceInfoElem::Slice { start, end, step }; n]);
@@ -85,30 +93,39 @@ where
     }
 
     /// Update the buffer of the stacked observations.
+    ///
+    /// * `i` - Index of process.
     fn update_buffer(&mut self, i: i64, obs: &ArrayD<T2>) {
-        if let Some(arr) = self.buffer.get_mut(i as usize) {
-            // Shift stacks frame(j) <- frame(j - 1) for j=1,..,(n_stack - 1)
-            for j in (1..self.n_stack as usize).rev() {
-                let dst_slice = &Self::s(j)[..];
-                let src_slice = &Self::s(j - 1)[..];
-                let (mut dst, src) = arr.multi_slice_mut((dst_slice, src_slice));
-                dst.assign(&src);
-            }
-            arr.slice_mut(&Self::s(0)[..]).assign(obs)
+        let arr = if let Some(arr) = &mut self.buffers[i as usize] {
+            arr
         } else {
-            unimplemented!()
+            let mut shape = obs.shape().to_vec();
+            self.shape = Some(shape.clone());
+            shape.insert(0, self.n_stack as _);
+            self.buffers[i as usize] = Some(ArrayD::zeros(shape));
+            self.buffers[i as usize].as_mut().unwrap()
+        };
+
+        // Shift stacks frame(j) <- frame(j - 1) for j=1,..,(n_stack - 1)
+        for j in (1..self.n_stack as usize).rev() {
+            let dst_slice = Self::s(&self.shape, j);
+            let src_slice = Self::s(&self.shape, j - 1);
+            let (mut dst, src) = arr.multi_slice_mut((dst_slice.as_slice(), src_slice.as_slice()));
+            dst.assign(&src);
         }
+        arr.slice_mut(Self::s(&self.shape, 0).as_slice())
+            .assign(obs)
     }
 
     /// Fill the buffer, invoked when resetting
     fn fill_buffer(&mut self, i: i64, obs: &ArrayD<T2>) {
-        if let Some(arr) = self.buffer.get_mut(i as usize) {
+        if let Some(arr) = &mut self.buffers[i as usize] {
             for j in (0..self.n_stack as usize).rev() {
-                let mut dst = arr.slice_mut(&Self::s(j)[..]);
+                let mut dst = arr.slice_mut(Self::s(&self.shape, j).as_slice());
                 dst.assign(&obs);
             }
         } else {
-            unimplemented!();
+            unimplemented!("fill_buffer() was called before receiving the first sample.");
         }
     }
 
@@ -118,7 +135,6 @@ where
         let o: &PyArrayDyn<T1> = o.extract().unwrap();
         let o = o.to_owned_array();
         let o = o.mapv(|elem| elem.as_());
-        debug_assert_eq!(o.shape()[..], S::shape()[1..]);
         o
     }
 }
@@ -137,9 +153,10 @@ where
         Self: Sized,
     {
         Ok(FrameStackFilter {
-            buffer: (0..1).map(|_| ArrayD::<T2>::zeros(S::shape())).collect(),
+            buffers: vec![None; config.n_procs as usize],
             n_procs: config.n_procs,
             n_stack: config.n_stack,
+            shape: None,
             vectorized: config.vectorized,
             phantom: PhantomData,
         })
@@ -180,7 +197,7 @@ where
             // Returns stacked observation in the buffer
             // img.shape() = [1, 4, 1, 84, 84]
             // [batch_size, n_stack, color_ch, width, height]
-            let img = self.buffer[0].clone().insert_axis(Axis(0));
+            let img = self.buffers[0].clone().unwrap().insert_axis(Axis(0));
             let data = img.iter().map(|&e| e.into()).collect::<Vec<_>>();
             let shape = [img.shape()[3] * self.n_stack as usize, img.shape()[4]];
 
@@ -225,7 +242,7 @@ where
             });
 
             // Returns stacked observation in the buffer
-            let frames = self.buffer[0].clone().insert_axis(Axis(0));
+            let frames = self.buffers[0].clone().unwrap().insert_axis(Axis(0));
             U::from(PyGymEnvObs::from(frames))
         }
     }

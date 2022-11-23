@@ -63,7 +63,7 @@ where
     T2: 'static + Copy,
 {
     pub obs: ArrayD<T2>,
-    pub(crate) phantom: PhantomData<(T1)>,
+    pub(crate) phantom: PhantomData<T1>,
 }
 
 impl<T1, T2> From<ArrayD<T2>> for PyGymEnvObs<T1, T2>
