@@ -7,9 +7,9 @@ use log::{info, trace};
 // use pyo3::IntoPy;
 use pyo3::types::{IntoPyDict, PyTuple};
 use pyo3::{types::PyModule, PyObject, Python, ToPyObject};
+use serde::{de::DeserializeOwned, Serialize};
 use std::marker::PhantomData;
 use std::{fmt::Debug, time::Duration};
-use serde::{Serialize, de::DeserializeOwned};
 
 /// Information given at every step of the interaction with the environment.
 ///
@@ -24,7 +24,9 @@ pub trait PyGymEnvObsFilter<O: Obs> {
     type Config: Clone + Default + Serialize + DeserializeOwned;
 
     /// Build filter.
-    fn build(config: &Self::Config) -> Result<Self> where Self: Sized;
+    fn build(config: &Self::Config) -> Result<Self>
+    where
+        Self: Sized;
 
     /// Convert PyObject into observation with filtering.
     fn filt(&mut self, obs: PyObject) -> (O, Record);
@@ -51,7 +53,9 @@ pub trait PyGymEnvActFilter<A: Act> {
     type Config: Clone + Default + Serialize + DeserializeOwned;
 
     /// Build filter.
-    fn build(config: &Self::Config) -> Result<Self> where Self: Sized;
+    fn build(config: &Self::Config) -> Result<Self>
+    where
+        Self: Sized;
 
     /// Filter action and convert it to PyObject.
     ///
@@ -106,7 +110,7 @@ where
     pybullet_state: Option<PyObject>,
 
     /// Initial seed.
-    /// 
+    ///
     /// This value will be used at the first call of the reset method.
     initial_seed: Option<i64>,
 
@@ -127,8 +131,10 @@ where
         self.render = render;
         if self.pybullet {
             pyo3::Python::with_gil(|py| {
-                self.env.call_method0(py, "render").unwrap();
-                // self.env.call_method(py, "render", ("human",), None).unwrap();
+                // self.env.call_method0(py, "render").unwrap();
+                self.env
+                    .call_method(py, "render", ("human",), None)
+                    .unwrap();
             });
         }
     }
@@ -168,7 +174,7 @@ where
     /// Currently it supports non-vectorized environment.
     fn step_with_reset(&mut self, a: &Self::Act) -> (Step<Self>, Record)
     where
-            Self: Sized
+        Self: Sized,
     {
         let (step, record) = self.step(a);
         assert_eq!(step.is_done.len(), 1);
@@ -180,7 +186,7 @@ where
                 reward: step.reward,
                 is_done: step.is_done,
                 info: step.info,
-                init_obs
+                init_obs,
             }
         } else {
             step
@@ -190,11 +196,11 @@ where
     }
 
     /// Resets the environment and returns an observation.
-    /// 
+    ///
     /// This method also resets the [`PyGymObsFilter`] adn [`PyGymActFilter`].
     ///
     /// In this environment, the length of `is_done` is assumed to be 1.
-    /// 
+    ///
     /// [`PyGymObsFilter`]: crate::PyGymEnvObsFilter
     /// [`PyGymActFilter`]: crate::PyGymEnvActFilter
     fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<O> {
@@ -213,14 +219,17 @@ where
             }
         };
 
-        if !reset {
+        let ret = if !reset {
             Ok(O::dummy(1))
         } else {
             pyo3::Python::with_gil(|py| {
                 let obs = {
                     let ret_values = if let Some(seed) = self.initial_seed {
                         self.initial_seed = None;
-                        let kwargs = Some(vec![("seed", seed)].into_py_dict(py));
+                        let kwargs = match self.pybullet {
+                            true => None,
+                            false => Some(vec![("seed", seed)].into_py_dict(py)),
+                        };
                         self.env.call_method(py, "reset", (), kwargs)?
                     } else {
                         self.env.call_method0(py, "reset")?
@@ -236,7 +245,18 @@ where
                 }
                 Ok(self.obs_filter.reset(obs))
             })
+        };
+
+        if self.pybullet && self.render {
+            pyo3::Python::with_gil(|py| {
+                // self.env.call_method0(py, "render").unwrap();
+                self.env
+                    .call_method(py, "render", ("human",), None)
+                    .unwrap();
+            });
         }
+
+        ret
     }
 
     /// Resets the environment with the given index.
@@ -274,7 +294,10 @@ where
                 } else {
                     let cam: &PyModule = self.pybullet_state.as_ref().unwrap().extract(py).unwrap();
                     // cam.call1("update_camera_pos", (&self.env,)).unwrap();
-                    cam.getattr("update_camera_pos").unwrap().call1((&self.env,)).unwrap();
+                    cam.getattr("update_camera_pos")
+                        .unwrap()
+                        .call1((&self.env,))
+                        .unwrap();
                 }
                 std::thread::sleep(self.wait_in_step);
             }
@@ -304,7 +327,7 @@ where
     }
 
     /// Constructs [`PyGymEnv`].
-    /// 
+    ///
     /// * `seed` - The seed value of the random number generator.
     ///   This value will be used at the first call of the reset method.
     fn build(config: &Self::Config, seed: i64) -> Result<Self> {
@@ -327,15 +350,17 @@ where
         if py.import("pybulletgym").is_ok() {}
 
         let name = config.name.as_str();
-        let env = if let Some(mode) = config.atari_wrapper.as_ref() {
+        let (env, render) = if let Some(mode) = config.atari_wrapper.as_ref() {
             let mode = match mode {
                 AtariWrapper::Train => true,
                 AtariWrapper::Eval => false,
             };
             let gym = py.import("atari_wrappers")?;
-            let env = gym.getattr("make_env_single_proc")?.call((name, true, mode), None)?;
-            env
-        } else {
+            let env = gym
+                .getattr("make_env_single_proc")?
+                .call((name, true, mode), None)?;
+            (env, false)
+        } else if !config.pybullet {
             let gym = py.import("f32_wrapper")?;
             let kwargs = if let Some(render_mode) = config.render_mode.clone() {
                 Some(vec![("render_mode", render_mode)].into_py_dict(py))
@@ -343,7 +368,16 @@ where
                 None
             };
             let env = gym.getattr("make_f32")?.call((name,), kwargs)?;
-            env
+            (env, false)
+        } else {
+            let gym = py.import("f32_wrapper")?;
+            let kwargs = None;
+            let env = gym.getattr("make_f32")?.call((name,), kwargs)?;
+            if config.render_mode.is_some() {
+                (env, true)
+            } else {
+                (env, false)
+            }
         };
 
         // TODO: consider removing action_space and observation_space.
@@ -425,7 +459,7 @@ def update_camera_pos(env):
             observation_space,
             obs_filter: OF::build(&config.obs_filter_config.as_ref().unwrap())?,
             act_filter: AF::build(&config.act_filter_config.as_ref().unwrap())?,
-            render: false,
+            render,
             count_steps: 0,
             wait_in_step: Duration::from_millis(0),
             max_steps: config.max_steps,
