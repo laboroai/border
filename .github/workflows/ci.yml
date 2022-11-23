@@ -49,8 +49,8 @@ jobs:
           run:  |
             git clone https://github.com/benelot/pybullet-gym.git
             cd pybullet-gym
-            sed -i 's/return state, sum(self.rewards), bool(done), {}/return state, sum(self.rewards), bool(done), bool(done), {}/g' /home/ubuntu/pybullet-gym/pybulletgym/envs/roboschool/envs/locomotion/walker_base_env.py
-            sed -i 's/id='\''AntPyBulletEnv-v0'\'',/id='\''AntPyBulletEnv-v0'\'', order_enforce=False,/g' /home/ubuntu/pybullet-gym/pybulletgym/envs/__init__.py
+            sed -i 's/return state, sum(self.rewards), bool(done), {}/return state, sum(self.rewards), bool(done), bool(done), {}/g' ./pybulletgym/envs/roboschool/envs/locomotion/walker_base_env.py
+            sed -i 's/id='\''AntPyBulletEnv-v0'\'',/id='\''AntPyBulletEnv-v0'\'', order_enforce=False,/g' ./pybulletgym/envs/__init__.py
             pip install -e .
 
         - if: matrix.os != 'windows-latest'
