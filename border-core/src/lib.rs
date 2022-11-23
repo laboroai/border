@@ -90,8 +90,5 @@ pub use base::{
     StepProcessorBase,
 };
 
-mod shape;
-pub use shape::Shape;
-
 mod trainer;
 pub use trainer::{SyncSampler, Trainer, TrainerConfig};

@@ -5,7 +5,7 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig, SubBatch,
     },
-    shape, util, Agent, Env as _, Policy, Trainer, TrainerConfig,
+    util, Agent, Env as _, Policy, Trainer, TrainerConfig,
 };
 use border_py_gym_env::{
     PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter,
@@ -36,9 +36,6 @@ const EVAL_INTERVAL: usize = 50;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const MODEL_DIR: &str = "./border/examples/model/dqn_cartpole";
-
-shape!(ObsShape, [DIM_OBS as usize]);
-shape!(ActShape, [1]);
 
 type PyObsDtype = f32;
 
@@ -296,7 +293,7 @@ fn main() -> Result<()> {
         .author("Taku Yoshioka <yoshioka@laboro.ai>")
         .arg(
             Arg::with_name("skip training")
-                .long("skip_training")
+                .long("skip-training")
                 .takes_value(false)
                 .help("Skip training"),
         )
