@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
 #[derive(Debug, Serialize, Deserialize)]
-/// Configuration of [PyGymEnvDiscreteActRawFilter].
+/// Configuration of [`PyGymEnvDiscreteActRawFilter`].
 #[derive(Clone)]
 pub struct PyGymEnvDiscreteActRawFilterConfig {
     vectorized: bool,

@@ -2,14 +2,14 @@ use super::{to_pyobj, PyGymEnvContinuousAct};
 use crate::PyGymEnvActFilter;
 use border_core::{
     record::{Record, RecordValue},
-    Act, Shape,
+    Act,
 };
 use pyo3::PyObject;
 use serde::{Deserialize, Serialize};
 use std::{default::Default, fmt::Debug, marker::PhantomData};
 
 #[derive(Debug, Serialize, Deserialize)]
-/// Configuration of [PyGymEnvContinuousActRawFilter].
+/// Configuration of [`PyGymEnvContinuousActRawFilter`].
 #[derive(Clone)]
 pub struct PyGymEnvContinuousActRawFilterConfig {
     vectorized: bool,
@@ -23,16 +23,15 @@ impl Default for PyGymEnvContinuousActRawFilterConfig {
 
 /// Raw filter for continuous actions.
 #[derive(Clone, Debug)]
-pub struct PyGymEnvContinuousActRawFilter<S, T> {
+pub struct PyGymEnvContinuousActRawFilter<T> {
     /// `true` indicates that this filter is used in a vectorized environment.
     pub vectorized: bool,
-    phantom: PhantomData<(S, T)>,
+    phantom: PhantomData<T>,
 }
 
-impl<S, T> Default for PyGymEnvContinuousActRawFilter<S, T>
+impl<T> Default for PyGymEnvContinuousActRawFilter<T>
 where
-    T: Act + Into<PyGymEnvContinuousAct<S>>,
-    S: Shape,
+    T: Act + Into<PyGymEnvContinuousAct>,
 {
     fn default() -> Self {
         Self {
@@ -42,10 +41,9 @@ where
     }
 }
 
-impl<S, T> PyGymEnvActFilter<T> for PyGymEnvContinuousActRawFilter<S, T>
+impl<T> PyGymEnvActFilter<T> for PyGymEnvContinuousActRawFilter<T>
 where
-    T: Act + Into<PyGymEnvContinuousAct<S>>,
-    S: Shape,
+    T: Act + Into<PyGymEnvContinuousAct>,
 {
     type Config = PyGymEnvContinuousActRawFilterConfig;
 
@@ -71,7 +69,7 @@ where
         let act = act.act;
         let record =
             Record::from_slice(&[("act", RecordValue::Array1(act.iter().cloned().collect()))]);
-        let act = to_pyobj::<S>(act);
+        let act = to_pyobj(act);
         (act, record)
     }
 }

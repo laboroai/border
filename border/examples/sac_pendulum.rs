@@ -5,7 +5,7 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    shape, util, Agent, Env as _, Policy, Trainer, TrainerConfig,
+    util, Agent, Env as _, Policy, Trainer, TrainerConfig,
 };
 use border_derive::{Act, Obs, SubBatch};
 use border_py_gym_env::{
@@ -37,14 +37,11 @@ const N_EPISODES_PER_EVAL: usize = 5;
 
 type PyObsDtype = f32;
 
-shape!(ObsShape, [DIM_OBS as _]);
-shape!(ActShape, [DIM_ACT as _]);
-
 #[derive(Clone, Debug, Obs)]
-struct Obs(PyGymEnvObs<ObsShape, PyObsDtype, f32>);
+struct Obs(PyGymEnvObs<PyObsDtype, f32>);
 
 #[derive(Clone, SubBatch)]
-struct ObsBatch(TensorSubBatch<ObsShape, f32>);
+struct ObsBatch(TensorSubBatch);
 
 impl From<Obs> for ObsBatch {
     fn from(obs: Obs) -> Self {
@@ -54,10 +51,10 @@ impl From<Obs> for ObsBatch {
 }
 
 #[derive(Clone, Debug, Act)]
-struct Act(PyGymEnvContinuousAct<ActShape>);
+struct Act(PyGymEnvContinuousAct);
 
 #[derive(SubBatch)]
-struct ActBatch(TensorSubBatch<ActShape, f32>);
+struct ActBatch(TensorSubBatch);
 
 impl From<Act> for ActBatch {
     fn from(act: Act) -> Self {
@@ -92,11 +89,11 @@ impl PyGymEnvActFilter<Act> for ActFilter {
                 RecordValue::Array1(act_filt.iter().cloned().collect()),
             ), 
         ]);
-        (to_pyobj::<ActShape>(act_filt), record)
+        (to_pyobj(act_filt), record)
     }
 }
 
-type ObsFilter = PyGymEnvObsRawFilter<ObsShape, PyObsDtype, f32, Obs>;
+type ObsFilter = PyGymEnvObsRawFilter<PyObsDtype, f32, Obs>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
@@ -146,7 +143,7 @@ fn create_agent(in_dim: i64, out_dim: i64) -> Sac<Env, Mlp, Mlp2, ReplayBuffer> 
 
 fn env_config() -> PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
     PyGymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
-        .name("Pendulum-v0".to_string())
+        .name("Pendulum-v1".to_string())
         .obs_filter_config(ObsFilter::default_config())
         .act_filter_config(ActFilter::default_config())
 }
@@ -185,12 +182,15 @@ fn train(max_opts: usize, model_dir: &str, eval_interval: usize) -> Result<()> {
 }
 
 fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
-    let mut env = Env::build(&env_config(), 0)?;
+    let mut env_config = env_config();
+    if render {
+        env_config = env_config.render_mode(Some("human".to_string()));
+    }
+    let mut env = Env::build(&env_config, 0)?;
     let mut agent = create_agent(DIM_OBS, DIM_ACT);
     let mut recorder = BufferedRecorder::new();
-    env.set_render(render);
     if render {
-        env.set_wait_in_render(std::time::Duration::from_millis(10));
+        env.set_wait_in_step(std::time::Duration::from_millis(10));
     }
     agent.load(model_dir)?;
     agent.eval();

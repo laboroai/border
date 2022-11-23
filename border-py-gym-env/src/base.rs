@@ -253,6 +253,18 @@ where
     /// The [`Record`] is composed of [`Record`]s constructed in [`PyGymEnvObsFilter`] and
     /// [`PyGymEnvActFilter`].
     fn step(&mut self, a: &A) -> (Step<Self>, Record) {
+        fn is_done(step: &PyTuple) -> i8 {
+            // terminated or truncated
+            let terminated: bool = step.get_item(2).extract().unwrap();
+            let truncated: bool = step.get_item(3).extract().unwrap();
+
+            if terminated | truncated {
+                1
+            } else {
+                0
+            }
+        }
+
         trace!("PyGymEnv::step()");
 
         pyo3::Python::with_gil(|py| {
@@ -273,11 +285,7 @@ where
             let obs = step.get_item(0).to_owned();
             let (obs, record_o) = self.obs_filter.filt(obs.to_object(py));
             let reward: Vec<f32> = vec![step.get_item(1).extract().unwrap()];
-            let mut is_done: Vec<i8> = vec![if step.get_item(2).extract().unwrap() {
-                1
-            } else {
-                0
-            }];
+            let mut is_done: Vec<i8> = vec![is_done(step)];
 
             // let c = *self.count_steps.borrow();
             self.count_steps += 1; //.replace(c + 1);
