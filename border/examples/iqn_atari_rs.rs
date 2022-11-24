@@ -10,7 +10,7 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    shape, util, Agent, Env as _, Policy, Trainer, TrainerConfig,
+    util, Agent, Env as _, Policy, Trainer, TrainerConfig,
 };
 use border_derive::{Act, SubBatch};
 use border_tch_agent::{
@@ -22,18 +22,12 @@ use border_tch_agent::{
 use clap::{App, Arg, ArgMatches};
 use util_iqn_atari::{model_dir as model_dir_, Params};
 
-const N_STACK: i64 = 4;
-
-type ObsDtype = u8;
-
-shape!(ObsShape, [N_STACK as usize, 1, 84, 84]);
-
 // #[derive(Debug, Clone, Obs)]
 // struct Obs(BorderAtariObs);
 type Obs = BorderAtariObs;
 
 #[derive(Clone, SubBatch)]
-struct ObsBatch(TensorSubBatch<ObsShape, ObsDtype>);
+struct ObsBatch(TensorSubBatch);
 
 impl From<Obs> for ObsBatch {
     fn from(obs: Obs) -> Self {
@@ -42,10 +36,8 @@ impl From<Obs> for ObsBatch {
     }
 }
 
-shape!(ActShape, [1]);
-
 #[derive(SubBatch)]
-struct ActBatch(TensorSubBatch<ActShape, i64>);
+struct ActBatch(TensorSubBatch);
 
 impl From<Act> for ActBatch {
     fn from(act: Act) -> Self {

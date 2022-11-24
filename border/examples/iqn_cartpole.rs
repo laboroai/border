@@ -5,7 +5,7 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    shape, util, Agent, Env as _, Policy, Trainer, TrainerConfig,
+    util, Agent, Env as _, Policy, Trainer, TrainerConfig,
 };
 use border_derive::{Act, Obs, SubBatch};
 use border_py_gym_env::{
@@ -44,20 +44,17 @@ const EPS_FINAL: f64 = 0.1;
 const FINAL_STEP: usize = MAX_OPTS;
 const MODEL_DIR: &str = "border/examples/model/iqn_cartpole";
 
-shape!(ObsShape, [DIM_OBS as usize]);
-shape!(ActShape, [1]);
-
 type PyObsDtype = f32;
 type ObsDtype = f32;
 
 #[derive(Clone, Debug, Obs)]
-struct Obs(PyGymEnvObs<ObsShape, PyObsDtype, f32>);
+struct Obs(PyGymEnvObs<PyObsDtype, f32>);
 
 #[derive(Clone, Debug, Act)]
 struct Act(PyGymEnvDiscreteAct);
 
 #[derive(Clone, SubBatch)]
-struct ObsBatch(TensorSubBatch<ObsShape, ObsDtype>);
+struct ObsBatch(TensorSubBatch);
 
 impl From<Obs> for ObsBatch {
     fn from(obs: Obs) -> Self {
@@ -67,7 +64,8 @@ impl From<Obs> for ObsBatch {
 }
 
 #[derive(SubBatch)]
-struct ActBatch(TensorSubBatch<ActShape, i64>);
+// struct ActBatch(TensorSubBatch<ActShape, i64>);
+struct ActBatch(TensorSubBatch);
 
 impl From<Act> for ActBatch {
     fn from(act: Act) -> Self {
@@ -76,7 +74,7 @@ impl From<Act> for ActBatch {
     }
 }
 
-type ObsFilter = PyGymEnvObsRawFilter<ObsShape, PyObsDtype, f32, Obs>;
+type ObsFilter = PyGymEnvObsRawFilter<PyObsDtype, f32, Obs>;
 type ActFilter = PyGymEnvDiscreteActRawFilter<Act>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
@@ -182,7 +180,7 @@ fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
     let mut recorder = BufferedRecorder::new();
     env.set_render(render);
     if render {
-        env.set_wait_in_render(std::time::Duration::from_millis(10));
+        env.set_wait_in_step(std::time::Duration::from_millis(10));
     }
     agent.load(model_dir)?;
     agent.eval();
