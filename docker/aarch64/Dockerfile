@@ -17,8 +17,8 @@ RUN apt update -y && \
     apt upgrade -y && \
     DEBIAN_FRONTEND=noninteractive && \
     apt install -y -q --no-install-recommends \
-    libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev libsdl2-ttf-dev \
-    libsdl-dev libsdl-image1.2-dev
+        libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev libsdl2-ttf-dev \
+        libsdl-dev libsdl-image1.2-dev
 
 # zip
 RUN apt install -y zip

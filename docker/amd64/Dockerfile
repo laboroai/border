@@ -86,10 +86,10 @@ RUN source /home/ubuntu/venv/bin/activate && pip3 install dm-control==1.0.8
 RUN source /home/ubuntu/venv/bin/activate && pip3 install pyrender==0.1.45
 RUN source /home/ubuntu/venv/bin/activate && pip3 install dm2gym==0.2.0
 
-# # border
+# border
 RUN cd $HOME && mkdir -p .border/model
 
-# Mujoco amdh64 binary
+# Mujoco amd64 binary
 RUN cd $HOME && \
     mkdir .mujoco && \
     cd .mujoco && \
@@ -104,13 +104,23 @@ RUN cd $HOME/.mujoco && \
 RUN cp /*.py $HOME
 
 # PyBulletGym
-# RUN pip3 install pybullet==3.2.5
-RUN pip3 install pybullet==2.7.1
+RUN source /home/ubuntu/venv/bin/activate && pip3 install pybullet==3.2.5
+# RUN source /home/ubuntu/venv/bin/activate && pip3 install pybullet==2.7.1
+# RUN source /home/ubuntu/venv/bin/activate && \
+#     cd $HOME && \
+#     git clone https://github.com/bulletphysics/bullet3.git && \
+#     cd bullet3 && \
+#     git checkout -b tmp 2c204c49e56ed15ec5fcfa71d199ab6d6570b3f5 && \
+#     ./build_cmake_pybullet_double.sh
 RUN cd $HOME && \
     git clone https://github.com/benelot/pybullet-gym.git && \
     cd pybullet-gym && \
-    git checkout -b tmp 79396fccc1d0e170a092b50137148da48ee2edab && \
+    git checkout -b tmp bc68201c8101c4e30dde95f425647a0709ee2f29 && \
+    source /home/ubuntu/venv/bin/activate && \
     pip install -e .
+# Tweaks for version incompatibility of gym and pybullet-gym
+RUN sed -i 's/return state, sum(self.rewards), bool(done), {}/return state, sum(self.rewards), bool(done), bool(done), {}/g' /home/ubuntu/pybullet-gym/pybulletgym/envs/roboschool/envs/locomotion/walker_base_env.py
+RUN sed -i 's/id='\''AntPyBulletEnv-v0'\'',/id='\''AntPyBulletEnv-v0'\'', order_enforce=False,/g' /home/ubuntu/pybullet-gym/pybulletgym/envs/__init__.py
 
 # .bashrc
 RUN echo 'export LIBTORCH=$HOME/venv/lib/python3.8/site-packages/torch' >> ~/.bashrc
@@ -122,6 +132,7 @@ RUN echo 'export CARGO_TARGET_DIR=$HOME/target' >> ~/.bashrc
 RUN echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.mujoco/mujoco210/bin' >> ~/.bashrc
 RUN echo 'export MUJOCO_GL=glfw' >> ~/.bashrc
 RUN echo 'source $HOME/venv/bin/activate' >> ~/.bashrc
+# RUN echo 'export PYTHONPATH=$HOME/bullet3/build_cmake/examples/pybullet:$PYTHONPATH' >> ~/.bashrc
 
 USER root
 RUN rm /bin/sh && mv /bin/sh_tmp /bin/sh
