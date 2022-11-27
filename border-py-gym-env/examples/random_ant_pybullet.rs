@@ -42,14 +42,15 @@ fn main() -> Result<()> {
     fastrand::seed(42);
 
     let env_config = PyGymEnvConfig::default()
-        .name("Ant-v4".to_string())
+        .name("AntPyBulletEnv-v0".to_string())
         .obs_filter_config(<ObsFilter as PyGymEnvObsFilter<Obs>>::Config::default())
         .act_filter_config(<ActFilter as PyGymEnvActFilter<Act>>::Config::default())
+        .pybullet(true)
         .render_mode(Some("human".to_string()));
     let mut env = Env::build(&env_config, 0)?;
     let mut recorder = BufferedRecorder::new();
     let mut policy = RandomPolicy;
-    // env.set_render(true);
+    env.set_render(true);
 
     let _ = util::eval_with_recorder(&mut env, &mut policy, 5, &mut recorder)?;
 

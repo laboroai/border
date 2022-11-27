@@ -22,6 +22,8 @@ class F32Wrapper(gym.Wrapper):
 
         if type(obs) == np.ndarray and obs.dtype == np.float64:
             obs = np.array(obs, dtype=np.float32)
+        elif type(obs[0]) == np.ndarray and obs[0].dtype == np.float64:
+            obs = (np.array(obs[0], dtype=np.float32), obs[1])
 
         if self.is_pybullet_env:
             obs = (np.array(obs, dtype=np.float32), None)
