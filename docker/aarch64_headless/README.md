@@ -1,8 +1,10 @@
-# Docker container for RL training
+# Docker container for training
 
-This directory contains scripts to build and run a docker container for RL training.
+This directory contains scripts to build and run a docker container for training.
 
 ## Build
+
+The following command creates a container image locally, named `border_headless`.
 
 ```bash
 cd $REPO/docker/aarch64_headless
@@ -10,6 +12,10 @@ sh build.sh
 ```
 
 ## Run
+
+The following commands runs a program for training an agent.
+The trained model will be saved in `$REPO/border/examples/model` directory,
+which is mounted in the container.
 
 ### DQN
 
