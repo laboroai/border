@@ -11,6 +11,10 @@ cd $REPO/docker/aarch64_headless
 sh build.sh
 ```
 
+# Build document
+
+The following commands builds the document and places it as `$REPO/doc`.
+
 ## Run
 
 The following commands runs a program for training an agent.
@@ -26,7 +30,7 @@ which is mounted in the container.
   sh run.sh "cargo run --example dqn_cartpole --features='tch'"
   ```
 
-  * Use a directory not mounted on the host as a cargo target directory,
+  * Use a directory, not mounted on the host, as a cargo target directory,
     making compile faster on Mac, where access to mounted directories is slow.
 
     ```bash
