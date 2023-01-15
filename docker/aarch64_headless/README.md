@@ -27,7 +27,7 @@ which is mounted in the container.
 
   ```bash
   cd $REPO/docker/aarch64_headless
-  sh run.sh "source /home/ubuntu/venv/bin/activate && cargo run --example dqn_cartpole --features='tch'"
+  sh run.sh "source /home/ubuntu/venv/bin/activate && cargo run --example dqn_cartpole --features='tch' -- --train"
   ```
 
   * Use a directory, not mounted on the host, as a cargo target directory,
@@ -35,5 +35,5 @@ which is mounted in the container.
 
     ```bash
     cd $REPO/docker/aarch64_headless
-    sh run.sh "source /home/ubuntu/venv/bin/activate && CARGO_TARGET_DIR=/home/ubuntu/target cargo run --example dqn_cartpole --features='tch'"
+    sh run.sh "source /home/ubuntu/venv/bin/activate && CARGO_TARGET_DIR=/home/ubuntu/target cargo run --example dqn_cartpole --features='tch' -- --train"
     ```

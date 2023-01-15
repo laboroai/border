@@ -1,6 +1,6 @@
 use anyhow::Result;
 use border_core::{
-    record::{BufferedRecorder, Record, TensorboardRecorder, RecordValue},
+    record::{BufferedRecorder, Record, RecordValue, TensorboardRecorder},
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
@@ -9,15 +9,16 @@ use border_core::{
 };
 use border_derive::{Act, Obs, SubBatch};
 use border_py_gym_env::{
-    to_pyobj, PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvContinuousAct,
-    PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
+    to_pyobj, PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvContinuousAct, PyGymEnvObs,
+    PyGymEnvObsFilter, PyGymEnvObsRawFilter,
 };
 use border_tch_agent::{
-    mlp::{MlpConfig, Mlp, Mlp2},
+    mlp::{Mlp, Mlp2, MlpConfig},
     opt::OptimizerConfig,
-    sac::{ActorConfig, CriticConfig, SacConfig, Sac},
+    sac::{ActorConfig, CriticConfig, Sac, SacConfig},
     TensorSubBatch,
 };
+use clap::{App, Arg};
 use csv::WriterBuilder;
 use pyo3::PyObject;
 use serde::Serialize;
@@ -87,7 +88,7 @@ impl PyGymEnvActFilter<Act> for ActFilter {
             (
                 "act_filt",
                 RecordValue::Array1(act_filt.iter().cloned().collect()),
-            ), 
+            ),
         ]);
         (to_pyobj(act_filt), record)
     }
@@ -118,7 +119,7 @@ impl TryFrom<&Record> for PendulumRecord {
             reward: record.get_scalar("reward")?,
             obs: record.get_array1("obs")?.to_vec(),
             act_org: record.get_array1("act_org")?.to_vec(),
-            act_filt: record.get_array1("act_filt")?.to_vec()
+            act_filt: record.get_array1("act_filt")?.to_vec(),
         })
     }
 }
@@ -212,8 +213,38 @@ fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
 
-    train(MAX_OPTS, "./border/examples/model/sac_pendulum", EVAL_INTERVAL)?;
-    eval(5, true, "./border/examples/model/sac_pendulum/best")?;
+    let matches = App::new("sac_pendulum")
+        .version("0.1.0")
+        .author("Taku Yoshioka <yoshioka@laboro.ai>")
+        .arg(
+            Arg::with_name("train")
+                .long("train")
+                .takes_value(false)
+                .help("Do training only"),
+        )
+        .arg(
+            Arg::with_name("eval")
+                .long("eval")
+                .takes_value(false)
+                .help("Do evaluation only"),
+        )
+        .get_matches();
+
+    let do_train = (matches.is_present("train") && !matches.is_present("eval"))
+        || (!matches.is_present("train") && !matches.is_present("eval"));
+    let do_eval = (!matches.is_present("train") && matches.is_present("eval"))
+        || (!matches.is_present("train") && !matches.is_present("eval"));
+
+    if do_train {
+        train(
+            MAX_OPTS,
+            "./border/examples/model/sac_pendulum",
+            EVAL_INTERVAL,
+        )?;
+    }
+    if do_eval {
+        eval(5, true, "./border/examples/model/sac_pendulum/best")?;
+    }
 
     Ok(())
 }
@@ -231,7 +262,7 @@ mod test {
         let model_dir = model_dir.path().to_str().unwrap();
         train(100, model_dir, 100)?;
         eval(1, false, (model_dir.to_string() + "/best").as_str())?;
-    
+
         Ok(())
     }
 }

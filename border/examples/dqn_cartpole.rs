@@ -292,18 +292,30 @@ fn main() -> Result<()> {
         .version("0.1.0")
         .author("Taku Yoshioka <yoshioka@laboro.ai>")
         .arg(
-            Arg::with_name("skip training")
-                .long("skip-training")
+            Arg::with_name("train")
+                .long("train")
                 .takes_value(false)
-                .help("Skip training"),
+                .help("Do training only"),
+        )
+        .arg(
+            Arg::with_name("eval")
+                .long("eval")
+                .takes_value(false)
+                .help("Do evaluation only"),
         )
         .get_matches();
 
-    if !matches.is_present("skip training") {
+    let do_train = (matches.is_present("train") && !matches.is_present("eval"))
+        || (!matches.is_present("train") && !matches.is_present("eval"));
+    let do_eval = (!matches.is_present("train") && matches.is_present("eval"))
+        || (!matches.is_present("train") && !matches.is_present("eval"));
+
+    if do_train {
         train(MAX_OPTS, MODEL_DIR)?;
     }
-
-    eval(&(MODEL_DIR.to_owned() + "/best"), true)?;
+    if do_eval {
+        eval(&(MODEL_DIR.to_owned() + "/best"), true)?;
+    }
 
     Ok(())
 }

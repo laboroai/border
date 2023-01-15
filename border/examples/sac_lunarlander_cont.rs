@@ -178,33 +178,32 @@ fn main() -> Result<()> {
 
     let matches = App::new("sac_lunarlander_cont")
         .version("0.1.0")
-        .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
+        .author("Taku Yoshioka <yoshioka@laboro.ai>")
         .arg(
-            Arg::with_name("skip training")
-                .long("skip-training")
+            Arg::with_name("train")
+                .long("train")
                 .takes_value(false)
-                .help("Skip training"),
+                .help("Do training only"),
         )
         .arg(
-            Arg::with_name("model directory")
-                .long("model-dir-replay")
-                .takes_value(true)
-                .help("Model directory for replay"),
+            Arg::with_name("eval")
+                .long("eval")
+                .takes_value(false)
+                .help("Do evaluation only"),
         )
         .get_matches();
 
-    if !matches.is_present("skip training") {
+    let do_train = (matches.is_present("train") && !matches.is_present("eval"))
+        || (!matches.is_present("train") && !matches.is_present("eval"));
+    let do_eval = (!matches.is_present("train") && matches.is_present("eval"))
+        || (!matches.is_present("train") && !matches.is_present("eval"));
+
+    if do_train {
         train(MAX_OPTS, MODEL_DIR)?;
     }
-
-    let model_dir = if !matches.is_present("model directory") {
-        format!("{}{}", MODEL_DIR, "/best")
-    } else {
-        matches.value_of("model directory").unwrap().to_string()
-    };
-
-    // eval(&format!("{}{}", MODEL_DIR, "/best")[..])?;
-    eval(model_dir.as_str())?;
+    if do_eval {
+        eval(&(MODEL_DIR.to_owned() + "/best"))?;
+    }
 
     Ok(())
 }
