@@ -1,0 +1,3 @@
+Bootstrap: docker
+From: ubuntu:20.04
+# From: nvidia/cuda:12.0.0-devel-ubuntu20.04
