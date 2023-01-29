@@ -72,7 +72,17 @@ From: ubuntu:20.04
     sed -i 's/return state, sum(self.rewards), bool(done), {}/return state, sum(self.rewards), bool(done), bool(done), {}/g' /opt/pybullet-gym/pybulletgym/envs/roboschool/envs/locomotion/walker_base_env.py
     sed -i 's/id='\''AntPyBulletEnv-v0'\'',/id='\''AntPyBulletEnv-v0'\'', order_enforce=False,/g' /opt/pybullet-gym/pybulletgym/envs/__init__.py
 
-# %runscript
-#     # echo "Container was created $NOW"
-#     # echo "Arguments received: $*"
-#     # exec echo "$@"
+%runscript
+    cp -r /opt/.cargo /root
+    export CARGO_HOME=/root/.cargo
+    export CARGO_TARGET_DIR=/root/target
+    export LIBTORCH=/opt/venv/lib/python3.8/site-packages/torch
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIBTORCH/lib
+    export PYTHONPATH=/root/border/border-py-gym-env/examples
+    source /opt/venv/bin/activate
+    cd border
+    cargo check --example dqn_cartpole --features="tch"
+    bash
+    # echo "Container was created $NOW"
+    # echo "Arguments received: $*"
+    # exec echo "$@"

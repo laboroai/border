@@ -1,2 +1,2 @@
-singularity run border.sif
+singularity run --fakeroot border.sif
 
