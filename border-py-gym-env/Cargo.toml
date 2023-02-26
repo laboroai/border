@@ -42,7 +42,7 @@ test = true
 
 [[example]]
 name = "random_ant"
-test = true
+test = false # Skip test for now, PyBullet Gym requires modify code (see Dockerfile in this repository)
 
 [[example]]
 name = "pybullet_pyo3"
