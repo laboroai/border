@@ -1,2 +1,1 @@
-singularity run --fakeroot border.sif
-
+singularity run --fakeroot border.sif "$1"
