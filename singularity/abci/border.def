@@ -1,0 +1,17 @@
+Bootstrap: localimage
+From: border_base.sif
+
+%environment
+    export CARGO_HOME=/opt/.cargo
+    export RUSTUP_HOME=/opt/.rust
+    export PATH=$PATH:$CARGO_HOME/bin
+
+%runscript
+    cp -r /opt/.cargo /root
+    export LIBTORCH_CXX11_ABI=0
+    export CARGO_HOME=/root/.cargo
+    export CARGO_TARGET_DIR=/root/target
+    export LIBTORCH=/opt/venv/lib/python3.8/site-packages/torch
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIBTORCH/lib
+    export PYTHONPATH=/root/border/border-py-gym-env/examples
+    bash -c "cd /root/border; source /opt/venv/bin/activate; $@"
