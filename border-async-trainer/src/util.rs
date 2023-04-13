@@ -3,7 +3,7 @@ use crate::{
     actor_stats_fmt, ActorManager, ActorManagerConfig, AsyncTrainer, AsyncTrainerConfig, SyncModel,
 };
 use border_core::{record::TensorboardRecorder, Agent, Env, ReplayBufferBase, StepProcessorBase};
-use crossbeam_channel::unbounded;
+use crossbeam_channel::{unbounded, bounded};
 use log::info;
 use std::{
     path::Path,
@@ -56,7 +56,8 @@ pub fn train_async<A, E, R, S, P>(
     let stop = Arc::new(Mutex::new(false));
 
     // Creates channels
-    let (item_s, item_r) = unbounded(); // items pushed to replay buffer
+    // let (item_s, item_r) = unbounded(); // items pushed to replay buffer
+    let (item_s, item_r) = bounded(1000); // items pushed to replay buffer
     let (model_s, model_r) = unbounded(); // model_info
 
     // guard for initialization of envs in multiple threads
