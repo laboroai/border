@@ -57,7 +57,7 @@ pub fn train_async<A, E, R, S, P>(
 
     // Creates channels
     // let (item_s, item_r) = unbounded(); // items pushed to replay buffer
-    let (item_s, item_r) = bounded(1000); // items pushed to replay buffer
+    let (item_s, item_r) = bounded(50); // items pushed to replay buffer
     let (model_s, model_r) = unbounded(); // model_info
 
     // guard for initialization of envs in multiple threads
