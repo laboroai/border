@@ -15,7 +15,7 @@ jobs:
         matrix:
           os: [ubuntu-latest, windows-latest, macOS-latest]
           rust: [1.63.0]
-          python-version: [3.7]
+          python-version: [3.8]
       steps:
         - uses: actions/checkout@v2
 
@@ -39,14 +39,18 @@ jobs:
 
         - name: Install gym
           run: |
-            pip install box2d-py==2.3.8
-            # pip install gym[atari]==0.18.3
-            pip install gym[Box_2D]==0.18.3
+            # pip install box2d-py==2.3.8
+            # pip install gym[atari]==0.26.2
+            pip install gym[box2d]==0.26.2
+            pip install pybullet==3.2.5
 
-        - name: Install pybullet-gym
+        - if: matrix.os == 'ubuntu-latest'
+          name: Install pybullet-gym
           run:  |
             git clone https://github.com/benelot/pybullet-gym.git
             cd pybullet-gym
+            sed -i 's/return state, sum(self.rewards), bool(done), {}/return state, sum(self.rewards), bool(done), bool(done), {}/g' ./pybulletgym/envs/roboschool/envs/locomotion/walker_base_env.py
+            sed -i 's/id='\''AntPyBulletEnv-v0'\'',/id='\''AntPyBulletEnv-v0'\'', order_enforce=False,/g' ./pybulletgym/envs/__init__.py
             pip install -e .
 
         - if: matrix.os != 'windows-latest'
@@ -70,5 +74,5 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y --no-install-recommends --fix-missing \
               libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev libsdl2-ttf-dev \
-              libsdl-dev libsdl-image1.2-dev
+              libsdl2-dev libsdl-image1.2-dev
             cargo test -p border --features=tch

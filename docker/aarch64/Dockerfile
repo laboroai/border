@@ -45,7 +45,12 @@ RUN apt install -y patchelf libglfw3 libglfw3-dev
 RUN rm -rf /var/lib/apt/lists/*
 
 COPY test_mujoco_py.py /test_mujoco_py.py
+COPY test_dmc_viewer.py /test_dmc_viewer.py
 RUN chmod 777 /test_mujoco_py.py
+RUN chmod 777 /test_dmc_viewer.py
+
+# Use bash
+RUN mv /bin/sh /bin/sh_tmp && ln -s /bin/bash /bin/sh
 
 # Add user
 RUN useradd --create-home --home-dir /home/ubuntu --shell /bin/bash --user-group --groups adm,sudo ubuntu && \
@@ -66,50 +71,62 @@ RUN mkdir -p /home/ubuntu/.config/lxsession/LXDE && \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
 # python
-RUN pip3 install --upgrade pip
-RUN pip3 install pyyaml typing-extensions
-RUN pip3 install torch==1.12.0
-RUN pip3 install ipython jupyterlab
-RUN pip3 install numpy==1.21.3
-# RUN pip3 install gym[box2d]==0.25.1
-RUN pip3 install gym[box2d]==0.17.1
-RUN pip3 install robosuite==1.3.2
-RUN pip3 install -U 'mujoco-py<2.2,>=2.1'
+RUN cd /home/ubuntu && python -m venv venv
+RUN source /home/ubuntu/venv/bin/activate && pip3 install --upgrade pip
+RUN source /home/ubuntu/venv/bin/activate && pip3 install pyyaml typing-extensions
+RUN source /home/ubuntu/venv/bin/activate && pip3 install torch==1.12.0
+RUN source /home/ubuntu/venv/bin/activate && pip3 install ipython jupyterlab
+RUN source /home/ubuntu/venv/bin/activate && pip3 install numpy==1.21.3
+RUN source /home/ubuntu/venv/bin/activate && pip3 install gym[box2d]==0.26.2
+# RUN source /home/ubuntu/venv/bin/activate && pip3 install gym[box2d]==0.17.1
+RUN source /home/ubuntu/venv/bin/activate && pip3 install robosuite==1.3.2
+RUN source /home/ubuntu/venv/bin/activate && pip3 install -U 'mujoco-py<2.2,>=2.1'
+RUN source /home/ubuntu/venv/bin/activate && pip3 install dm-control==1.0.8
+RUN source /home/ubuntu/venv/bin/activate && pip3 install pyrender==0.1.45
+RUN source /home/ubuntu/venv/bin/activate && pip3 install dm2gym==0.2.0
 
-# # border
-# RUN cd $HOME && git clone https://github.com/taku-y/border.git
+# border
 RUN cd $HOME && mkdir -p .border/model
 
-# # Mujoco aarch64 binary
-# RUN cd $HOME && \
-#     mkdir .mujoco && \
-#     cd .mujoco && \
-#     wget https://github.com/deepmind/mujoco/releases/download/2.1.1/mujoco-2.1.1-linux-aarch64.tar.gz
-# RUN cd $HOME/.mujoco && \
-#     tar zxf mujoco-2.1.1-linux-aarch64.tar.gz && \
-#     mkdir -p mujoco210/bin && \
-#     ln -sf $PWD/mujoco-2.1.1/lib/libmujoco.so.2.1.1 $PWD/mujoco210/bin/libmujoco210.so && \
-#     ln -sf $PWD/mujoco-2.1.1/lib/libglewosmesa.so $PWD/mujoco210/bin/libglewosmesa.so && \
-#     ln -sf $PWD/mujoco-2.1.1/include/ $PWD/mujoco210/include && \
-#     ln -sf $PWD/mujoco-2.1.1/model/ $PWD/mujoco210/model
-# RUN cp /test_mujoco_py.py $HOME
+# Mujoco aarch64 binary
+RUN cd $HOME && \
+    mkdir .mujoco && \
+    cd .mujoco && \
+    wget https://github.com/deepmind/mujoco/releases/download/2.1.1/mujoco-2.1.1-linux-aarch64.tar.gz
+RUN cd $HOME/.mujoco && \
+    tar zxf mujoco-2.1.1-linux-aarch64.tar.gz && \
+    mkdir -p mujoco210/bin && \
+    ln -sf $PWD/mujoco-2.1.1/lib/libmujoco.so.2.1.1 $PWD/mujoco210/bin/libmujoco210.so && \
+    ln -sf $PWD/mujoco-2.1.1/lib/libglewosmesa.so $PWD/mujoco210/bin/libglewosmesa.so && \
+    ln -sf $PWD/mujoco-2.1.1/include/ $PWD/mujoco210/include && \
+    ln -sf $PWD/mujoco-2.1.1/model/ $PWD/mujoco210/model
+RUN cp /*.py $HOME
 
 # PyBulletGym
-# RUN pip3 install pybullet==3.2.5
-RUN pip3 install pybullet==2.7.1
+RUN source /home/ubuntu/venv/bin/activate && pip3 install pybullet==3.2.5
+# RUN source /home/ubuntu/venv/bin/activate && pip3 install pybullet==2.7.1
 RUN cd $HOME && \
     git clone https://github.com/benelot/pybullet-gym.git && \
     cd pybullet-gym && \
-    git checkout -b tmp 79396fccc1d0e170a092b50137148da48ee2edab && \
+    git checkout -b tmp bc68201c8101c4e30dde95f425647a0709ee2f29 && \
+    source /home/ubuntu/venv/bin/activate && \
     pip install -e .
+# Tweaks for version incompatibility of gym and pybullet-gym
+RUN sed -i 's/return state, sum(self.rewards), bool(done), {}/return state, sum(self.rewards), bool(done), bool(done), {}/g' /home/ubuntu/pybullet-gym/pybulletgym/envs/roboschool/envs/locomotion/walker_base_env.py
+RUN sed -i 's/id='\''AntPyBulletEnv-v0'\'',/id='\''AntPyBulletEnv-v0'\'', order_enforce=False,/g' /home/ubuntu/pybullet-gym/pybulletgym/envs/__init__.py
 
 # .bashrc
-RUN echo 'export LIBTORCH=$HOME/.local/lib/python3.8/site-packages/torch' >> ~/.bashrc
+RUN echo 'export LIBTORCH=$HOME/venv/lib/python3.8/site-packages/torch' >> ~/.bashrc
 RUN echo 'export LD_LIBRARY_PATH=$LIBTORCH/lib' >> ~/.bashrc
 RUN echo 'export LIBTORCH_CXX11_ABI=0' >> ~/.bashrc
 RUN echo 'export PATH=$HOME/.local/bin:$PATH' >> ~/.bashrc
 RUN echo 'export PYTHONPATH=$HOME/border/border-py-gym-env/examples:$PYTHONPATH' >> ~/.bashrc
-# RUN echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.mujoco/mujoco210/bin' >> ~/.bashrc
+RUN echo 'export CARGO_TARGET_DIR=$HOME/target' >> ~/.bashrc
+RUN echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.mujoco/mujoco210/bin' >> ~/.bashrc
+RUN echo 'export MUJOCO_GL=glfw' >> ~/.bashrc
+RUN echo 'source $HOME/venv/bin/activate' >> ~/.bashrc
 
 USER root
+RUN rm /bin/sh && mv /bin/sh_tmp /bin/sh
+
 ENV USER ubuntu

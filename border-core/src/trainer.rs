@@ -155,8 +155,8 @@ where
 
     fn save_model<A: Agent<E, R>>(agent: &A, model_dir: String) {
         match agent.save(&model_dir) {
-            Ok(()) => info!("Saved the model in {:?}", &model_dir),
-            Err(_) => info!("Failed to save model."),
+            Ok(()) => info!("Saved the model in {:?}.", &model_dir),
+            Err(_) => info!("Failed to save model in {:?}.", &model_dir),
         }
     }
 

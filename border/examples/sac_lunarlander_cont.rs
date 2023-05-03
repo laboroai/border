@@ -5,7 +5,7 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    shape, util, Agent, Env as _, Policy, Trainer, TrainerConfig,
+    util, Agent, Env as _, Policy, Trainer, TrainerConfig,
 };
 use border_derive::{Act, Obs, SubBatch};
 use border_py_gym_env::{
@@ -13,9 +13,9 @@ use border_py_gym_env::{
     PyGymEnvContinuousActRawFilter, PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
 };
 use border_tch_agent::{
-    mlp::{MlpConfig, Mlp, Mlp2},
+    mlp::{Mlp, Mlp2, MlpConfig},
     opt::OptimizerConfig,
-    sac::{ActorConfig, CriticConfig, SacConfig, Sac},
+    sac::{ActorConfig, CriticConfig, Sac, SacConfig},
     TensorSubBatch,
 };
 use clap::{App, Arg};
@@ -38,14 +38,11 @@ const MODEL_DIR: &str = "./border/examples/model/sac_lunarlander_cont";
 
 type PyObsDtype = f32;
 
-shape!(ObsShape, [DIM_OBS as _]);
-shape!(ActShape, [DIM_ACT as _]);
-
 #[derive(Clone, Debug, Obs)]
-struct Obs(PyGymEnvObs<ObsShape, PyObsDtype, f32>);
+struct Obs(PyGymEnvObs<PyObsDtype, f32>);
 
 #[derive(Clone, SubBatch)]
-struct ObsBatch(TensorSubBatch<ObsShape, f32>);
+struct ObsBatch(TensorSubBatch);
 
 impl From<Obs> for ObsBatch {
     fn from(obs: Obs) -> Self {
@@ -55,10 +52,10 @@ impl From<Obs> for ObsBatch {
 }
 
 #[derive(Clone, Debug, Act)]
-struct Act(PyGymEnvContinuousAct<ActShape>);
+struct Act(PyGymEnvContinuousAct);
 
 #[derive(SubBatch)]
-struct ActBatch(TensorSubBatch<ActShape, f32>);
+struct ActBatch(TensorSubBatch);
 
 impl From<Act> for ActBatch {
     fn from(act: Act) -> Self {
@@ -67,8 +64,8 @@ impl From<Act> for ActBatch {
     }
 }
 
-type ObsFilter = PyGymEnvObsRawFilter<ObsShape, PyObsDtype, f32, Obs>;
-type ActFilter = PyGymEnvContinuousActRawFilter<ActShape, Act>;
+type ObsFilter = PyGymEnvObsRawFilter<PyObsDtype, f32, Obs>;
+type ActFilter = PyGymEnvContinuousActRawFilter<Act>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
@@ -155,10 +152,10 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
 }
 
 fn eval(model_dir: &str) -> Result<()> {
-    let mut env = Env::build(&env_config(), 0)?;
+    let env_config = env_config().render_mode(Some("human".to_string()));
+    let mut env = Env::build(&env_config, 0)?;
     let mut agent = create_agent(DIM_OBS, DIM_ACT);
     let mut recorder = BufferedRecorder::new();
-    env.set_render(true);
     agent.load(model_dir)?;
     agent.eval();
 
@@ -181,33 +178,32 @@ fn main() -> Result<()> {
 
     let matches = App::new("sac_lunarlander_cont")
         .version("0.1.0")
-        .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
+        .author("Taku Yoshioka <yoshioka@laboro.ai>")
         .arg(
-            Arg::with_name("skip training")
-                .long("skip-training")
+            Arg::with_name("train")
+                .long("train")
                 .takes_value(false)
-                .help("Skip training"),
+                .help("Do training only"),
         )
         .arg(
-            Arg::with_name("model directory")
-                .long("model-dir-replay")
-                .takes_value(true)
-                .help("Model directory for replay"),
+            Arg::with_name("eval")
+                .long("eval")
+                .takes_value(false)
+                .help("Do evaluation only"),
         )
         .get_matches();
 
-    if !matches.is_present("skip training") {
+    let do_train = (matches.is_present("train") && !matches.is_present("eval"))
+        || (!matches.is_present("train") && !matches.is_present("eval"));
+    let do_eval = (!matches.is_present("train") && matches.is_present("eval"))
+        || (!matches.is_present("train") && !matches.is_present("eval"));
+
+    if do_train {
         train(MAX_OPTS, MODEL_DIR)?;
     }
-
-    let model_dir = if !matches.is_present("model directory") {
-        format!("{}{}", MODEL_DIR, "/best")
-    } else {
-        matches.value_of("model directory").unwrap().to_string()
-    };
-
-    // eval(&format!("{}{}", MODEL_DIR, "/best")[..])?;
-    eval(model_dir.as_str())?;
+    if do_eval {
+        eval(&(MODEL_DIR.to_owned() + "/best"))?;
+    }
 
     Ok(())
 }

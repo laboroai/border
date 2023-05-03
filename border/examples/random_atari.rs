@@ -1,5 +1,5 @@
 use anyhow::Result;
-use border_core::{record::BufferedRecorder, shape, util, Env as _, Policy};
+use border_core::{record::BufferedRecorder, util, Env as _, Policy};
 use border_derive::{Act, Obs, SubBatch};
 use border_py_gym_env::{
     FrameStackFilter, PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct,
@@ -14,14 +14,12 @@ const N_STACK: i64 = 4;
 
 type PyObsDtype = u8;
 
-shape!(ObsShape, [N_STACK as usize, 1, 84, 84]);
-shape!(ActShape, [1]);
-
 #[derive(Clone, Debug, Obs)]
-struct Obs(PyGymEnvObs<ObsShape, PyObsDtype, f32>);
+struct Obs(PyGymEnvObs<PyObsDtype, f32>);
 
 #[derive(Clone, SubBatch)]
-struct ObsBatch(TensorSubBatch<ObsShape, u8>);
+// struct ObsBatch(TensorSubBatch<ObsShape, u8>);
+struct ObsBatch(TensorSubBatch);
 
 impl From<Obs> for ObsBatch {
     fn from(obs: Obs) -> Self {
@@ -34,7 +32,8 @@ impl From<Obs> for ObsBatch {
 struct Act(PyGymEnvDiscreteAct);
 
 #[derive(SubBatch)]
-struct ActBatch(TensorSubBatch<ActShape, f32>);
+// struct ActBatch(TensorSubBatch<ActShape, f32>);
+struct ActBatch(TensorSubBatch);
 
 impl From<Act> for ActBatch {
     fn from(act: Act) -> Self {
@@ -43,7 +42,7 @@ impl From<Act> for ActBatch {
     }
 }
 
-type ObsFilter = FrameStackFilter<ObsShape, PyObsDtype, f32, Obs>;
+type ObsFilter = FrameStackFilter<PyObsDtype, f32, Obs>;
 type ActFilter = PyGymEnvDiscreteActRawFilter<Act>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 

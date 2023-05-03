@@ -1,23 +1,24 @@
 use anyhow::Result;
 use border_core::{
-    record::{BufferedRecorder, Record, TensorboardRecorder, RecordValue},
+    record::{BufferedRecorder, Record, RecordValue, TensorboardRecorder},
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    shape, util, Agent, Env as _, Policy, Trainer, TrainerConfig,
+    util, Agent, Env as _, Policy, Trainer, TrainerConfig,
 };
 use border_derive::{Act, Obs, SubBatch};
 use border_py_gym_env::{
-    to_pyobj, PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvContinuousAct,
-    PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
+    to_pyobj, PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvContinuousAct, PyGymEnvObs,
+    PyGymEnvObsFilter, PyGymEnvObsRawFilter,
 };
 use border_tch_agent::{
-    mlp::{MlpConfig, Mlp, Mlp2},
+    mlp::{Mlp, Mlp2, MlpConfig},
     opt::OptimizerConfig,
-    sac::{ActorConfig, CriticConfig, SacConfig, Sac},
+    sac::{ActorConfig, CriticConfig, Sac, SacConfig},
     TensorSubBatch,
 };
+use clap::{App, Arg};
 use csv::WriterBuilder;
 use pyo3::PyObject;
 use serde::Serialize;
@@ -37,14 +38,11 @@ const N_EPISODES_PER_EVAL: usize = 5;
 
 type PyObsDtype = f32;
 
-shape!(ObsShape, [DIM_OBS as _]);
-shape!(ActShape, [DIM_ACT as _]);
-
 #[derive(Clone, Debug, Obs)]
-struct Obs(PyGymEnvObs<ObsShape, PyObsDtype, f32>);
+struct Obs(PyGymEnvObs<PyObsDtype, f32>);
 
 #[derive(Clone, SubBatch)]
-struct ObsBatch(TensorSubBatch<ObsShape, f32>);
+struct ObsBatch(TensorSubBatch);
 
 impl From<Obs> for ObsBatch {
     fn from(obs: Obs) -> Self {
@@ -54,10 +52,10 @@ impl From<Obs> for ObsBatch {
 }
 
 #[derive(Clone, Debug, Act)]
-struct Act(PyGymEnvContinuousAct<ActShape>);
+struct Act(PyGymEnvContinuousAct);
 
 #[derive(SubBatch)]
-struct ActBatch(TensorSubBatch<ActShape, f32>);
+struct ActBatch(TensorSubBatch);
 
 impl From<Act> for ActBatch {
     fn from(act: Act) -> Self {
@@ -90,13 +88,13 @@ impl PyGymEnvActFilter<Act> for ActFilter {
             (
                 "act_filt",
                 RecordValue::Array1(act_filt.iter().cloned().collect()),
-            ), 
+            ),
         ]);
-        (to_pyobj::<ActShape>(act_filt), record)
+        (to_pyobj(act_filt), record)
     }
 }
 
-type ObsFilter = PyGymEnvObsRawFilter<ObsShape, PyObsDtype, f32, Obs>;
+type ObsFilter = PyGymEnvObsRawFilter<PyObsDtype, f32, Obs>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
@@ -121,7 +119,7 @@ impl TryFrom<&Record> for PendulumRecord {
             reward: record.get_scalar("reward")?,
             obs: record.get_array1("obs")?.to_vec(),
             act_org: record.get_array1("act_org")?.to_vec(),
-            act_filt: record.get_array1("act_filt")?.to_vec()
+            act_filt: record.get_array1("act_filt")?.to_vec(),
         })
     }
 }
@@ -146,7 +144,7 @@ fn create_agent(in_dim: i64, out_dim: i64) -> Sac<Env, Mlp, Mlp2, ReplayBuffer> 
 
 fn env_config() -> PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
     PyGymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
-        .name("Pendulum-v0".to_string())
+        .name("Pendulum-v1".to_string())
         .obs_filter_config(ObsFilter::default_config())
         .act_filter_config(ActFilter::default_config())
 }
@@ -185,12 +183,15 @@ fn train(max_opts: usize, model_dir: &str, eval_interval: usize) -> Result<()> {
 }
 
 fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
-    let mut env = Env::build(&env_config(), 0)?;
+    let mut env_config = env_config();
+    if render {
+        env_config = env_config.render_mode(Some("human".to_string()));
+    }
+    let mut env = Env::build(&env_config, 0)?;
     let mut agent = create_agent(DIM_OBS, DIM_ACT);
     let mut recorder = BufferedRecorder::new();
-    env.set_render(render);
     if render {
-        env.set_wait_in_render(std::time::Duration::from_millis(10));
+        env.set_wait_in_step(std::time::Duration::from_millis(10));
     }
     agent.load(model_dir)?;
     agent.eval();
@@ -212,8 +213,38 @@ fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
 
-    train(MAX_OPTS, "./border/examples/model/sac_pendulum", EVAL_INTERVAL)?;
-    eval(5, true, "./border/examples/model/sac_pendulum/best")?;
+    let matches = App::new("sac_pendulum")
+        .version("0.1.0")
+        .author("Taku Yoshioka <yoshioka@laboro.ai>")
+        .arg(
+            Arg::with_name("train")
+                .long("train")
+                .takes_value(false)
+                .help("Do training only"),
+        )
+        .arg(
+            Arg::with_name("eval")
+                .long("eval")
+                .takes_value(false)
+                .help("Do evaluation only"),
+        )
+        .get_matches();
+
+    let do_train = (matches.is_present("train") && !matches.is_present("eval"))
+        || (!matches.is_present("train") && !matches.is_present("eval"));
+    let do_eval = (!matches.is_present("train") && matches.is_present("eval"))
+        || (!matches.is_present("train") && !matches.is_present("eval"));
+
+    if do_train {
+        train(
+            MAX_OPTS,
+            "./border/examples/model/sac_pendulum",
+            EVAL_INTERVAL,
+        )?;
+    }
+    if do_eval {
+        eval(5, true, "./border/examples/model/sac_pendulum/best")?;
+    }
 
     Ok(())
 }
@@ -231,7 +262,7 @@ mod test {
         let model_dir = model_dir.path().to_str().unwrap();
         train(100, model_dir, 100)?;
         eval(1, false, (model_dir.to_string() + "/best").as_str())?;
-    
+
         Ok(())
     }
 }

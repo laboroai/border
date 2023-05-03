@@ -4,7 +4,7 @@ There are scripts to test the crates in this repository.
 The scripts in this directory are tested on M2 Macbook Air.
 
 * [Build and run image](#build-and-run-image)
-* [Install Atari ROM (optional)](#install-atari-rom (optional))
+* [Install Atari ROM (optional)](#install-atari-rom-optional)
 * [Run examples on GUI](#run-examples-on-gui)
 
 ## Build and run image

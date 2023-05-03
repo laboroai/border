@@ -84,7 +84,7 @@ fn init<'a>() -> ArgMatches<'a> {
 
     let matches = App::new("dqn_atari_async")
         .version("0.1.0")
-        .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
+        .author("Taku Yoshioka <yoshioka@laboro.ai>")
         .arg(
             Arg::with_name("name")
                 .long("name")

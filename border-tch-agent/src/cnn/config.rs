@@ -7,7 +7,7 @@ fn default_skip_linear() -> bool {
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
-/// Configuration of [CNN](super::CNN).
+/// Configuration of [`Cnn`](super::Cnn).
 ///
 /// If `skip_linear` is `true`, `out_dim` is not used.
 pub struct CnnConfig {
@@ -18,7 +18,7 @@ pub struct CnnConfig {
 }
 
 impl CnnConfig {
-    /// Constructs [CNNConfig]
+    /// Constructs [`CnnConfig`]
     pub fn new(n_stack: i64, out_dim: i64) -> Self {
         Self { n_stack, out_dim, skip_linear: false }
     }

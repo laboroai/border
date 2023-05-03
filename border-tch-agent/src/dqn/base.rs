@@ -1,10 +1,13 @@
 //! DQN agent implemented with tch-rs.
 use super::{config::DqnConfig, explorer::DqnExplorer, model::DqnModel};
-use crate::{model::{ModelBase, SubModel}, util::{OutDim, track}};
+use crate::{
+    model::{ModelBase, SubModel},
+    util::{track, OutDim},
+};
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, StdBatchBase, Env, Policy, ReplayBufferBase,
+    Agent, Env, Policy, ReplayBufferBase, StdBatchBase,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use std::{fs, marker::PhantomData, path::Path};
@@ -89,7 +92,7 @@ where
             let n = ws.len() as i64;
             let td_errs = match self.clip_td_err {
                 None => (&pred - &tgt).abs(),
-                Some((min, max)) => (&pred - &tgt).abs().clip(min, max)
+                Some((min, max)) => (&pred - &tgt).abs().clip(min, max),
             };
             let loss = Tensor::of_slice(&ws[..]).to(self.device) * &td_errs;
             let loss = loss.smooth_l1_loss(
@@ -148,7 +151,10 @@ where
 
     /// Constructs DQN agent.
     fn build(config: Self::Config) -> Self {
-        let device = config.device.expect("No device is given for DQN agent").into();
+        let device = config
+            .device
+            .expect("No device is given for DQN agent")
+            .into();
         let qnet = DqnModel::build(config.model_config, device);
         let qnet_tgt = qnet.clone();
 
@@ -245,10 +251,7 @@ where
 }
 
 #[cfg(feature = "border-async-trainer")]
-use {
-    crate::util::NamedTensors,
-    border_async_trainer::SyncModel,
-};
+use {crate::util::NamedTensors, border_async_trainer::SyncModel};
 
 #[cfg(feature = "border-async-trainer")]
 impl<E, Q, R> SyncModel for Dqn<E, Q, R>
@@ -266,7 +269,10 @@ where
     type ModelInfo = NamedTensors;
 
     fn model_info(&self) -> (usize, Self::ModelInfo) {
-        (self.n_opts, NamedTensors::copy_from(self.qnet.get_var_store()))
+        (
+            self.n_opts,
+            NamedTensors::copy_from(self.qnet.get_var_store()),
+        )
     }
 
     fn sync_model(&mut self, model_info: &Self::ModelInfo) {

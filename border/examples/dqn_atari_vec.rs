@@ -98,7 +98,7 @@ fn main() -> Result<()> {
 
     let matches = App::new("dqn_atari_vec")
         .version("0.1.0")
-        .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
+        .author("Taku Yoshioka <yoshioka@laboro.ai>")
         .arg(
             Arg::with_name("name")
                 .long("name")

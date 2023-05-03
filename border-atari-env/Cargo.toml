@@ -1,7 +1,7 @@
 [package]
 name = "border-atari-env"
 version = "0.0.5"
-authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
+authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
 edition = "2018"
 
 description = "Atari environment based on gym-rs"
@@ -32,14 +32,14 @@ c_str_macro = "1.0.2"
 minifb = { version = "0.19.2", optional = true }
 strum = { version = "0.20.0", features = ["derive"] }
 viuer = "0.4.0"
-wgpu = { version = "0.7.0", optional = true }
+# wgpu = { version = "0.7.0", optional = true }
 winit_input_helper = { version = "0.9.0", optional = true }
 ndarray = { version = "0.15.1", features = ["rayon"] }
 num-traits = "0.2.14"
 num-derive = "0.3.3"
 
 [features]
-default = ["atari-env-sys", "winit", "winit_input_helper", "wgpu", "minifb", "pixels", "tch"]
+default = ["atari-env-sys", "winit", "winit_input_helper", "minifb", "pixels", "tch"]
 sdl = ["atari-env-sys/sdl"]
 doc = []
 

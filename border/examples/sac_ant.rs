@@ -6,7 +6,7 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    shape, util, Agent, Env as _, Policy, Trainer, TrainerConfig,
+    util, Agent, Env as _, Policy, Trainer, TrainerConfig,
 };
 use border_derive::{Act, Obs, SubBatch};
 use border_py_gym_env::{
@@ -44,14 +44,11 @@ const MODEL_DIR: &str = "./border/examples/model/sac_ant";
 
 type PyObsDtype = f32;
 
-shape!(ObsShape, [DIM_OBS as _]);
-shape!(ActShape, [DIM_ACT as _]);
-
 #[derive(Clone, Debug, Obs)]
-struct Obs(PyGymEnvObs<ObsShape, PyObsDtype, f32>);
+struct Obs(PyGymEnvObs<PyObsDtype, f32>);
 
 #[derive(Clone, SubBatch)]
-struct ObsBatch(TensorSubBatch<ObsShape, f32>);
+struct ObsBatch(TensorSubBatch);
 
 impl From<Obs> for ObsBatch {
     fn from(obs: Obs) -> Self {
@@ -61,10 +58,10 @@ impl From<Obs> for ObsBatch {
 }
 
 #[derive(Clone, Debug, Act)]
-struct Act(PyGymEnvContinuousAct<ActShape>);
+struct Act(PyGymEnvContinuousAct);
 
 #[derive(SubBatch)]
-struct ActBatch(TensorSubBatch<ActShape, f32>);
+struct ActBatch(TensorSubBatch);
 
 impl From<Act> for ActBatch {
     fn from(act: Act) -> Self {
@@ -73,8 +70,8 @@ impl From<Act> for ActBatch {
     }
 }
 
-type ObsFilter = PyGymEnvObsRawFilter<ObsShape, PyObsDtype, f32, Obs>;
-type ActFilter = PyGymEnvContinuousActRawFilter<ActShape, Act>;
+type ObsFilter = PyGymEnvObsRawFilter<PyObsDtype, f32, Obs>;
+type ActFilter = PyGymEnvContinuousActRawFilter<Act>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
@@ -144,7 +141,7 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
 
 fn eval(model_dir: &str) -> Result<()> {
     let mut env = Env::build(&env_config(), 0)?;
-    env.set_wait_in_render(Duration::from_millis(10));
+    env.set_wait_in_step(Duration::from_millis(10));
     let mut agent = create_agent(DIM_OBS, DIM_ACT);
     let mut recorder = BufferedRecorder::new();
     env.set_render(true);
@@ -163,7 +160,7 @@ fn main() -> Result<()> {
 
     let matches = App::new("dqn_cartpole")
         .version("0.1.0")
-        .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
+        .author("Taku Yoshioka <yoshioka@laboro.ai>")
         .arg(
             Arg::with_name("play")
                 .long("play")

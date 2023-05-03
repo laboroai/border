@@ -5,15 +5,15 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig, SubBatch,
     },
-    shape, util, Agent, Env as _, Policy, Trainer, TrainerConfig,
+    util, Agent, Env as _, Policy, Trainer, TrainerConfig,
 };
 use border_py_gym_env::{
     PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter,
     PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
 };
 use border_tch_agent::{
-    dqn::{DqnConfig, DqnModelConfig, Dqn},
-    mlp::{MlpConfig, Mlp},
+    dqn::{Dqn, DqnConfig, DqnModelConfig},
+    mlp::{Mlp, MlpConfig},
     TensorSubBatch,
 };
 use clap::{App, Arg};
@@ -37,13 +37,10 @@ const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const MODEL_DIR: &str = "./border/examples/model/dqn_cartpole";
 
-shape!(ObsShape, [DIM_OBS as usize]);
-shape!(ActShape, [1]);
-
 type PyObsDtype = f32;
 
 #[derive(Clone, Debug)]
-struct Obs(PyGymEnvObs<ObsShape, PyObsDtype, f32>);
+struct Obs(PyGymEnvObs<PyObsDtype, f32>);
 
 impl border_core::Obs for Obs {
     fn dummy(n: usize) -> Self {
@@ -59,8 +56,8 @@ impl border_core::Obs for Obs {
     }
 }
 
-impl From<PyGymEnvObs<ObsShape, PyObsDtype, f32>> for Obs {
-    fn from(obs: PyGymEnvObs<ObsShape, PyObsDtype, f32>) -> Self {
+impl From<PyGymEnvObs<PyObsDtype, f32>> for Obs {
+    fn from(obs: PyGymEnvObs<PyObsDtype, f32>) -> Self {
         Obs(obs)
     }
 }
@@ -71,7 +68,7 @@ impl From<Obs> for Tensor {
     }
 }
 
-struct ObsBatch(TensorSubBatch<ObsShape, f32>);
+struct ObsBatch(TensorSubBatch);
 
 impl SubBatch for ObsBatch {
     fn new(capacity: usize) -> Self {
@@ -116,7 +113,7 @@ impl Into<PyGymEnvDiscreteAct> for Act {
     }
 }
 
-struct ActBatch(TensorSubBatch<ActShape, i64>);
+struct ActBatch(TensorSubBatch);
 
 impl SubBatch for ActBatch {
     fn new(capacity: usize) -> Self {
@@ -166,7 +163,7 @@ impl From<Tensor> for Act {
     }
 }
 
-type ObsFilter = PyGymEnvObsRawFilter<ObsShape, PyObsDtype, f32, Obs>;
+type ObsFilter = PyGymEnvObsRawFilter<PyObsDtype, f32, Obs>;
 type ActFilter = PyGymEnvDiscreteActRawFilter<Act>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
@@ -260,12 +257,16 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
 }
 
 fn eval(model_dir: &str, render: bool) -> Result<()> {
-    let mut env = Env::build(&env_config(), 0)?;
+    let mut env_config = env_config();
+    if render {
+        env_config = env_config.render_mode(Some("human".to_string()));
+    }
+    let mut env = Env::build(&env_config, 0)?;
     let mut agent = create_agent(DIM_OBS, DIM_ACT);
     let mut recorder = BufferedRecorder::new();
     env.set_render(render);
     if render {
-        env.set_wait_in_render(std::time::Duration::from_millis(10));
+        env.set_wait_in_step(std::time::Duration::from_millis(10));
     }
     agent.load(model_dir)?;
     agent.eval();
@@ -289,27 +290,39 @@ fn main() -> Result<()> {
 
     let matches = App::new("dqn_cartpole")
         .version("0.1.0")
-        .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
+        .author("Taku Yoshioka <yoshioka@laboro.ai>")
         .arg(
-            Arg::with_name("skip training")
-                .long("skip_training")
+            Arg::with_name("train")
+                .long("train")
                 .takes_value(false)
-                .help("Skip training"),
+                .help("Do training only"),
+        )
+        .arg(
+            Arg::with_name("eval")
+                .long("eval")
+                .takes_value(false)
+                .help("Do evaluation only"),
         )
         .get_matches();
 
-    if !matches.is_present("skip training") {
+    let do_train = (matches.is_present("train") && !matches.is_present("eval"))
+        || (!matches.is_present("train") && !matches.is_present("eval"));
+    let do_eval = (!matches.is_present("train") && matches.is_present("eval"))
+        || (!matches.is_present("train") && !matches.is_present("eval"));
+
+    if do_train {
         train(MAX_OPTS, MODEL_DIR)?;
     }
-
-    eval(&(MODEL_DIR.to_owned() + "/best"), true)?;
+    if do_eval {
+        eval(&(MODEL_DIR.to_owned() + "/best"), true)?;
+    }
 
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{train, eval};
+    use super::{eval, train};
     use anyhow::Result;
     use tempdir::TempDir;
 
