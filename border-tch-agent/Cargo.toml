@@ -3,6 +3,7 @@ name = "border-tch-agent"
 version = "0.0.5"
 authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
 edition = "2018"
+rust = "1.65.0"
 
 description = "Reinforcement learning library"
 repository = "https://github.com/taku-y/border"

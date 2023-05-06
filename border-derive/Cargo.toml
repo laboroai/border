@@ -3,6 +3,7 @@ name = "border-derive"
 version = "0.0.5"
 authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
 edition = "2018"
+rust = "1.65.0"
 
 description = "Derive macros for observation and action in RL environments of border"
 repository = "https://github.com/taku-y/border"
