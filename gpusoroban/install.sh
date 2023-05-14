@@ -1,7 +1,7 @@
 DEBIAN_FRONTEND=noninteractive
 sudo apt-get update -q
 sudo apt-get upgrade -yq
-sudo apt-get install -yq wget curl git build-essential vim sudo libssl-dev zip swig cmake tmux
+sudo apt-get install -yq wget curl git build-essential vim sudo libssl-dev zip swig cmake tmux htop
 
 # clang
 sudo apt install -y -q libclang-dev
@@ -42,6 +42,7 @@ source /home/user/venv/bin/activate && pip3 install robosuite==1.3.2
 source /home/user/venv/bin/activate && pip3 install -U 'mujoco-py<2.2,>=2.1'
 source /home/user/venv/bin/activate && pip3 install pyrender==0.1.45
 source /home/user/venv/bin/activate && pip3 install dm2gym==0.2.0
+source /home/user/venv/bin/activate && pip3 install tensorboard
 
 echo 'export LIBTORCH=$HOME/venv/lib/python3.8/site-packages/torch' >> ~/.bashrc
 echo 'export LD_LIBRARY_PATH=$LIBTORCH/lib' >> ~/.bashrc
