@@ -1,5 +1,7 @@
 # Script for installing required libraries on Ubuntu
 
+The procedure shown below has been tested on `nvd5-1ub` instance.
+
 ```bash
 #cd $HOME/
 sudo apt install git
@@ -14,7 +16,7 @@ RUST_LOG=info PYTHONPATH=./border-py-gym-env/examples cargo run --example random
 ## Copy remote file to local
 
 ```bash
-scp -i ~/.ssh/mykey.txt -P 20122 user@localhost:/home/user/path_to_remote_file .
+scp -r -i ~/.ssh/mykey.txt -P 20122 user@localhost:/home/user/border/border/examples/model/dqn_pong border/examples/model
 ```
 
 ## Install Atari ROM (optional)
