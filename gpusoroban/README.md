@@ -1,6 +1,10 @@
 # Script for installing required libraries on Ubuntu
 
 ```bash
+#cd $HOME/
+sudo apt install git
+git clone https://github.com/taku-y/border.git
+cd border/soroban
 bash install.sh
 source ~/.bashrc
 cd $HOME/border

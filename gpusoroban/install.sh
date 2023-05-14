@@ -33,7 +33,8 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 cd /home/user && python3.8 -m venv venv
 source /home/user/venv/bin/activate && pip3 install --upgrade pip
 source /home/user/venv/bin/activate && pip3 install pyyaml typing-extensions
-source /home/user/venv/bin/activate && pip3 install torch==1.12.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
+source /home/user/venv/bin/activate && pip3 install torch==1.12.1
+source /home/user/venv/bin/activate && pip3 install torch==1.12.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116 --no-cache-dir
 source /home/user/venv/bin/activate && pip3 install ipython jupyterlab
 source /home/user/venv/bin/activate && pip3 install numpy==1.21.3
 source /home/user/venv/bin/activate && pip3 install gym[box2d]==0.26.2
