@@ -1,7 +1,7 @@
 DEBIAN_FRONTEND=noninteractive
 sudo apt-get update -q
 sudo apt-get upgrade -yq
-sudo apt-get install -yq wget curl git build-essential vim sudo libssl-dev zip swig cmake
+sudo apt-get install -yq wget curl git build-essential vim sudo libssl-dev zip swig cmake tmux
 
 # clang
 sudo apt install -y -q libclang-dev
@@ -33,7 +33,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 cd /home/user && python3.8 -m venv venv
 source /home/user/venv/bin/activate && pip3 install --upgrade pip
 source /home/user/venv/bin/activate && pip3 install pyyaml typing-extensions
-source /home/user/venv/bin/activate && pip3 install torch==1.12.0
+source /home/user/venv/bin/activate && pip3 install torch==1.12.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
 source /home/user/venv/bin/activate && pip3 install ipython jupyterlab
 source /home/user/venv/bin/activate && pip3 install numpy==1.21.3
 source /home/user/venv/bin/activate && pip3 install gym[box2d]==0.26.2
@@ -48,3 +48,8 @@ echo 'export LIBTORCH_CXX11_ABI=0' >> ~/.bashrc
 echo 'export PATH=$HOME/.local/bin:$PATH' >> ~/.bashrc
 echo 'export PYTHONPATH=$HOME/border/border-py-gym-env/examples:$PYTHONPATH' >> ~/.bashrc
 echo 'source "$HOME/.cargo/env"' >> ~/.bashrc
+echo 'source $HOME/venv/bin/activate' >> ~/.bashrc
+echo 'export ATARI_ROM_DIR=$HOME/atari_rom' >> ~/.bashrc
+echo 'alias tml="tmux list-sessions"' >> ~/.bashrc
+echo 'alias tma="tmux a -t"' >> ~/.bashrc
+echo 'alias tms="tmux new -s"' >> ~/.bashrc
