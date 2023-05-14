@@ -37,7 +37,6 @@ source /home/user/venv/bin/activate && pip3 install torch==1.12.0
 source /home/user/venv/bin/activate && pip3 install ipython jupyterlab
 source /home/user/venv/bin/activate && pip3 install numpy==1.21.3
 source /home/user/venv/bin/activate && pip3 install gym[box2d]==0.26.2
-source /home/user/venv/bin/activate && pip3 install gym[box2d]==0.17.1
 source /home/user/venv/bin/activate && pip3 install robosuite==1.3.2
 source /home/user/venv/bin/activate && pip3 install -U 'mujoco-py<2.2,>=2.1'
 source /home/user/venv/bin/activate && pip3 install pyrender==0.1.45
@@ -48,3 +47,4 @@ echo 'export LD_LIBRARY_PATH=$LIBTORCH/lib' >> ~/.bashrc
 echo 'export LIBTORCH_CXX11_ABI=0' >> ~/.bashrc
 echo 'export PATH=$HOME/.local/bin:$PATH' >> ~/.bashrc
 echo 'export PYTHONPATH=$HOME/border/border-py-gym-env/examples:$PYTHONPATH' >> ~/.bashrc
+echo 'source "$HOME/.cargo/env"' >> ~/.bashrc
