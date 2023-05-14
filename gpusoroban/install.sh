@@ -30,7 +30,7 @@ sudo rm -rf /var/lib/apt/lists/*
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
 # python
-cd /home/user && python -m venv venv
+cd /home/user && python3.8 -m venv venv
 source /home/user/venv/bin/activate && pip3 install --upgrade pip
 source /home/user/venv/bin/activate && pip3 install pyyaml typing-extensions
 source /home/user/venv/bin/activate && pip3 install torch==1.12.0
@@ -40,7 +40,6 @@ source /home/user/venv/bin/activate && pip3 install gym[box2d]==0.26.2
 source /home/user/venv/bin/activate && pip3 install gym[box2d]==0.17.1
 source /home/user/venv/bin/activate && pip3 install robosuite==1.3.2
 source /home/user/venv/bin/activate && pip3 install -U 'mujoco-py<2.2,>=2.1'
-source /home/user/venv/bin/activate && pip3 install dm-control==1.0.8
 source /home/user/venv/bin/activate && pip3 install pyrender==0.1.45
 source /home/user/venv/bin/activate && pip3 install dm2gym==0.2.0
 
