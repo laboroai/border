@@ -11,6 +11,12 @@ cd $HOME/border
 RUST_LOG=info PYTHONPATH=./border-py-gym-env/examples cargo run --example random_cartpole
 ```
 
+## Copy remote file to local
+
+```bash
+scp -i ~/.ssh/mykey.txt -P 20122 user@localhost:/home/user/path_to_remote_file .
+```
+
 ## Install Atari ROM (optional)
 
 If you want to use Atari Learning Environment (ALE), you need to get Atari ROM.
