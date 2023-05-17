@@ -1,12 +1,12 @@
 # Script for installing required libraries on Ubuntu
 
-The procedure shown below has been tested on `nvd5-1ub` instance.
+The procedure shown below has been tested on `nvd5-1l22ul` instance.
 
 ```bash
 #cd $HOME/
 sudo apt install git
 git clone https://github.com/taku-y/border.git
-cd border/soroban
+cd border/gpusoroban
 bash install.sh
 source ~/.bashrc
 cd $HOME/border
