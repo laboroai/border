@@ -6,6 +6,7 @@
 
 * Add Docker files (`border`).
 * Add Singularity files (`border`)
+* Add script for GPUSOROBAN (#67)
 
 ### Changed
 
