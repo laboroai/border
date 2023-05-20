@@ -10,12 +10,12 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    util, Policy, Agent, Env as _, Trainer, TrainerConfig,
+    util, Agent, Env as _, Policy, Trainer, TrainerConfig,
 };
 use border_derive::{Act, SubBatch};
 use border_tch_agent::{
     cnn::Cnn,
-    dqn::{DqnConfig, Dqn as Dqn_},
+    dqn::{Dqn as Dqn_, DqnConfig},
     TensorSubBatch,
 };
 use clap::{App, Arg, ArgMatches};
@@ -79,7 +79,7 @@ fn init<'a>() -> ArgMatches<'a> {
                 .takes_value(true)
                 .required(true)
                 .index(1)
-                .help("The name of the atari environment (e.g., PongNoFrameskip-v4)"),
+                .help("The name of the atari rom (e.g., pong)"),
         )
         .arg(
             Arg::with_name("play")
@@ -225,6 +225,8 @@ fn play(matches: ArgMatches) -> Result<()> {
     let model_dir = model_dir_for_play(&matches);
     let env_config = env_config(name);
     let n_actions = n_actions(&env_config)?;
+
+    // Configurations
     let agent_config = load_dqn_config(model_dir.as_str())?
         .out_dim(n_actions as _)
         .device(device);

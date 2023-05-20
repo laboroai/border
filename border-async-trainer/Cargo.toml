@@ -3,6 +3,7 @@ name = "border-async-trainer"
 version = "0.0.5"
 authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
 edition = "2018"
+rust = "1.65.0"
 
 description = "Atari environment based on gym-rs"
 repository = "https://github.com/taku-y/border"
