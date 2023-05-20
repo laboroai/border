@@ -1,6 +1,6 @@
-# Script for installing required libraries on Ubuntu
+# Script for installing required libraries on Ubuntu 22.04
 
-The procedure shown below has been tested on `nvd5-1l22ul` instance.
+The procedure shown below has been tested on `nvd5-1l22ul` instance of [GPUSOROBAN](https://soroban.highreso.jp) (Ubuntu 22.04).
 
 ```bash
 #cd $HOME/
@@ -13,7 +13,7 @@ cd $HOME/border
 RUST_LOG=info PYTHONPATH=./border-py-gym-env/examples cargo run --example random_cartpole
 ```
 
-## Copy remote file to local
+## Copy trained model parameter file in remote to local
 
 ```bash
 scp -r -i ~/.ssh/mykey.txt -P 20122 user@localhost:/home/user/border/border/examples/model/dqn_pong border/examples/model
