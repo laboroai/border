@@ -160,8 +160,8 @@ where
     }
 
     fn batch(&mut self, size: usize) -> anyhow::Result<Self::Batch> {
-        let (ixs, weight) = if let Some(per_state) = &self.per_state {
-            let sum_tree = &per_state.sum_tree;
+        let (ixs, weight) = if let Some(per_state) = &mut self.per_state {
+            let sum_tree = &mut per_state.sum_tree;
             let beta = per_state.iw_scheduler.beta();
             let (ixs, weight) = sum_tree.sample(size, beta);
             let ixs = ixs.iter().map(|&ix| ix as usize).collect();
