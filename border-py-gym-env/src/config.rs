@@ -1,4 +1,6 @@
 //! Gym environment in Python.
+use std::time::Duration;
+
 use super::{PyGymEnvActFilter, PyGymEnvObsFilter};
 use crate::AtariWrapper;
 use border_core::{Act, Obs};
@@ -35,6 +37,9 @@ where
 
     /// Configuration of [PyGymEnvActFilter].
     pub act_filter_config: Option<AF::Config>,
+
+    /// Wait time at every interaction steps.
+    pub wait: Duration
 }
 
 impl<O, A, OF, AF> Clone for PyGymEnvConfig<O, A, OF, AF>
@@ -53,6 +58,7 @@ where
             render_mode: self.render_mode.clone(),
             obs_filter_config: self.obs_filter_config.clone(),
             act_filter_config: self.act_filter_config.clone(),
+            wait: self.wait.clone(),
         }
     }
 }
@@ -73,6 +79,7 @@ where
             render_mode: None,
             obs_filter_config: None,
             act_filter_config: None,
+            wait: Duration::from_millis(0),
         }
     }
 }
@@ -116,6 +123,12 @@ where
     /// Set the action filter config.
     pub fn act_filter_config(mut self, act_filter_config: AF::Config) -> Self {
         self.act_filter_config = Some(act_filter_config);
+        self
+    }
+
+    /// Set wait time in milli seconds.
+    pub fn set_wait_in_millis(mut self, millis: u64) -> Self {
+        self.wait = Duration::from_millis(millis);
         self
     }
 }

@@ -103,7 +103,7 @@ where
 
     act_filter: AF,
 
-    wait_in_step: Duration,
+    wait: Duration,
 
     pybullet: bool,
 
@@ -145,9 +145,9 @@ where
         self
     }
 
-    /// Set time for sleep when calling step method.
-    pub fn set_wait_in_step(&mut self, d: Duration) {
-        self.wait_in_step = d;
+    /// Set wait time at every interaction steps.
+    pub fn set_wait(&mut self, d: Duration) {
+        self.wait = d;
     }
 
     /// Get the number of available actions of atari environments
@@ -299,7 +299,7 @@ where
                         .call1((&self.env,))
                         .unwrap();
                 }
-                std::thread::sleep(self.wait_in_step);
+                std::thread::sleep(self.wait);
             }
 
             let (a_py, record_a) = self.act_filter.filt(a.clone());
@@ -374,6 +374,7 @@ where
             let kwargs = None;
             let env = gym.getattr("make_f32")?.call((name,), kwargs)?;
             if config.render_mode.is_some() {
+                env.call_method("render", ("human",), None).unwrap();
                 (env, true)
             } else {
                 (env, false)
@@ -461,7 +462,7 @@ def update_camera_pos(env):
             act_filter: AF::build(&config.act_filter_config.as_ref().unwrap())?,
             render,
             count_steps: 0,
-            wait_in_step: Duration::from_millis(0),
+            wait: config.wait.clone(),
             max_steps: config.max_steps,
             pybullet: config.pybullet,
             pybullet_state,

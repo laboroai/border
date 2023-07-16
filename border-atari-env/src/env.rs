@@ -235,7 +235,7 @@ where
     where
         Self: Sized,
     {
-        Ok(Self {
+        let mut env = Self {
             train: config.train,
             env: env(config.rom_dir.as_str(), config.name.as_str()),
             window: None,
@@ -246,7 +246,13 @@ where
             obs_filter: OF::build(&config.obs_filter_config)?,
             act_filter: AF::build(&config.act_filter_config)?,
             phantom: PhantomData,
-        })
+        };
+
+        if config.render {
+            let _ = env.open();
+        }
+
+        Ok(env)
     }
 
     fn reset(&mut self, _is_done: Option<&Vec<i8>>) -> Result<Self::Obs> {
