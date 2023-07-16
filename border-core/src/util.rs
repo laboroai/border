@@ -93,6 +93,7 @@ use anyhow::Result;
 /// Runs episodes with a policy and recorder.
 ///
 /// This function does not support vectorized environments.
+#[deprecated]
 pub fn eval_with_recorder<E, P, R>(
     env: &mut E,
     policy: &mut P,
@@ -145,6 +146,7 @@ where
 ///   If `None`, `env.reset_with_index(0)` is invoked.
 /// 
 /// This function returns the sum of rewards during interaction.
+#[deprecated]
 pub fn eval_with_recorder2<E, P, R>(
     env: &mut E,
     policy: &mut P,
