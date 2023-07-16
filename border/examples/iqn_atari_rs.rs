@@ -5,12 +5,12 @@ use border_atari_env::{
     BorderAtariObsRawFilter,
 };
 use border_core::{
-    record::{BufferedRecorder, TensorboardRecorder},
+    record::TensorboardRecorder,
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    util, Agent, Env as _, Policy, Trainer, TrainerConfig,
+    Agent, DefaultEvaluator, Env as _, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
 use border_derive::{Act, SubBatch};
 use border_tch_agent::{
@@ -60,6 +60,7 @@ type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
 type Iqn = Iqn_<Env, Cnn, Mlp, ReplayBuffer>;
 type IqnConfig = IqnConfig_<Cnn, Mlp>;
+type Evaluator = DefaultEvaluator<Env, Iqn>;
 
 fn init<'a>() -> ArgMatches<'a> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
@@ -104,6 +105,17 @@ fn init<'a>() -> ArgMatches<'a> {
         .get_matches();
 
     matches
+}
+
+fn show_config(
+    env_config: &EnvConfig,
+    agent_config: &IqnConfig,
+    trainer_config: &TrainerConfig,
+) {
+    println!("Device: {:?}", tch::Device::cuda_if_available());
+    println!("{}", serde_yaml::to_string(&env_config).unwrap());
+    println!("{}", serde_yaml::to_string(&agent_config).unwrap());
+    println!("{}", serde_yaml::to_string(&trainer_config).unwrap());
 }
 
 fn model_dir(matches: &ArgMatches) -> Result<String> {
@@ -163,9 +175,6 @@ fn train(matches: ArgMatches) -> Result<()> {
     let env_config_train = env_config(name);
     let env_config_eval = env_config(name).eval();
     let n_actions = n_actions(&env_config_train)?;
-
-    // Configurations
-    println!("{}", model_dir);
     let agent_config = load_iqn_config(model_dir.as_str())?
         .out_dim(n_actions as _)
         .device(tch::Device::cuda_if_available());
@@ -173,20 +182,22 @@ fn train(matches: ArgMatches) -> Result<()> {
     let replay_buffer_config = load_replay_buffer_config(model_dir.as_str())?;
     let step_proc_config = SimpleStepProcessorConfig {};
 
-    // if matches.is_present("show-config") {
-    //     show_config(&env_config_train, &agent_config, &trainer_config);
-    // } else {
-    let mut trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
-        trainer_config,
-        env_config_train,
-        Some(env_config_eval),
-        step_proc_config,
-        replay_buffer_config,
-    );
-    let mut recorder = TensorboardRecorder::new(model_dir);
-    let mut agent = Iqn::build(agent_config);
-    trainer.train(&mut agent, &mut recorder)?;
-    // }
+    // Show configs or train
+    if matches.is_present("show-config") {
+        show_config(&env_config_train, &agent_config, &trainer_config);
+    } else {
+        let mut trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
+            trainer_config,
+            env_config_train,
+            step_proc_config,
+            replay_buffer_config,
+        );
+        let mut agent = Iqn::build(agent_config);
+        let mut recorder = TensorboardRecorder::new(model_dir);
+        let mut evaluator = Evaluator::new(&env_config_eval, 0, 1)?;
+
+        trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
+    }
 
     Ok(())
 }
@@ -194,20 +205,25 @@ fn train(matches: ArgMatches) -> Result<()> {
 fn play(matches: ArgMatches) -> Result<()> {
     let name = matches.value_of("name").unwrap();
     let model_dir = model_dir_for_play(&matches);
-    let env_config = env_config(name).eval();
-    let n_actions = n_actions(&env_config)?;
-    let agent_config = load_iqn_config(model_dir.as_str())?
-        .out_dim(n_actions as _)
-        .device(tch::Device::cuda_if_available());
-    let mut agent = Iqn::build(agent_config);
-    let mut env = Env::build(&env_config, 0)?;
-    let mut recorder = BufferedRecorder::new();
 
-    env.open()?;
-    agent.load(model_dir + "/best")?;
-    agent.eval();
+    let (env_config, n_actions) = {
+        let env_config = env_config(name).render(true);
+        let n_actions = n_actions(&env_config)?;
+        (env_config, n_actions)
+    };
+    let mut agent = {
+        let device = tch::Device::cuda_if_available();
+        let agent_config = load_iqn_config(model_dir.as_str())?
+            .out_dim(n_actions as _)
+            .device(device);
+        let mut agent = Iqn::build(agent_config);
+        agent.load(model_dir + "/best")?;
+        agent.eval();
+        agent
+    };
+    // let mut recorder = BufferedRecorder::new();
 
-    let _ = util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder)?;
+    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut agent);
 
     Ok(())
 }

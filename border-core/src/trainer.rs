@@ -3,7 +3,7 @@ mod config;
 mod sampler;
 use crate::{
     record::{Record, Recorder},
-    Agent, Env, Obs, ReplayBufferBase, StepProcessorBase,
+    Agent, Env, ReplayBufferBase, StepProcessorBase, Evaluator,
 };
 use anyhow::Result;
 pub use config::TrainerConfig;
@@ -91,11 +91,6 @@ where
     /// Configuration of the environment for training.
     env_config_train: E::Config,
 
-    /// Configuration of the environment for evaluation.
-    ///
-    /// If `None`, `env_config_train` is used.
-    env_config_eval: Option<E::Config>,
-
     /// Configuration of the transition producer.
     step_proc_config: P::Config,
 
@@ -119,9 +114,6 @@ where
 
     /// The maximal number of optimization steps.
     max_opts: usize,
-
-    /// The number of episodes for evaluation.
-    eval_episodes: usize,
 }
 
 impl<E, P, R> Trainer<E, P, R>
@@ -134,13 +126,11 @@ where
     pub fn build(
         config: TrainerConfig,
         env_config_train: E::Config,
-        env_config_eval: Option<E::Config>,
         step_proc_config: P::Config,
         replay_buffer_config: R::Config,
     ) -> Self {
         Self {
             env_config_train,
-            env_config_eval,
             step_proc_config,
             replay_buffer_config,
             model_dir: config.model_dir,
@@ -149,7 +139,6 @@ where
             eval_interval: config.eval_interval,
             save_interval: config.save_interval,
             max_opts: config.max_opts,
-            eval_episodes: config.eval_episodes,
         }
     }
 
@@ -170,41 +159,41 @@ where
         Self::save_model(agent, model_dir);
     }
 
-    /// Run episodes with the given agent and returns the average of cumulative reward.
-    fn evaluate<A>(&mut self, agent: &mut A) -> Result<f32>
-    where
-        A: Agent<E, R>,
-    {
-        agent.eval();
+    // /// Run episodes with the given agent and returns the average of cumulative reward.
+    // fn evaluate<A>(&mut self, agent: &mut A) -> Result<f32>
+    // where
+    //     A: Agent<E, R>,
+    // {
+    //     agent.eval();
 
-        let env_config = if self.env_config_eval.is_none() {
-            &self.env_config_train
-        } else {
-            &self.env_config_eval.as_ref().unwrap()
-        };
+    //     let env_config = if self.env_config_eval.is_none() {
+    //         &self.env_config_train
+    //     } else {
+    //         &self.env_config_eval.as_ref().unwrap()
+    //     };
 
-        let mut env = E::build(env_config, 0)?; // TODO use eval_env_config
-        let mut r_total = 0f32;
+    //     let mut env = E::build(env_config, 0)?; // TODO use eval_env_config
+    //     let mut r_total = 0f32;
 
-        for ix in 0..self.eval_episodes {
-            let mut prev_obs = env.reset_with_index(ix)?;
-            assert_eq!(prev_obs.len(), 1); // env must be non-vectorized
+    //     for ix in 0..self.eval_episodes {
+    //         let mut prev_obs = env.reset_with_index(ix)?;
+    //         assert_eq!(prev_obs.len(), 1); // env must be non-vectorized
 
-            loop {
-                let act = agent.sample(&prev_obs);
-                let (step, _) = env.step(&act);
-                r_total += step.reward[0];
-                if step.is_done[0] == 1 {
-                    break;
-                }
-                prev_obs = step.obs;
-            }
-        }
+    //         loop {
+    //             let act = agent.sample(&prev_obs);
+    //             let (step, _) = env.step(&act);
+    //             r_total += step.reward[0];
+    //             if step.is_done[0] == 1 {
+    //                 break;
+    //             }
+    //             prev_obs = step.obs;
+    //         }
+    //     }
 
-        agent.train();
+    //     agent.train();
 
-        Ok(r_total / self.eval_episodes as f32)
-    }
+    //     Ok(r_total / self.eval_episodes as f32)
+    // }
 
     /// Performs a training step.
     pub fn train_step<A: Agent<E, R>>(
@@ -232,10 +221,11 @@ where
     }
 
     /// Train the agent.
-    pub fn train<A, S>(&mut self, agent: &mut A, recorder: &mut S) -> Result<()>
+    pub fn train<A, S, D>(&mut self, agent: &mut A, recorder: &mut S, evaluator: &mut D) -> Result<()>
     where
         A: Agent<E, R>,
         S: Recorder,
+        D: Evaluator<E, A>,
     {
         let env = E::build(&self.env_config_train, 0)?;
         let producer = P::build(&self.step_proc_config);
@@ -263,7 +253,7 @@ where
 
                 // Do evaluation
                 if do_eval {
-                    let eval_reward = self.evaluate(agent)?;
+                    let eval_reward = evaluator.evaluate(agent)?;
                     record.insert("eval_reward", Scalar(eval_reward));
 
                     // Save the best model up to the current iteration

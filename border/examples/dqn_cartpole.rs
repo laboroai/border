@@ -1,11 +1,11 @@
 use anyhow::Result;
 use border_core::{
-    record::{BufferedRecorder, Record, TensorboardRecorder},
+    record::{/*BufferedRecorder,*/ Record, TensorboardRecorder},
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig, SubBatch,
     },
-    util, Agent, Env as _, Policy, Trainer, TrainerConfig,
+    Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
 use border_py_gym_env::{
     PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter,
@@ -17,9 +17,9 @@ use border_tch_agent::{
     TensorSubBatch,
 };
 use clap::{App, Arg};
-use csv::WriterBuilder;
+// use csv::WriterBuilder;
 use serde::Serialize;
-use std::{convert::TryFrom, fs::File};
+use std::convert::TryFrom; //, fs::File};
 use tch::Tensor;
 
 const DIM_OBS: i64 = 4;
@@ -165,9 +165,11 @@ impl From<Tensor> for Act {
 
 type ObsFilter = PyGymEnvObsRawFilter<PyObsDtype, f32, Obs>;
 type ActFilter = PyGymEnvDiscreteActRawFilter<Act>;
+type EnvConfig = PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
+type Evaluator = DefaultEvaluator<Env, Dqn<Env, Mlp, ReplayBuffer>>;
 
 #[derive(Debug, Serialize)]
 struct CartpoleRecord {
@@ -216,11 +218,15 @@ fn create_agent(in_dim: i64, out_dim: i64) -> Dqn<Env, Mlp, ReplayBuffer> {
     Dqn::build(config)
 }
 
-fn env_config() -> PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
-    PyGymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
+fn env_config() -> EnvConfig {
+    EnvConfig::default()
         .name("CartPole-v0".to_string())
         .obs_filter_config(ObsFilter::default_config())
         .act_filter_config(ActFilter::default_config())
+}
+
+fn create_evaluator(env_config: &EnvConfig) -> Result<Evaluator> {
+    Evaluator::new(env_config, 0, N_EPISODES_PER_EVAL)
 }
 
 fn train(max_opts: usize, model_dir: &str) -> Result<()> {
@@ -235,51 +241,44 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
             .eval_interval(EVAL_INTERVAL)
             .record_interval(EVAL_INTERVAL)
             .save_interval(EVAL_INTERVAL)
-            .eval_episodes(N_EPISODES_PER_EVAL)
             .model_dir(model_dir);
         let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
             config,
             env_config,
-            None,
             step_proc_config,
             replay_buffer_config,
         );
 
         trainer
     };
-
-    let mut recorder = TensorboardRecorder::new(model_dir);
     let mut agent = create_agent(DIM_OBS, DIM_ACT);
+    let mut recorder = TensorboardRecorder::new(model_dir);
+    let mut evaluator = create_evaluator(&env_config())?;
 
-    trainer.train(&mut agent, &mut recorder)?;
+    trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
 
     Ok(())
 }
 
 fn eval(model_dir: &str, render: bool) -> Result<()> {
-    let mut env_config = env_config();
-    if render {
-        env_config = env_config.render_mode(Some("human".to_string()));
-    }
-    let mut env = Env::build(&env_config, 0)?;
-    let mut agent = create_agent(DIM_OBS, DIM_ACT);
-    let mut recorder = BufferedRecorder::new();
-    env.set_render(render);
-    if render {
-        env.set_wait_in_step(std::time::Duration::from_millis(10));
-    }
-    agent.load(model_dir)?;
-    agent.eval();
+    let env_config = {
+        let mut env_config = env_config();
+        if render {
+            env_config = env_config
+                .render_mode(Some("human".to_string()))
+                .set_wait_in_millis(10);
+        }
+        env_config
+    };
+    let mut agent = {
+        let mut agent = create_agent(DIM_OBS, DIM_ACT);
+        agent.load(model_dir)?;
+        agent.eval();
+        agent
+    };
+    // let mut recorder = BufferedRecorder::new();
 
-    let _ = util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder)?;
-
-    // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
-    let mut wtr = WriterBuilder::new()
-        .has_headers(false)
-        .from_writer(File::create(model_dir.to_string() + "/eval.csv")?);
-    for record in recorder.iter() {
-        wtr.serialize(CartpoleRecord::try_from(record)?)?;
-    }
+    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut agent);
 
     Ok(())
 }

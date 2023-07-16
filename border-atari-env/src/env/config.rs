@@ -21,6 +21,7 @@ where
     pub(super) obs_filter_config: OF::Config,
     pub(super) act_filter_config: AF::Config,
     pub(super) train: bool,
+    pub(super) render: bool,
 }
 
 impl<O, A, OF, AF> Clone for BorderAtariEnvConfig<O, A, OF, AF>
@@ -37,6 +38,7 @@ where
             obs_filter_config: self.obs_filter_config.clone(),
             act_filter_config: self.act_filter_config.clone(),
             train: self.train,
+            render: self.render,
         }
     }
 }
@@ -62,6 +64,7 @@ where
             obs_filter_config: Default::default(),
             act_filter_config: Default::default(),
             train: true,
+            render: false,
         }
     }
 }
@@ -82,6 +85,11 @@ where
     /// Sets the evaluation flag.
     pub fn eval(mut self) -> Self {
         self.train = false;
+        self
+    }
+
+    pub fn render(mut self, render: bool) -> Self {
+        self.render = render;
         self
     }
 }

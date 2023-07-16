@@ -11,7 +11,6 @@ use std::{
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct TrainerConfig {
     pub(super) max_opts: usize,
-    pub(super) eval_episodes: usize,
     pub(super) eval_threshold: Option<f32>,
     pub(super) model_dir: Option<String>,
     pub(super) opt_interval: usize,
@@ -25,7 +24,6 @@ impl Default for TrainerConfig {
         Self {
             max_opts: 0,
             eval_interval: 0,
-            eval_episodes: 0,
             eval_threshold: None,
             model_dir: None,
             opt_interval: 1,
@@ -45,12 +43,6 @@ impl TrainerConfig {
     /// Sets the interval of evaluation in optimization steps.
     pub fn eval_interval(mut self, v: usize) -> Self {
         self.eval_interval = v;
-        self
-    }
-
-    /// Sets the number of episodes for evaluation.
-    pub fn eval_episodes(mut self, v: usize) -> Self {
-        self.eval_episodes = v;
         self
     }
 

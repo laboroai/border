@@ -1,11 +1,11 @@
 use anyhow::Result;
 use border_core::{
-    record::{BufferedRecorder, Record, TensorboardRecorder},
+    record::{/*BufferedRecorder,*/ Record, TensorboardRecorder},
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    util, Agent, Env as _, Policy, Trainer, TrainerConfig,
+    Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
 use border_derive::{Act, Obs, SubBatch};
 use border_py_gym_env::{
@@ -14,20 +14,20 @@ use border_py_gym_env::{
 };
 
 use border_tch_agent::{
-    iqn::{Iqn as Iqn_, IqnConfig, IqnModelConfig, EpsilonGreedy},
-    mlp::{MlpConfig, Mlp},
+    iqn::{EpsilonGreedy, Iqn as Iqn_, IqnConfig, IqnModelConfig},
+    mlp::{Mlp, MlpConfig},
     TensorSubBatch,
 };
 use clap::{App, Arg};
-use csv::WriterBuilder;
+// use csv::WriterBuilder;
 use serde::Serialize;
-use std::{convert::TryFrom, fs::File};
+use std::convert::TryFrom;
 
 const DIM_OBS: i64 = 4;
-const DIM_FEATURE: i64 = 256;
-const DIM_EMBED: i64 = 64;
 const DIM_ACT: i64 = 2;
 const LR_CRITIC: f64 = 0.001;
+const DIM_FEATURE: i64 = 256;
+const DIM_EMBED: i64 = 64;
 const DISCOUNT_FACTOR: f64 = 0.99;
 const BATCH_SIZE: usize = 64;
 const N_TRANSITIONS_WARMUP: usize = 100;
@@ -45,7 +45,6 @@ const FINAL_STEP: usize = MAX_OPTS;
 const MODEL_DIR: &str = "border/examples/model/iqn_cartpole";
 
 type PyObsDtype = f32;
-type ObsDtype = f32;
 
 #[derive(Clone, Debug, Obs)]
 struct Obs(PyGymEnvObs<PyObsDtype, f32>);
@@ -76,10 +75,12 @@ impl From<Act> for ActBatch {
 
 type ObsFilter = PyGymEnvObsRawFilter<PyObsDtype, f32, Obs>;
 type ActFilter = PyGymEnvDiscreteActRawFilter<Act>;
+type EnvConfig = PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
 type Iqn = Iqn_<Env, Mlp, Mlp, ReplayBuffer>;
+type Evaluator = DefaultEvaluator<Env, Iqn>;
 
 #[derive(Debug, Serialize)]
 struct CartpoleRecord {
@@ -111,6 +112,10 @@ fn env_config() -> PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
         .name("CartPole-v0".to_string())
         .obs_filter_config(ObsFilter::default_config())
         .act_filter_config(ActFilter::default_config())
+}
+
+fn create_evaluator(env_config: &EnvConfig) -> Result<Evaluator> {
+    Evaluator::new(env_config, 0, N_EPISODES_PER_EVAL)
 }
 
 fn create_agent(in_dim: i64, out_dim: i64) -> Iqn {
@@ -153,47 +158,51 @@ fn train(max_opts: usize, model_dir: &str, eval_interval: usize) -> Result<()> {
             .eval_interval(eval_interval)
             .record_interval(eval_interval)
             .save_interval(eval_interval)
-            .eval_episodes(N_EPISODES_PER_EVAL)
             .model_dir(model_dir);
         let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
             config,
             env_config,
-            None,
             step_proc_config,
             replay_buffer_config,
         );
 
         trainer
     };
-
-    let mut recorder = TensorboardRecorder::new(model_dir);
     let mut agent = create_agent(DIM_OBS, DIM_ACT);
+    let mut recorder = TensorboardRecorder::new(model_dir);
+    let mut evaluator = create_evaluator(&env_config())?;
 
-    trainer.train(&mut agent, &mut recorder)?;
+    trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
 
     Ok(())
 }
 
 fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
-    let mut env = Env::build(&env_config(), 0)?;
-    let mut agent = create_agent(DIM_OBS, DIM_ACT);
-    let mut recorder = BufferedRecorder::new();
-    env.set_render(render);
-    if render {
-        env.set_wait_in_step(std::time::Duration::from_millis(10));
-    }
-    agent.load(model_dir)?;
-    agent.eval();
+    let env_config = {
+        let mut env_config = env_config();
+        if render {
+            env_config = env_config
+                .render_mode(Some("human".to_string()))
+                .set_wait_in_millis(10);
+        }
+        env_config
+    };
+    let mut agent = {
+        let mut agent = create_agent(DIM_OBS, DIM_ACT);
+        agent.load(model_dir)?;
+        agent.eval();
+        agent
+    };
 
-    let _ = util::eval_with_recorder(&mut env, &mut agent, n_episodes, &mut recorder)?;
+    let _ = Evaluator::new(&env_config, 0, n_episodes)?.evaluate(&mut agent);
 
-    // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
-    let mut wtr = WriterBuilder::new()
-        .has_headers(false)
-        .from_writer(File::create(model_dir.to_string() + "/eval.csv")?);
-    for record in recorder.iter() {
-        wtr.serialize(CartpoleRecord::try_from(record)?)?;
-    }
+    // // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
+    // let mut wtr = WriterBuilder::new()
+    //     .has_headers(false)
+    //     .from_writer(File::create(model_dir.to_string() + "/eval.csv")?);
+    // for record in recorder.iter() {
+    //     wtr.serialize(CartpoleRecord::try_from(record)?)?;
+    // }
 
     Ok(())
 }
@@ -217,7 +226,7 @@ fn main() -> Result<()> {
         train(MAX_OPTS, MODEL_DIR, EVAL_INTERVAL)?;
     }
 
-    eval(1, true, &(MODEL_DIR.to_owned() + "/best"))?;
+    eval(5, true, &(MODEL_DIR.to_owned() + "/best"))?;
 
     Ok(())
 }
@@ -235,7 +244,7 @@ mod test {
         let model_dir = model_dir.path().to_str().unwrap();
         train(100, model_dir, 100)?;
         eval(1, false, (model_dir.to_string() + "/best").as_str())?;
-    
+
         Ok(())
     }
 }

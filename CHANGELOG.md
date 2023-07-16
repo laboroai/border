@@ -7,6 +7,7 @@
 * Add Docker files (`border`).
 * Add Singularity files (`border`)
 * Add script for GPUSOROBAN (#67)
+* Add `Evaluator` trait in `border-core` (#70). It can be used to customize evaluation logic in `Trainer`.
 
 ### Changed
 

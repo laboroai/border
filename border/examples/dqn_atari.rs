@@ -2,12 +2,12 @@ mod util_dqn_atari;
 use anyhow::Result;
 use border::util::get_model_from_url;
 use border_core::{
-    record::{BufferedRecorder, TensorboardRecorder},
+    record::TensorboardRecorder,
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    util, Agent, Env as _, Policy, Trainer, TrainerConfig,
+    Agent, DefaultEvaluator, Env as _, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
 use border_derive::{Act, SubBatch};
 use border_py_gym_env::{
@@ -16,13 +16,11 @@ use border_py_gym_env::{
 };
 use border_tch_agent::{
     cnn::Cnn,
-    dqn::{DqnConfig, Dqn as Dqn_},
+    dqn::{Dqn as Dqn_, DqnConfig},
     TensorSubBatch,
 };
 use clap::{App, Arg, ArgMatches};
 use util_dqn_atari::{model_dir as model_dir_, Params};
-
-const N_STACK: i64 = 4;
 
 type PyObsDtype = u8;
 type ObsDtype = u8;
@@ -66,6 +64,7 @@ type EnvConfig = PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
 type Dqn = Dqn_<Env, Cnn, ReplayBuffer>;
+type Evaluator = DefaultEvaluator<Env, Dqn>;
 
 fn init<'a>() -> ArgMatches<'a> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
@@ -213,6 +212,7 @@ fn load_replay_buffer_config<'a>(
 }
 
 fn train(matches: ArgMatches) -> Result<()> {
+    // Configurations
     let name = matches.value_of("name").unwrap();
     let model_dir = model_dir(&matches)?;
     let env_config_train =
@@ -220,8 +220,6 @@ fn train(matches: ArgMatches) -> Result<()> {
     let env_config_eval =
         env_config(name).atari_wrapper(Some(border_py_gym_env::AtariWrapper::Eval));
     let n_actions = n_actions(&env_config_train)?;
-
-    // Configurations
     let agent_config = load_dqn_config(model_dir.as_str())?
         .out_dim(n_actions as _)
         .device(tch::Device::cuda_if_available());
@@ -235,13 +233,14 @@ fn train(matches: ArgMatches) -> Result<()> {
         let mut trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
             trainer_config,
             env_config_train,
-            Some(env_config_eval),
             step_proc_config,
             replay_buffer_config,
         );
         let mut recorder = TensorboardRecorder::new(model_dir);
         let mut agent = Dqn::build(agent_config);
-        trainer.train(&mut agent, &mut recorder)?;
+        let mut evaluator = Evaluator::new(&env_config_eval, 0, 1)?;
+
+        trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
     }
 
     Ok(())
@@ -250,20 +249,25 @@ fn train(matches: ArgMatches) -> Result<()> {
 fn play(matches: ArgMatches) -> Result<()> {
     let name = matches.value_of("name").unwrap();
     let model_dir = model_dir_for_play(&matches);
-    let env_config = env_config(name);
-    let n_actions = n_actions(&env_config)?;
-    let agent_config = load_dqn_config(model_dir.as_str())?
-        .out_dim(n_actions as _)
-        .device(tch::Device::cuda_if_available());
-    let mut agent = Dqn::build(agent_config);
-    let mut env = Env::build(&env_config, 0)?;
-    let mut recorder = BufferedRecorder::new();
 
-    env.set_render(true);
-    agent.load(model_dir + "/best")?;
-    agent.eval();
+    let (env_config, n_actions) = {
+        let env_config = env_config(name).render_mode(Some("human".to_string()));
+        let n_actions = n_actions(&env_config)?;
+        (env_config, n_actions)
+    };
 
-    let _ = util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder)?;
+    let mut agent = {
+        let agent_config = load_dqn_config(model_dir.as_str())?
+            .out_dim(n_actions as _)
+            .device(tch::Device::cuda_if_available());
+        let mut agent = Dqn::build(agent_config);
+        agent.load(model_dir + "/best")?;
+        agent.eval();
+        agent
+    };
+    // let mut recorder = BufferedRecorder::new();
+
+    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut agent);
 
     Ok(())
 }
