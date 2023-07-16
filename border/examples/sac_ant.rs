@@ -1,12 +1,12 @@
 use anyhow::Result;
 use border::util::get_model_from_url;
 use border_core::{
-    record::{BufferedRecorder, TensorboardRecorder},
+    record::TensorboardRecorder,
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    util, Agent, Env as _, Policy, Trainer, TrainerConfig,
+    Agent, Evaluator as _, DefaultEvaluator, Policy, Trainer, TrainerConfig,
 };
 use border_derive::{Act, Obs, SubBatch};
 use border_py_gym_env::{
@@ -22,7 +22,7 @@ use border_tch_agent::{
 };
 use clap::{App, Arg};
 use log::info;
-use std::{convert::TryFrom, time::Duration};
+use std::convert::TryFrom;
 
 const DIM_OBS: i64 = 28;
 const DIM_ACT: i64 = 8;
@@ -75,6 +75,7 @@ type ActFilter = PyGymEnvContinuousActRawFilter<Act>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
+type Evaluator = DefaultEvaluator<Env, Sac<Env, Mlp, Mlp2, ReplayBuffer>>;
 
 fn create_agent(in_dim: i64, out_dim: i64) -> Sac<Env, Mlp, Mlp2, ReplayBuffer> {
     let device = tch::Device::cuda_if_available();
@@ -118,37 +119,44 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
             .eval_interval(EVAL_INTERVAL)
             .record_interval(EVAL_INTERVAL)
             .save_interval(EVAL_INTERVAL)
-            .eval_episodes(N_EPISODES_PER_EVAL)
             .model_dir(model_dir);
         let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
             config,
             env_config,
-            None,
             step_proc_config,
             replay_buffer_config,
         );
 
         trainer
     };
-
-    let mut recorder = TensorboardRecorder::new(model_dir);
     let mut agent = create_agent(DIM_OBS, DIM_ACT);
+    let mut recorder = TensorboardRecorder::new(model_dir);
+    let mut evaluator = Evaluator::new(&env_config(), 0, N_EPISODES_PER_EVAL)?;
 
-    trainer.train(&mut agent, &mut recorder)?;
+    trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
 
     Ok(())
 }
 
-fn eval(model_dir: &str) -> Result<()> {
-    let mut env = Env::build(&env_config(), 0)?;
-    env.set_wait_in_step(Duration::from_millis(10));
-    let mut agent = create_agent(DIM_OBS, DIM_ACT);
-    let mut recorder = BufferedRecorder::new();
-    env.set_render(true);
-    agent.load(model_dir)?;
-    agent.eval();
+fn eval(model_dir: &str, render: bool) -> Result<()> {
+    let env_config = {
+        let mut env_config = env_config();
+        if render {
+            env_config = env_config
+                .render_mode(Some("human".to_string()))
+                .set_wait_in_millis(10);
+        };
+        env_config
+    };
+    let mut agent = {
+        let mut agent = create_agent(DIM_OBS, DIM_ACT);
+        agent.load(model_dir)?;
+        agent.eval();
+        agent
+    };
+    // let mut recorder = BufferedRecorder::new();
 
-    let _ = util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder)?;
+    let _ = Evaluator::new(&env_config, 0, N_EPISODES_PER_EVAL)?.evaluate(&mut agent);
 
     Ok(())
 }
@@ -199,7 +207,7 @@ fn main() -> Result<()> {
             model_dir.as_ref().to_str().unwrap().to_string()
         };
 
-        eval(model_dir.as_str())?;
+        eval(model_dir.as_str(), true)?;
     }
 
     Ok(())

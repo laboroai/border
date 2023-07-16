@@ -10,8 +10,6 @@ use border_tch_agent::TensorSubBatch;
 use std::convert::TryFrom;
 // use tch::Tensor;
 
-const N_STACK: i64 = 4;
-
 type PyObsDtype = u8;
 
 #[derive(Clone, Debug, Obs)]

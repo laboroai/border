@@ -1,11 +1,11 @@
 use anyhow::Result;
 use border_core::{
-    record::{BufferedRecorder, Record, RecordValue, TensorboardRecorder},
+    record::{/*BufferedRecorder,*/ Record, RecordValue, TensorboardRecorder},
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    util, Agent, Env as _, Policy, Trainer, TrainerConfig,
+    Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
 use border_derive::{Act, Obs, SubBatch};
 use border_py_gym_env::{
@@ -19,10 +19,10 @@ use border_tch_agent::{
     TensorSubBatch,
 };
 use clap::{App, Arg};
-use csv::WriterBuilder;
+// use csv::WriterBuilder;
 use pyo3::PyObject;
 use serde::Serialize;
-use std::{convert::TryFrom, fs::File};
+use std::convert::TryFrom;
 
 const DIM_OBS: i64 = 3;
 const DIM_ACT: i64 = 1;
@@ -98,6 +98,7 @@ type ObsFilter = PyGymEnvObsRawFilter<PyObsDtype, f32, Obs>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
+type Evaluator = DefaultEvaluator<Env, Sac<Env, Mlp, Mlp2, ReplayBuffer>>;
 
 #[derive(Debug, Serialize)]
 struct PendulumRecord {
@@ -161,50 +162,52 @@ fn train(max_opts: usize, model_dir: &str, eval_interval: usize) -> Result<()> {
             .eval_interval(eval_interval)
             .record_interval(eval_interval)
             .save_interval(eval_interval)
-            .eval_episodes(N_EPISODES_PER_EVAL)
             .model_dir(model_dir);
         let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
             config,
             env_config,
-            None,
             step_proc_config,
             replay_buffer_config,
         );
 
         trainer
     };
-
-    let mut recorder = TensorboardRecorder::new(model_dir);
     let mut agent = create_agent(DIM_OBS, DIM_ACT);
+    let mut recorder = TensorboardRecorder::new(model_dir);
+    let mut evaluator = Evaluator::new(&env_config(), 0, N_EPISODES_PER_EVAL)?;
 
-    trainer.train(&mut agent, &mut recorder)?;
+    trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
 
     Ok(())
 }
 
 fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
-    let mut env_config = env_config();
-    if render {
-        env_config = env_config.render_mode(Some("human".to_string()));
-    }
-    let mut env = Env::build(&env_config, 0)?;
-    let mut agent = create_agent(DIM_OBS, DIM_ACT);
-    let mut recorder = BufferedRecorder::new();
-    if render {
-        env.set_wait_in_step(std::time::Duration::from_millis(10));
-    }
-    agent.load(model_dir)?;
-    agent.eval();
+    let env_config = {
+        let mut env_config = env_config();
+        if render {
+            env_config = env_config
+                .render_mode(Some("human".to_string()))
+                .set_wait_in_millis(10);
+        };
+        env_config
+    };
+    let mut agent = {
+        let mut agent = create_agent(DIM_OBS, DIM_ACT);
+        agent.load(model_dir)?;
+        agent.eval();
+        agent
+    };
+    // let mut recorder = BufferedRecorder::new();
 
-    let _ = util::eval_with_recorder(&mut env, &mut agent, n_episodes, &mut recorder)?;
+    let _ = Evaluator::new(&env_config, 0, n_episodes)?.evaluate(&mut agent);
 
-    // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
-    let mut wtr = WriterBuilder::new()
-        .has_headers(false)
-        .from_writer(File::create(model_dir.to_string() + "/eval.csv")?);
-    for record in recorder.iter() {
-        wtr.serialize(PendulumRecord::try_from(record)?)?;
-    }
+    // // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
+    // let mut wtr = WriterBuilder::new()
+    //     .has_headers(false)
+    //     .from_writer(File::create(model_dir.to_string() + "/eval.csv")?);
+    // for record in recorder.iter() {
+    //     wtr.serialize(PendulumRecord::try_from(record)?)?;
+    // }
 
     Ok(())
 }
