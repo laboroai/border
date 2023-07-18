@@ -92,6 +92,11 @@ where
             sum_tree.add(i, max_p);
         }
     }
+
+    /// Returns capacity of the replay buffer.
+    pub fn capacity(&self) -> usize {
+        self.capacity
+    }
 }
 
 impl<O, A> ExperienceBufferBase for SimpleReplayBuffer<O, A>
