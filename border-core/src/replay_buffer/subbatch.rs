@@ -10,4 +10,7 @@ pub trait SubBatch {
 
     /// Takes samples in the batch.
     fn sample(&self, ixs: &Vec<usize>) -> Self;
+
+    /// Returns the number of samples.
+    fn len(&self) -> usize;
 }

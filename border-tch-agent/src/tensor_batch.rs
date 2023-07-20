@@ -107,6 +107,10 @@ where
             phantom: PhantomData,
         }
     }
+
+    fn len(&self) -> usize {
+        self.buf.size()[0] as _
+    }
 }
 
 impl<S, D> From<TensorSubBatch<S, D>> for Tensor {

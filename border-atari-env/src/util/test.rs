@@ -65,6 +65,10 @@ impl SubBatch for ObsBatch {
 
         Self { m, n, buf }
     }
+
+    fn len(&self) -> usize {
+        self.buf.len()
+    }
 }
 
 impl From<Obs> for ObsBatch {
@@ -119,6 +123,10 @@ impl SubBatch for ActBatch {
         });
 
         Self { m, n, buf }
+    }
+
+    fn len(&self) -> usize {
+        self.buf.len()
     }
 }
 
