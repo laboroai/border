@@ -2,7 +2,7 @@ use crate::{
     Actor, ActorManagerConfig, ActorStat, PushedItemMessage, ReplayBufferProxyConfig, SyncModel,
 };
 use border_core::{Agent, Env, ReplayBufferBase, StepProcessorBase};
-use crossbeam_channel::{bounded, /*unbounded,*/ Receiver, Sender};
+use crossbeam_channel::{bounded, /*unbounded,*/ Receiver, Sender, TrySendError};
 use log::info;
 use std::{
     marker::PhantomData,
@@ -220,7 +220,13 @@ where
             // TODO: stats
             let msg = receiver.recv().unwrap();
             _n_samples += 1;
-            sender.try_send(msg).unwrap();
+            match sender.try_send(msg) {
+                Ok(()) => {}
+                Err(TrySendError::Full(_)) => {} // ignore error if channel is full
+                Err(TrySendError::Disconnected(_)) => {
+                    break; // stop loop and thread when disconnected
+                }
+            }
             // println!("{:?}", (_msg.id, n_samples));
 
             // Stop the loop
