@@ -1,5 +1,5 @@
 ---
-model_dir: "./border/examples/model/dqn_pong_async/"
+model_dir: "./border/examples/atari/model/dqn_pong_async/"
 record_interval: 50000
 eval_interval: 50000
 max_train_steps: 3000000

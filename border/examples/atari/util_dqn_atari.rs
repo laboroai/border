@@ -117,7 +117,7 @@ pub fn model_dir(env_name: String, params: &Params) -> Result<String> {
     let ddqn = params.double_dqn;
     let debug = params.debug;
 
-    let mut model_dir = format!("./border/examples/model/dqn_{}", env_name);
+    let mut model_dir = format!("./border/examples/atari/model/dqn_{}", env_name);
     if ddqn {
         model_dir.push_str("_ddqn");
     }
@@ -143,7 +143,7 @@ pub fn model_dir_async(env_name: String, params: &Params) -> Result<String> {
     let ddqn = params.double_dqn;
     let debug = params.debug;
 
-    let mut model_dir = format!("./border/examples/model/dqn_{}", env_name);
+    let mut model_dir = format!("./border/examples/atari/model/dqn_{}", env_name);
     if ddqn {
         model_dir.push_str("_ddqn");
     }

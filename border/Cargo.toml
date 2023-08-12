@@ -56,11 +56,13 @@ test = false
 
 [[example]]
 name = "dqn_atari_rs"
+path = "examples/atari/dqn_atari_rs.rs"
 required-features = ["tch"]
 test = false
 
 [[example]]
 name = "dqn_atari_async"
+path = "examples/atari/dqn_atari_async.rs"
 required-features = ["tch", "border-async-trainer"]
 test = false
 

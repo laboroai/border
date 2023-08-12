@@ -2,7 +2,7 @@
 max_opts: 50000000
 eval_episodes: 1
 eval_threshold: ~
-model_dir: "./border/examples/model/iqn_seaquest"
+model_dir: "./border/examples/atari/model/iqn_seaquest"
 opt_interval: 1
 eval_interval: 500000
 record_interval: 500000
