@@ -50,11 +50,6 @@ required-features = ["tch"]
 test = false
 
 [[example]]
-name = "dqn_atari"
-required-features = ["tch"]
-test = false
-
-[[example]]
 name = "dqn_atari_rs"
 path = "examples/atari/dqn_atari_rs.rs"
 required-features = ["tch"]
