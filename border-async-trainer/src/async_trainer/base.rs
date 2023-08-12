@@ -1,8 +1,7 @@
-use crate::{AsyncTrainerConfig, PushedItemMessage, SyncModel, AsyncTrainStat};
-use anyhow::Result;
+use crate::{AsyncTrainStat, AsyncTrainerConfig, PushedItemMessage, SyncModel};
 use border_core::{
     record::{Record, RecordValue::Scalar, Recorder},
-    Agent, Env, Obs, ReplayBufferBase,
+    Agent, Env, Evaluator, ReplayBufferBase,
 };
 use crossbeam_channel::{Receiver, Sender};
 use log::info;
@@ -46,7 +45,7 @@ use std::{
 /// * The model parameters of the [`Agent`] in [`AsyncTrainer`] are wrapped in
 ///   [`SyncModel::ModelInfo`] and periodically sent to the [`Agent`]s in [`Actor`]s.
 ///   [`Agent`] must implement [`SyncModel`] to synchronize its model.
-/// 
+///
 /// [`ActorManager`]: crate::ActorManager
 /// [`Actor`]: crate::Actor
 /// [`ReplayBufferBase::PushedItem`]: border_core::ReplayBufferBase::PushedItem
@@ -78,9 +77,6 @@ where
 
     /// Interval of synchronizing model parameters in training steps.
     sync_interval: usize,
-
-    /// The number of episodes for evaluation
-    eval_episodes: usize,
 
     /// Receiver of pushed items.
     r_bulk_pushed_item: Receiver<PushedItemMessage<R::PushedItem>>,
@@ -128,7 +124,6 @@ where
             max_train_steps: config.max_train_steps,
             save_interval: config.save_interval,
             sync_interval: config.sync_interval,
-            eval_episodes: config.eval_episodes,
             agent_config: agent_config.clone(),
             env_config: env_config.clone(),
             replay_buffer_config: replay_buffer_config.clone(),
@@ -142,48 +137,13 @@ where
     fn save_model(agent: &A, model_dir: String) {
         match agent.save(&model_dir) {
             Ok(()) => info!("Saved the model in {:?}.", &model_dir),
-            Err(_) => info!("Failed to save model in {:?}.",  &model_dir),
+            Err(_) => info!("Failed to save model in {:?}.", &model_dir),
         }
     }
 
-    fn evaluate(&mut self, agent: &mut A, env: &mut E) -> Result<f32> {
-        agent.eval();
-
-        let mut r_total = 0f32;
-
-        for ix in 0..self.eval_episodes {
-            let mut prev_obs = env.reset_with_index(ix)?;
-            assert_eq!(prev_obs.len(), 1); // env must be non-vectorized
-
-            loop {
-                let act = agent.sample(&prev_obs);
-                let (step, _) = env.step(&act);
-                r_total += step.reward[0];
-                if step.is_done[0] == 1 {
-                    break;
-                }
-                prev_obs = step.obs;
-            }
-        }
-
-        agent.train();
-
-        Ok(r_total / self.eval_episodes as f32)
-    }
-
-    /// Do evaluation.
-    #[inline(always)]
-    fn eval(&mut self, agent: &mut A, env: &mut E, record: &mut Record, max_eval_reward: &mut f32) {
-        let eval_reward = self.evaluate(agent, env).unwrap();
-        record.insert("eval_reward", Scalar(eval_reward));
-
-        // Save the best model up to the current iteration
-        if eval_reward > *max_eval_reward {
-            *max_eval_reward = eval_reward;
-            let model_dir = self.model_dir.as_ref().unwrap().clone() + "/best";
-            Self::save_model(agent, model_dir);
-            info!("Saved the best model");
-        }
+    fn save_best_model(agent: &A, model_dir: String) {
+        let model_dir = model_dir + "/best";
+        Self::save_model(agent, model_dir);
     }
 
     /// Record.
@@ -266,9 +226,17 @@ where
     /// These values will typically be monitored with tensorboard.
     ///
     /// [`ExperienceBufferBase::PushedItem`]: border_core::ExperienceBufferBase::PushedItem
-    pub fn train(&mut self, recorder: &mut impl Recorder, guard_init_env: Arc<Mutex<bool>>) -> AsyncTrainStat {
+    pub fn train<D>(
+        &mut self,
+        recorder: &mut impl Recorder,
+        evaluator: &mut D,
+        guard_init_env: Arc<Mutex<bool>>,
+    ) -> AsyncTrainStat
+    where
+        D: Evaluator<E, A>,
+    {
         // TODO: error handling
-        let mut env = {
+        let _env = {
             let mut tmp = guard_init_env.lock().unwrap();
             *tmp = true;
             E::build(&self.env_config, 0).unwrap()
@@ -315,22 +283,47 @@ where
                 let do_save = opt_steps % self.save_interval == 0;
                 let do_sync = opt_steps % self.sync_interval == 0;
 
+                // Do evaluation
                 if do_eval {
                     info!("Starts evaluation of the trained model");
-                    self.eval(&mut agent, &mut env, &mut record, &mut max_eval_reward);
+                    agent.eval();
+                    let eval_reward = evaluator.evaluate(&mut agent).unwrap();
+                    agent.train();
+                    record.insert("eval_reward", Scalar(eval_reward));
+
+                    // Save the best model up to the current iteration
+                    if eval_reward > max_eval_reward {
+                        max_eval_reward = eval_reward;
+                        let model_dir = self.model_dir.as_ref().unwrap().clone();
+                        Self::save_best_model(&agent, model_dir)
+                    }
                 }
+
+                // Record
                 if do_record {
                     info!("Records training logs");
-                    self.record(&mut record, &mut opt_steps_, &mut samples, &mut time, samples_total);
+                    self.record(
+                        &mut record,
+                        &mut opt_steps_,
+                        &mut samples,
+                        &mut time,
+                        samples_total,
+                    );
                 }
+
+                // Flush record to the recorder
                 if do_flush {
                     info!("Flushes records");
                     self.flush(opt_steps, record, recorder);
                 }
+
+                // Save the current model
                 if do_save {
                     info!("Saves the trained model");
                     self.save(opt_steps, &mut agent);
                 }
+
+                // Finish the training loop
                 if opt_steps == self.max_train_steps {
                     // Flush channels
                     *self.stop.lock().unwrap() = true;
@@ -338,6 +331,8 @@ where
                     self.sync(&agent);
                     break;
                 }
+
+                // Sync the current model
                 if do_sync {
                     info!("Sends the trained model info to ActorManager");
                     self.sync(&agent);
