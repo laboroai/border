@@ -1,0 +1,8 @@
+# !.gitignore
+# */*
+# *
+*.pt
+events*
+*.csv
+*.zip
+*.gz
