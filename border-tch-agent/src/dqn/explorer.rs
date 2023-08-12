@@ -83,4 +83,18 @@ impl EpsilonGreedy {
             a.argmax(-1, true)
         }
     }
+
+    /// Set the epsilon value at the final step.
+    pub fn eps_final(self, v: f64) -> Self {
+        let mut s = self;
+        s.eps_final = v;
+        s
+    }
+
+    /// Set the epsilon value at the start.
+    pub fn eps_start(self, v: f64) -> Self {
+        let mut s = self;
+        s.eps_start = v;
+        s
+    }
 }

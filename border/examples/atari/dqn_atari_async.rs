@@ -19,7 +19,7 @@ use border_core::{
 use border_derive::{Act, SubBatch};
 use border_tch_agent::{
     cnn::Cnn,
-    dqn::{Dqn, DqnConfig},
+    dqn::{Dqn, DqnConfig, DqnExplorer, EpsilonGreedy},
     TensorSubBatch,
 };
 use clap::{App, Arg, ArgMatches};
@@ -73,7 +73,7 @@ fn env_config(name: impl Into<String>) -> EnvConfig {
     BorderAtariEnvConfig::default().name(name.into())
 }
 
-fn init<'a>() -> ArgMatches<'a> {
+fn parse_args<'a>() -> ArgMatches<'a> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
 
@@ -111,6 +111,27 @@ fn init<'a>() -> ArgMatches<'a> {
                 .long("show-config")
                 .takes_value(false)
                 .help("Showing configuration loaded from files"),
+        )
+        .arg(
+            Arg::with_name("n-actors")
+                .long("n-actors")
+                .takes_value(true)
+                .default_value("6")
+                .help("The number of actors"),
+        )
+        .arg(
+            Arg::with_name("eps-min")
+                .long("eps-min")
+                .takes_value(true)
+                .default_value("0.001")
+                .help("The minimum value of exploration noise probability"),
+        )
+        .arg(
+            Arg::with_name("eps-max")
+                .long("eps-max")
+                .takes_value(true)
+                .default_value("0.4")
+                .help("The maximum value of exploration noise probability"),
         )
         .get_matches();
 
@@ -181,11 +202,28 @@ fn train(matches: ArgMatches) -> Result<()> {
     let env_config_train = env_config(name);
     let n_actions = n_actions(&env_config_train)?;
 
+    // exploration parameters
+    let n_actors = matches
+        .value_of("n-actors")
+        .unwrap()
+        .parse::<usize>()
+        .unwrap();
+    let eps_min = matches.value_of("eps-min").unwrap().parse::<f64>().unwrap();
+    let eps_max = matches.value_of("eps-max").unwrap().parse::<f64>().unwrap();
+
     // Configurations
     let agent_config = load_dqn_config(model_dir.as_str())?
         .out_dim(n_actions as _)
         .device(tch::Device::cuda_if_available());
-    let agent_configs = vec![agent_config.clone().device(tch::Device::Cpu); 4];
+    let agent_configs = (0..n_actors)
+        .map(|ix| {
+            let n = ix as f64 / ((n_actors - 1) as f64);
+            let eps = (eps_max - eps_min) * n + eps_min;
+            let explorer =
+                DqnExplorer::EpsilonGreedy(EpsilonGreedy::new().eps_start(eps).eps_final(eps));
+            agent_config.clone().device(tch::Device::Cpu).explorer(explorer)
+        })
+        .collect::<Vec<_>>();
     let env_config_eval = env_config(name).eval();
     let replay_buffer_config = load_replay_buffer_config(model_dir.as_str())?;
     let step_proc_config = SimpleStepProcessorConfig::default();
@@ -248,7 +286,7 @@ fn train(matches: ArgMatches) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    let matches = init();
+    let matches = parse_args();
 
     train(matches)?;
 
