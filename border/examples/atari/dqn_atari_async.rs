@@ -271,6 +271,9 @@ fn train(matches: ArgMatches) -> Result<()> {
             stop.clone(),
         );
 
+        // Set the number of threads
+        tch::set_num_threads(1);
+
         // Starts sampling and training
         actors.run(guard_init_env.clone());
         let stats = trainer.train(&mut recorder, &mut evaluator, guard_init_env);
