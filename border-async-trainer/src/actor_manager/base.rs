@@ -40,6 +40,9 @@ where
     /// This parameter is used as `n_buffer` in [`ReplayBufferProxyConfig`].
     n_buffer: usize,
 
+    /// capacity of channel between each actor and actor-manager
+    channel_capacity: usize,
+
     /// Flag to stop training
     stop: Arc<Mutex<bool>>,
 
@@ -90,6 +93,7 @@ where
             env_config: env_config.clone(),
             step_proc_config: step_proc_config.clone(),
             n_buffer: config.n_buffer,
+            channel_capacity: config.channel_capacity,
             stop,
             threads: vec![],
             batch_message_receiver: None,
@@ -130,7 +134,7 @@ where
 
         // Create channel for [BatchMessage]
         // let (s, r) = unbounded();
-        let (s, r) = bounded(1000);
+        let (s, r) = bounded(self.channel_capacity);
         self.batch_message_receiver = Some(r.clone());
 
         // Runs sampling processes

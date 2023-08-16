@@ -29,6 +29,9 @@ pub struct AsyncTrainerConfig {
 
     /// The number of episodes for evaluation
     pub eval_episodes: usize,
+
+    /// capacity of channel between each actor-manager and async-trainer
+    pub channel_capacity: usize,
 }
 
 impl AsyncTrainerConfig {
