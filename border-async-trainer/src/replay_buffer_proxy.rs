@@ -1,7 +1,7 @@
 use crate::PushedItemMessage;
 use anyhow::Result;
 use border_core::{ExperienceBufferBase, ReplayBufferBase};
-use crossbeam_channel::Sender;
+use crossbeam_channel::{Sender, TrySendError};
 use std::marker::PhantomData;
 
 /// Configuration of [ReplayBufferProxy].
@@ -62,6 +62,7 @@ impl<R: ReplayBufferBase> ExperienceBufferBase for ReplayBufferProxy<R> {
 
             match self.sender.try_send(msg) {
                 Ok(()) => {}
+                Err(TrySendError::Full(_)) => {} // ignore error if channel is full
                 Err(_e) => {
                     return Err(crate::BorderAsyncTrainerError::SendMsgForPush)?;
                 }
