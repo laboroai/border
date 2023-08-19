@@ -1,7 +1,8 @@
 mod util_dqn_atari;
 use anyhow::Result;
 use border_async_trainer::{
-    actor_stats_fmt, ActorManager, ActorManagerConfig, AsyncTrainer, AsyncTrainerConfig,
+    actor_stats_fmt, ActorManager as ActorManager_, ActorManagerConfig,
+    AsyncTrainer as AsyncTrainer_, AsyncTrainerConfig,
 };
 use border_atari_env::{
     BorderAtariAct, BorderAtariActRawFilter, BorderAtariEnv, BorderAtariEnvConfig, BorderAtariObs,
@@ -13,12 +14,12 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    shape, Env as _,
+    DefaultEvaluator, Env as _,
 };
 use border_derive::{Act, SubBatch};
 use border_tch_agent::{
     cnn::Cnn,
-    dqn::{DqnConfig, Dqn},
+    dqn::{Dqn, DqnConfig, DqnExplorer, EpsilonGreedy},
     TensorSubBatch,
 };
 use clap::{App, Arg, ArgMatches};
@@ -29,15 +30,10 @@ use std::{
 };
 use util_dqn_atari::{model_dir_async as model_dir_async_, Params};
 
-type ObsDtype = u8;
-shape!(ObsShape, [4, 1, 84, 84]);
-
-// #[derive(Debug, Clone, Obs)]
-// struct Obs(BorderAtariObs);
 type Obs = BorderAtariObs;
 
 #[derive(Clone, SubBatch)]
-struct ObsBatch(TensorSubBatch<ObsShape, ObsDtype>);
+struct ObsBatch(TensorSubBatch);
 
 impl From<Obs> for ObsBatch {
     fn from(obs: Obs) -> Self {
@@ -46,10 +42,8 @@ impl From<Obs> for ObsBatch {
     }
 }
 
-shape!(ActShape, [1]);
-
 #[derive(SubBatch)]
-struct ActBatch(TensorSubBatch<ActShape, i64>);
+struct ActBatch(TensorSubBatch);
 
 impl From<Act> for ActBatch {
     fn from(act: Act) -> Self {
@@ -67,18 +61,19 @@ struct Act(BorderAtariAct);
 type ObsFilter = BorderAtariObsRawFilter<Obs>;
 type ActFilter = BorderAtariActRawFilter<Act>;
 type EnvConfig = BorderAtariEnvConfig<Obs, Act, ObsFilter, ActFilter>;
-type Env_ = BorderAtariEnv<Obs, Act, ObsFilter, ActFilter>;
-type StepProc_ = SimpleStepProcessor<Env_, ObsBatch, ActBatch>;
-type ReplayBuffer_ = SimpleReplayBuffer<ObsBatch, ActBatch>;
-type Agent_ = Dqn<Env_, Cnn, ReplayBuffer_>;
-type ActorManager_ = ActorManager<Agent_, Env_, ReplayBuffer_, StepProc_>;
-type AsyncTrainer_ = AsyncTrainer<Agent_, Env_, ReplayBuffer_>;
+type Env = BorderAtariEnv<Obs, Act, ObsFilter, ActFilter>;
+type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
+type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
+type Agent = Dqn<Env, Cnn, ReplayBuffer>;
+type ActorManager = ActorManager_<Agent, Env, ReplayBuffer, StepProc>;
+type AsyncTrainer = AsyncTrainer_<Agent, Env, ReplayBuffer>;
+type Evaluator = DefaultEvaluator<Env, Agent>;
 
 fn env_config(name: impl Into<String>) -> EnvConfig {
     BorderAtariEnvConfig::default().name(name.into())
 }
 
-fn init<'a>() -> ArgMatches<'a> {
+fn parse_args<'a>() -> ArgMatches<'a> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
 
@@ -116,6 +111,27 @@ fn init<'a>() -> ArgMatches<'a> {
                 .long("show-config")
                 .takes_value(false)
                 .help("Showing configuration loaded from files"),
+        )
+        .arg(
+            Arg::with_name("n-actors")
+                .long("n-actors")
+                .takes_value(true)
+                .default_value("6")
+                .help("The number of actors"),
+        )
+        .arg(
+            Arg::with_name("eps-min")
+                .long("eps-min")
+                .takes_value(true)
+                .default_value("0.001")
+                .help("The minimum value of exploration noise probability"),
+        )
+        .arg(
+            Arg::with_name("eps-max")
+                .long("eps-max")
+                .takes_value(true)
+                .default_value("0.4")
+                .help("The maximum value of exploration noise probability"),
         )
         .get_matches();
 
@@ -160,7 +176,7 @@ fn model_dir_async(matches: &ArgMatches) -> Result<String> {
 }
 
 fn n_actions(env_config: &EnvConfig) -> Result<usize> {
-    Ok(Env_::build(env_config, 0)?.get_num_actions_atari() as usize)
+    Ok(Env::build(env_config, 0)?.get_num_actions_atari() as usize)
 }
 
 fn load_dqn_config<'a>(model_dir: impl Into<&'a str>) -> Result<DqnConfig<Cnn>> {
@@ -186,11 +202,28 @@ fn train(matches: ArgMatches) -> Result<()> {
     let env_config_train = env_config(name);
     let n_actions = n_actions(&env_config_train)?;
 
+    // exploration parameters
+    let n_actors = matches
+        .value_of("n-actors")
+        .unwrap()
+        .parse::<usize>()
+        .unwrap();
+    let eps_min = matches.value_of("eps-min").unwrap().parse::<f64>().unwrap();
+    let eps_max = matches.value_of("eps-max").unwrap().parse::<f64>().unwrap();
+
     // Configurations
     let agent_config = load_dqn_config(model_dir.as_str())?
         .out_dim(n_actions as _)
         .device(tch::Device::cuda_if_available());
-    let agent_configs = vec![agent_config.clone().device(tch::Device::Cpu); 4];
+    let agent_configs = (0..n_actors)
+        .map(|ix| {
+            let n = ix as f64 / ((n_actors - 1) as f64);
+            let eps = (eps_max - eps_min) * n + eps_min;
+            let explorer =
+                DqnExplorer::EpsilonGreedy(EpsilonGreedy::new().eps_start(eps).eps_final(eps));
+            agent_config.clone().device(tch::Device::Cpu).explorer(explorer)
+        })
+        .collect::<Vec<_>>();
     let env_config_eval = env_config(name).eval();
     let replay_buffer_config = load_replay_buffer_config(model_dir.as_str())?;
     let step_proc_config = SimpleStepProcessorConfig::default();
@@ -206,6 +239,7 @@ fn train(matches: ArgMatches) -> Result<()> {
         );
     } else {
         let mut recorder = TensorboardRecorder::new(model_dir);
+        let mut evaluator = Evaluator::new(&env_config_eval, 0, 1)?;
 
         // Shared flag to stop actor threads
         let stop = Arc::new(Mutex::new(false));
@@ -218,7 +252,7 @@ fn train(matches: ArgMatches) -> Result<()> {
         let guard_init_env = Arc::new(Mutex::new(true));
 
         // Actor manager and async trainer
-        let mut actors = ActorManager_::build(
+        let mut actors = ActorManager::build(
             &actor_man_config,
             &agent_configs,
             &env_config_train,
@@ -227,7 +261,7 @@ fn train(matches: ArgMatches) -> Result<()> {
             model_r,
             stop.clone(),
         );
-        let mut trainer = AsyncTrainer_::build(
+        let mut trainer = AsyncTrainer::build(
             &async_trainer_config,
             &agent_config,
             &env_config_eval,
@@ -237,9 +271,12 @@ fn train(matches: ArgMatches) -> Result<()> {
             stop.clone(),
         );
 
+        // Set the number of threads
+        tch::set_num_threads(1);
+
         // Starts sampling and training
         actors.run(guard_init_env.clone());
-        let stats = trainer.train(&mut recorder, guard_init_env);
+        let stats = trainer.train(&mut recorder, &mut evaluator, guard_init_env);
         println!("Stats of async trainer");
         println!("{}", stats.fmt());
 
@@ -252,7 +289,7 @@ fn train(matches: ArgMatches) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    let matches = init();
+    let matches = parse_args();
 
     train(matches)?;
 

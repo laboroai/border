@@ -82,10 +82,38 @@ PYTHONPATH=./border-py-gym-env/examples cargo run --example sac_lunarlander_cont
   PYTHONPATH=./border-py-gym-env/examples cargo run --example iqn_atari --features="tch" -- SeaquestNoFrameskip-v4 --play-gdrive
   ```
 
-## Atari (not python)
+## Atari (without python)
 
-### Random policy
+See atari subdirectory.
 
-```bash
-cargo run --example random_pong
-```
+* Random policy
+
+  ```bash
+  cargo run --example random_pong
+  ```
+
+* DQN Pong
+
+  ```bash
+  cargo run --release --example dqn_atari_rs --features=tch -- pong
+  ```
+
+* DQN Pong Asynchronous trainer
+
+  ```bash
+  cargo run --release --example dqn_atari_async --features="tch,border-async-trainer" -- pong
+  ```
+
+  <img src="https://drive.google.com/uc?id=1yC3ZWA96GJgNqkWtqgx7DK9_hRH2BlLe" width="512">
+
+* DQN Asterix Asynchronous trainer
+
+  ```bash
+  cargo run --release --example dqn_atari_async --features="tch,border-async-trainer" -- asterix
+  ```
+
+* DDQN Asterix Asynchronous trainer
+
+  ```bash
+  cargo run --release --example dqn_atari_async --features="tch,border-async-trainer" -- asterix --ddqn
+  ```

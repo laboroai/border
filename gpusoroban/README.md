@@ -16,7 +16,7 @@ RUST_LOG=info PYTHONPATH=./border-py-gym-env/examples cargo run --example random
 ## Copy trained model parameter file in remote to local
 
 ```bash
-scp -r -i ~/.ssh/mykey.txt -P 20122 user@localhost:/home/user/border/border/examples/model/dqn_pong border/examples/model
+scp -r -i ~/.ssh/mykey.txt -P 20122 user@localhost:/home/user/border/border/examples/atari/model/dqn_pong border/examples/atari/model
 ```
 
 ## Install Atari ROM (optional)

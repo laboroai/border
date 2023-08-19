@@ -1,6 +1,9 @@
 mod util_dqn_atari;
 use anyhow::Result;
-use border::util::get_model_from_url;
+use border_atari_env::{
+    BorderAtariAct, BorderAtariActRawFilter, BorderAtariEnv, BorderAtariEnvConfig, BorderAtariObs,
+    BorderAtariObsRawFilter,
+};
 use border_core::{
     record::TensorboardRecorder,
     replay_buffer::{
@@ -10,10 +13,6 @@ use border_core::{
     Agent, DefaultEvaluator, Env as _, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
 use border_derive::{Act, SubBatch};
-use border_py_gym_env::{
-    FrameStackFilter, PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct,
-    PyGymEnvDiscreteActRawFilter, PyGymEnvObs,
-};
 use border_tch_agent::{
     cnn::Cnn,
     dqn::{Dqn as Dqn_, DqnConfig},
@@ -22,15 +21,9 @@ use border_tch_agent::{
 use clap::{App, Arg, ArgMatches};
 use util_dqn_atari::{model_dir as model_dir_, Params};
 
-type PyObsDtype = u8;
-type ObsDtype = u8;
-
-// #[derive(Clone, Debug, Obs)]
-// struct Obs(PyGymEnvObs<ObsShape, PyObsDtype, ObsDtype>);
-type Obs = PyGymEnvObs<PyObsDtype, ObsDtype>;
+type Obs = BorderAtariObs;
 
 #[derive(Clone, SubBatch)]
-// struct ObsBatch(TensorSubBatch<ObsShape, ObsDtype>);
 struct ObsBatch(TensorSubBatch);
 
 impl From<Obs> for ObsBatch {
@@ -39,12 +32,6 @@ impl From<Obs> for ObsBatch {
         Self(TensorSubBatch::from_tensor(tensor))
     }
 }
-
-// Wrap `PyGymEnvDiscreteAct` to make a new type.
-// Act also implements Into<Tensor>.
-// TODO: Consider to implement Into<Tensor> on PyGymEnvDiscreteAct when feature=tch.
-#[derive(Clone, Debug, Act)]
-struct Act(PyGymEnvDiscreteAct);
 
 #[derive(SubBatch)]
 // struct ActBatch(TensorSubBatch<ActShape, i64>);
@@ -57,14 +44,24 @@ impl From<Act> for ActBatch {
     }
 }
 
-type ObsFilter = FrameStackFilter<PyObsDtype, ObsDtype, Obs>;
-type ActFilter = PyGymEnvDiscreteActRawFilter<Act>;
-type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
-type EnvConfig = PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
+// Wrap `BorderAtariAct` to make a new type.
+// Act also implements Into<Tensor>.
+// TODO: Consider to implement Into<Tensor> on BorderAtariAct when feature=tch.
+#[derive(Debug, Clone, Act)]
+struct Act(BorderAtariAct);
+
+type ObsFilter = BorderAtariObsRawFilter<Obs>;
+type ActFilter = BorderAtariActRawFilter<Act>;
+type EnvConfig = BorderAtariEnvConfig<Obs, Act, ObsFilter, ActFilter>;
+type Env = BorderAtariEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
 type Dqn = Dqn_<Env, Cnn, ReplayBuffer>;
 type Evaluator = DefaultEvaluator<Env, Dqn>;
+
+fn env_config(name: impl Into<String>) -> EnvConfig {
+    BorderAtariEnvConfig::default().name(name.into())
+}
 
 fn init<'a>() -> ArgMatches<'a> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
@@ -79,7 +76,7 @@ fn init<'a>() -> ArgMatches<'a> {
                 .takes_value(true)
                 .required(true)
                 .index(1)
-                .help("The name of the atari environment (e.g., PongNoFrameskip-v4)"),
+                .help("The name of the atari rom (e.g., pong)"),
         )
         .arg(
             Arg::with_name("play")
@@ -163,31 +160,7 @@ fn model_dir(matches: &ArgMatches) -> Result<String> {
 }
 
 fn model_dir_for_play(matches: &ArgMatches) -> String {
-    let name = matches.value_of("name").unwrap();
-
-    if matches.is_present("play") {
-        matches.value_of("play").unwrap().to_string()
-    } else if matches.is_present("play-gdrive") {
-        if name == "PongNoFrameskip-v4" {
-            let file_base = "dqn_PongNoFrameskip-v4_20210428_ec2";
-            let url =
-                "https://drive.google.com/uc?export=download&id=1TF5aN9fH5wd4APFHj9RP1JxuVNoi6lqJ";
-            let model_dir = get_model_from_url(url, file_base).unwrap();
-            model_dir.as_ref().to_str().unwrap().to_string()
-        } else {
-            panic!("Failed to download the model for {:?}", name);
-        }
-    } else {
-        panic!("Failed to download the model for {:?}", name);
-    }
-}
-
-fn env_config(name: &str) -> EnvConfig {
-    PyGymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
-        .name(name.to_string())
-        .obs_filter_config(ObsFilter::default_config())
-        .act_filter_config(ActFilter::default_config())
-        .atari_wrapper(Some(border_py_gym_env::AtariWrapper::Eval))
+    matches.value_of("play").unwrap().to_string()
 }
 
 fn n_actions(env_config: &EnvConfig) -> Result<usize> {
@@ -215,18 +188,20 @@ fn train(matches: ArgMatches) -> Result<()> {
     // Configurations
     let name = matches.value_of("name").unwrap();
     let model_dir = model_dir(&matches)?;
-    let env_config_train =
-        env_config(name).atari_wrapper(Some(border_py_gym_env::AtariWrapper::Train));
-    let env_config_eval =
-        env_config(name).atari_wrapper(Some(border_py_gym_env::AtariWrapper::Eval));
+    let env_config_train = env_config(name);
+    let env_config_eval = env_config(name).eval();
     let n_actions = n_actions(&env_config_train)?;
-    let agent_config = load_dqn_config(model_dir.as_str())?
-        .out_dim(n_actions as _)
-        .device(tch::Device::cuda_if_available());
+    let agent_config = {
+        let agent_config = load_dqn_config(model_dir.as_str())?
+            .out_dim(n_actions as _)
+            .device(tch::Device::cuda_if_available());
+        agent_config
+    };
     let trainer_config = load_trainer_config(model_dir.as_str())?;
     let replay_buffer_config = load_replay_buffer_config(model_dir.as_str())?;
     let step_proc_config = SimpleStepProcessorConfig {};
 
+    // Show configs or train
     if matches.is_present("show-config") {
         show_config(&env_config_train, &agent_config, &trainer_config);
     } else {
@@ -236,8 +211,8 @@ fn train(matches: ArgMatches) -> Result<()> {
             step_proc_config,
             replay_buffer_config,
         );
-        let mut recorder = TensorboardRecorder::new(model_dir);
         let mut agent = Dqn::build(agent_config);
+        let mut recorder = TensorboardRecorder::new(model_dir);
         let mut evaluator = Evaluator::new(&env_config_eval, 0, 1)?;
 
         trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
@@ -251,15 +226,15 @@ fn play(matches: ArgMatches) -> Result<()> {
     let model_dir = model_dir_for_play(&matches);
 
     let (env_config, n_actions) = {
-        let env_config = env_config(name).render_mode(Some("human".to_string()));
+        let env_config = env_config(name).render(true);
         let n_actions = n_actions(&env_config)?;
         (env_config, n_actions)
     };
-
     let mut agent = {
+        let device = tch::Device::cuda_if_available();
         let agent_config = load_dqn_config(model_dir.as_str())?
             .out_dim(n_actions as _)
-            .device(tch::Device::cuda_if_available());
+            .device(device);
         let mut agent = Dqn::build(agent_config);
         agent.load(model_dir + "/best")?;
         agent.eval();

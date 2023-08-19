@@ -3,7 +3,7 @@ name = "border"
 version = "0.0.5"
 authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
 edition = "2018"
-rust = "1.65.0"
+rust-version = "1.68.2"
 
 description = "Reinforcement learning library"
 repository = "https://github.com/taku-y/border"
@@ -51,16 +51,13 @@ test = false
 
 [[example]]
 name = "dqn_atari"
-required-features = ["tch"]
-test = false
-
-[[example]]
-name = "dqn_atari_rs"
+path = "examples/atari/dqn_atari.rs"
 required-features = ["tch"]
 test = false
 
 [[example]]
 name = "dqn_atari_async"
+path = "examples/atari/dqn_atari_async.rs"
 required-features = ["tch", "border-async-trainer"]
 test = false
 

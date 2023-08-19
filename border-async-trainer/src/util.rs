@@ -2,7 +2,10 @@
 use crate::{
     actor_stats_fmt, ActorManager, ActorManagerConfig, AsyncTrainer, AsyncTrainerConfig, SyncModel,
 };
-use border_core::{record::TensorboardRecorder, Agent, Env, ReplayBufferBase, StepProcessorBase};
+use border_core::{
+    record::TensorboardRecorder, Agent, DefaultEvaluator, Env, ReplayBufferBase,
+    StepProcessorBase,
+};
 use crossbeam_channel::unbounded;
 use log::info;
 use std::{
@@ -51,6 +54,7 @@ pub fn train_async<A, E, R, S, P>(
     P: AsRef<Path>,
 {
     let mut recorder = TensorboardRecorder::new(model_dir);
+    let mut evaluator = DefaultEvaluator::new(env_config_eval, 0, 1).unwrap();
 
     // Shared flag to stop actor threads
     let stop = Arc::new(Mutex::new(false));
@@ -84,7 +88,7 @@ pub fn train_async<A, E, R, S, P>(
 
     // Starts sampling and training
     actors.run(guard_init_env.clone());
-    let stats = trainer.train(&mut recorder, guard_init_env);
+    let stats = trainer.train(&mut recorder, &mut evaluator, guard_init_env);
     info!("Stats of async trainer");
     info!("{}", stats.fmt());
 
