@@ -40,13 +40,24 @@ source /home/user/venv/bin/activate && pip3 install --upgrade pip
 source /home/user/venv/bin/activate && pip3 install pyyaml typing-extensions
 source /home/user/venv/bin/activate && pip3 install torch==1.12.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116 --no-cache-dir
 source /home/user/venv/bin/activate && pip3 install ipython jupyterlab
-source /home/user/venv/bin/activate && pip3 install numpy==1.21.3
-source /home/user/venv/bin/activate && pip3 install gym[box2d]==0.26.2
-# source /home/user/venv/bin/activate && pip3 install robosuite==1.3.2
-source /home/user/venv/bin/activate && pip3 install -U 'mujoco-py<2.2,>=2.1'
-source /home/user/venv/bin/activate && pip3 install pyrender==0.1.45
-source /home/user/venv/bin/activate && pip3 install dm2gym==0.2.0
+source /home/ubuntu/venv/bin/activate && pip3 install numpy==1.21.3
+source /home/ubuntu/venv/bin/activate && pip3 install gymnasium[box2d]==0.29.0
+source /home/ubuntu/venv/bin/activate && pip3 install gymnasium-robotics==1.2.2
 source /home/user/venv/bin/activate && pip3 install tensorboard
+
+# Mujoco amd64 binary
+cd $HOME && \
+    mkdir .mujoco && \
+    cd .mujoco && \
+    wget https://github.com/deepmind/mujoco/releases/download/2.1.1/mujoco-2.1.1-linux-x86_64.tar.gz
+cd $HOME/.mujoco && \
+    tar zxf mujoco-2.1.1-linux-x86_64.tar.gz && \
+    mkdir -p mujoco210/bin && \
+    ln -sf $PWD/mujoco-2.1.1/lib/libmujoco.so.2.1.1 $PWD/mujoco210/bin/libmujoco210.so && \
+    ln -sf $PWD/mujoco-2.1.1/lib/libglewosmesa.so $PWD/mujoco210/bin/libglewosmesa.so && \
+    ln -sf $PWD/mujoco-2.1.1/include/ $PWD/mujoco210/include && \
+    ln -sf $PWD/mujoco-2.1.1/model/ $PWD/mujoco210/model
+cp /*.py $HOME
 
 echo 'export LIBTORCH=$HOME/venv/lib/python3.10/site-packages/torch' >> ~/.bashrc
 echo 'export LD_LIBRARY_PATH=$LIBTORCH/lib' >> ~/.bashrc
