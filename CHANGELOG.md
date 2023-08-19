@@ -4,10 +4,11 @@
 
 ### Added
 
-* Add Docker files (`border`).
-* Add Singularity files (`border`)
-* Add script for GPUSOROBAN (#67)
-* Add `Evaluator` trait in `border-core` (#70). It can be used to customize evaluation logic in `Trainer`.
+* Docker files (`border`).
+* Singularity files (`border`)
+* Script for GPUSOROBAN (#67)
+* `Evaluator` trait in `border-core` (#70). It can be used to customize evaluation logic in `Trainer`.
+* Example of asynchronous trainer for native Atari environment and DQN (`border/examples`).
 
 ### Changed
 
