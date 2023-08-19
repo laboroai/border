@@ -1,14 +1,14 @@
 use anyhow::Result;
 use border_core::{
-    record::{BufferedRecorder, Record},
-    util, Env as _, Policy,
+    record::Record,
+    DefaultEvaluator, Evaluator as _, Policy,
 };
 use border_py_gym_env::{
     PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter,
     PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
 };
 use serde::Serialize;
-use std::{convert::TryFrom, fs::File};
+use std::convert::TryFrom;
 
 type PyObsDtype = f32;
 
@@ -17,6 +17,7 @@ type Act = PyGymEnvDiscreteAct;
 type ObsFilter = PyGymEnvObsRawFilter<PyObsDtype, f32, Obs>;
 type ActFilter = PyGymEnvDiscreteActRawFilter<Act>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+type Evaluator = DefaultEvaluator<Env, RandomPolicy>;
 
 #[derive(Clone)]
 struct RandomPolicyConfig;
@@ -70,21 +71,18 @@ fn main() -> Result<()> {
         .render_mode(Some("human".to_string()))
         .obs_filter_config(<ObsFilter as PyGymEnvObsFilter<Obs>>::Config::default())
         .act_filter_config(<ActFilter as PyGymEnvActFilter<Act>>::Config::default());
-    let mut env = Env::build(&env_config, 0)?;
-    let mut recorder = BufferedRecorder::new();
-    env.set_render(true);
     let mut policy = RandomPolicy;
 
-    let _ = util::eval_with_recorder(&mut env, &mut policy, 5, &mut recorder)?;
+    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
 
-    let mut wtr = csv::WriterBuilder::new()
-        .has_headers(false)
-        .from_writer(File::create(
-            "border-py-gym-env/examples/random_cartpole_eval.csv",
-        )?);
-    for record in recorder.iter() {
-        wtr.serialize(CartpoleRecord::try_from(record)?)?;
-    }
+    // let mut wtr = csv::WriterBuilder::new()
+    //     .has_headers(false)
+    //     .from_writer(File::create(
+    //         "border-py-gym-env/examples/random_cartpole_eval.csv",
+    //     )?);
+    // for record in recorder.iter() {
+    //     wtr.serialize(CartpoleRecord::try_from(record)?)?;
+    // }
 
     Ok(())
 }
@@ -97,9 +95,7 @@ fn test_random_cartpole() {
         .name("CartPole-v1".to_string())
         .obs_filter_config(<ObsFilter as PyGymEnvObsFilter<Obs>>::Config::default())
         .act_filter_config(<ActFilter as PyGymEnvActFilter<Act>>::Config::default());
-    let mut env = Env::build(&env_config, 0).unwrap();
-    let mut recorder = BufferedRecorder::new();
     let mut policy = RandomPolicy;
 
-    let _ = util::eval_with_recorder(&mut env, &mut policy, 1, &mut recorder).unwrap();
+    let _ = Evaluator::new(&env_config, 0, 5).unwrap().evaluate(&mut policy);
 }

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use border_core::{record::BufferedRecorder, util, Env as _, Policy};
+use border_core::{DefaultEvaluator, Evaluator as _, Policy};
 use border_py_gym_env::{
     PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvContinuousAct,
     PyGymEnvContinuousActRawFilter, PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
@@ -11,6 +11,7 @@ type Act = PyGymEnvContinuousAct;
 type ObsFilter = PyGymEnvObsRawFilter<f32, f32, Obs>;
 type ActFilter = PyGymEnvContinuousActRawFilter<Act>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+type Evaluator = DefaultEvaluator<Env, RandomPolicy>;
 
 #[derive(Clone)]
 struct RandomPolicyConfig;
@@ -40,11 +41,9 @@ fn main() -> Result<()> {
         .obs_filter_config(<ObsFilter as PyGymEnvObsFilter<Obs>>::Config::default())
         .act_filter_config(<ActFilter as PyGymEnvActFilter<Act>>::Config::default())
         .render_mode(Some("human".to_string()));
-    let mut env = Env::build(&env_config, 0)?;
-    let mut recorder = BufferedRecorder::new();
     let mut policy = RandomPolicy;
 
-    let _ = util::eval_with_recorder(&mut env, &mut policy, 5, &mut recorder)?;
+    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
 
     Ok(())
 }
@@ -57,9 +56,7 @@ fn test_lunalander_cont() {
         .name("LunarLanderContinuous-v2".to_string())
         .obs_filter_config(<ObsFilter as PyGymEnvObsFilter<Obs>>::Config::default())
         .act_filter_config(<ActFilter as PyGymEnvActFilter<Act>>::Config::default());
-    let mut env = Env::build(&env_config, 0).unwrap();
-    let mut recorder = BufferedRecorder::new();
     let mut policy = RandomPolicy;
 
-    let _ = util::eval_with_recorder(&mut env, &mut policy, 1, &mut recorder).unwrap();
+    let _ = Evaluator::new(&env_config, 0, 5).unwrap().evaluate(&mut policy);
 }
