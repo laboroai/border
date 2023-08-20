@@ -1,6 +1,6 @@
 //! An observation filter with stacking observations (frames).
-use super::PyGymEnvObs;
-use crate::PyGymEnvObsFilter;
+use super::GymObs;
+use crate::GymObsFilter;
 use border_core::{
     record::{Record, RecordValue},
     Obs,
@@ -44,7 +44,7 @@ pub struct FrameStackFilter<T1, T2, U>
 where
     T1: Element + Debug + num_traits::identities::Zero + AsPrimitive<T2>,
     T2: 'static + Copy + num_traits::Zero,
-    U: Obs + From<PyGymEnvObs<T1, T2>>,
+    U: Obs + From<GymObs<T1, T2>>,
 {
     // Each element in the vector corresponds to a process.
     buffers: Vec<Option<ArrayD<T2>>>,
@@ -66,7 +66,7 @@ impl<T1, T2, U> FrameStackFilter<T1, T2, U>
 where
     T1: Element + Debug + num_traits::identities::Zero + AsPrimitive<T2>,
     T2: 'static + Copy + num_traits::Zero,
-    U: Obs + From<PyGymEnvObs<T1, T2>>,
+    U: Obs + From<GymObs<T1, T2>>,
 {
     /// Returns the default configuration.
     pub fn default_config() -> FrameStackFilterConfig {
@@ -136,11 +136,11 @@ where
     }
 }
 
-impl<T1, T2, U> PyGymEnvObsFilter<U> for FrameStackFilter<T1, T2, U>
+impl<T1, T2, U> GymObsFilter<U> for FrameStackFilter<T1, T2, U>
 where
     T1: Element + Debug + num_traits::identities::Zero + AsPrimitive<T2>,
     T2: 'static + Copy + num_traits::Zero + Into<f32>,
-    U: Obs + From<PyGymEnvObs<T1, T2>>,
+    U: Obs + From<GymObs<T1, T2>>,
 {
     type Config = FrameStackFilterConfig;
 
@@ -197,7 +197,7 @@ where
             let data = img.iter().map(|&e| e.into()).collect::<Vec<_>>();
             let shape = [img.shape()[3] * self.n_stack as usize, img.shape()[4]];
 
-            let obs = PyGymEnvObs::from(img);
+            let obs = GymObs::from(img);
             let obs = U::from(obs);
 
             // TODO: add contents in the record
@@ -239,7 +239,7 @@ where
 
             // Returns stacked observation in the buffer
             let frames = self.buffers[0].clone().unwrap().insert_axis(Axis(0));
-            U::from(PyGymEnvObs::from(frames))
+            U::from(GymObs::from(frames))
         }
     }
 }

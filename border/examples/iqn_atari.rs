@@ -11,8 +11,8 @@ use border_core::{
 };
 use border_derive::{Act, SubBatch};
 use border_py_gym_env::{
-    FrameStackFilter, PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct,
-    PyGymEnvDiscreteActRawFilter, PyGymEnvObs,
+    FrameStackFilter, GymEnv, GymActFilter, GymEnvConfig, GymDiscreteAct,
+    GymDiscreteActRawFilter, GymObs,
 };
 use border_tch_agent::{
     cnn::Cnn,
@@ -28,7 +28,7 @@ type ObsDtype = u8;
 
 // #[derive(Clone, Debug, Obs)]
 // struct Obs(PyGymEnvObs<ObsShape, PyObsDtype, ObsDtype>);
-type Obs = PyGymEnvObs<PyObsDtype, ObsDtype>;
+type Obs = GymObs<PyObsDtype, ObsDtype>;
 
 #[derive(Clone, SubBatch)]
 // struct ObsBatch(TensorSubBatch<ObsShape, ObsDtype>);
@@ -45,7 +45,7 @@ impl From<Obs> for ObsBatch {
 // Act also implements Into<Tensor>.
 // TODO: Consider to implement Into<Tensor> on PyGymEnvDiscreteAct when feature=tch.
 #[derive(Clone, Debug, Act)]
-struct Act(PyGymEnvDiscreteAct);
+struct Act(GymDiscreteAct);
 
 #[derive(SubBatch)]
 // struct ActBatch(TensorSubBatch<ActShape, i64>);
@@ -59,9 +59,9 @@ impl From<Act> for ActBatch {
 }
 
 type ObsFilter = FrameStackFilter<PyObsDtype, ObsDtype, Obs>;
-type ActFilter = PyGymEnvDiscreteActRawFilter<Act>;
-type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
-type EnvConfig = PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
+type ActFilter = GymDiscreteActRawFilter<Act>;
+type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
+type EnvConfig = GymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
 type Iqn = Iqn_<Env, Cnn, Mlp, ReplayBuffer>;
@@ -156,7 +156,7 @@ fn model_dir_for_play(matches: &ArgMatches) -> String {
 }
 
 fn env_config(name: &str) -> EnvConfig {
-    PyGymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
+    GymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
         .name(name.to_string())
         .obs_filter_config(ObsFilter::default_config())
         .act_filter_config(ActFilter::default_config())

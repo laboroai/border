@@ -1,5 +1,5 @@
-use super::PyGymEnvDiscreteAct;
-use crate::PyGymEnvActFilter;
+use super::GymDiscreteAct;
+use crate::GymActFilter;
 use border_core::{
     record::{Record, RecordValue},
     Act,
@@ -25,15 +25,15 @@ impl Default for PyGymEnvDiscreteActRawFilterConfig {
 ///
 /// No processing is applied to actions.
 #[derive(Clone, Debug)]
-pub struct PyGymEnvDiscreteActRawFilter<T> {
+pub struct GymDiscreteActRawFilter<T> {
     /// `true` for filters on vectorized environments.
     pub vectorized: bool,
     phantom: PhantomData<T>,
 }
 
-impl<T> PyGymEnvDiscreteActRawFilter<T>
+impl<T> GymDiscreteActRawFilter<T>
 where
-    T: Act + Into<PyGymEnvDiscreteAct>,
+    T: Act + Into<GymDiscreteAct>,
 {
     /// Returns `true` for filters working with vectorized environments.
     pub fn vectorized() -> Self {
@@ -44,7 +44,7 @@ where
     }
 }
 
-impl<T> Default for PyGymEnvDiscreteActRawFilter<T> {
+impl<T> Default for GymDiscreteActRawFilter<T> {
     fn default() -> Self {
         Self {
             vectorized: false,
@@ -54,9 +54,9 @@ impl<T> Default for PyGymEnvDiscreteActRawFilter<T> {
 }
 
 // TODO: support vecenv
-impl<T> PyGymEnvActFilter<T> for PyGymEnvDiscreteActRawFilter<T>
+impl<T> GymActFilter<T> for GymDiscreteActRawFilter<T>
 where
-    T: Act + Into<PyGymEnvDiscreteAct>,
+    T: Act + Into<GymDiscreteAct>,
 {
     type Config = PyGymEnvDiscreteActRawFilterConfig;
 

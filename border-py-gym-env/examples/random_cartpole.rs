@@ -4,19 +4,19 @@ use border_core::{
     DefaultEvaluator, Evaluator as _, Policy,
 };
 use border_py_gym_env::{
-    PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter,
-    PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
+    GymEnv, GymActFilter, GymEnvConfig, GymDiscreteAct, GymDiscreteActRawFilter,
+    GymObs, GymObsFilter, GymObsRawFilter,
 };
 use serde::Serialize;
 use std::convert::TryFrom;
 
 type PyObsDtype = f32;
 
-type Obs = PyGymEnvObs<PyObsDtype, f32>;
-type Act = PyGymEnvDiscreteAct;
-type ObsFilter = PyGymEnvObsRawFilter<PyObsDtype, f32, Obs>;
-type ActFilter = PyGymEnvDiscreteActRawFilter<Act>;
-type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+type Obs = GymObs<PyObsDtype, f32>;
+type Act = GymDiscreteAct;
+type ObsFilter = GymObsRawFilter<PyObsDtype, f32, Obs>;
+type ActFilter = GymDiscreteActRawFilter<Act>;
+type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type Evaluator = DefaultEvaluator<Env, RandomPolicy>;
 
 #[derive(Clone)]
@@ -66,11 +66,11 @@ fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     fastrand::seed(42);
 
-    let env_config = PyGymEnvConfig::default()
+    let env_config = GymEnvConfig::default()
         .name("CartPole-v1".to_string())
         .render_mode(Some("human".to_string()))
-        .obs_filter_config(<ObsFilter as PyGymEnvObsFilter<Obs>>::Config::default())
-        .act_filter_config(<ActFilter as PyGymEnvActFilter<Act>>::Config::default());
+        .obs_filter_config(<ObsFilter as GymObsFilter<Obs>>::Config::default())
+        .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default());
     let mut policy = RandomPolicy;
 
     let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
@@ -91,10 +91,10 @@ fn main() -> Result<()> {
 fn test_random_cartpole() {
     fastrand::seed(42);
 
-    let env_config = PyGymEnvConfig::default()
+    let env_config = GymEnvConfig::default()
         .name("CartPole-v1".to_string())
-        .obs_filter_config(<ObsFilter as PyGymEnvObsFilter<Obs>>::Config::default())
-        .act_filter_config(<ActFilter as PyGymEnvActFilter<Act>>::Config::default());
+        .obs_filter_config(<ObsFilter as GymObsFilter<Obs>>::Config::default())
+        .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default());
     let mut policy = RandomPolicy;
 
     let _ = Evaluator::new(&env_config, 0, 5).unwrap().evaluate(&mut policy);

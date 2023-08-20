@@ -42,6 +42,10 @@ name = "random_lunarlander_cont"
 test = true
 
 [[example]]
+name = "random_fetch"
+test = false
+
+[[example]]
 name = "random_ant"
 test = false # Skip test for now, PyBullet Gym requires modify code (see Dockerfile in this repository)
 

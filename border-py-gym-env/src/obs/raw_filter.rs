@@ -1,5 +1,5 @@
-use super::{pyobj_to_arrayd, PyGymEnvObs};
-use crate::PyGymEnvObsFilter;
+use super::{pyobj_to_arrayd, GymObs};
+use crate::GymObsFilter;
 use border_core::{
     record::{Record, RecordValue},
     Obs,
@@ -26,14 +26,14 @@ impl Default for PyGymEnvObsRawFilterConfig {
 /// An observation filter without any postprocessing.
 ///
 /// The filter works with [PyGymEnv](crate::PyGymEnv).
-pub struct PyGymEnvObsRawFilter<T1, T2, U> {
+pub struct GymObsRawFilter<T1, T2, U> {
     /// If the environment is vectorized.
     pub vectorized: bool,
     /// Marker.
     pub phantom: PhantomData<(T1, T2, U)>,
 }
 
-impl<T1, T2, U> Default for PyGymEnvObsRawFilter<T1, T2, U> {
+impl<T1, T2, U> Default for GymObsRawFilter<T1, T2, U> {
     fn default() -> Self {
         Self {
             vectorized: false,
@@ -42,11 +42,11 @@ impl<T1, T2, U> Default for PyGymEnvObsRawFilter<T1, T2, U> {
     }
 }
 
-impl<T1, T2, U> PyGymEnvObsFilter<U> for PyGymEnvObsRawFilter<T1, T2, U>
+impl<T1, T2, U> GymObsFilter<U> for GymObsRawFilter<T1, T2, U>
 where
     T1: Element + Debug + num_traits::identities::Zero + AsPrimitive<T2>,
     T2: 'static + Copy + Debug + num_traits::Zero + AsPrimitive<f32>,
-    U: Obs + From<PyGymEnvObs<T1, T2>>,
+    U: Obs + From<GymObs<T1, T2>>,
 {
     type Config = PyGymEnvObsRawFilterConfig;
 
@@ -122,7 +122,7 @@ where
                     // PyGymEnvObs::<S, T1, T2>::dummy(1)
                     panic!();
                 } else {
-                    PyGymEnvObs {
+                    GymObs {
                         obs: pyobj_to_arrayd::<T1, T2>(obs),
                         phantom: PhantomData,
                     }

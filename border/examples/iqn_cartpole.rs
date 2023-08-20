@@ -9,8 +9,8 @@ use border_core::{
 };
 use border_derive::{Act, Obs, SubBatch};
 use border_py_gym_env::{
-    PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter,
-    PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
+    GymEnv, GymActFilter, GymEnvConfig, GymDiscreteAct, GymDiscreteActRawFilter,
+    GymObs, GymObsFilter, GymObsRawFilter,
 };
 
 use border_tch_agent::{
@@ -47,10 +47,10 @@ const MODEL_DIR: &str = "border/examples/model/iqn_cartpole";
 type PyObsDtype = f32;
 
 #[derive(Clone, Debug, Obs)]
-struct Obs(PyGymEnvObs<PyObsDtype, f32>);
+struct Obs(GymObs<PyObsDtype, f32>);
 
 #[derive(Clone, Debug, Act)]
-struct Act(PyGymEnvDiscreteAct);
+struct Act(GymDiscreteAct);
 
 #[derive(Clone, SubBatch)]
 struct ObsBatch(TensorSubBatch);
@@ -73,10 +73,10 @@ impl From<Act> for ActBatch {
     }
 }
 
-type ObsFilter = PyGymEnvObsRawFilter<PyObsDtype, f32, Obs>;
-type ActFilter = PyGymEnvDiscreteActRawFilter<Act>;
-type EnvConfig = PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
-type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+type ObsFilter = GymObsRawFilter<PyObsDtype, f32, Obs>;
+type ActFilter = GymDiscreteActRawFilter<Act>;
+type EnvConfig = GymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
+type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
 type Iqn = Iqn_<Env, Mlp, Mlp, ReplayBuffer>;
@@ -107,8 +107,8 @@ impl TryFrom<&Record> for CartpoleRecord {
     }
 }
 
-fn env_config() -> PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
-    PyGymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
+fn env_config() -> GymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
+    GymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
         .name("CartPole-v0".to_string())
         .obs_filter_config(ObsFilter::default_config())
         .act_filter_config(ActFilter::default_config())

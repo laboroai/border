@@ -57,7 +57,7 @@ where
 /// vary, f32 or f64. To get observations in Rust side, the dtype is specified as a
 /// type parameter, instead of checking the dtype of Python array at runtime.
 #[derive(Clone, Debug)]
-pub struct PyGymEnvObs<T1, T2>
+pub struct GymObs<T1, T2>
 where
     T1: Element + Debug,
     T2: 'static + Copy,
@@ -66,7 +66,7 @@ where
     pub(crate) phantom: PhantomData<T1>,
 }
 
-impl<T1, T2> From<ArrayD<T2>> for PyGymEnvObs<T1, T2>
+impl<T1, T2> From<ArrayD<T2>> for GymObs<T1, T2>
 where
     T1: Element + Debug,
     T2: 'static + Copy,
@@ -83,7 +83,7 @@ where
 //     S: Shape,
 //     T1: Element + Debug + num_traits::identities::Zero,
 // {
-impl<T1, T2> Obs for PyGymEnvObs<T1, T2>
+impl<T1, T2> Obs for GymObs<T1, T2>
 where
     T1: Debug + Element,
     T2: 'static + Copy + Debug + num_traits::Zero,
@@ -118,7 +118,7 @@ where
 }
 
 /// Convert numpy array of Python into [`PyGymEnvObs`].
-impl<T1, T2> From<PyObject> for PyGymEnvObs<T1, T2>
+impl<T1, T2> From<PyObject> for GymObs<T1, T2>
 where
     T1: Element + AsPrimitive<T2> + std::fmt::Debug,
     T2: 'static + Copy,
@@ -146,11 +146,11 @@ where
 // }
 
 #[cfg(feature = "tch")]
-impl<T1> From<PyGymEnvObs<T1, f32>> for Tensor
+impl<T1> From<GymObs<T1, f32>> for Tensor
 where
     T1: Element + Debug,
 {
-    fn from(obs: PyGymEnvObs<T1, f32>) -> Tensor {
+    fn from(obs: GymObs<T1, f32>) -> Tensor {
         let tmp = &obs.obs;
         Tensor::try_from(tmp).unwrap()
         // Tensor::try_from(&obs.obs).unwrap()
@@ -158,11 +158,11 @@ where
 }
 
 #[cfg(feature = "tch")]
-impl<T1> From<PyGymEnvObs<T1, u8>> for Tensor
+impl<T1> From<GymObs<T1, u8>> for Tensor
 where
     T1: Element + Debug,
 {
-    fn from(obs: PyGymEnvObs<T1, u8>) -> Tensor {
+    fn from(obs: GymObs<T1, u8>) -> Tensor {
         let tmp = &obs.obs;
         Tensor::try_from(tmp).unwrap()
         // Tensor::try_from(&obs.obs).unwrap()

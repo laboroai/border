@@ -1,6 +1,6 @@
 //! Wrapper of gym environments implemented in Python.
 #![allow(clippy::float_cmp)]
-use crate::{AtariWrapper, PyGymEnvConfig};
+use crate::{AtariWrapper, GymEnvConfig};
 use anyhow::Result;
 use border_core::{record::Record, Act, Env, Info, Obs, Step};
 use log::{info, trace};
@@ -14,12 +14,12 @@ use std::{fmt::Debug, time::Duration};
 /// Information given at every step of the interaction with the environment.
 ///
 /// Currently, it is empty and used to match the type signature.
-pub struct PyGymInfo {}
+pub struct GymInfo {}
 
-impl Info for PyGymInfo {}
+impl Info for GymInfo {}
 
 /// Convert [PyObject] to [PyGymEnv]::Obs with a preprocessing.
-pub trait PyGymEnvObsFilter<O: Obs> {
+pub trait GymObsFilter<O: Obs> {
     /// Configuration.
     type Config: Clone + Default + Serialize + DeserializeOwned;
 
@@ -48,7 +48,7 @@ pub trait PyGymEnvObsFilter<O: Obs> {
 /// Convert [PyGymEnv]::Act to [PyObject] with a preprocessing.
 ///
 /// This trait should support vectorized environments.
-pub trait PyGymEnvActFilter<A: Act> {
+pub trait GymActFilter<A: Act> {
     /// Configuration.
     type Config: Clone + Default + Serialize + DeserializeOwned;
 
@@ -78,12 +78,12 @@ pub trait PyGymEnvActFilter<A: Act> {
 
 /// An environment in [OpenAI gym](https://github.com/openai/gym).
 #[derive(Debug)]
-pub struct PyGymEnv<O, A, OF, AF>
+pub struct GymEnv<O, A, OF, AF>
 where
     O: Obs,
     A: Act,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     render: bool,
 
@@ -117,12 +117,12 @@ where
     phantom: PhantomData<(O, A)>,
 }
 
-impl<O, A, OF, AF> PyGymEnv<O, A, OF, AF>
+impl<O, A, OF, AF> GymEnv<O, A, OF, AF>
 where
     O: Obs,
     A: Act,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     /// Set rendering mode.
     ///
@@ -159,17 +159,17 @@ where
     }
 }
 
-impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF>
+impl<O, A, OF, AF> Env for GymEnv<O, A, OF, AF>
 where
     O: Obs,
     A: Act + Debug,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     type Obs = O;
     type Act = A;
-    type Info = PyGymInfo;
-    type Config = PyGymEnvConfig<O, A, OF, AF>;
+    type Info = GymInfo;
+    type Config = GymEnvConfig<O, A, OF, AF>;
 
     /// Currently it supports non-vectorized environment.
     fn step_with_reset(&mut self, a: &Self::Act) -> (Step<Self>, Record)
@@ -320,7 +320,7 @@ where
             };
 
             (
-                Step::<Self>::new(obs, a.clone(), reward, is_done, PyGymInfo {}, O::dummy(1)),
+                Step::<Self>::new(obs, a.clone(), reward, is_done, GymInfo {}, O::dummy(1)),
                 record_o.merge(record_a),
             )
         })
@@ -391,6 +391,7 @@ where
             action_space[0]
         };
         let observation_space = env.getattr("observation_space")?;
+        println!("{:?}", observation_space);
         let observation_space = observation_space.getattr("shape")?.extract()?;
 
         let pybullet_state = if !config.pybullet {
@@ -454,7 +455,7 @@ def update_camera_pos(env):
             Some(pybullet_state)
         };
 
-        Ok(PyGymEnv {
+        Ok(GymEnv {
             env: env.into(),
             action_space,
             observation_space,

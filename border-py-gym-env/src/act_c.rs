@@ -1,11 +1,11 @@
 //! Continuous action for [PyGymEnv](crate::PyGymEnv).
 mod base;
 mod raw_filter;
-pub use base::PyGymEnvContinuousAct;
+pub use base::GymContinuousAct;
 use ndarray::ArrayD;
 use numpy::PyArrayDyn;
 use pyo3::{IntoPy, PyObject};
-pub use raw_filter::{PyGymEnvContinuousActRawFilter, PyGymEnvContinuousActRawFilterConfig};
+pub use raw_filter::{GymContinuousActRawFilter, PyGymEnvContinuousActRawFilterConfig};
 
 /// Convert [`ArrayD<f32>`] to [`PyObject`].
 ///

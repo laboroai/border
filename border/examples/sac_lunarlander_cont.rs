@@ -9,8 +9,8 @@ use border_core::{
 };
 use border_derive::{Act, Obs, SubBatch};
 use border_py_gym_env::{
-    PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvContinuousAct,
-    PyGymEnvContinuousActRawFilter, PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
+    GymEnv, GymActFilter, GymEnvConfig, GymContinuousAct,
+    GymContinuousActRawFilter, GymObs, GymObsFilter, GymObsRawFilter,
 };
 use border_tch_agent::{
     mlp::{Mlp, Mlp2, MlpConfig},
@@ -39,7 +39,7 @@ const MODEL_DIR: &str = "./border/examples/model/sac_lunarlander_cont";
 type PyObsDtype = f32;
 
 #[derive(Clone, Debug, Obs)]
-struct Obs(PyGymEnvObs<PyObsDtype, f32>);
+struct Obs(GymObs<PyObsDtype, f32>);
 
 #[derive(Clone, SubBatch)]
 struct ObsBatch(TensorSubBatch);
@@ -52,7 +52,7 @@ impl From<Obs> for ObsBatch {
 }
 
 #[derive(Clone, Debug, Act)]
-struct Act(PyGymEnvContinuousAct);
+struct Act(GymContinuousAct);
 
 #[derive(SubBatch)]
 struct ActBatch(TensorSubBatch);
@@ -64,9 +64,9 @@ impl From<Act> for ActBatch {
     }
 }
 
-type ObsFilter = PyGymEnvObsRawFilter<PyObsDtype, f32, Obs>;
-type ActFilter = PyGymEnvContinuousActRawFilter<Act>;
-type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+type ObsFilter = GymObsRawFilter<PyObsDtype, f32, Obs>;
+type ActFilter = GymContinuousActRawFilter<Act>;
+type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
 type Evaluator = DefaultEvaluator<Env, Sac<Env, Mlp, Mlp2, ReplayBuffer>>;
@@ -112,8 +112,8 @@ fn create_agent(in_dim: i64, out_dim: i64) -> Sac<Env, Mlp, Mlp2, ReplayBuffer> 
     Sac::build(sac_config)
 }
 
-fn env_config() -> PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
-    PyGymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
+fn env_config() -> GymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
+    GymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
         .name("LunarLanderContinuous-v2".to_string())
         .obs_filter_config(ObsFilter::default_config())
         .act_filter_config(ActFilter::default_config())

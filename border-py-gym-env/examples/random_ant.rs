@@ -1,17 +1,17 @@
 use anyhow::Result;
 use border_core::{record::BufferedRecorder, util, Env as _, Policy};
 use border_py_gym_env::{
-    PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvContinuousAct,
-    PyGymEnvContinuousActRawFilter, PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
+    GymEnv, GymActFilter, GymEnvConfig, GymContinuousAct,
+    GymContinuousActRawFilter, GymObs, GymObsFilter, GymObsRawFilter,
 };
 use ndarray::Array;
 use std::default::Default;
 
-type Obs = PyGymEnvObs<f32, f32>;
-type Act = PyGymEnvContinuousAct;
-type ObsFilter = PyGymEnvObsRawFilter<f32, f32, Obs>;
-type ActFilter = PyGymEnvContinuousActRawFilter<Act>;
-type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+type Obs = GymObs<f32, f32>;
+type Act = GymContinuousAct;
+type ObsFilter = GymObsRawFilter<f32, f32, Obs>;
+type ActFilter = GymContinuousActRawFilter<Act>;
+type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 
 #[derive(Clone)]
 struct RandomPolicyConfig;
@@ -41,10 +41,10 @@ fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     fastrand::seed(42);
 
-    let env_config = PyGymEnvConfig::default()
+    let env_config = GymEnvConfig::default()
         .name("Ant-v4".to_string())
-        .obs_filter_config(<ObsFilter as PyGymEnvObsFilter<Obs>>::Config::default())
-        .act_filter_config(<ActFilter as PyGymEnvActFilter<Act>>::Config::default())
+        .obs_filter_config(<ObsFilter as GymObsFilter<Obs>>::Config::default())
+        .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default())
         .render_mode(Some("human".to_string()));
     let mut env = Env::build(&env_config, 0)?;
     let mut recorder = BufferedRecorder::new();
@@ -60,10 +60,10 @@ fn main() -> Result<()> {
 fn test_random_ant() {
     fastrand::seed(42);
 
-    let env_config = PyGymEnvConfig::default()
+    let env_config = GymEnvConfig::default()
         .name("AntPyBulletEnv-v0".to_string())
-        .obs_filter_config(<ObsFilter as PyGymEnvObsFilter<Obs>>::Config::default())
-        .act_filter_config(<ActFilter as PyGymEnvActFilter<Act>>::Config::default())
+        .obs_filter_config(<ObsFilter as GymObsFilter<Obs>>::Config::default())
+        .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default())
         .pybullet(true);
     let mut env = Env::build(&env_config, 0).unwrap();
     let mut recorder = BufferedRecorder::new();

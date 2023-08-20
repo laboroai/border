@@ -1,7 +1,7 @@
 //! Vectorized environment using multiprocess module in Python.
 #![allow(unused_variables, unreachable_code)]
 use crate::AtariWrapper;
-use crate::{PyGymEnvActFilter, PyGymEnvObsFilter};
+use crate::{GymActFilter, GymObsFilter};
 use border_core::{Act, Obs};
 use std::marker::PhantomData;
 
@@ -10,8 +10,8 @@ pub struct PyVecGymEnvConfig<O, A, OF, AF>
 where
     O: Obs,
     A: Act,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     // Name of the environment
     pub(super) name: String,
@@ -28,8 +28,8 @@ impl<O, A, OF, AF> Clone for PyVecGymEnvConfig<O, A, OF, AF>
 where
     O: Obs,
     A: Act,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     fn clone(&self) -> Self {
         Self {
@@ -48,8 +48,8 @@ impl<O, A, OF, AF> Default for PyVecGymEnvConfig<O, A, OF, AF>
 where
     O: Obs,
     A: Act,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     fn default() -> Self {
         Self {
@@ -68,8 +68,8 @@ impl<O, A, OF, AF> PyVecGymEnvConfig<O, A, OF, AF>
 where
     O: Obs,
     A: Act,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     /// Sets the maximum number of steps in the environment.
     pub fn max_steps(mut self, max_steps: Option<usize>) -> Self {

@@ -8,8 +8,8 @@ use border_core::{
     Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
 use border_py_gym_env::{
-    PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter,
-    PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
+    GymEnv, GymActFilter, GymEnvConfig, GymDiscreteAct, GymDiscreteActRawFilter,
+    GymObs, GymObsFilter, GymObsRawFilter,
 };
 use border_tch_agent::{
     dqn::{Dqn, DqnConfig, DqnModelConfig},
@@ -40,11 +40,11 @@ const MODEL_DIR: &str = "./border/examples/model/dqn_cartpole";
 type PyObsDtype = f32;
 
 #[derive(Clone, Debug)]
-struct Obs(PyGymEnvObs<PyObsDtype, f32>);
+struct Obs(GymObs<PyObsDtype, f32>);
 
 impl border_core::Obs for Obs {
     fn dummy(n: usize) -> Self {
-        Obs(PyGymEnvObs::dummy(n))
+        Obs(GymObs::dummy(n))
     }
 
     fn merge(self, obs_reset: Self, is_done: &[i8]) -> Self {
@@ -56,8 +56,8 @@ impl border_core::Obs for Obs {
     }
 }
 
-impl From<PyGymEnvObs<PyObsDtype, f32>> for Obs {
-    fn from(obs: PyGymEnvObs<PyObsDtype, f32>) -> Self {
+impl From<GymObs<PyObsDtype, f32>> for Obs {
+    fn from(obs: GymObs<PyObsDtype, f32>) -> Self {
         Obs(obs)
     }
 }
@@ -99,7 +99,7 @@ impl From<ObsBatch> for Tensor {
 }
 
 #[derive(Clone, Debug)]
-struct Act(PyGymEnvDiscreteAct);
+struct Act(GymDiscreteAct);
 
 impl border_core::Act for Act {
     fn len(&self) -> usize {
@@ -107,8 +107,8 @@ impl border_core::Act for Act {
     }
 }
 
-impl Into<PyGymEnvDiscreteAct> for Act {
-    fn into(self) -> PyGymEnvDiscreteAct {
+impl Into<GymDiscreteAct> for Act {
+    fn into(self) -> GymDiscreteAct {
         self.0
     }
 }
@@ -159,14 +159,14 @@ impl From<Tensor> for Act {
     fn from(t: Tensor) -> Self {
         let data: Vec<i64> = t.into();
         let data: Vec<_> = data.iter().map(|e| *e as i32).collect();
-        Act(PyGymEnvDiscreteAct::new(data))
+        Act(GymDiscreteAct::new(data))
     }
 }
 
-type ObsFilter = PyGymEnvObsRawFilter<PyObsDtype, f32, Obs>;
-type ActFilter = PyGymEnvDiscreteActRawFilter<Act>;
-type EnvConfig = PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
-type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+type ObsFilter = GymObsRawFilter<PyObsDtype, f32, Obs>;
+type ActFilter = GymDiscreteActRawFilter<Act>;
+type EnvConfig = GymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
+type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
 type Evaluator = DefaultEvaluator<Env, Dqn<Env, Mlp, ReplayBuffer>>;

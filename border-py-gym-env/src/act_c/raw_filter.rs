@@ -1,5 +1,5 @@
-use super::{to_pyobj, PyGymEnvContinuousAct};
-use crate::PyGymEnvActFilter;
+use super::{to_pyobj, GymContinuousAct};
+use crate::GymActFilter;
 use border_core::{
     record::{Record, RecordValue},
     Act,
@@ -23,15 +23,15 @@ impl Default for PyGymEnvContinuousActRawFilterConfig {
 
 /// Raw filter for continuous actions.
 #[derive(Clone, Debug)]
-pub struct PyGymEnvContinuousActRawFilter<T> {
+pub struct GymContinuousActRawFilter<T> {
     /// `true` indicates that this filter is used in a vectorized environment.
     pub vectorized: bool,
     phantom: PhantomData<T>,
 }
 
-impl<T> Default for PyGymEnvContinuousActRawFilter<T>
+impl<T> Default for GymContinuousActRawFilter<T>
 where
-    T: Act + Into<PyGymEnvContinuousAct>,
+    T: Act + Into<GymContinuousAct>,
 {
     fn default() -> Self {
         Self {
@@ -41,9 +41,9 @@ where
     }
 }
 
-impl<T> PyGymEnvActFilter<T> for PyGymEnvContinuousActRawFilter<T>
+impl<T> GymActFilter<T> for GymContinuousActRawFilter<T>
 where
-    T: Act + Into<PyGymEnvContinuousAct>,
+    T: Act + Into<GymContinuousAct>,
 {
     type Config = PyGymEnvContinuousActRawFilterConfig;
 
