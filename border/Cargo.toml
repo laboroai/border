@@ -44,10 +44,10 @@ name = "sac_lunarlander_cont"
 required-features = ["tch"]
 test = false
 
-[[example]]
-name = "random_atari"
-required-features = ["tch"]
-test = false
+# [[example]]
+# name = "random_atari"
+# required-features = ["tch"]
+# test = false
 
 [[example]]
 name = "dqn_atari"
