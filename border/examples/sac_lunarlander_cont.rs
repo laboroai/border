@@ -7,10 +7,10 @@ use border_core::{
     },
     Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
-use border_derive::{Act, Obs, SubBatch};
+use border_derive::{Act, SubBatch};
 use border_py_gym_env::{
-    GymEnv, GymActFilter, GymEnvConfig, GymContinuousAct,
-    GymContinuousActRawFilter, GymObs, GymObsFilter, GymObsRawFilter,
+    GymActFilter, GymContinuousAct, GymContinuousActRawFilter, GymEnv, GymEnvConfig,
+    GymObsFilter, GymObsRawFilter,
 };
 use border_tch_agent::{
     mlp::{Mlp, Mlp2, MlpConfig},
@@ -20,8 +20,10 @@ use border_tch_agent::{
 };
 use clap::{App, Arg};
 //use csv::WriterBuilder;
+use ndarray::{ArrayD, IxDyn};
 use serde::Serialize;
 use std::convert::TryFrom;
+use tch::Tensor;
 
 const DIM_OBS: i64 = 8;
 const DIM_ACT: i64 = 2;
@@ -38,8 +40,30 @@ const MODEL_DIR: &str = "./border/examples/model/sac_lunarlander_cont";
 
 type PyObsDtype = f32;
 
-#[derive(Clone, Debug, Obs)]
-struct Obs(GymObs<PyObsDtype, f32>);
+#[derive(Clone, Debug)]
+struct Obs(ArrayD<f32>);
+
+impl border_core::Obs for Obs {
+    fn dummy(_n: usize) -> Self {
+        Self(ArrayD::zeros(IxDyn(&[0])))
+    }
+
+    fn len(&self) -> usize {
+        self.0.shape()[0]
+    }
+}
+
+impl From<ArrayD<f32>> for Obs {
+    fn from(obs: ArrayD<f32>) -> Self {
+        Obs(obs)
+    }
+}
+
+impl From<Obs> for Tensor {
+    fn from(obs: Obs) -> Tensor {
+        Tensor::try_from(&obs.0).unwrap()
+    }
+}
 
 #[derive(Clone, SubBatch)]
 struct ObsBatch(TensorSubBatch);

@@ -9,7 +9,7 @@ use border_core::{
 };
 use border_py_gym_env::{
     GymEnv, GymActFilter, GymEnvConfig, GymDiscreteAct, GymDiscreteActRawFilter,
-    GymObs, GymObsFilter, GymObsRawFilter,
+    GymObsFilter, GymObsRawFilter,
 };
 use border_tch_agent::{
     dqn::{Dqn, DqnConfig, DqnModelConfig},
@@ -21,6 +21,7 @@ use clap::{App, Arg};
 use serde::Serialize;
 use std::convert::TryFrom; //, fs::File};
 use tch::Tensor;
+use ndarray::{IxDyn, ArrayD};
 
 const DIM_OBS: i64 = 4;
 const DIM_ACT: i64 = 2;
@@ -40,31 +41,28 @@ const MODEL_DIR: &str = "./border/examples/model/dqn_cartpole";
 type PyObsDtype = f32;
 
 #[derive(Clone, Debug)]
-struct Obs(GymObs<PyObsDtype, f32>);
+struct Obs(ArrayD<f32>);
 
 impl border_core::Obs for Obs {
-    fn dummy(n: usize) -> Self {
-        Obs(GymObs::dummy(n))
-    }
-
-    fn merge(self, obs_reset: Self, is_done: &[i8]) -> Self {
-        Obs(self.0.merge(obs_reset.0, is_done))
+    fn dummy(_n: usize) -> Self {
+        let shape = vec![0];
+        Self(ArrayD::zeros(IxDyn(&[0])))
     }
 
     fn len(&self) -> usize {
-        self.0.len()
+        self.0.shape()[0]
     }
 }
 
-impl From<GymObs<PyObsDtype, f32>> for Obs {
-    fn from(obs: GymObs<PyObsDtype, f32>) -> Self {
+impl From<ArrayD<f32>> for Obs {
+    fn from(obs: ArrayD<f32>) -> Self {
         Obs(obs)
     }
 }
 
 impl From<Obs> for Tensor {
     fn from(obs: Obs) -> Tensor {
-        Tensor::try_from(&obs.0.obs).unwrap()
+        Tensor::try_from(&obs.0).unwrap()
     }
 }
 
@@ -92,6 +90,7 @@ impl From<Obs> for ObsBatch {
     }
 }
 
+// 本当に必要？
 impl From<ObsBatch> for Tensor {
     fn from(b: ObsBatch) -> Self {
         b.0.into()

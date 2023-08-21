@@ -1,4 +1,4 @@
-//! Observation of [BorderAtariEnv](super::BorderAtariEnv).
+//! Observation of [`BorderAtariEnv`](super::BorderAtariEnv).
 //!
 //! It applies the following preprocessing
 //! (explanations are adapted from [Stable Baselines](https://stable-baselines3.readthedocs.io/en/master/common/atari_wrappers.html#stable_baselines3.common.atari_wrappers.AtariWrapper)
@@ -19,7 +19,7 @@ use std::{default::Default, marker::PhantomData};
 #[cfg(feature = "tch")]
 use {std::convert::TryFrom, tch::Tensor};
 
-/// Observation of [BorderAtariEnv](super::BorderAtariEnv).
+/// Observation of [`BorderAtariEnv`](super::BorderAtariEnv).
 #[derive(Debug, Clone)]
 pub struct BorderAtariObs {
     /// Four frames of 84 * 84 pixels.
@@ -39,10 +39,6 @@ impl Obs for BorderAtariObs {
         }
     }
 
-    fn merge(self, _obs_reset: Self, _is_done: &[i8]) -> Self {
-        unimplemented!();
-    }
-
     fn len(&self) -> usize {
         1
     }
@@ -57,7 +53,7 @@ impl From<BorderAtariObs> for Tensor {
     }
 }
 
-/// Converts [BorderAtariObs] to `O` with an arbitrary processing.
+/// Converts [`BorderAtariObs`] to `O` with an arbitrary processing.
 pub trait BorderAtariObsFilter<O: Obs> {
     /// Configuration of the filter.
     type Config: Clone + Default;
@@ -78,7 +74,7 @@ pub trait BorderAtariObsFilter<O: Obs> {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-/// Configuration of [BorderAtariObsRawFilter].
+/// Configuration of [`BorderAtariObsRawFilter`].
 #[derive(Clone)]
 pub struct BorderAtariObsRawFilterConfig;
 

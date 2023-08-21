@@ -391,7 +391,7 @@ where
             action_space[0]
         };
         let observation_space = env.getattr("observation_space")?;
-        println!("{:?}", observation_space);
+        println!("Observation space = {:?}", observation_space);
         let observation_space = observation_space.getattr("shape")?.extract()?;
 
         let pybullet_state = if !config.pybullet {
