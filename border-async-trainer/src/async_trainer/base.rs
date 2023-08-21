@@ -10,6 +10,7 @@ use std::{
     marker::PhantomData,
     sync::{Arc, Mutex},
     time::SystemTime,
+    thread::JoinHandle,
 };
 
 #[cfg_attr(doc, aquamarine::aquamarine)]
@@ -275,6 +276,14 @@ where
         };
         let mut agent = A::build(self.agent_config.clone());
         let mut buffer = R::build(&self.replay_buffer_config);
+        
+        // message reciever from ActorManager
+        let msg_reciever = {
+            let mut msg_reciever = MassageReciever::<R>::new();
+            msg_reciever.run(self.r_bulk_pushed_item.clone());
+            msg_reciever
+        };
+
         // let buffer = Arc::new(Mutex::new(R::build(&self.replay_buffer_config)));
         agent.train();
 
@@ -294,7 +303,7 @@ where
         info!("Starts training loop");
         loop {
             // Update replay buffer
-            let msgs: Vec<_> = self.r_bulk_pushed_item.try_iter().collect();
+            let msgs = msg_reciever.get_messages();
             msgs.into_iter().for_each(|msg| {
                 samples += msg.pushed_items.len();
                 samples_total += msg.pushed_items.len();
@@ -334,7 +343,8 @@ where
                 if opt_steps == self.max_train_steps {
                     // Flush channels
                     *self.stop.lock().unwrap() = true;
-                    let _: Vec<_> = self.r_bulk_pushed_item.try_iter().collect();
+                    // let _: Vec<_> = self.r_bulk_pushed_item.try_iter().collect();
+                    msg_reciever.stop_and_join();
                     self.sync(&agent);
                     break;
                 }
@@ -355,5 +365,75 @@ where
             duration,
             opt_per_sec,
         }
+    }
+}
+
+struct MassageReciever<R>
+where
+    R: ReplayBufferBase,
+    R::PushedItem: Send + 'static,
+{
+    msgs: Arc<Mutex<Vec<PushedItemMessage<R::PushedItem>>>>,
+    stop: Arc<Mutex<bool>>,
+    thread: Option<JoinHandle<()>>,
+}
+
+impl <R> MassageReciever<R>
+where
+    R: ReplayBufferBase,
+    R::PushedItem: Send + 'static,
+{
+    fn new(
+    ) -> Self {
+        Self {
+            msgs: Arc::new(Mutex::new(Vec::<PushedItemMessage<R::PushedItem>>::new())),
+            stop: Arc::new(Mutex::new(false)),
+            thread: None,
+        }
+    }
+
+    fn run(
+        &mut self,
+        receiver: Receiver<PushedItemMessage<R::PushedItem>>,
+    ) {
+        let msgs = self.msgs.clone();
+        let stop = self.stop.clone();
+        let handle = std::thread::spawn(move || {
+            Self::recieve_message(msgs, receiver, stop);
+        });
+        self.thread = Some(handle);
+    }
+
+    fn recieve_message(
+        msgs: Arc<Mutex<Vec<PushedItemMessage<R::PushedItem>>>>,
+        receiver: Receiver<PushedItemMessage<R::PushedItem>>,
+        stop: Arc<Mutex<bool>>,
+    ) {
+        loop {
+            // Handle incoming message
+            // TODO: error handling, timeout
+            // TODO: caching
+            // TODO: stats
+            *msgs.lock().unwrap() = receiver.iter().collect();
+    
+            // Stop the loop
+            if *stop.lock().unwrap() {
+                break;
+            }
+        }
+
+        let _: Vec<_> = receiver.try_iter().collect();
+        info!("Stopped thread for message recieving");
+    }
+
+    fn get_messages(&self) -> Vec<PushedItemMessage<R::PushedItem>> {
+        let mut msgs_ = Vec::new();
+        std::mem::swap(&mut *self.msgs.lock().unwrap(), &mut msgs_);
+        msgs_
+    }
+
+    fn stop_and_join(self) {
+        *self.stop.lock().unwrap() = true;
+        self.thread.unwrap().join().unwrap();
     }
 }
