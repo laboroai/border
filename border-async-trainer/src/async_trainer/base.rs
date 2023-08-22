@@ -427,6 +427,7 @@ where
     }
 
     fn get_messages(&self) -> Vec<PushedItemMessage<R::PushedItem>> {
+        println!("msgs.len(): {}", self.msgs.lock().unwrap().len());
         let mut msgs_ = Vec::new();
         std::mem::swap(&mut *self.msgs.lock().unwrap(), &mut msgs_);
         msgs_
