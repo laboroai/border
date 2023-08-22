@@ -36,5 +36,5 @@ pub use act_d::{GymDiscreteAct, GymDiscreteActRawFilter};
 pub use atari::AtariWrapper;
 pub use base::{GymEnv, GymActFilter, GymObsFilter, GymInfo};
 pub use config::GymEnvConfig;
-pub use obs::{pyobj_to_arrayd, FrameStackFilter, GymObs, GymObsRawFilter};
+pub use obs::{pyobj_to_arrayd, FrameStackFilter, GymObs, ArrayObsFilter};
 // pub use vec::{PyVecGymEnv, PyVecGymEnvConfig};

@@ -2,14 +2,14 @@ use anyhow::Result;
 use border_core::{record::BufferedRecorder, util, Env as _, Policy};
 use border_py_gym_env::{
     GymEnv, GymActFilter, GymEnvConfig, GymContinuousAct,
-    GymContinuousActRawFilter, GymObs, GymObsFilter, GymObsRawFilter,
+    GymContinuousActRawFilter, GymObs, GymObsFilter, ArrayObsFilter,
 };
 use ndarray::Array;
 use std::default::Default;
 
 type Obs = GymObs<f32, f32>;
 type Act = GymContinuousAct;
-type ObsFilter = GymObsRawFilter<f32, f32, Obs>;
+type ObsFilter = ArrayObsFilter<f32, f32, Obs>;
 type ActFilter = GymContinuousActRawFilter<Act>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 

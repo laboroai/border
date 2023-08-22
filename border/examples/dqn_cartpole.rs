@@ -8,8 +8,8 @@ use border_core::{
     Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
 use border_py_gym_env::{
-    GymEnv, GymActFilter, GymEnvConfig, GymDiscreteAct, GymDiscreteActRawFilter,
-    GymObsFilter, GymObsRawFilter,
+    ArrayObsFilter, GymActFilter, GymDiscreteAct, GymDiscreteActRawFilter, GymEnv, GymEnvConfig,
+    GymObsFilter,
 };
 use border_tch_agent::{
     dqn::{Dqn, DqnConfig, DqnModelConfig},
@@ -18,10 +18,10 @@ use border_tch_agent::{
 };
 use clap::{App, Arg};
 // use csv::WriterBuilder;
+use ndarray::{ArrayD, IxDyn};
 use serde::Serialize;
 use std::convert::TryFrom; //, fs::File};
 use tch::Tensor;
-use ndarray::{IxDyn, ArrayD};
 
 const DIM_OBS: i64 = 4;
 const DIM_ACT: i64 = 2;
@@ -40,129 +40,138 @@ const MODEL_DIR: &str = "./border/examples/model/dqn_cartpole";
 
 type PyObsDtype = f32;
 
-#[derive(Clone, Debug)]
-struct Obs(ArrayD<f32>);
+mod obs {
+    use super::*;
 
-impl border_core::Obs for Obs {
-    fn dummy(_n: usize) -> Self {
-        let shape = vec![0];
-        Self(ArrayD::zeros(IxDyn(&[0])))
+    #[derive(Clone, Debug)]
+    pub struct Obs(ArrayD<f32>);
+
+    impl border_core::Obs for Obs {
+        fn dummy(_n: usize) -> Self {
+            Self(ArrayD::zeros(IxDyn(&[0])))
+        }
+
+        fn len(&self) -> usize {
+            self.0.shape()[0]
+        }
     }
 
-    fn len(&self) -> usize {
-        self.0.shape()[0]
-    }
-}
-
-impl From<ArrayD<f32>> for Obs {
-    fn from(obs: ArrayD<f32>) -> Self {
-        Obs(obs)
-    }
-}
-
-impl From<Obs> for Tensor {
-    fn from(obs: Obs) -> Tensor {
-        Tensor::try_from(&obs.0).unwrap()
-    }
-}
-
-struct ObsBatch(TensorSubBatch);
-
-impl SubBatch for ObsBatch {
-    fn new(capacity: usize) -> Self {
-        Self(TensorSubBatch::new(capacity))
+    impl From<ArrayD<f32>> for Obs {
+        fn from(obs: ArrayD<f32>) -> Self {
+            Obs(obs)
+        }
     }
 
-    fn push(&mut self, i: usize, data: &Self) {
-        self.0.push(i, &data.0)
+    impl From<Obs> for Tensor {
+        fn from(obs: Obs) -> Tensor {
+            Tensor::try_from(&obs.0).unwrap()
+        }
     }
 
-    fn sample(&self, ixs: &Vec<usize>) -> Self {
-        let buf = self.0.sample(ixs);
-        Self(buf)
+    pub struct ObsBatch(TensorSubBatch);
+
+    impl SubBatch for ObsBatch {
+        fn new(capacity: usize) -> Self {
+            Self(TensorSubBatch::new(capacity))
+        }
+
+        fn push(&mut self, i: usize, data: &Self) {
+            self.0.push(i, &data.0)
+        }
+
+        fn sample(&self, ixs: &Vec<usize>) -> Self {
+            let buf = self.0.sample(ixs);
+            Self(buf)
+        }
     }
-}
 
-impl From<Obs> for ObsBatch {
-    fn from(obs: Obs) -> Self {
-        let tensor = obs.into();
-        Self(TensorSubBatch::from_tensor(tensor))
+    impl From<Obs> for ObsBatch {
+        fn from(obs: Obs) -> Self {
+            let tensor = obs.into();
+            Self(TensorSubBatch::from_tensor(tensor))
+        }
     }
-}
 
-// 本当に必要？
-impl From<ObsBatch> for Tensor {
-    fn from(b: ObsBatch) -> Self {
-        b.0.into()
-    }
-}
-
-#[derive(Clone, Debug)]
-struct Act(GymDiscreteAct);
-
-impl border_core::Act for Act {
-    fn len(&self) -> usize {
-        self.0.len()
+    impl From<ObsBatch> for Tensor {
+        fn from(b: ObsBatch) -> Self {
+            b.0.into()
+        }
     }
 }
 
-impl Into<GymDiscreteAct> for Act {
-    fn into(self) -> GymDiscreteAct {
-        self.0
+mod act {
+    use super::*;
+
+    #[derive(Clone, Debug)]
+    pub struct Act(GymDiscreteAct);
+
+    impl border_core::Act for Act {
+        fn len(&self) -> usize {
+            self.0.len()
+        }
+    }
+
+    impl Into<GymDiscreteAct> for Act {
+        fn into(self) -> GymDiscreteAct {
+            self.0
+        }
+    }
+
+    pub struct ActBatch(TensorSubBatch);
+
+    impl SubBatch for ActBatch {
+        fn new(capacity: usize) -> Self {
+            Self(TensorSubBatch::new(capacity))
+        }
+
+        fn push(&mut self, i: usize, data: &Self) {
+            self.0.push(i, &data.0)
+        }
+
+        fn sample(&self, ixs: &Vec<usize>) -> Self {
+            let buf = self.0.sample(ixs);
+            Self(buf)
+        }
+    }
+
+    impl From<Act> for Tensor {
+        fn from(act: Act) -> Tensor {
+            let v = act.0.act.iter().map(|e| *e as i64).collect::<Vec<_>>();
+            let t: Tensor = TryFrom::<Vec<i64>>::try_from(v).unwrap();
+
+            // The first dimension of the action tensor is the number of processes,
+            // which is 1 for the non-vectorized environment.
+            t.unsqueeze(0)
+        }
+    }
+
+    impl From<Act> for ActBatch {
+        fn from(act: Act) -> Self {
+            let tensor = act.into();
+            Self(TensorSubBatch::from_tensor(tensor))
+        }
+    }
+
+    impl From<ActBatch> for Tensor {
+        fn from(act: ActBatch) -> Self {
+            act.0.into()
+        }
+    }
+
+    impl From<Tensor> for Act {
+        // `t` must be a 1-dimentional tensor of `f32`
+        fn from(t: Tensor) -> Self {
+            let data: Vec<i64> = t.into();
+            let data: Vec<_> = data.iter().map(|e| *e as i32).collect();
+            Act(GymDiscreteAct::new(data))
+        }
     }
 }
 
-struct ActBatch(TensorSubBatch);
+use act::{Act, ActBatch};
+use obs::{Obs, ObsBatch};
 
-impl SubBatch for ActBatch {
-    fn new(capacity: usize) -> Self {
-        Self(TensorSubBatch::new(capacity))
-    }
-
-    fn push(&mut self, i: usize, data: &Self) {
-        self.0.push(i, &data.0)
-    }
-
-    fn sample(&self, ixs: &Vec<usize>) -> Self {
-        let buf = self.0.sample(ixs);
-        Self(buf)
-    }
-}
-
-impl From<Act> for Tensor {
-    fn from(act: Act) -> Tensor {
-        let v = act.0.act.iter().map(|e| *e as i64).collect::<Vec<_>>();
-        let t: Tensor = TryFrom::<Vec<i64>>::try_from(v).unwrap();
-
-        // The first dimension of the action tensor is the number of processes,
-        // which is 1 for the non-vectorized environment.
-        t.unsqueeze(0)
-    }
-}
-
-impl From<Act> for ActBatch {
-    fn from(act: Act) -> Self {
-        let tensor = act.into();
-        Self(TensorSubBatch::from_tensor(tensor))
-    }
-}
-
-impl From<ActBatch> for Tensor {
-    fn from(act: ActBatch) -> Self {
-        act.0.into()
-    }
-}
-
-impl From<Tensor> for Act {
-    // `t` must be a 1-dimentional tensor of `f32`
-    fn from(t: Tensor) -> Self {
-        let data: Vec<i64> = t.into();
-        let data: Vec<_> = data.iter().map(|e| *e as i32).collect();
-        Act(GymDiscreteAct::new(data))
-    }
-}
-
-type ObsFilter = GymObsRawFilter<PyObsDtype, f32, Obs>;
+type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
 type ActFilter = GymDiscreteActRawFilter<Act>;
 type EnvConfig = GymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;

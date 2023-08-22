@@ -34,6 +34,7 @@ where
 /// For some reason, the dtype of observations in Python gym environments seems to
 /// vary, f32 or f64. To get observations in Rust side, the dtype is specified as a
 /// type parameter, instead of checking the dtype of Python array at runtime.
+#[deprecated]
 #[derive(Clone, Debug)]
 pub struct GymObs<T1, T2>
 where

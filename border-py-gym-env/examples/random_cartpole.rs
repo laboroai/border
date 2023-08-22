@@ -5,7 +5,7 @@ use border_core::{
 };
 use border_py_gym_env::{
     GymEnv, GymActFilter, GymEnvConfig, GymDiscreteAct, GymDiscreteActRawFilter,
-    GymObs, GymObsFilter, GymObsRawFilter,
+    GymObs, GymObsFilter, ArrayObsFilter,
 };
 use serde::Serialize;
 use std::convert::TryFrom;
@@ -14,7 +14,7 @@ type PyObsDtype = f32;
 
 type Obs = GymObs<PyObsDtype, f32>;
 type Act = GymDiscreteAct;
-type ObsFilter = GymObsRawFilter<PyObsDtype, f32, Obs>;
+type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
 type ActFilter = GymDiscreteActRawFilter<Act>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type Evaluator = DefaultEvaluator<Env, RandomPolicy>;

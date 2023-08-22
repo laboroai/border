@@ -10,7 +10,7 @@ use border_core::{
 use border_derive::{Act, Obs, SubBatch};
 use border_py_gym_env::{
     GymEnv, GymActFilter, GymEnvConfig, GymDiscreteAct, GymDiscreteActRawFilter,
-    GymObs, GymObsFilter, GymObsRawFilter,
+    GymObs, GymObsFilter, ArrayObsFilter,
 };
 
 use border_tch_agent::{
@@ -73,7 +73,7 @@ impl From<Act> for ActBatch {
     }
 }
 
-type ObsFilter = GymObsRawFilter<PyObsDtype, f32, Obs>;
+type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
 type ActFilter = GymDiscreteActRawFilter<Act>;
 type EnvConfig = GymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;

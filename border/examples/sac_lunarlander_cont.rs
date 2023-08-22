@@ -9,8 +9,8 @@ use border_core::{
 };
 use border_derive::{Act, SubBatch};
 use border_py_gym_env::{
-    GymActFilter, GymContinuousAct, GymContinuousActRawFilter, GymEnv, GymEnvConfig,
-    GymObsFilter, GymObsRawFilter,
+    ArrayObsFilter, GymActFilter, GymContinuousAct, GymContinuousActRawFilter, GymEnv,
+    GymEnvConfig, GymObsFilter,
 };
 use border_tch_agent::{
     mlp::{Mlp, Mlp2, MlpConfig},
@@ -40,55 +40,66 @@ const MODEL_DIR: &str = "./border/examples/model/sac_lunarlander_cont";
 
 type PyObsDtype = f32;
 
-#[derive(Clone, Debug)]
-struct Obs(ArrayD<f32>);
+mod obs {
+    use super::*;
 
-impl border_core::Obs for Obs {
-    fn dummy(_n: usize) -> Self {
-        Self(ArrayD::zeros(IxDyn(&[0])))
+    #[derive(Clone, Debug)]
+    pub struct Obs(ArrayD<f32>);
+
+    impl border_core::Obs for Obs {
+        fn dummy(_n: usize) -> Self {
+            Self(ArrayD::zeros(IxDyn(&[0])))
+        }
+
+        fn len(&self) -> usize {
+            self.0.shape()[0]
+        }
     }
 
-    fn len(&self) -> usize {
-        self.0.shape()[0]
+    impl From<ArrayD<f32>> for Obs {
+        fn from(obs: ArrayD<f32>) -> Self {
+            Obs(obs)
+        }
     }
-}
 
-impl From<ArrayD<f32>> for Obs {
-    fn from(obs: ArrayD<f32>) -> Self {
-        Obs(obs)
+    impl From<Obs> for Tensor {
+        fn from(obs: Obs) -> Tensor {
+            Tensor::try_from(&obs.0).unwrap()
+        }
     }
-}
 
-impl From<Obs> for Tensor {
-    fn from(obs: Obs) -> Tensor {
-        Tensor::try_from(&obs.0).unwrap()
-    }
-}
+    #[derive(Clone, SubBatch)]
+    pub struct ObsBatch(TensorSubBatch);
 
-#[derive(Clone, SubBatch)]
-struct ObsBatch(TensorSubBatch);
-
-impl From<Obs> for ObsBatch {
-    fn from(obs: Obs) -> Self {
-        let tensor = obs.into();
-        Self(TensorSubBatch::from_tensor(tensor))
-    }
-}
-
-#[derive(Clone, Debug, Act)]
-struct Act(GymContinuousAct);
-
-#[derive(SubBatch)]
-struct ActBatch(TensorSubBatch);
-
-impl From<Act> for ActBatch {
-    fn from(act: Act) -> Self {
-        let tensor = act.into();
-        Self(TensorSubBatch::from_tensor(tensor))
+    impl From<Obs> for ObsBatch {
+        fn from(obs: Obs) -> Self {
+            let tensor = obs.into();
+            Self(TensorSubBatch::from_tensor(tensor))
+        }
     }
 }
 
-type ObsFilter = GymObsRawFilter<PyObsDtype, f32, Obs>;
+mod act {
+    use super::*;
+
+    #[derive(Clone, Debug, Act)]
+    pub struct Act(GymContinuousAct);
+
+    #[derive(SubBatch)]
+    pub struct ActBatch(TensorSubBatch);
+
+    impl From<Act> for ActBatch {
+        fn from(act: Act) -> Self {
+            let tensor = act.into();
+            Self(TensorSubBatch::from_tensor(tensor))
+        }
+    }
+}
+
+use act::{Act, ActBatch};
+use obs::{Obs, ObsBatch};
+
+type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
 type ActFilter = GymContinuousActRawFilter<Act>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;

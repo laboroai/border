@@ -2,13 +2,13 @@ use anyhow::Result;
 use border_core::{DefaultEvaluator, Evaluator as _, Policy};
 use border_py_gym_env::{
     GymEnv, GymActFilter, GymEnvConfig, GymContinuousAct,
-    GymContinuousActRawFilter, GymObs, GymObsFilter, GymObsRawFilter,
+    GymContinuousActRawFilter, GymObs, GymObsFilter, ArrayObsFilter,
 };
 use ndarray::Array;
 
 type Obs = GymObs<f32, f32>;
 type Act = GymContinuousAct;
-type ObsFilter = GymObsRawFilter<f32, f32, Obs>;
+type ObsFilter = ArrayObsFilter<f32, f32, Obs>;
 type ActFilter = GymContinuousActRawFilter<Act>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type Evaluator = DefaultEvaluator<Env, RandomPolicy>;
