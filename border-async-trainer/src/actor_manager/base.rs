@@ -224,10 +224,9 @@ where
             // TODO: stats
             let msg = receiver.recv().unwrap();
             _n_samples += 1;
-            match sender.try_send(msg) {
+            match sender.send(msg) {
                 Ok(()) => {}
-                Err(TrySendError::Full(_)) => {} // ignore error if channel is full
-                Err(TrySendError::Disconnected(_)) => {
+                Err(_e) => {
                     break; // stop loop and thread when disconnected
                 }
             }

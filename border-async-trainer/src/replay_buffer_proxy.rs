@@ -60,9 +60,8 @@ impl<R: ReplayBufferBase> ExperienceBufferBase for ReplayBufferProxy<R> {
                 pushed_items: buffer,
             };
 
-            match self.sender.try_send(msg) {
+            match self.sender.send(msg) {
                 Ok(()) => {}
-                Err(TrySendError::Full(_)) => {} // ignore error if channel is full
                 Err(_e) => {
                     return Err(crate::BorderAsyncTrainerError::SendMsgForPush)?;
                 }
