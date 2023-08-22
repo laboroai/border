@@ -414,6 +414,7 @@ where
             // TODO: error handling, timeout
             // TODO: caching
             // TODO: stats
+            println!("aaa");
             *msgs.lock().unwrap() = receiver.iter().collect();
     
             // Stop the loop
