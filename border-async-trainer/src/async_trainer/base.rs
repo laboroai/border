@@ -424,6 +424,8 @@ where
             }
         }
 
+        println!("ccc");
+
         let _: Vec<_> = receiver.try_iter().collect();
         info!("Stopped thread for message recieving");
     }
