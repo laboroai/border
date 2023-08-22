@@ -343,8 +343,7 @@ where
                 if opt_steps == self.max_train_steps {
                     // Flush channels
                     *self.stop.lock().unwrap() = true;
-                    // let _: Vec<_> = self.r_bulk_pushed_item.try_iter().collect();
-                    msg_reciever.stop_and_join();
+                    let _: Vec<_> = self.r_bulk_pushed_item.try_iter().collect(); // no need?
                     self.sync(&agent);
                     break;
                 }
@@ -374,7 +373,6 @@ where
     R::PushedItem: Send + 'static,
 {
     msgs: Arc<Mutex<Vec<PushedItemMessage<R::PushedItem>>>>,
-    stop: Arc<Mutex<bool>>,
     thread: Option<JoinHandle<()>>,
 }
 
@@ -387,7 +385,6 @@ where
     ) -> Self {
         Self {
             msgs: Arc::new(Mutex::new(Vec::<PushedItemMessage<R::PushedItem>>::new())),
-            stop: Arc::new(Mutex::new(false)),
             thread: None,
         }
     }
@@ -397,9 +394,8 @@ where
         receiver: Receiver<PushedItemMessage<R::PushedItem>>,
     ) {
         let msgs = self.msgs.clone();
-        let stop = self.stop.clone();
         let handle = std::thread::spawn(move || {
-            Self::recieve_message(msgs, receiver, stop);
+            Self::recieve_message(msgs, receiver);
         });
         self.thread = Some(handle);
     }
@@ -407,22 +403,10 @@ where
     fn recieve_message(
         msgs: Arc<Mutex<Vec<PushedItemMessage<R::PushedItem>>>>,
         receiver: Receiver<PushedItemMessage<R::PushedItem>>,
-        stop: Arc<Mutex<bool>>,
     ) {
-        loop {
-            // Handle incoming message
-            // TODO: error handling, timeout
-            // TODO: caching
-            // TODO: stats
-            *msgs.lock().unwrap() = receiver.iter().collect();
-    
-            // Stop the loop
-            if *stop.lock().unwrap() {
-                break;
-            }
+        for msg in receiver.iter() {
+            msgs.lock().unwrap().push(msg);
         }
-
-        let _: Vec<_> = receiver.try_iter().collect();
         info!("Stopped thread for message recieving");
     }
 
@@ -430,10 +414,5 @@ where
         let mut msgs_ = Vec::new();
         std::mem::swap(&mut *self.msgs.lock().unwrap(), &mut msgs_);
         msgs_
-    }
-
-    fn stop_and_join(self) {
-        *self.stop.lock().unwrap() = true;
-        self.thread.unwrap().join().unwrap();
     }
 }
