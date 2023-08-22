@@ -293,8 +293,14 @@ where
 
         info!("Starts training loop");
         loop {
+            let tmp_time = SystemTime::now();
             // Update replay buffer
             let msgs: Vec<_> = self.r_bulk_pushed_item.try_iter().collect();
+            let duration_recv = tmp_time.elapsed().unwrap().as_secs_f32();
+
+            let n_msgs = msgs.len();
+
+            let tmp_time = SystemTime::now();
             msgs.into_iter().for_each(|msg| {
                 samples += msg.pushed_items.len();
                 samples_total += msg.pushed_items.len();
@@ -302,13 +308,22 @@ where
                     .into_iter()
                     .for_each(|pushed_item| buffer.push(pushed_item).unwrap())
             });
+            let duration_push = tmp_time.elapsed().unwrap().as_secs_f32();
 
+            let tmp_time = SystemTime::now();
             let record = agent.opt(&mut buffer);
-
+            let duration_opt = tmp_time.elapsed().unwrap().as_secs_f32();
+            
+            
             if let Some(mut record) = record {
+                record.insert("msg_recv_time_in_learner", Scalar(duration_recv));
+                record.insert("num_msgs_in_learner", Scalar(n_msgs as f32));
+                record.insert("msg_push_time_in_learner", Scalar(duration_push));
+                record.insert("opt_time_in_learner", Scalar(duration_opt));
+
                 opt_steps += 1;
                 opt_steps_ += 1;
-
+                
                 let do_eval = opt_steps % self.eval_interval == 0;
                 let do_record = opt_steps % self.record_interval == 0;
                 let do_flush = do_eval || do_record;
@@ -316,20 +331,25 @@ where
                 let do_sync = opt_steps % self.sync_interval == 0;
 
                 if do_eval {
+                    let tmp_time = SystemTime::now();
                     info!("Starts evaluation of the trained model");
                     self.eval(&mut agent, &mut env, &mut record, &mut max_eval_reward);
+                    let duration = tmp_time.elapsed().unwrap().as_secs_f32();
+                    record.insert("eval_time_in_learner", Scalar(duration));
                 }
                 if do_record {
+                    let tmp_time = SystemTime::now();
                     info!("Records training logs");
                     self.record(&mut record, &mut opt_steps_, &mut samples, &mut time, samples_total);
-                }
-                if do_flush {
-                    info!("Flushes records");
-                    self.flush(opt_steps, record, recorder);
+                    let duration = tmp_time.elapsed().unwrap().as_secs_f32();
+                    record.insert("record_time_in_learner", Scalar(duration));
                 }
                 if do_save {
+                    let tmp_time = SystemTime::now();
                     info!("Saves the trained model");
                     self.save(opt_steps, &mut agent);
+                    let duration = tmp_time.elapsed().unwrap().as_secs_f32();
+                    record.insert("save_time_in_learner", Scalar(duration));
                 }
                 if opt_steps == self.max_train_steps {
                     // Flush channels
@@ -339,8 +359,15 @@ where
                     break;
                 }
                 if do_sync {
+                    let tmp_time = SystemTime::now();
                     info!("Sends the trained model info to ActorManager");
                     self.sync(&agent);
+                    let duration = tmp_time.elapsed().unwrap().as_secs_f32();
+                    record.insert("sync_time_in_learner", Scalar(duration));
+                }
+                if do_flush {
+                    info!("Flushes records");
+                    self.flush(opt_steps, record, recorder);
                 }
             }
         }
