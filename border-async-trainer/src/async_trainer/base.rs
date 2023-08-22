@@ -10,6 +10,7 @@ use std::{
     marker::PhantomData,
     sync::{Arc, Mutex},
     time::SystemTime,
+    collections::VecDeque,
 };
 
 #[cfg_attr(doc, aquamarine::aquamarine)]
@@ -193,22 +194,31 @@ where
         record: &mut Record,
         opt_steps_: &mut usize,
         samples: &mut usize,
+        removed_samples: &mut usize,
         time: &mut SystemTime,
         samples_total: usize,
+        removed_samples_total: usize,
     ) {
         let duration = time.elapsed().unwrap().as_secs_f32();
         let ops = (*opt_steps_ as f32) / duration;
         let sps = (*samples as f32) / duration;
         let spo = (*samples as f32) / (*opt_steps_ as f32);
+        let rsps = (*removed_samples as f32) / duration;
+        let rspo = (*removed_samples as f32) / (*opt_steps_ as f32);
+
         record.insert("samples_total", Scalar(samples_total as _));
+        record.insert("removed_samples_total", Scalar(removed_samples_total as _));
         record.insert("opt_steps_per_sec", Scalar(ops));
         record.insert("samples_per_sec", Scalar(sps));
         record.insert("samples_per_opt_steps", Scalar(spo));
+        record.insert("removed_samples_per_sec", Scalar(rsps));
+        record.insert("removed_samples_per_opt_steps", Scalar(rspo));
         // info!("Collected samples per optimization step = {}", spo);
 
         // Reset counter
         *opt_steps_ = 0;
         *samples = 0;
+        *removed_samples = 0;
         *time = SystemTime::now();
     }
 
@@ -284,9 +294,13 @@ where
         let mut opt_steps = 0;
         let mut opt_steps_ = 0;
         let mut samples = 0;
+        let mut removed_samples = 0;
         let time_total = SystemTime::now();
         let mut samples_total = 0;
+        let mut removed_samples_total = 0;
         let mut time = SystemTime::now();
+        let msg_buffer_capacity = 20;
+        let mut msg_buffer = VecDeque::with_capacity(msg_buffer_capacity);
 
         info!("Send model info first in AsyncTrainer");
         self.sync(&mut agent);
@@ -294,14 +308,23 @@ where
         info!("Starts training loop");
         loop {
             // Update replay buffer
-            let msgs: Vec<_> = self.r_bulk_pushed_item.try_iter().collect();
-            msgs.into_iter().for_each(|msg| {
+            for msg in self.r_bulk_pushed_item.try_iter() {
+                if msg_buffer.len() + 1 > msg_buffer_capacity {
+                    let removed_msg: PushedItemMessage<R::PushedItem> = msg_buffer.pop_back().unwrap();
+                    removed_samples += removed_msg.pushed_items.len();
+                    removed_samples_total += removed_msg.pushed_items.len();
+                }
+                msg_buffer.push_front(msg);
+            }
+
+            if msg_buffer.len() > 0 {
+                let msg = msg_buffer.pop_front().unwrap();
                 samples += msg.pushed_items.len();
                 samples_total += msg.pushed_items.len();
                 msg.pushed_items
                     .into_iter()
-                    .for_each(|pushed_item| buffer.push(pushed_item).unwrap())
-            });
+                    .for_each(|pushed_item| buffer.push(pushed_item).unwrap());
+            }
 
             let record = agent.opt(&mut buffer);
 
@@ -321,7 +344,15 @@ where
                 }
                 if do_record {
                     info!("Records training logs");
-                    self.record(&mut record, &mut opt_steps_, &mut samples, &mut time, samples_total);
+                    self.record(
+                        &mut record,
+                        &mut opt_steps_,
+                        &mut samples,
+                        &mut removed_samples,
+                        &mut time,
+                        samples_total,
+                        removed_samples_total,
+                    );
                 }
                 if do_flush {
                     info!("Flushes records");
