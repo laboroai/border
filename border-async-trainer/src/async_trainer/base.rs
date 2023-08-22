@@ -396,6 +396,7 @@ where
         &mut self,
         receiver: Receiver<PushedItemMessage<R::PushedItem>>,
     ) {
+        println!("bbb");
         let msgs = self.msgs.clone();
         let stop = self.stop.clone();
         let handle = std::thread::spawn(move || {
