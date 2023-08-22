@@ -304,6 +304,7 @@ where
         loop {
             // Update replay buffer
             let msgs = msg_reciever.get_messages();
+            println!("msgs.len(): {}", msgs.len());
             msgs.into_iter().for_each(|msg| {
                 samples += msg.pushed_items.len();
                 samples_total += msg.pushed_items.len();
@@ -410,18 +411,9 @@ where
         receiver: Receiver<PushedItemMessage<R::PushedItem>>,
         stop: Arc<Mutex<bool>>,
     ) {
-        loop {
-            // Handle incoming message
-            // TODO: error handling, timeout
-            // TODO: caching
-            // TODO: stats
-            println!("aaa");
-            *msgs.lock().unwrap() = receiver.iter().collect();
-    
-            // Stop the loop
-            if *stop.lock().unwrap() {
-                break;
-            }
+        println!("aaa");
+        for msg in receiver.iter() {
+            msgs.lock().unwrap().push(msg);
         }
 
         println!("ccc");
