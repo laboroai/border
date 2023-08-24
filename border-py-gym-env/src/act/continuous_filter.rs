@@ -1,4 +1,4 @@
-use super::to_pyobj;
+use crate::util::to_pyobj;
 use crate::GymActFilter;
 use border_core::{
     record::{Record, RecordValue},

@@ -24,6 +24,7 @@
 //! [examples](https://github.com/taku-y/border/blob/main/border-py-gym-env/examples) directory.
 //! Examples with `border-tch-agents`, which are collections of RL agents implemented with tch-rs,
 //! are in [here](https://github.com/taku-y/border/blob/main/border/examples).
+mod act;
 mod act_c;
 mod act_d;
 mod atari;
@@ -31,10 +32,14 @@ mod base;
 mod config;
 mod obs;
 mod vec;
-pub use act_c::{to_pyobj, GymContinuousAct, ContinuousActFilter};
-pub use act_d::{GymDiscreteAct, DiscreteActFilter};
+pub mod util;
+pub use act::{
+    ContinuousActFilter, ContinuousActFilterConfig, DiscreteActFilter, DiscreteActFilterConfig,
+};
+pub use act_c::{to_pyobj, GymContinuousAct};
+pub use act_d::GymDiscreteAct;
 pub use atari::AtariWrapper;
-pub use base::{GymEnv, GymActFilter, GymObsFilter, GymInfo};
+pub use base::{GymActFilter, GymEnv, GymInfo, GymObsFilter};
 pub use config::GymEnvConfig;
-pub use obs::{pyobj_to_arrayd, FrameStackFilter, GymObs, ArrayObsFilter};
+pub use obs::{pyobj_to_arrayd, ArrayObsFilter, FrameStackFilter, GymObs};
 // pub use vec::{PyVecGymEnv, PyVecGymEnvConfig};
