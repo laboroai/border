@@ -7,9 +7,9 @@ use border_core::{
     },
     Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
-use border_derive::{Act, SubBatch};
+use border_derive::SubBatch;
 use border_py_gym_env::{
-    to_pyobj, ArrayObsFilter, GymActFilter, GymContinuousAct, GymEnv, GymEnvConfig, GymObsFilter,
+    to_pyobj, ArrayObsFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
 use border_tch_agent::{
     mlp::{Mlp, Mlp2, MlpConfig},
@@ -81,8 +81,42 @@ mod obs {
 mod act {
     use super::*;
 
-    #[derive(Clone, Debug, Act)]
-    pub struct Act(GymContinuousAct);
+    #[derive(Clone, Debug)]
+    pub struct Act(ArrayD<f32>);
+
+    impl border_core::Act for Act {}
+
+    impl Into<ArrayD<f32>> for Act {
+        fn into(self) -> ArrayD<f32> {
+            self.0
+        }
+    }
+
+    impl Into<Tensor> for Act {
+        fn into(self) -> Tensor {
+            let v = self.0.iter().map(|e| *e as f32).collect::<Vec<_>>();
+            let t: tch::Tensor = std::convert::TryFrom::<Vec<f32>>::try_from(v).unwrap();
+
+            // Add the batch dimension.
+            t.unsqueeze(0)
+        }
+    }
+
+    impl From<Tensor> for Act {
+        fn from(t: Tensor) -> Self {
+            let shape = t.size()[1..]
+                .iter()
+                .map(|x| *x as usize)
+                .collect::<Vec<_>>();
+            let act: Vec<f32> = t.into();
+
+            let act = ndarray::Array1::<f32>::from(act)
+                .into_shape(ndarray::IxDyn(&shape))
+                .unwrap();
+
+            Self(act)
+        }
+    }
 
     #[derive(SubBatch)]
     pub struct ActBatch(TensorSubBatch);
@@ -109,11 +143,11 @@ mod act {
         }
 
         fn filt(&mut self, act: Act) -> (PyObject, Record) {
-            let act_filt = 2f32 * &act.0.act;
+            let act_filt = 2f32 * &act.0;
             let record = Record::from_slice(&[
                 (
                     "act_org",
-                    RecordValue::Array1(act.0.act.iter().cloned().collect()),
+                    RecordValue::Array1(act.0.iter().cloned().collect()),
                 ),
                 (
                     "act_filt",

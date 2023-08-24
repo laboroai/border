@@ -9,7 +9,7 @@ use border_core::{
 };
 use border_derive::{Act, SubBatch};
 use border_py_gym_env::{
-    ArrayObsFilter, GymActFilter, GymContinuousAct, GymContinuousActRawFilter, GymEnv,
+    ArrayObsFilter, GymActFilter, GymContinuousAct, ContinuousActFilter, GymEnv,
     GymEnvConfig, GymObsFilter,
 };
 use border_tch_agent::{
@@ -100,7 +100,7 @@ use act::{Act, ActBatch};
 use obs::{Obs, ObsBatch};
 
 type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
-type ActFilter = GymContinuousActRawFilter<Act>;
+type ActFilter = ContinuousActFilter<Act>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;

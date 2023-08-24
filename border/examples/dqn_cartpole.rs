@@ -8,7 +8,7 @@ use border_core::{
     Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
 use border_py_gym_env::{
-    ArrayObsFilter, GymActFilter, GymDiscreteAct, GymDiscreteActRawFilter, GymEnv, GymEnvConfig,
+    ArrayObsFilter, GymActFilter, DiscreteActFilter, GymEnv, GymEnvConfig,
     GymObsFilter,
 };
 use border_tch_agent::{
@@ -103,17 +103,13 @@ mod act {
     use super::*;
 
     #[derive(Clone, Debug)]
-    pub struct Act(GymDiscreteAct);
+    pub struct Act(Vec<i32>);
 
-    impl border_core::Act for Act {
-        fn len(&self) -> usize {
-            self.0.len()
-        }
-    }
+    impl border_core::Act for Act {}
 
-    impl Into<GymDiscreteAct> for Act {
-        fn into(self) -> GymDiscreteAct {
-            self.0
+    impl From<Act> for Vec<i32> {
+        fn from(value: Act) -> Self {
+            value.0
         }
     }
 
@@ -136,11 +132,10 @@ mod act {
 
     impl From<Act> for Tensor {
         fn from(act: Act) -> Tensor {
-            let v = act.0.act.iter().map(|e| *e as i64).collect::<Vec<_>>();
+            let v = act.0.iter().map(|e| *e as i64).collect::<Vec<_>>();
             let t: Tensor = TryFrom::<Vec<i64>>::try_from(v).unwrap();
 
-            // The first dimension of the action tensor is the number of processes,
-            // which is 1 for the non-vectorized environment.
+            // Insert the batch dimension
             t.unsqueeze(0)
         }
     }
@@ -162,8 +157,8 @@ mod act {
         // `t` must be a 1-dimentional tensor of `f32`
         fn from(t: Tensor) -> Self {
             let data: Vec<i64> = t.into();
-            let data: Vec<_> = data.iter().map(|e| *e as i32).collect();
-            Act(GymDiscreteAct::new(data))
+            let data = data.iter().map(|&e| e as i32).collect();
+            Act(data)
         }
     }
 }
@@ -172,7 +167,7 @@ use act::{Act, ActBatch};
 use obs::{Obs, ObsBatch};
 
 type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
-type ActFilter = GymDiscreteActRawFilter<Act>;
+type ActFilter = DiscreteActFilter<Act>;
 type EnvConfig = GymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;

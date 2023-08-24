@@ -32,5 +32,9 @@ pub trait Obs: Clone + Debug {
 /// A set of actions of the environment.
 pub trait Act: Clone + Debug {
     /// Returns the number of actions in the object.
-    fn len(&self) -> usize;
+    ///
+    /// TODO: Consider to delete.
+    fn len(&self) -> usize {
+        unimplemented!();
+    }
 }
