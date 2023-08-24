@@ -1,4 +1,4 @@
-use crate::util::to_pyobj;
+use crate::util::arrayd_to_pyobj;
 use crate::GymActFilter;
 use border_core::{
     record::{Record, RecordValue},
@@ -63,7 +63,7 @@ where
         let act: ArrayD<f32> = act.into();
         let record =
             Record::from_slice(&[("act", RecordValue::Array1(act.iter().cloned().collect()))]);
-        let act = to_pyobj(act);
+        let act = arrayd_to_pyobj(act);
         (act, record)
     }
 }

@@ -9,7 +9,8 @@ use border_core::{
 };
 use border_derive::SubBatch;
 use border_py_gym_env::{
-    to_pyobj, ArrayObsFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
+    util::{arrayd_to_pyobj, arrayd_to_tensor, tensor_to_arrayd},
+    ArrayObsFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
 use border_tch_agent::{
     mlp::{Mlp, Mlp2, MlpConfig},
@@ -86,35 +87,22 @@ mod act {
 
     impl border_core::Act for Act {}
 
-    impl Into<ArrayD<f32>> for Act {
-        fn into(self) -> ArrayD<f32> {
-            self.0
-        }
-    }
-
-    impl Into<Tensor> for Act {
-        fn into(self) -> Tensor {
-            let v = self.0.iter().map(|e| *e as f32).collect::<Vec<_>>();
-            let t: tch::Tensor = std::convert::TryFrom::<Vec<f32>>::try_from(v).unwrap();
-
-            // Add the batch dimension.
-            t.unsqueeze(0)
+    impl From<Act> for ArrayD<f32> {
+        fn from(value: Act) -> Self {
+            value.0
         }
     }
 
     impl From<Tensor> for Act {
         fn from(t: Tensor) -> Self {
-            let shape = t.size()[1..]
-                .iter()
-                .map(|x| *x as usize)
-                .collect::<Vec<_>>();
-            let act: Vec<f32> = t.into();
+            Self(tensor_to_arrayd(t, true))
+        }
+    }
 
-            let act = ndarray::Array1::<f32>::from(act)
-                .into_shape(ndarray::IxDyn(&shape))
-                .unwrap();
-
-            Self(act)
+    // Required by Sac
+    impl From<Act> for Tensor {
+        fn from(value: Act) -> Self {
+            arrayd_to_tensor::<_, f32>(value.0, true)            
         }
     }
 
@@ -154,7 +142,7 @@ mod act {
                     RecordValue::Array1(act_filt.iter().cloned().collect()),
                 ),
             ]);
-            (to_pyobj(act_filt), record)
+            (arrayd_to_pyobj(act_filt), record)
         }
     }
 }

@@ -9,7 +9,7 @@ use border_core::{
 };
 use border_py_gym_env::{
     ArrayObsFilter, GymActFilter, DiscreteActFilter, GymEnv, GymEnvConfig,
-    GymObsFilter,
+    GymObsFilter, util::vec_to_tensor
 };
 use border_tch_agent::{
     dqn::{Dqn, DqnConfig, DqnModelConfig},
@@ -113,6 +113,15 @@ mod act {
         }
     }
 
+    impl From<Tensor> for Act {
+        // `t` must be a 1-dimentional tensor of `f32`
+        fn from(t: Tensor) -> Self {
+            let data: Vec<i64> = t.into();
+            let data = data.iter().map(|&e| e as i32).collect();
+            Act(data)
+        }
+    }
+
     pub struct ActBatch(TensorSubBatch);
 
     impl SubBatch for ActBatch {
@@ -130,35 +139,17 @@ mod act {
         }
     }
 
-    impl From<Act> for Tensor {
-        fn from(act: Act) -> Tensor {
-            let v = act.0.iter().map(|e| *e as i64).collect::<Vec<_>>();
-            let t: Tensor = TryFrom::<Vec<i64>>::try_from(v).unwrap();
-
-            // Insert the batch dimension
-            t.unsqueeze(0)
-        }
-    }
-
     impl From<Act> for ActBatch {
         fn from(act: Act) -> Self {
-            let tensor = act.into();
-            Self(TensorSubBatch::from_tensor(tensor))
+            let t = vec_to_tensor::<_, i64>(act.0, true);
+            Self(TensorSubBatch::from_tensor(t))
         }
     }
 
+    // Required by Dqn
     impl From<ActBatch> for Tensor {
         fn from(act: ActBatch) -> Self {
             act.0.into()
-        }
-    }
-
-    impl From<Tensor> for Act {
-        // `t` must be a 1-dimentional tensor of `f32`
-        fn from(t: Tensor) -> Self {
-            let data: Vec<i64> = t.into();
-            let data = data.iter().map(|&e| e as i32).collect();
-            Act(data)
         }
     }
 }
