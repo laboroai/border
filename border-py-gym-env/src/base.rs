@@ -365,13 +365,17 @@ where
             (env, false)
         } else if !config.pybullet {
             let gym = py.import("f32_wrapper")?;
-            let kwargs = if let Some(render_mode) = config.render_mode.clone() {
-                Some(vec![("render_mode", render_mode)].into_py_dict(py))
-            } else {
-                None
+            let render = config.render_mode.is_some();
+            let env = {
+                let kwargs = if let Some(render_mode) = config.render_mode.clone() {
+                    Some(vec![("render_mode", render_mode)].into_py_dict(py))
+                } else {
+                    None
+                };
+                gym.getattr("make_f32")?.call((name,), kwargs)?
             };
-            let env = gym.getattr("make_f32")?.call((name,), kwargs)?;
-            (env, false)
+
+            (env, render)
         } else {
             let gym = py.import("f32_wrapper")?;
             let kwargs = None;
@@ -466,7 +470,7 @@ def update_camera_pos(env):
             act_filter: AF::build(&config.act_filter_config.as_ref().unwrap())?,
             render,
             count_steps: 0,
-            wait: config.wait.clone(),
+            wait: config.wait,
             max_steps: config.max_steps,
             pybullet: config.pybullet,
             pybullet_state,

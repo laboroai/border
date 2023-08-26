@@ -194,13 +194,13 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
     Ok(())
 }
 
-fn eval(model_dir: &str, render: bool) -> Result<()> {
-    let env_config = {
+fn eval(model_dir: &str, render: bool, wait: u64) -> Result<()> {
+    let env_config = { 
         let mut env_config = env_config();
         if render {
             env_config = env_config
                 .render_mode(Some("human".to_string()))
-                .set_wait_in_millis(10);
+                .set_wait_in_millis(wait);
         };
         env_config
     };
@@ -222,7 +222,7 @@ fn main() -> Result<()> {
     tch::manual_seed(42);
     fastrand::seed(42);
 
-    let matches = App::new("dqn_cartpole")
+    let matches = App::new("sac_ant")
         .version("0.1.0")
         .author("Taku Yoshioka <yoshioka@laboro.ai>")
         .arg(
@@ -263,7 +263,8 @@ fn main() -> Result<()> {
             model_dir.as_ref().to_str().unwrap().to_string()
         };
 
-        eval(model_dir.as_str(), true)?;
+        let wait = matches.value_of("wait").unwrap().parse().unwrap();
+        eval(model_dir.as_str(), true, wait)?;
     }
 
     Ok(())
