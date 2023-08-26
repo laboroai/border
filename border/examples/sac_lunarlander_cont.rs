@@ -9,8 +9,9 @@ use border_core::{
 };
 use border_derive::{Act, SubBatch};
 use border_py_gym_env::{
-    ArrayObsFilter, GymActFilter, GymContinuousAct, ContinuousActFilter, GymEnv,
-    GymEnvConfig, GymObsFilter,
+    util::{arrayd_to_pyobj, arrayd_to_tensor, tensor_to_arrayd},
+    ArrayObsFilter, ContinuousActFilter, GymActFilter, GymContinuousAct, GymEnv, GymEnvConfig,
+    GymObsFilter,
 };
 use border_tch_agent::{
     mlp::{Mlp, Mlp2, MlpConfig},
@@ -82,8 +83,29 @@ mod obs {
 mod act {
     use super::*;
 
-    #[derive(Clone, Debug, Act)]
-    pub struct Act(GymContinuousAct);
+    #[derive(Clone, Debug)]
+    pub struct Act(ArrayD<f32>);
+
+    impl border_core::Act for Act {}
+
+    impl From<Act> for ArrayD<f32> {
+        fn from(value: Act) -> Self {
+            value.0
+        }
+    }
+
+    impl From<Tensor> for Act {
+        fn from(t: Tensor) -> Self {
+            Self(tensor_to_arrayd(t, true))
+        }
+    }
+
+    // Required by Sac
+    impl From<Act> for Tensor {
+        fn from(value: Act) -> Self {
+            arrayd_to_tensor::<_, f32>(value.0, true)
+        }
+    }
 
     #[derive(SubBatch)]
     pub struct ActBatch(TensorSubBatch);

@@ -1,21 +1,62 @@
 use anyhow::Result;
-use border_core::{
-    record::Record,
-    DefaultEvaluator, Evaluator as _, Policy,
-};
+use border_core::{record::Record, DefaultEvaluator, Evaluator as _, Policy};
 use border_py_gym_env::{
-    GymEnv, GymActFilter, GymEnvConfig, GymDiscreteAct, GymDiscreteActRawFilter,
-    GymObs, GymObsFilter, ArrayObsFilter,
+    ArrayObsFilter, DiscreteActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
 use serde::Serialize;
 use std::convert::TryFrom;
 
 type PyObsDtype = f32;
 
-type Obs = GymObs<PyObsDtype, f32>;
-type Act = GymDiscreteAct;
+mod obs {
+    use ndarray::{ArrayD, IxDyn};
+
+    #[derive(Clone, Debug)]
+    pub struct CartPoleObs(ArrayD<f32>);
+
+    impl border_core::Obs for CartPoleObs {
+        fn len(&self) -> usize {
+            self.0.shape()[0]
+        }
+
+        fn dummy(_n: usize) -> Self {
+            Self(ArrayD::zeros(IxDyn(&[0])))
+        }
+    }
+
+    impl From<ArrayD<f32>> for CartPoleObs {
+        fn from(value: ArrayD<f32>) -> Self {
+            Self(value)
+        }
+    }
+}
+
+mod act {
+    #[derive(Clone, Debug)]
+    pub struct CartPoleAct(Vec<i32>);
+
+    impl CartPoleAct {
+        pub fn new(v: Vec<i32>) -> Self {
+            Self(v)
+        }
+    }
+
+    impl border_core::Act for CartPoleAct {}
+
+    impl From<CartPoleAct> for Vec<i32> {
+        fn from(value: CartPoleAct) -> Self {
+            value.0
+        }
+    }
+}
+
+use act::CartPoleAct;
+use obs::CartPoleObs;
+
+type Obs = CartPoleObs;
+type Act = CartPoleAct;
 type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
-type ActFilter = GymDiscreteActRawFilter<Act>;
+type ActFilter = DiscreteActFilter<Act>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type Evaluator = DefaultEvaluator<Env, RandomPolicy>;
 
@@ -97,5 +138,7 @@ fn test_random_cartpole() {
         .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default());
     let mut policy = RandomPolicy;
 
-    let _ = Evaluator::new(&env_config, 0, 5).unwrap().evaluate(&mut policy);
+    let _ = Evaluator::new(&env_config, 0, 5)
+        .unwrap()
+        .evaluate(&mut policy);
 }

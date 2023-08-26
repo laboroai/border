@@ -1,15 +1,59 @@
 use anyhow::Result;
 use border_core::{DefaultEvaluator, Evaluator as _, Policy};
 use border_py_gym_env::{
-    GymEnv, GymActFilter, GymEnvConfig, GymContinuousAct,
-    GymContinuousActRawFilter, GymObs, GymObsFilter, ArrayObsFilter,
+    ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
-use ndarray::Array;
+use ndarray::{Array, ArrayD, IxDyn};
 
-type Obs = GymObs<f32, f32>;
-type Act = GymContinuousAct;
+mod obs {
+    use super::*;
+
+    #[derive(Clone, Debug)]
+    pub struct Obs(ArrayD<f32>);
+
+    impl border_core::Obs for Obs {
+        fn dummy(_n: usize) -> Self {
+            Self(ArrayD::zeros(IxDyn(&[0])))
+        }
+
+        fn len(&self) -> usize {
+            self.0.shape()[0]
+        }
+    }
+
+    impl From<ArrayD<f32>> for Obs {
+        fn from(obs: ArrayD<f32>) -> Self {
+            Obs(obs)
+        }
+    }
+}
+
+mod act {
+    use super::*;
+
+    #[derive(Clone, Debug)]
+    pub struct Act(ArrayD<f32>);
+
+    impl border_core::Act for Act {}
+
+    impl Act {
+        pub fn new(a: ArrayD<f32>) -> Self {
+            Self(a)
+        }
+    }
+
+    impl From<Act> for ArrayD<f32> {
+        fn from(value: Act) -> Self {
+            value.0
+        }
+    }
+}
+
+use act::Act;
+use obs::Obs;
+
 type ObsFilter = ArrayObsFilter<f32, f32, Obs>;
-type ActFilter = GymContinuousActRawFilter<Act>;
+type ActFilter = ContinuousActFilter<Act>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type Evaluator = DefaultEvaluator<Env, RandomPolicy>;
 
@@ -58,5 +102,7 @@ fn test_lunalander_cont() {
         .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default());
     let mut policy = RandomPolicy;
 
-    let _ = Evaluator::new(&env_config, 0, 5).unwrap().evaluate(&mut policy);
+    let _ = Evaluator::new(&env_config, 0, 5)
+        .unwrap()
+        .evaluate(&mut policy);
 }
