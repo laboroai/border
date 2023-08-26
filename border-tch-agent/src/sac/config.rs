@@ -44,6 +44,7 @@ where
     pub(super) reward_scale: f32,
     pub(super) replay_burffer_capacity: usize,
     pub(super) n_critics: usize,
+    pub(super) seed: Option<i64>,
     pub device: Option<Device>,
     // expr_sampling: ExperienceSampling,
 }
@@ -73,6 +74,7 @@ where
             reward_scale: self.reward_scale.clone(),
             replay_burffer_capacity: self.replay_burffer_capacity.clone(),
             n_critics: self.n_critics.clone(),
+            seed: self.seed.clone(),
             device: self.device.clone() 
         }
     }
@@ -103,6 +105,7 @@ where
             reward_scale: 1.0,
             replay_burffer_capacity: 100,
             n_critics: 1,
+            seed: None,
             device: None,
             // expr_sampling: ExperienceSampling::Uniform,
         }
@@ -187,6 +190,12 @@ where
     /// The number of critics.
     pub fn n_critics(mut self, n_critics: usize) -> Self {
         self.n_critics = n_critics;
+        self
+    }
+
+    /// Random seed.
+    pub fn seed(mut self, seed: i64) -> Self {
+        self.seed = Some(seed);
         self
     }
 
