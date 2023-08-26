@@ -77,6 +77,7 @@ RUN source /home/ubuntu/venv/bin/activate && pip3 install pyyaml typing-extensio
 RUN source /home/ubuntu/venv/bin/activate && pip3 install torch==1.12.0
 RUN source /home/ubuntu/venv/bin/activate && pip3 install ipython jupyterlab
 RUN source /home/ubuntu/venv/bin/activate && pip3 install numpy==1.21.3
+RUN source /home/ubuntu/venv/bin/activate && pip3 install mujoco==2.3.7
 RUN source /home/ubuntu/venv/bin/activate && pip3 install gymnasium[box2d]==0.29.0
 RUN source /home/ubuntu/venv/bin/activate && pip3 install gymnasium-robotics==1.2.2
 # RUN source /home/ubuntu/venv/bin/activate && pip3 install robosuite==1.3.2
@@ -88,19 +89,19 @@ RUN source /home/ubuntu/venv/bin/activate && pip3 install gymnasium-robotics==1.
 # border
 RUN cd $HOME && mkdir -p .border/model
 
-# Mujoco aarch64 binary
-RUN cd $HOME && \
-    mkdir .mujoco && \
-    cd .mujoco && \
-    wget https://github.com/deepmind/mujoco/releases/download/2.1.1/mujoco-2.1.1-linux-aarch64.tar.gz
-RUN cd $HOME/.mujoco && \
-    tar zxf mujoco-2.1.1-linux-aarch64.tar.gz && \
-    mkdir -p mujoco210/bin && \
-    ln -sf $PWD/mujoco-2.1.1/lib/libmujoco.so.2.1.1 $PWD/mujoco210/bin/libmujoco210.so && \
-    ln -sf $PWD/mujoco-2.1.1/lib/libglewosmesa.so $PWD/mujoco210/bin/libglewosmesa.so && \
-    ln -sf $PWD/mujoco-2.1.1/include/ $PWD/mujoco210/include && \
-    ln -sf $PWD/mujoco-2.1.1/model/ $PWD/mujoco210/model
-RUN cp /*.py $HOME
+# # Mujoco aarch64 binary
+# RUN cd $HOME && \
+#     mkdir .mujoco && \
+#     cd .mujoco && \
+#     wget https://github.com/deepmind/mujoco/releases/download/2.1.1/mujoco-2.1.1-linux-aarch64.tar.gz
+# RUN cd $HOME/.mujoco && \
+#     tar zxf mujoco-2.1.1-linux-aarch64.tar.gz && \
+#     mkdir -p mujoco210/bin && \
+#     ln -sf $PWD/mujoco-2.1.1/lib/libmujoco.so.2.1.1 $PWD/mujoco210/bin/libmujoco210.so && \
+#     ln -sf $PWD/mujoco-2.1.1/lib/libglewosmesa.so $PWD/mujoco210/bin/libglewosmesa.so && \
+#     ln -sf $PWD/mujoco-2.1.1/include/ $PWD/mujoco210/include && \
+#     ln -sf $PWD/mujoco-2.1.1/model/ $PWD/mujoco210/model
+# RUN cp /*.py $HOME
 
 # # PyBulletGym
 # RUN source /home/ubuntu/venv/bin/activate && pip3 install pybullet==3.2.5
