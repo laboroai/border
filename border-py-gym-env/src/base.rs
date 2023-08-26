@@ -349,6 +349,9 @@ where
         // import pybullet-gym if it exists
         if py.import("pybulletgym").is_ok() {}
 
+        // For some unknown reason, Mujoco requires this import
+        if py.import("IPython").is_ok() {}
+
         let name = config.name.as_str();
         let (env, render) = if let Some(mode) = config.atari_wrapper.as_ref() {
             let mode = match mode {
