@@ -32,8 +32,8 @@ fn tensor_sub_batch(ident: proc_macro2::Ident, field_type: syn::Type) -> proc_ma
                 Self(TensorSubBatch::new(capacity))
             }
 
-            fn push(&mut self, i: usize, data: &Self) {
-                self.0.push(i, &data.0)
+            fn push(&mut self, i: usize, data: Self) {
+                self.0.push(i, data.0)
             }
 
             fn sample(&self, ixs: &Vec<usize>) -> Self {

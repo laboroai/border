@@ -85,9 +85,9 @@ where
         }
     }
 
-    fn push(&mut self, index: usize, data: &Self) {
+    fn push(&mut self, index: usize, data: Self) {
         let index = index as i64;
-        let val: Tensor = data.buf.copy();
+        let val: Tensor = data.buf;
         let batch_size = val.size()[0];
         debug_assert_eq!(&val.size()[1..], &self.buf.size()[1..]);
 
