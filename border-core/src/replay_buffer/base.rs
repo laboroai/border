@@ -108,9 +108,9 @@ where
     fn push(&mut self, tr: Self::PushedItem) -> Result<()> {
         let len = tr.len(); // batch size
         let (obs, act, next_obs, reward, is_done, _, _) = tr.unpack();
-        self.obs.push(self.i, &obs);
-        self.act.push(self.i, &act);
-        self.next_obs.push(self.i, &next_obs);
+        self.obs.push(self.i, obs);
+        self.act.push(self.i, act);
+        self.next_obs.push(self.i, next_obs);
         self.push_reward(self.i, &reward);
         self.push_is_done(self.i, &is_done);
 
