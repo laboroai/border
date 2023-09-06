@@ -2,6 +2,8 @@
 mod base;
 mod frame_stack_filter;
 mod array_filter;
-pub use base::{pyobj_to_arrayd, GymObs};
+mod array_dict_filter;
+pub use base::GymObs;
 pub use frame_stack_filter::{FrameStackFilter, FrameStackFilterConfig};
 pub use array_filter::{ArrayObsFilter, ArrayObsFilterConfig};
+pub use array_dict_filter::{ArrayDictObsFilter, ArrayDictObsFilterConfig};

@@ -1,31 +1,13 @@
+use crate::util::pyobj_to_arrayd;
 use border_core::Obs;
-use ndarray::{ArrayD, Axis, IxDyn};
+use ndarray::{ArrayD, IxDyn};
 use num_traits::cast::AsPrimitive;
-use numpy::{Element, PyArrayDyn};
+use numpy::Element;
 use pyo3::PyObject;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 #[cfg(feature = "tch")]
 use {std::convert::TryFrom, tch::Tensor};
-
-/// Convert PyObject to ArrayD.
-pub fn pyobj_to_arrayd<T1, T2>(obs: PyObject) -> ArrayD<T2>
-where
-    T1: Element + AsPrimitive<T2>,
-    T2: 'static + Copy,
-{
-    pyo3::Python::with_gil(|py| {
-        let obs: &PyArrayDyn<T1> = obs.extract(py).unwrap();
-        let obs = obs.to_owned_array();
-        // let obs = obs.mapv(|elem| elem as f32);
-        let obs = obs.mapv(|elem| elem.as_());
-
-        // Insert sample dimension
-        let obs = obs.insert_axis(Axis(0));
-
-        obs
-    })
-}
 
 /// Observation represented by an [ndarray::ArrayD].
 ///

@@ -31,8 +31,8 @@ mod atari;
 mod base;
 mod config;
 mod obs;
-mod vec;
 pub mod util;
+mod vec;
 pub use act::{
     ContinuousActFilter, ContinuousActFilterConfig, DiscreteActFilter, DiscreteActFilterConfig,
 };
@@ -41,5 +41,7 @@ pub use act_d::GymDiscreteAct;
 pub use atari::AtariWrapper;
 pub use base::{GymActFilter, GymEnv, GymInfo, GymObsFilter};
 pub use config::GymEnvConfig;
-pub use obs::{pyobj_to_arrayd, ArrayObsFilter, FrameStackFilter, GymObs};
+pub use obs::{
+    ArrayDictObsFilter, ArrayDictObsFilterConfig, ArrayObsFilter, FrameStackFilter, GymObs,
+};
 // pub use vec::{PyVecGymEnv, PyVecGymEnvConfig};

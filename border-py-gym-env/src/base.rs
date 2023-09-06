@@ -89,12 +89,6 @@ where
 
     env: PyObject,
 
-    #[allow(dead_code)]
-    action_space: i64,
-
-    #[allow(dead_code)]
-    observation_space: Vec<usize>,
-
     count_steps: usize,
 
     max_steps: Option<usize>,
@@ -391,15 +385,9 @@ where
         // TODO: consider removing action_space and observation_space.
         // Act/obs types are specified by type parameters.
         let action_space = env.getattr("action_space")?;
-        let action_space = if let Ok(val) = action_space.getattr("n") {
-            val.extract()?
-        } else {
-            let action_space: Vec<i64> = action_space.getattr("shape")?.extract()?;
-            action_space[0]
-        };
+        println!("Action space = {:?}", action_space);
         let observation_space = env.getattr("observation_space")?;
         println!("Observation space = {:?}", observation_space);
-        let observation_space = observation_space.getattr("shape")?.extract()?;
 
         let pybullet_state = if !config.pybullet {
             None
@@ -464,8 +452,6 @@ def update_camera_pos(env):
 
         Ok(GymEnv {
             env: env.into(),
-            action_space,
-            observation_space,
             obs_filter: OF::build(&config.obs_filter_config.as_ref().unwrap())?,
             act_filter: AF::build(&config.act_filter_config.as_ref().unwrap())?,
             render,
