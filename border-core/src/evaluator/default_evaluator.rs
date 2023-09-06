@@ -22,7 +22,6 @@ where
 
         for ix in 0..self.n_episodes {
             let mut prev_obs = self.env.reset_with_index(ix)?;
-            assert_eq!(prev_obs.len(), 1); // env must be non-vectorized
 
             loop {
                 let act = policy.sample(&prev_obs);
