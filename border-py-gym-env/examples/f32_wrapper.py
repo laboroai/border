@@ -28,13 +28,26 @@ class F32Wrapper(gym.Wrapper):
         if self.is_pybullet_env:
             obs = (np.array(obs, dtype=np.float32), None)
 
-        return obs
+        if isinstance(obs, tuple) and isinstance(obs[0], dict):
+            obs_ = {}
+            for (key, value) in obs[0].items():
+                value_ = np.array(value, dtype=np.float32) if isinstance(value, np.ndarray) else value
+                obs_[key] = value_
+
+        return (obs_, obs[1])
 
     def step(self, act):
         (obs, reward, terminated, truncated, info) = self.env.step(act)
 
         if type(obs) == np.ndarray and obs.dtype == np.float64:
             obs = np.array(obs, dtype=np.float32)
+
+        if isinstance(obs, dict):
+            obs_ = {}
+            for (key, value) in obs.items():
+                value_ = np.array(value, dtype=np.float32) if isinstance(value, np.ndarray) else value_
+                obs_[key] = value_
+            obs = obs_
 
         return (obs, reward, terminated, truncated, info)
 

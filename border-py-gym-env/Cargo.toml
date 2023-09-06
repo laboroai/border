@@ -41,9 +41,9 @@ test = true
 name = "random_lunarlander_cont"
 test = true
 
-# [[example]]
-# name = "random_fetch"
-# test = false
+[[example]]
+name = "random_fetch_reach"
+test = false
 
 [[example]]
 name = "random_ant"
