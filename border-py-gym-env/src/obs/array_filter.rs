@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, marker::PhantomData};
 
 #[derive(Debug, Serialize, Deserialize)]
-/// Configuration of [`GymObsRawFilter`].
+/// Configuration of [`ArrayObsFilter`].
 #[derive(Clone)]
 pub struct ArrayObsFilterConfig {}
 

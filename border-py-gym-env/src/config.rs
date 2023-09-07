@@ -7,7 +7,7 @@ use border_core::{Act, Obs};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
-/// Configuration of [PyGymEnv](super::PyGymEnv).
+/// Configuration of [`GymEnv`](super::GymEnv).
 pub struct GymEnvConfig<O, A, OF, AF>
 where
     O: Obs,
@@ -32,10 +32,10 @@ where
     /// Rendering mode, e.g., "human" or "rgb_array".
     pub render_mode: Option<String>,
 
-    /// Configuration of [PyGymEnvObsFilter].
+    /// Configuration of [`GymObsFilter`].
     pub obs_filter_config: Option<OF::Config>,
 
-    /// Configuration of [PyGymEnvActFilter].
+    /// Configuration of [`GymActFilter`].
     pub act_filter_config: Option<AF::Config>,
 
     /// Wait time at every interaction steps.

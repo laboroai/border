@@ -61,7 +61,7 @@ where
     }
 }
 
-/// Convert numpy array of Python into [`PyGymEnvObs`].
+/// Convert numpy array of Python into [`GymObs`].
 impl<T1, T2> From<PyObject> for GymObs<T1, T2>
 where
     T1: Element + AsPrimitive<T2> + std::fmt::Debug,

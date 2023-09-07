@@ -1,5 +1,3 @@
-//! Discrete action for [`PyGymEnv`](crate::PyGymEnv).
+//! Discrete action for [`GymEnv`](crate::GymEnv).
 mod base;
-// mod discrete_filter;
 pub use base::GymDiscreteAct;
-// pub use discrete_filter::{DiscreteActFilter, DiscreteActFilterConfig};

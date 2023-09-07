@@ -1,4 +1,4 @@
-//! Observation for [PyGymEnv](crate::PyGymEnv).
+//! Observation for [`GymEnv`](crate::GymEnv).
 mod base;
 mod frame_stack_filter;
 mod array_filter;

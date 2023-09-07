@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::{default::Default, fmt::Debug, marker::PhantomData};
 
 #[derive(Debug, Serialize, Deserialize)]
-/// Configuration of [`PyGymEnvContinuousActRawFilter`].
+/// Configuration of [`ContinuousActFilter`].
 #[derive(Clone)]
 pub struct ContinuousActFilterConfig {}
 

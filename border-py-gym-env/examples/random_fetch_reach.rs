@@ -2,7 +2,7 @@ use anyhow::Result;
 use border_core::{DefaultEvaluator, Evaluator as _, Policy};
 use border_py_gym_env::{
     util::ArrayType, ArrayDictObsFilter, ArrayDictObsFilterConfig, ContinuousActFilter,
-    GymActFilter, GymContinuousAct, GymEnv, GymEnvConfig, GymObs, GymObsFilter,
+    GymActFilter, GymEnv, GymEnvConfig,
 };
 use ndarray::{Array, ArrayD};
 

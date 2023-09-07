@@ -18,7 +18,7 @@ pub struct GymInfo {}
 
 impl Info for GymInfo {}
 
-/// Convert [PyObject] to [PyGymEnv]::Obs with a preprocessing.
+/// Convert [`PyObject`] to [`GymEnv`]::Obs with a preprocessing.
 pub trait GymObsFilter<O: Obs> {
     /// Configuration.
     type Config: Clone + Default + Serialize + DeserializeOwned;
@@ -45,7 +45,7 @@ pub trait GymObsFilter<O: Obs> {
     }
 }
 
-/// Convert [PyGymEnv]::Act to [PyObject] with a preprocessing.
+/// Convert [`GymEnv`]::Act to [`PyObject`] with a preprocessing.
 ///
 /// This trait should support vectorized environments.
 pub trait GymActFilter<A: Act> {
@@ -191,12 +191,12 @@ where
 
     /// Resets the environment and returns an observation.
     ///
-    /// This method also resets the [`PyGymObsFilter`] adn [`PyGymActFilter`].
+    /// This method also resets the [`GymObsFilter`] adn [`GymActFilter`].
     ///
     /// In this environment, the length of `is_done` is assumed to be 1.
     ///
-    /// [`PyGymObsFilter`]: crate::PyGymEnvObsFilter
-    /// [`PyGymActFilter`]: crate::PyGymEnvActFilter
+    /// [`GymObsFilter`]: crate::GymObsFilter
+    /// [`GymActFilter`]: crate::GymActFilter
     fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<O> {
         trace!("PyGymEnv::reset()");
 
@@ -264,8 +264,8 @@ where
     /// Runs a step of the environment's dynamics.
     ///
     /// It returns [`Step`] and [`Record`] objects.
-    /// The [`Record`] is composed of [`Record`]s constructed in [`PyGymEnvObsFilter`] and
-    /// [`PyGymEnvActFilter`].
+    /// The [`Record`] is composed of [`Record`]s constructed in [`GymObsFilter`] and
+    /// [`GymActFilter`].
     fn step(&mut self, a: &A) -> (Step<Self>, Record) {
         fn is_done(step: &PyTuple) -> i8 {
             // terminated or truncated
@@ -320,7 +320,7 @@ where
         })
     }
 
-    /// Constructs [`PyGymEnv`].
+    /// Constructs [`GymEnv`].
     ///
     /// * `seed` - The seed value of the random number generator.
     ///   This value will be used at the first call of the reset method.

@@ -1,5 +1,5 @@
 use super::Evaluator;
-use crate::{Env, Obs, Policy};
+use crate::{Env, Policy};
 use anyhow::Result;
 use std::marker::PhantomData;
 

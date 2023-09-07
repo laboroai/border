@@ -75,7 +75,7 @@ where
 
     /// Create slice for a dynamic array: equivalent to arr[j:(j+1), ::] in numpy.
     ///
-    /// See https://github.com/rust-ndarray/ndarray/issues/501
+    /// See <https://github.com/rust-ndarray/ndarray/issues/501>
     fn s(shape: &Option<Vec<usize>>, j: usize) -> Vec<SliceInfoElem> {
         // The first index of self.shape corresponds to stacking dimension,
         // specific index.
