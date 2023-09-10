@@ -26,6 +26,17 @@ impl Default for ArrayDictObsFilterConfig {
     }
 }
 
+impl ArrayDictObsFilterConfig {
+    pub fn add_key_and_types(self, key_and_types: Vec<(impl Into<String>, ArrayType)>) -> Self {
+        let key_and_types = key_and_types.into_iter().map(|(k, t)| {
+            (k.into(), t)
+        }).collect::<Vec<_>>();
+        let mut config = self;
+        config.key_and_types.extend(key_and_types);
+        config
+    }
+}
+
 /// An observation filter for dict of arrays.
 pub struct ArrayDictObsFilter<O>
 where
