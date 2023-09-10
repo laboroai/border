@@ -94,7 +94,7 @@ fn main() -> Result<()> {
     };
 
     let env_config = GymEnvConfig::default()
-        .name("FetchSlide-v2".to_string())
+        .name("FetchReach-v2".to_string())
         .render_mode(Some("human".to_string()))
         // .obs_filter_config(<ObsFilter as GymObsFilter<Obs>>::Config::default())
         .obs_filter_config(obs_filter_config)

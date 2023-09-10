@@ -62,6 +62,12 @@ required-features = ["tch", "border-async-trainer"]
 test = false
 
 [[example]]
+name = "sac_fetch_reach"
+path = "examples/gym-robotics/sac_fetch_reach.rs"
+required-features = ["tch"]
+test = false
+
+[[example]]
 name = "iqn_atari"
 required-features = ["tch"]
 test = false
