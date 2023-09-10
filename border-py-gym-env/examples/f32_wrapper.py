@@ -15,12 +15,10 @@ class F32Wrapper(gym.Wrapper):
 
     def reset(self, **kwargs):
         """Resets the environment.
-
-        Currently it assumes box observation.
         """
         obs = self.env.reset(**kwargs)
 
-        if type(obs) == np.ndarray and obs.dtype == np.float64:
+        if type(obs) == np.ndarray and obs.dtype != np.float32:
             obs = np.array(obs, dtype=np.float32)
         elif type(obs[0]) == np.ndarray and obs[0].dtype == np.float64:
             obs = (np.array(obs[0], dtype=np.float32), obs[1])
@@ -33,8 +31,9 @@ class F32Wrapper(gym.Wrapper):
             for (key, value) in obs[0].items():
                 value_ = np.array(value, dtype=np.float32) if isinstance(value, np.ndarray) else value
                 obs_[key] = value_
+            obs = (obs_, obs[1])
 
-        return (obs_, obs[1])
+        return obs
 
     def step(self, act):
         (obs, reward, terminated, truncated, info) = self.env.step(act)
