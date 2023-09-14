@@ -87,20 +87,6 @@ RUN source /root/venv/bin/activate && pip3 install gymnasium-robotics==1.2.2
 # border
 RUN cd $HOME && mkdir -p .border/model
 
-# # Mujoco aarch64 binary
-# RUN cd $HOME && \
-#     mkdir .mujoco && \
-#     cd .mujoco && \
-#     wget https://github.com/deepmind/mujoco/releases/download/2.1.1/mujoco-2.1.1-linux-aarch64.tar.gz
-# RUN cd $HOME/.mujoco && \
-#     tar zxf mujoco-2.1.1-linux-aarch64.tar.gz && \
-#     mkdir -p mujoco210/bin && \
-#     ln -sf $PWD/mujoco-2.1.1/lib/libmujoco.so.2.1.1 $PWD/mujoco210/bin/libmujoco210.so && \
-#     ln -sf $PWD/mujoco-2.1.1/lib/libglewosmesa.so $PWD/mujoco210/bin/libglewosmesa.so && \
-#     ln -sf $PWD/mujoco-2.1.1/include/ $PWD/mujoco210/include && \
-#     ln -sf $PWD/mujoco-2.1.1/model/ $PWD/mujoco210/model
-# RUN cp /*.py $HOME
-
 # # PyBulletGym
 # RUN source /home/ubuntu/venv/bin/activate && pip3 install pybullet==3.2.5
 # # RUN source /home/ubuntu/venv/bin/activate && pip3 install pybullet==2.7.1
@@ -113,15 +99,6 @@ RUN cd $HOME && mkdir -p .border/model
 # # Tweaks for version incompatibility of gym and pybullet-gym
 # RUN sed -i 's/return state, sum(self.rewards), bool(done), {}/return state, sum(self.rewards), bool(done), bool(done), {}/g' /home/ubuntu/pybullet-gym/pybulletgym/envs/roboschool/envs/locomotion/walker_base_env.py
 # RUN sed -i 's/id='\''AntPyBulletEnv-v0'\'',/id='\''AntPyBulletEnv-v0'\'', order_enforce=False,/g' /home/ubuntu/pybullet-gym/pybulletgym/envs/__init__.py
-
-# From https://github.com/Farama-Foundation/Gymnasium-Robotics/blob/main/py.Dockerfile
-# Build mujoco-py from source. Pypi installs wheel packages and Cython won't recompile old file versions in the Github Actions CI.
-# Thus generating the following error https://github.com/cython/cython/pull/4428
-# RUN source /home/ubuntu/venv/bin/activate \
-#     && cd /home/ubuntu \
-#     && git clone https://github.com/openai/mujoco-py.git\
-#     && cd mujoco-py \
-#     && pip3 install -e .
 
 # .bashrc
 RUN echo 'export LIBTORCH=$HOME/venv/lib/python3.10/site-packages/torch' >> ~/.bashrc
