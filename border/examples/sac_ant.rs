@@ -8,11 +8,11 @@ use border_core::{
     },
     Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
-use border_derive::{Act, Obs, SubBatch};
+use border_derive::SubBatch;
 use border_py_gym_env::{
     util::{arrayd_to_tensor, tensor_to_arrayd},
-    ArrayObsFilter, ContinuousActFilter, GymActFilter, GymContinuousAct, GymEnv, GymEnvConfig,
-    GymObs, GymObsFilter,
+    ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig,
+    GymObsFilter,
 };
 use border_tch_agent::{
     mlp::{Mlp, Mlp2, MlpConfig},
