@@ -68,12 +68,6 @@ required-features = ["tch"]
 test = false
 
 [[example]]
-name = "iqn_atari"
-required-features = ["tch"]
-test = false
-# # required_features = [ "adam_eps" ]
-
-[[example]]
 name = "iqn_atari_rs"
 required-features = ["tch"]
 test = false
