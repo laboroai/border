@@ -23,7 +23,7 @@ use clap::{App, Arg};
 // use csv::WriterBuilder;
 use ndarray::ArrayD;
 use pyo3::PyObject;
-use serde::Serialize;
+// use serde::Serialize;
 use std::convert::TryFrom;
 use tch::Tensor;
 
@@ -253,6 +253,8 @@ fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
     Ok(())
 }
 
+
+
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
@@ -274,10 +276,13 @@ fn main() -> Result<()> {
         )
         .get_matches();
 
-    let do_train = (matches.is_present("train") && !matches.is_present("eval"))
-        || (!matches.is_present("train") && !matches.is_present("eval"));
-    let do_eval = (!matches.is_present("train") && matches.is_present("eval"))
-        || (!matches.is_present("train") && !matches.is_present("eval"));
+    let do_train = matches.is_present("train");
+    let do_eval = matches.is_present("eval");
+
+    if !do_train && !do_eval {
+        println!("You need to give either --train or --eval in the command line argument.");
+        return Ok(());
+    }
 
     if do_train {
         train(
