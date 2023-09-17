@@ -14,16 +14,16 @@ readme = "README.md"
 autoexamples = false
 
 [dependencies]
-anyhow = "1.0.38"
+anyhow = { workspace = true }
 pixels = { version = "0.2.0", optional = true }
 winit = { version = "0.24.0", optional = true }
-dirs = "3.0.1"
+dirs = { workspace = true }
 border-core = { version = "0.0.5", path = "../border-core" }
-image = "0.23.14"
-tch = { version = "0.8.0", optional = true }
-serde = { version = "=1.0.126", features = ["derive"] }
+image = { workspace = true }
+tch = { workspace = true, optional = true }
+serde = { workspace = true, features = ["derive"] }
 itertools = "0.10.1"
-fastrand = "1.4.0"
+fastrand = { workspace = true }
 pollster = "=0.2.4"
 
 # The following crates are required by the code adapted from atari-env
@@ -35,12 +35,19 @@ strum = { version = "0.20.0", features = ["derive"] }
 viuer = "0.4.0"
 # wgpu = { version = "0.7.0", optional = true }
 winit_input_helper = { version = "0.9.0", optional = true }
-ndarray = { version = "0.15.1", features = ["rayon"] }
-num-traits = "0.2.14"
+ndarray = { workspace = true, features = ["rayon"] }
+num-traits = { workspace = true }
 num-derive = "0.3.3"
 
 [features]
-default = ["atari-env-sys", "winit", "winit_input_helper", "minifb", "pixels", "tch"]
+default = [
+    "atari-env-sys",
+    "winit",
+    "winit_input_helper",
+    "minifb",
+    "pixels",
+    "tch",
+]
 sdl = ["atari-env-sys/sdl"]
 doc = []
 
@@ -49,7 +56,7 @@ name = "random_pong"
 test = false
 
 [dev-dependencies]
-env_logger = "0.8.2"
+env_logger = { workspace = true }
 
 [package.metadata.docs.rs]
 no-default-features = true
