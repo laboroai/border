@@ -16,3 +16,4 @@
 * Rename agents as following the convention in Rust (`border-tch-agent`).
 * Bump the version of gym to 0.26 (`border-py-gym-env`)
 * Remove the type parameter for array shape of gym environments (`border-py-gym-env`)
+* Interface of Python-Gym interface (`border-py-gym-env`)
