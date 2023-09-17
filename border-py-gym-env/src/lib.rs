@@ -42,6 +42,6 @@ pub use atari::AtariWrapper;
 pub use base::{GymActFilter, GymEnv, GymInfo, GymObsFilter};
 pub use config::GymEnvConfig;
 pub use obs::{
-    ArrayDictObsFilter, ArrayDictObsFilterConfig, ArrayObsFilter, FrameStackFilter, GymObs,
+    ArrayDictObsFilter, ArrayDictObsFilterConfig, ArrayObsFilter, FrameStackFilter,
 };
 // pub use vec::{PyVecGymEnv, PyVecGymEnvConfig};

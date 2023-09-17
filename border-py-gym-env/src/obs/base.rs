@@ -27,6 +27,7 @@ where
     pub(crate) phantom: PhantomData<T1>,
 }
 
+#[allow(deprecated)]
 impl<T1, T2> From<ArrayD<T2>> for GymObs<T1, T2>
 where
     T1: Element + Debug,
@@ -40,6 +41,7 @@ where
     }
 }
 
+#[allow(deprecated)]
 impl<T1, T2> Obs for GymObs<T1, T2>
 where
     T1: Debug + Element,
@@ -62,6 +64,7 @@ where
 }
 
 /// Convert numpy array of Python into [`GymObs`].
+#[allow(deprecated)]
 impl<T1, T2> From<PyObject> for GymObs<T1, T2>
 where
     T1: Element + AsPrimitive<T2> + std::fmt::Debug,
@@ -89,6 +92,7 @@ where
 //     }
 // }
 
+#[allow(deprecated)]
 #[cfg(feature = "tch")]
 impl<T1> From<GymObs<T1, f32>> for Tensor
 where
@@ -101,6 +105,7 @@ where
     }
 }
 
+#[allow(deprecated)]
 #[cfg(feature = "tch")]
 impl<T1> From<GymObs<T1, u8>> for Tensor
 where

@@ -1,4 +1,5 @@
 //! An observation filter with stacking observations (frames).
+#[allow(deprecated)]
 use super::GymObs;
 use crate::GymObsFilter;
 use border_core::{
@@ -15,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, marker::PhantomData};
 // use std::{convert::TryFrom, fmt::Debug, marker::PhantomData};
 
+#[allow(deprecated)]
 #[derive(Debug, Serialize, Deserialize)]
 /// Configuration of [FrameStackFilter].
 #[derive(Clone)]
@@ -39,6 +41,7 @@ impl Default for FrameStackFilterConfig {
 /// The first element of the shape `S` denotes the number of stacks (`n_stack`) and the following elements
 /// denote the shape of the partial observation, which is the observation of each environment
 /// in the vectorized environment.
+#[allow(deprecated)]
 #[derive(Debug)]
 pub struct FrameStackFilter<T1, T2, U>
 where
@@ -62,6 +65,7 @@ where
     phantom: PhantomData<(T1, U)>,
 }
 
+#[allow(deprecated)]
 impl<T1, T2, U> FrameStackFilter<T1, T2, U>
 where
     T1: Element + Debug + num_traits::identities::Zero + AsPrimitive<T2>,
@@ -136,6 +140,7 @@ where
     }
 }
 
+#[allow(deprecated)]
 impl<T1, T2, U> GymObsFilter<U> for FrameStackFilter<T1, T2, U>
 where
     T1: Element + Debug + num_traits::identities::Zero + AsPrimitive<T2>,
