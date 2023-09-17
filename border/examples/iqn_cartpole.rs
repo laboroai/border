@@ -1,6 +1,6 @@
 use anyhow::Result;
 use border_core::{
-    record::{/*BufferedRecorder,*/ Record, TensorboardRecorder},
+    record::Record,
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig, SubBatch,
@@ -16,6 +16,7 @@ use border_tch_agent::{
     mlp::{Mlp, MlpConfig},
     TensorSubBatch,
 };
+use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg};
 // use csv::WriterBuilder;
 use ndarray::{ArrayD, IxDyn};

@@ -8,7 +8,6 @@ use border_atari_env::{
     BorderAtariObsRawFilter,
 };
 use border_core::{
-    record::TensorboardRecorder,
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
@@ -28,6 +27,7 @@ use border_tch_agent::{
     util::CriticLoss,
     TensorSubBatch,
 };
+use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg, ArgMatches};
 use crossbeam_channel::unbounded;
 use ndarray::{ArrayD, IxDyn};

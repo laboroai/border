@@ -9,7 +9,6 @@ use border_atari_env::{
     BorderAtariObsRawFilter,
 };
 use border_core::{
-    record::TensorboardRecorder,
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
@@ -22,6 +21,7 @@ use border_tch_agent::{
     dqn::{Dqn, DqnConfig, DqnExplorer, EpsilonGreedy},
     TensorSubBatch,
 };
+use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg, ArgMatches};
 use crossbeam_channel::unbounded;
 use std::{
@@ -221,7 +221,10 @@ fn train(matches: ArgMatches) -> Result<()> {
             let eps = (eps_max - eps_min) * n + eps_min;
             let explorer =
                 DqnExplorer::EpsilonGreedy(EpsilonGreedy::new().eps_start(eps).eps_final(eps));
-            agent_config.clone().device(tch::Device::Cpu).explorer(explorer)
+            agent_config
+                .clone()
+                .device(tch::Device::Cpu)
+                .explorer(explorer)
         })
         .collect::<Vec<_>>();
     let env_config_eval = env_config(name).eval();

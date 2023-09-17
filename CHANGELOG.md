@@ -9,6 +9,7 @@
 * Script for GPUSOROBAN (#67)
 * `Evaluator` trait in `border-core` (#70). It can be used to customize evaluation logic in `Trainer`.
 * Example of asynchronous trainer for native Atari environment and DQN (`border/examples`).
+* Move tensorboard recorder into a separate crate (`border-tensorboard`)
 
 ### Changed
 

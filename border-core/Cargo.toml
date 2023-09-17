@@ -16,7 +16,6 @@ autoexamples = false
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 serde_yaml = { workspace = true }
-tensorboard-rs = { workspace = true }
 log = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }

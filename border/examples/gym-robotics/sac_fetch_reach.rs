@@ -1,6 +1,6 @@
 use anyhow::Result;
 use border_core::{
-    record::{/*BufferedRecorder,*/ Record, RecordValue, TensorboardRecorder},
+    record::{Record, RecordValue},
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
@@ -16,9 +16,10 @@ use border_tch_agent::{
     mlp::{Mlp, Mlp2, MlpConfig},
     opt::OptimizerConfig,
     sac::{ActorConfig, CriticConfig, EntCoefMode, Sac, SacConfig},
-    TensorSubBatch,
     util::CriticLoss,
+    TensorSubBatch,
 };
+use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg};
 // use csv::WriterBuilder;
 use ndarray::ArrayD;
@@ -252,8 +253,6 @@ fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
 
     Ok(())
 }
-
-
 
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();

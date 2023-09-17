@@ -17,6 +17,7 @@ autoexamples = false
 anyhow = { workspace = true }
 aquamarine = { workspace = true }
 border-core = { version = "0.0.5", path = "../border-core" }
+border-tensorboard = { version = "0.0.5", path = "../border-tensorboard" }
 serde = { workspace = true, features = ["derive"] }
 log = { workspace = true }
 tokio = { version = "1.14.0", features = ["full"] }

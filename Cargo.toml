@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "border-core",
+    "border-tensorboard",
     "border-py-gym-env",
     "border-tch-agent",
     "border-derive",

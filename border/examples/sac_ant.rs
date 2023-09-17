@@ -1,7 +1,6 @@
 use anyhow::Result;
 use border::util::get_model_from_url;
 use border_core::{
-    record::TensorboardRecorder,
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
@@ -11,8 +10,7 @@ use border_core::{
 use border_derive::SubBatch;
 use border_py_gym_env::{
     util::{arrayd_to_tensor, tensor_to_arrayd},
-    ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig,
-    GymObsFilter,
+    ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
 use border_tch_agent::{
     mlp::{Mlp, Mlp2, MlpConfig},
@@ -21,6 +19,7 @@ use border_tch_agent::{
     util::CriticLoss,
     TensorSubBatch,
 };
+use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg};
 use log::info;
 use ndarray::{ArrayD, IxDyn};
@@ -195,7 +194,7 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
 }
 
 fn eval(model_dir: &str, render: bool, wait: u64) -> Result<()> {
-    let env_config = { 
+    let env_config = {
         let mut env_config = env_config();
         if render {
             env_config = env_config

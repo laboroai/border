@@ -98,6 +98,7 @@ csv = { workspace = true }
 tempdir = { workspace = true }
 border-derive = { version = "0.0.5", path = "../border-derive" }
 border-core = { version = "0.0.5", path = "../border-core" }
+border-tensorboard = { version = "0.0.5", path = "../border-tensorboard" }
 border-tch-agent = { version = "0.0.5", path = "../border-tch-agent" }
 border-py-gym-env = { version = "0.0.5", path = "../border-py-gym-env" }
 border-atari-env = { version = "0.0.5", path = "../border-atari-env" }
