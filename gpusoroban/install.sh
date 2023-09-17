@@ -1,11 +1,9 @@
 export DEBIAN_FRONTEND=noninteractive
 sudo apt update -qy
-# sudo -E apt-get dist-upgrade -qy \
-#     -o Dpkg::Options::="--force-confold" \
-#     -o Dpkg::Options::="--force-confdef" \
-#     --allow-downgrades --allow-remove-essential --allow-change-held-packages
-sudo apt install -y \
-    wget curl git build-essential vim sudo libssl-dev zip swig cmake tmux htop
+sudo apt install --no-install-recommends -y xfce4 xfce4-goodies tigervnc-standalone-server novnc websockify sudo xterm init systemd snapd vim net-tools curl wget git tzdata
+sudo apt install -y dbus-x11 x11-utils x11-xserver-utils x11-apps
+sudo apt install software-properties-common -y
+sudo apt install -y build-essential libssl-dev swig cmake tmux htop
 
 # clang
 sudo apt install -y -q libclang-dev
@@ -41,11 +39,9 @@ source /home/user/venv/bin/activate && pip3 install pyyaml typing-extensions
 source /home/user/venv/bin/activate && pip3 install torch==1.12.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116 --no-cache-dir
 source /home/user/venv/bin/activate && pip3 install ipython jupyterlab
 source /home/user/venv/bin/activate && pip3 install numpy==1.21.3
-source /home/user/venv/bin/activate && pip3 install gym[box2d]==0.26.2
-# source /home/user/venv/bin/activate && pip3 install robosuite==1.3.2
-source /home/user/venv/bin/activate && pip3 install -U 'mujoco-py<2.2,>=2.1'
-source /home/user/venv/bin/activate && pip3 install pyrender==0.1.45
-source /home/user/venv/bin/activate && pip3 install dm2gym==0.2.0
+source /home/user/venv/bin/activate && pip3 install mujoco==2.3.7
+source /home/user/venv/bin/activate && pip3 install gymnasium[box2d]==0.29.0
+source /home/user/venv/bin/activate && pip3 install gymnasium-robotics==1.2.2
 source /home/user/venv/bin/activate && pip3 install tensorboard
 
 echo 'export LIBTORCH=$HOME/venv/lib/python3.10/site-packages/torch' >> ~/.bashrc

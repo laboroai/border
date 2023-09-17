@@ -3,16 +3,14 @@ use border_core::{
     record::{/*BufferedRecorder,*/ Record, TensorboardRecorder},
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
-        SimpleStepProcessorConfig,
+        SimpleStepProcessorConfig, SubBatch,
     },
     Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
-use border_derive::{Act, Obs, SubBatch};
 use border_py_gym_env::{
-    PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter,
-    PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
+    util::vec_to_tensor, ArrayObsFilter, DiscreteActFilter, GymActFilter, GymEnv, GymEnvConfig,
+    GymObsFilter,
 };
-
 use border_tch_agent::{
     iqn::{EpsilonGreedy, Iqn as Iqn_, IqnConfig, IqnModelConfig},
     mlp::{Mlp, MlpConfig},
@@ -20,8 +18,10 @@ use border_tch_agent::{
 };
 use clap::{App, Arg};
 // use csv::WriterBuilder;
+use ndarray::{ArrayD, IxDyn};
 use serde::Serialize;
 use std::convert::TryFrom;
+use tch::Tensor;
 
 const DIM_OBS: i64 = 4;
 const DIM_ACT: i64 = 2;
@@ -46,37 +46,127 @@ const MODEL_DIR: &str = "border/examples/model/iqn_cartpole";
 
 type PyObsDtype = f32;
 
-#[derive(Clone, Debug, Obs)]
-struct Obs(PyGymEnvObs<PyObsDtype, f32>);
+mod obs {
+    use super::*;
 
-#[derive(Clone, Debug, Act)]
-struct Act(PyGymEnvDiscreteAct);
+    #[derive(Clone, Debug)]
+    pub struct Obs(ArrayD<f32>);
 
-#[derive(Clone, SubBatch)]
-struct ObsBatch(TensorSubBatch);
+    impl border_core::Obs for Obs {
+        fn dummy(_n: usize) -> Self {
+            Self(ArrayD::zeros(IxDyn(&[0])))
+        }
 
-impl From<Obs> for ObsBatch {
-    fn from(obs: Obs) -> Self {
-        let tensor = obs.into();
-        Self(TensorSubBatch::from_tensor(tensor))
+        fn len(&self) -> usize {
+            self.0.shape()[0]
+        }
+    }
+
+    impl From<ArrayD<f32>> for Obs {
+        fn from(obs: ArrayD<f32>) -> Self {
+            Obs(obs)
+        }
+    }
+
+    impl From<Obs> for Tensor {
+        fn from(obs: Obs) -> Tensor {
+            Tensor::try_from(&obs.0).unwrap()
+        }
+    }
+
+    pub struct ObsBatch(TensorSubBatch);
+
+    impl SubBatch for ObsBatch {
+        fn new(capacity: usize) -> Self {
+            Self(TensorSubBatch::new(capacity))
+        }
+
+        fn push(&mut self, i: usize, data: &Self) {
+            self.0.push(i, &data.0)
+        }
+
+        fn sample(&self, ixs: &Vec<usize>) -> Self {
+            let buf = self.0.sample(ixs);
+            Self(buf)
+        }
+    }
+
+    impl From<Obs> for ObsBatch {
+        fn from(obs: Obs) -> Self {
+            let tensor = obs.into();
+            Self(TensorSubBatch::from_tensor(tensor))
+        }
+    }
+
+    impl From<ObsBatch> for Tensor {
+        fn from(b: ObsBatch) -> Self {
+            b.0.into()
+        }
     }
 }
 
-#[derive(SubBatch)]
-// struct ActBatch(TensorSubBatch<ActShape, i64>);
-struct ActBatch(TensorSubBatch);
+mod act {
+    use super::*;
 
-impl From<Act> for ActBatch {
-    fn from(act: Act) -> Self {
-        let tensor = act.into();
-        Self(TensorSubBatch::from_tensor(tensor))
+    #[derive(Clone, Debug)]
+    pub struct Act(Vec<i32>);
+
+    impl border_core::Act for Act {}
+
+    impl From<Act> for Vec<i32> {
+        fn from(value: Act) -> Self {
+            value.0
+        }
+    }
+
+    impl From<Tensor> for Act {
+        // `t` must be a 1-dimentional tensor of `f32`
+        fn from(t: Tensor) -> Self {
+            let data: Vec<i64> = t.into();
+            let data = data.iter().map(|&e| e as i32).collect();
+            Act(data)
+        }
+    }
+
+    pub struct ActBatch(TensorSubBatch);
+
+    impl SubBatch for ActBatch {
+        fn new(capacity: usize) -> Self {
+            Self(TensorSubBatch::new(capacity))
+        }
+
+        fn push(&mut self, i: usize, data: &Self) {
+            self.0.push(i, &data.0)
+        }
+
+        fn sample(&self, ixs: &Vec<usize>) -> Self {
+            let buf = self.0.sample(ixs);
+            Self(buf)
+        }
+    }
+
+    impl From<Act> for ActBatch {
+        fn from(act: Act) -> Self {
+            let t = vec_to_tensor::<_, i64>(act.0, true);
+            Self(TensorSubBatch::from_tensor(t))
+        }
+    }
+
+    // Required by Dqn
+    impl From<ActBatch> for Tensor {
+        fn from(act: ActBatch) -> Self {
+            act.0.into()
+        }
     }
 }
 
-type ObsFilter = PyGymEnvObsRawFilter<PyObsDtype, f32, Obs>;
-type ActFilter = PyGymEnvDiscreteActRawFilter<Act>;
-type EnvConfig = PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
-type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+use act::{Act, ActBatch};
+use obs::{Obs, ObsBatch};
+
+type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
+type ActFilter = DiscreteActFilter<Act>;
+type EnvConfig = GymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
+type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
 type Iqn = Iqn_<Env, Mlp, Mlp, ReplayBuffer>;
@@ -107,8 +197,8 @@ impl TryFrom<&Record> for CartpoleRecord {
     }
 }
 
-fn env_config() -> PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
-    PyGymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
+fn env_config() -> EnvConfig {
+    GymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
         .name("CartPole-v0".to_string())
         .obs_filter_config(ObsFilter::default_config())
         .act_filter_config(ActFilter::default_config())
@@ -177,7 +267,7 @@ fn train(max_opts: usize, model_dir: &str, eval_interval: usize) -> Result<()> {
     Ok(())
 }
 
-fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
+fn eval(model_dir: &str, render: bool) -> Result<()> {
     let env_config = {
         let mut env_config = env_config();
         if render {
@@ -193,16 +283,9 @@ fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
         agent.eval();
         agent
     };
+    // let mut recorder = BufferedRecorder::new();
 
-    let _ = Evaluator::new(&env_config, 0, n_episodes)?.evaluate(&mut agent);
-
-    // // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
-    // let mut wtr = WriterBuilder::new()
-    //     .has_headers(false)
-    //     .from_writer(File::create(model_dir.to_string() + "/eval.csv")?);
-    // for record in recorder.iter() {
-    //     wtr.serialize(CartpoleRecord::try_from(record)?)?;
-    // }
+    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut agent);
 
     Ok(())
 }
@@ -226,7 +309,7 @@ fn main() -> Result<()> {
         train(MAX_OPTS, MODEL_DIR, EVAL_INTERVAL)?;
     }
 
-    eval(5, true, &(MODEL_DIR.to_owned() + "/best"))?;
+    eval(&(MODEL_DIR.to_owned() + "/best"), true)?;
 
     Ok(())
 }
@@ -243,7 +326,7 @@ mod test {
         let model_dir = TempDir::new("sac_pendulum")?;
         let model_dir = model_dir.path().to_str().unwrap();
         train(100, model_dir, 100)?;
-        eval(1, false, (model_dir.to_string() + "/best").as_str())?;
+        eval((model_dir.to_string() + "/best").as_str(), false)?;
 
         Ok(())
     }

@@ -54,8 +54,8 @@ where
     pub(super) batch_size: usize,
     pub(super) train: bool,
     pub(super) reward_scale: f32,
+    pub(super) n_opts: usize,
     pub(super) critic_loss: CriticLoss,
-    // pub(super) expr_sampling: ExperienceSampling,
     pub(super) phantom: PhantomData<(E, R)>,
     pub(super) device: tch::Device,
 }
@@ -180,6 +180,7 @@ where
             loss_actor += self.update_actor(&batch);
             loss_critic += self.update_critic(batch);
             self.soft_update();
+            self.n_opts += 1;
         }
 
         loss_critic /= self.n_updates_per_opt as f32;
@@ -229,6 +230,10 @@ where
             qnets_tgt.push(critic);
         }
 
+        if let Some(seed) = config.seed.as_ref() {
+            tch::manual_seed(*seed);
+        }
+
         Sac {
             qnets,
             qnets_tgt,
@@ -245,7 +250,7 @@ where
             train: config.train,
             reward_scale: config.reward_scale,
             critic_loss: config.critic_loss,
-            // expr_sampling: self.expr_sampling,
+            n_opts: 0,
             device,
             phantom: PhantomData,
         }
@@ -321,5 +326,38 @@ where
         self.ent_coef
             .load(&path.as_ref().join("ent_coef.pt").as_path())?;
         Ok(())
+    }
+}
+
+#[cfg(feature = "border-async-trainer")]
+use {crate::util::NamedTensors, border_async_trainer::SyncModel};
+
+#[cfg(feature = "border-async-trainer")]
+impl<E, Q, P, R> SyncModel for Sac<E, Q, P, R>
+where
+    E: Env,
+    Q: SubModel2<Output = ActionValue>,
+    P: SubModel<Output = (ActMean, ActStd)>,
+    R: ReplayBufferBase,
+    E::Obs: Into<Q::Input1> + Into<P::Input>,
+    E::Act: Into<Q::Input2> + From<Tensor>,
+    Q::Input2: From<ActMean>,
+    Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
+    P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
+{
+    type ModelInfo = NamedTensors;
+
+    fn model_info(&self) -> (usize, Self::ModelInfo) {
+        (
+            self.n_opts,
+            NamedTensors::copy_from(self.pi.get_var_store()),
+        )
+    }
+
+    fn sync_model(&mut self, model_info: &Self::ModelInfo) {
+        model_info.copy_to(self.pi.get_var_store_mut());
     }
 }

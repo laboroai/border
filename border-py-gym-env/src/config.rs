@@ -1,19 +1,19 @@
 //! Gym environment in Python.
 use std::time::Duration;
 
-use super::{PyGymEnvActFilter, PyGymEnvObsFilter};
+use super::{GymActFilter, GymObsFilter};
 use crate::AtariWrapper;
 use border_core::{Act, Obs};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
-/// Configuration of [PyGymEnv](super::PyGymEnv).
-pub struct PyGymEnvConfig<O, A, OF, AF>
+/// Configuration of [`GymEnv`](super::GymEnv).
+pub struct GymEnvConfig<O, A, OF, AF>
 where
     O: Obs,
     A: Act,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     /// The maximum interaction steps in an episode.
     pub max_steps: Option<usize>,
@@ -32,22 +32,22 @@ where
     /// Rendering mode, e.g., "human" or "rgb_array".
     pub render_mode: Option<String>,
 
-    /// Configuration of [PyGymEnvObsFilter].
+    /// Configuration of [`GymObsFilter`].
     pub obs_filter_config: Option<OF::Config>,
 
-    /// Configuration of [PyGymEnvActFilter].
+    /// Configuration of [`GymActFilter`].
     pub act_filter_config: Option<AF::Config>,
 
     /// Wait time at every interaction steps.
     pub wait: Duration
 }
 
-impl<O, A, OF, AF> Clone for PyGymEnvConfig<O, A, OF, AF>
+impl<O, A, OF, AF> Clone for GymEnvConfig<O, A, OF, AF>
 where
     O: Obs,
     A: Act,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     fn clone(&self) -> Self {
         Self {
@@ -63,12 +63,12 @@ where
     }
 }
 
-impl<O, A, OF, AF> Default for PyGymEnvConfig<O, A, OF, AF>
+impl<O, A, OF, AF> Default for GymEnvConfig<O, A, OF, AF>
 where
     O: Obs,
     A: Act,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     fn default() -> Self {
         Self {
@@ -84,12 +84,12 @@ where
     }
 }
 
-impl<O, A, OF, AF> PyGymEnvConfig<O, A, OF, AF>
+impl<O, A, OF, AF> GymEnvConfig<O, A, OF, AF>
 where
     O: Obs,
     A: Act,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     /// Set `True` when using PyBullet environments.
     pub fn pybullet(mut self, v: bool) -> Self {

@@ -1,28 +1,32 @@
 use anyhow::Result;
 use border_core::{DefaultEvaluator, Evaluator as _, Policy};
 use border_py_gym_env::{
-    ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
+    util::ArrayType, ArrayDictObsFilter, ArrayDictObsFilterConfig, ContinuousActFilter,
+    GymActFilter, GymEnv, GymEnvConfig,
 };
-use ndarray::{Array, ArrayD, IxDyn};
+use ndarray::{Array, ArrayD};
 
 mod obs {
-    use super::*;
+    use border_py_gym_env::util::Array;
 
     #[derive(Clone, Debug)]
-    pub struct Obs(ArrayD<f32>);
+    pub struct Obs(Vec<(String, Array)>);
 
     impl border_core::Obs for Obs {
         fn dummy(_n: usize) -> Self {
-            Self(ArrayD::zeros(IxDyn(&[0])))
+            Self(vec![("".to_string(), Array::Empty)])
         }
 
         fn len(&self) -> usize {
-            self.0.shape()[0]
+            match self.0.get(0) {
+                None => 0,
+                Some(v) => v.1.len(),
+            }
         }
     }
 
-    impl From<ArrayD<f32>> for Obs {
-        fn from(obs: ArrayD<f32>) -> Self {
+    impl From<Vec<(String, Array)>> for Obs {
+        fn from(obs: Vec<(String, Array)>) -> Self {
             Obs(obs)
         }
     }
@@ -52,7 +56,7 @@ mod act {
 use act::Act;
 use obs::Obs;
 
-type ObsFilter = ArrayObsFilter<f32, f32, Obs>;
+type ObsFilter = ArrayDictObsFilter<Obs>;
 type ActFilter = ContinuousActFilter<Act>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type Evaluator = DefaultEvaluator<Env, RandomPolicy>;
@@ -71,8 +75,8 @@ impl Policy<Env> for RandomPolicy {
 
     fn sample(&mut self, _: &Obs) -> Act {
         let x = 2. * fastrand::f32() - 1.;
-        let y = 2. * fastrand::f32() - 1.;
-        Act::new(Array::from(vec![x, y]).into_dyn())
+        // let y = 2. * fastrand::f32() - 1.;
+        Act::new(Array::from(vec![x, x, x, x]).into_dyn())
     }
 }
 
@@ -80,29 +84,24 @@ fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     fastrand::seed(42);
 
+    let obs_filter_config = ArrayDictObsFilterConfig {
+        key_and_types: vec![
+            ("observation".into(), ArrayType::F32Array),
+            ("desired_goal".into(), ArrayType::F32Array),
+            ("achieved_goal".into(), ArrayType::F32Array),
+        ],
+        record_keys: None,
+    };
+
     let env_config = GymEnvConfig::default()
-        .name("LunarLanderContinuous-v2".to_string())
-        .obs_filter_config(<ObsFilter as GymObsFilter<Obs>>::Config::default())
-        .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default())
-        .render_mode(Some("human".to_string()));
+        .name("FetchReach-v2".to_string())
+        .render_mode(Some("human".to_string()))
+        // .obs_filter_config(<ObsFilter as GymObsFilter<Obs>>::Config::default())
+        .obs_filter_config(obs_filter_config)
+        .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default());
     let mut policy = RandomPolicy;
 
     let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
 
     Ok(())
-}
-
-#[test]
-fn test_lunalander_cont() {
-    fastrand::seed(42);
-
-    let env_config = GymEnvConfig::default()
-        .name("LunarLanderContinuous-v2".to_string())
-        .obs_filter_config(<ObsFilter as GymObsFilter<Obs>>::Config::default())
-        .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default());
-    let mut policy = RandomPolicy;
-
-    let _ = Evaluator::new(&env_config, 0, 5)
-        .unwrap()
-        .evaluate(&mut policy);
 }

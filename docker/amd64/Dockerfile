@@ -78,13 +78,13 @@ RUN source /home/ubuntu/venv/bin/activate && pip3 install pyyaml typing-extensio
 RUN source /home/ubuntu/venv/bin/activate && pip3 install torch==1.12.0
 RUN source /home/ubuntu/venv/bin/activate && pip3 install ipython jupyterlab
 RUN source /home/ubuntu/venv/bin/activate && pip3 install numpy==1.21.3
-RUN source /home/ubuntu/venv/bin/activate && pip3 install gym[box2d]==0.26.2
-# RUN source /home/ubuntu/venv/bin/activate && pip3 install gym[box2d]==0.17.1
-RUN source /home/ubuntu/venv/bin/activate && pip3 install robosuite==1.3.2
-RUN source /home/ubuntu/venv/bin/activate && pip3 install -U 'mujoco-py<2.2,>=2.1'
-RUN source /home/ubuntu/venv/bin/activate && pip3 install dm-control==1.0.8
-RUN source /home/ubuntu/venv/bin/activate && pip3 install pyrender==0.1.45
-RUN source /home/ubuntu/venv/bin/activate && pip3 install dm2gym==0.2.0
+RUN source /home/ubuntu/venv/bin/activate && pip3 install gymnasium[box2d]==0.29.0
+RUN source /home/ubuntu/venv/bin/activate && pip3 install gymnasium-robotics==1.2.2
+# RUN source /home/ubuntu/venv/bin/activate && pip3 install robosuite==1.3.2
+# RUN source /home/ubuntu/venv/bin/activate && pip3 install -U 'mujoco-py<2.2,>=2.1'
+# RUN source /home/ubuntu/venv/bin/activate && pip3 install dm-control==1.0.8
+# RUN source /home/ubuntu/venv/bin/activate && pip3 install pyrender==0.1.45
+# RUN source /home/ubuntu/venv/bin/activate && pip3 install dm2gym==0.2.0
 
 # border
 RUN cd $HOME && mkdir -p .border/model
@@ -103,8 +103,8 @@ RUN cd $HOME/.mujoco && \
     ln -sf $PWD/mujoco-2.1.1/model/ $PWD/mujoco210/model
 RUN cp /*.py $HOME
 
-# PyBulletGym
-RUN source /home/ubuntu/venv/bin/activate && pip3 install pybullet==3.2.5
+# # PyBulletGym
+# RUN source /home/ubuntu/venv/bin/activate && pip3 install pybullet==3.2.5
 # RUN source /home/ubuntu/venv/bin/activate && pip3 install pybullet==2.7.1
 # RUN source /home/ubuntu/venv/bin/activate && \
 #     cd $HOME && \
@@ -112,15 +112,15 @@ RUN source /home/ubuntu/venv/bin/activate && pip3 install pybullet==3.2.5
 #     cd bullet3 && \
 #     git checkout -b tmp 2c204c49e56ed15ec5fcfa71d199ab6d6570b3f5 && \
 #     ./build_cmake_pybullet_double.sh
-RUN cd $HOME && \
-    git clone https://github.com/benelot/pybullet-gym.git && \
-    cd pybullet-gym && \
-    git checkout -b tmp bc68201c8101c4e30dde95f425647a0709ee2f29 && \
-    source /home/ubuntu/venv/bin/activate && \
-    pip install -e .
-# Tweaks for version incompatibility of gym and pybullet-gym
-RUN sed -i 's/return state, sum(self.rewards), bool(done), {}/return state, sum(self.rewards), bool(done), bool(done), {}/g' /home/ubuntu/pybullet-gym/pybulletgym/envs/roboschool/envs/locomotion/walker_base_env.py
-RUN sed -i 's/id='\''AntPyBulletEnv-v0'\'',/id='\''AntPyBulletEnv-v0'\'', order_enforce=False,/g' /home/ubuntu/pybullet-gym/pybulletgym/envs/__init__.py
+# RUN cd $HOME && \
+#     git clone https://github.com/benelot/pybullet-gym.git && \
+#     cd pybullet-gym && \
+#     git checkout -b tmp bc68201c8101c4e30dde95f425647a0709ee2f29 && \
+#     source /home/ubuntu/venv/bin/activate && \
+#     pip install -e .
+# # Tweaks for version incompatibility of gym and pybullet-gym
+# RUN sed -i 's/return state, sum(self.rewards), bool(done), {}/return state, sum(self.rewards), bool(done), bool(done), {}/g' /home/ubuntu/pybullet-gym/pybulletgym/envs/roboschool/envs/locomotion/walker_base_env.py
+# RUN sed -i 's/id='\''AntPyBulletEnv-v0'\'',/id='\''AntPyBulletEnv-v0'\'', order_enforce=False,/g' /home/ubuntu/pybullet-gym/pybulletgym/envs/__init__.py
 
 # .bashrc
 RUN echo 'export LIBTORCH=$HOME/venv/lib/python3.8/site-packages/torch' >> ~/.bashrc

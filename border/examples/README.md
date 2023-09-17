@@ -1,36 +1,52 @@
 ## Gym
 
+You may need to set PYTHONPATH as `PYTHONPATH=./border-py-gym-env/examples`.
+
 ### Random policy
 
 ```bash
-PYTHONPATH=./border-py-gym-env/examples cargo run --example random_cartpole
+cargo run --example random_cartpole
 ```
 
 ```bash
-PYTHONPATH=./border-py-gym-env/examples cargo run --example random_lunarlander_cont
+cargo run --example random_lunarlander_cont
 ```
 
 ```bash
-PYTHONPATH=./border-py-gym-env/examples cargo run --example random_ant
+cargo run --example random_ant
 ```
 
 ### DQN
 
 ```bash
-PYTHONPATH=./border-py-gym-env/examples cargo run --example dqn_cartpole --features="tch"
+cargo run --example dqn_cartpole --features="tch"
 ```
 
 ### SAC
 
 ```bash
-PYTHONPATH=./border-py-gym-env/examples cargo run --example sac_pendulum --features="tch"
+cargo run --example sac_pendulum --features="tch"
 ```
 
 ```bash
-PYTHONPATH=./border-py-gym-env/examples cargo run --example sac_lunarlander_cont --features="tch"
+cargo run --example sac_lunarlander_cont --features="tch"
 ```
 
-## PyBullet Env Ant-v0
+## Gym, Mujoco
+
+### SAC
+
+```bash
+cargo run --example sac_ant --features="tch"
+```
+
+```bash
+cargo run --example sac_ant_async --features="tch,border-async-trainer"
+```
+
+<img src="https://drive.google.com/uc?id=1yTTvfSursj1CfWaF0WyshQC3zghNxE6r" width="512">
+
+<!-- ## PyBullet Env Ant-v0
 
 * Training
 
@@ -50,9 +66,9 @@ PYTHONPATH=./border-py-gym-env/examples cargo run --example sac_lunarlander_cont
   PYTHONPATH=./border-py-gym-env/examples cargo run --example sac_ant --features="tch" -- --play-gdrive
   ```
 
-  <img src="https://drive.google.com/uc?id=16TEKfby6twCP6PxYoSlBqzOPEwVk1o4Q" width="256">
+  <img src="https://drive.google.com/uc?id=16TEKfby6twCP6PxYoSlBqzOPEwVk1o4Q" width="256"> -->
 
-## Atari (python gym)
+<!-- ## Atari (python gym)
 
 ### DQN
 
@@ -80,9 +96,9 @@ PYTHONPATH=./border-py-gym-env/examples cargo run --example sac_lunarlander_cont
 
   ```bash
   PYTHONPATH=./border-py-gym-env/examples cargo run --example iqn_atari --features="tch" -- SeaquestNoFrameskip-v4 --play-gdrive
-  ```
+  ``` -->
 
-## Atari (without python)
+## Atari
 
 See atari subdirectory.
 
@@ -117,3 +133,5 @@ See atari subdirectory.
   ```bash
   cargo run --release --example dqn_atari_async --features="tch,border-async-trainer" -- asterix --ddqn
   ```
+
+  <img src="https://drive.google.com/uc?id=1ZGiIksX7Ljn6oLp1hIqoYPPSc70hNEJ6" width="512">

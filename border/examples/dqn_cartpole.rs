@@ -8,8 +8,8 @@ use border_core::{
     Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
 use border_py_gym_env::{
-    PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter,
-    PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
+    ArrayObsFilter, GymActFilter, DiscreteActFilter, GymEnv, GymEnvConfig,
+    GymObsFilter, util::vec_to_tensor
 };
 use border_tch_agent::{
     dqn::{Dqn, DqnConfig, DqnModelConfig},
@@ -18,6 +18,7 @@ use border_tch_agent::{
 };
 use clap::{App, Arg};
 // use csv::WriterBuilder;
+use ndarray::{ArrayD, IxDyn};
 use serde::Serialize;
 use std::convert::TryFrom; //, fs::File};
 use tch::Tensor;
@@ -39,134 +40,127 @@ const MODEL_DIR: &str = "./border/examples/model/dqn_cartpole";
 
 type PyObsDtype = f32;
 
-#[derive(Clone, Debug)]
-struct Obs(PyGymEnvObs<PyObsDtype, f32>);
+mod obs {
+    use super::*;
 
-impl border_core::Obs for Obs {
-    fn dummy(n: usize) -> Self {
-        Obs(PyGymEnvObs::dummy(n))
+    #[derive(Clone, Debug)]
+    pub struct Obs(ArrayD<f32>);
+
+    impl border_core::Obs for Obs {
+        fn dummy(_n: usize) -> Self {
+            Self(ArrayD::zeros(IxDyn(&[0])))
+        }
+
+        fn len(&self) -> usize {
+            self.0.shape()[0]
+        }
     }
 
-    fn merge(self, obs_reset: Self, is_done: &[i8]) -> Self {
-        Obs(self.0.merge(obs_reset.0, is_done))
+    impl From<ArrayD<f32>> for Obs {
+        fn from(obs: ArrayD<f32>) -> Self {
+            Obs(obs)
+        }
     }
 
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-impl From<PyGymEnvObs<PyObsDtype, f32>> for Obs {
-    fn from(obs: PyGymEnvObs<PyObsDtype, f32>) -> Self {
-        Obs(obs)
-    }
-}
-
-impl From<Obs> for Tensor {
-    fn from(obs: Obs) -> Tensor {
-        Tensor::try_from(&obs.0.obs).unwrap()
-    }
-}
-
-struct ObsBatch(TensorSubBatch);
-
-impl SubBatch for ObsBatch {
-    fn new(capacity: usize) -> Self {
-        Self(TensorSubBatch::new(capacity))
+    impl From<Obs> for Tensor {
+        fn from(obs: Obs) -> Tensor {
+            Tensor::try_from(&obs.0).unwrap()
+        }
     }
 
-    fn push(&mut self, i: usize, data: &Self) {
-        self.0.push(i, &data.0)
+    pub struct ObsBatch(TensorSubBatch);
+
+    impl SubBatch for ObsBatch {
+        fn new(capacity: usize) -> Self {
+            Self(TensorSubBatch::new(capacity))
+        }
+
+        fn push(&mut self, i: usize, data: &Self) {
+            self.0.push(i, &data.0)
+        }
+
+        fn sample(&self, ixs: &Vec<usize>) -> Self {
+            let buf = self.0.sample(ixs);
+            Self(buf)
+        }
     }
 
-    fn sample(&self, ixs: &Vec<usize>) -> Self {
-        let buf = self.0.sample(ixs);
-        Self(buf)
+    impl From<Obs> for ObsBatch {
+        fn from(obs: Obs) -> Self {
+            let tensor = obs.into();
+            Self(TensorSubBatch::from_tensor(tensor))
+        }
     }
-}
 
-impl From<Obs> for ObsBatch {
-    fn from(obs: Obs) -> Self {
-        let tensor = obs.into();
-        Self(TensorSubBatch::from_tensor(tensor))
-    }
-}
-
-impl From<ObsBatch> for Tensor {
-    fn from(b: ObsBatch) -> Self {
-        b.0.into()
-    }
-}
-
-#[derive(Clone, Debug)]
-struct Act(PyGymEnvDiscreteAct);
-
-impl border_core::Act for Act {
-    fn len(&self) -> usize {
-        self.0.len()
+    impl From<ObsBatch> for Tensor {
+        fn from(b: ObsBatch) -> Self {
+            b.0.into()
+        }
     }
 }
 
-impl Into<PyGymEnvDiscreteAct> for Act {
-    fn into(self) -> PyGymEnvDiscreteAct {
-        self.0
+mod act {
+    use super::*;
+
+    #[derive(Clone, Debug)]
+    pub struct Act(Vec<i32>);
+
+    impl border_core::Act for Act {}
+
+    impl From<Act> for Vec<i32> {
+        fn from(value: Act) -> Self {
+            value.0
+        }
+    }
+
+    impl From<Tensor> for Act {
+        // `t` must be a 1-dimentional tensor of `f32`
+        fn from(t: Tensor) -> Self {
+            let data: Vec<i64> = t.into();
+            let data = data.iter().map(|&e| e as i32).collect();
+            Act(data)
+        }
+    }
+
+    pub struct ActBatch(TensorSubBatch);
+
+    impl SubBatch for ActBatch {
+        fn new(capacity: usize) -> Self {
+            Self(TensorSubBatch::new(capacity))
+        }
+
+        fn push(&mut self, i: usize, data: &Self) {
+            self.0.push(i, &data.0)
+        }
+
+        fn sample(&self, ixs: &Vec<usize>) -> Self {
+            let buf = self.0.sample(ixs);
+            Self(buf)
+        }
+    }
+
+    impl From<Act> for ActBatch {
+        fn from(act: Act) -> Self {
+            let t = vec_to_tensor::<_, i64>(act.0, true);
+            Self(TensorSubBatch::from_tensor(t))
+        }
+    }
+
+    // Required by Dqn
+    impl From<ActBatch> for Tensor {
+        fn from(act: ActBatch) -> Self {
+            act.0.into()
+        }
     }
 }
 
-struct ActBatch(TensorSubBatch);
+use act::{Act, ActBatch};
+use obs::{Obs, ObsBatch};
 
-impl SubBatch for ActBatch {
-    fn new(capacity: usize) -> Self {
-        Self(TensorSubBatch::new(capacity))
-    }
-
-    fn push(&mut self, i: usize, data: &Self) {
-        self.0.push(i, &data.0)
-    }
-
-    fn sample(&self, ixs: &Vec<usize>) -> Self {
-        let buf = self.0.sample(ixs);
-        Self(buf)
-    }
-}
-
-impl From<Act> for Tensor {
-    fn from(act: Act) -> Tensor {
-        let v = act.0.act.iter().map(|e| *e as i64).collect::<Vec<_>>();
-        let t: Tensor = TryFrom::<Vec<i64>>::try_from(v).unwrap();
-
-        // The first dimension of the action tensor is the number of processes,
-        // which is 1 for the non-vectorized environment.
-        t.unsqueeze(0)
-    }
-}
-
-impl From<Act> for ActBatch {
-    fn from(act: Act) -> Self {
-        let tensor = act.into();
-        Self(TensorSubBatch::from_tensor(tensor))
-    }
-}
-
-impl From<ActBatch> for Tensor {
-    fn from(act: ActBatch) -> Self {
-        act.0.into()
-    }
-}
-
-impl From<Tensor> for Act {
-    // `t` must be a 1-dimentional tensor of `f32`
-    fn from(t: Tensor) -> Self {
-        let data: Vec<i64> = t.into();
-        let data: Vec<_> = data.iter().map(|e| *e as i32).collect();
-        Act(PyGymEnvDiscreteAct::new(data))
-    }
-}
-
-type ObsFilter = PyGymEnvObsRawFilter<PyObsDtype, f32, Obs>;
-type ActFilter = PyGymEnvDiscreteActRawFilter<Act>;
-type EnvConfig = PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
-type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
+type ActFilter = DiscreteActFilter<Act>;
+type EnvConfig = GymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
+type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
 type Evaluator = DefaultEvaluator<Env, Dqn<Env, Mlp, ReplayBuffer>>;

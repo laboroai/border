@@ -37,11 +37,18 @@ jobs:
           name: Prepare LD_LIBRARY_PATH (Ubuntu only)
           run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
 
-        - name: Install gym
+        - if: matrix.os == 'ubuntu-latest'
+          name: Install gym (Ubuntu)
           run: |
-            # pip install box2d-py==2.3.8
-            # pip install gym[atari]==0.26.2
-            pip install gym[box2d]==0.26.2
+            pip install mujoco==2.3.7
+            pip install gymnasium[box2d]==0.29.0
+            pip install gymnasium-robotics==1.2.2
+            pip install pybullet==3.2.5
+
+        - if: matrix.os != 'ubuntu-latest'
+          name: Install gym (Windows/Mac)
+          run: |
+            pip install gymnasium[box2d]==0.29.0
             pip install pybullet==3.2.5
 
         - if: matrix.os == 'ubuntu-latest'

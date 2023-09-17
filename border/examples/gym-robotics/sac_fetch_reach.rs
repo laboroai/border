@@ -9,65 +9,75 @@ use border_core::{
 };
 use border_derive::SubBatch;
 use border_py_gym_env::{
-    util::{arrayd_to_pyobj, arrayd_to_tensor, tensor_to_arrayd},
-    ArrayObsFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
+    util::{arrayd_to_pyobj, arrayd_to_tensor, tensor_to_arrayd, ArrayType},
+    ArrayDictObsFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
 use border_tch_agent::{
     mlp::{Mlp, Mlp2, MlpConfig},
     opt::OptimizerConfig,
-    sac::{ActorConfig, CriticConfig, Sac, SacConfig},
+    sac::{ActorConfig, CriticConfig, EntCoefMode, Sac, SacConfig},
     TensorSubBatch,
+    util::CriticLoss,
 };
 use clap::{App, Arg};
 // use csv::WriterBuilder;
-use ndarray::{ArrayD, IxDyn};
+use ndarray::ArrayD;
 use pyo3::PyObject;
-use serde::Serialize;
+// use serde::Serialize;
 use std::convert::TryFrom;
 use tch::Tensor;
 
-const DIM_OBS: i64 = 3;
-const DIM_ACT: i64 = 1;
+const DIM_OBS: i64 = 16;
+const DIM_ACT: i64 = 4;
 const LR_ACTOR: f64 = 3e-4;
 const LR_CRITIC: f64 = 3e-4;
 const BATCH_SIZE: usize = 128;
 const N_TRANSITIONS_WARMUP: usize = 1000;
 const OPT_INTERVAL: usize = 1;
-const MAX_OPTS: usize = 40_000;
+const MAX_OPTS: usize = 20_000_000;
 const EVAL_INTERVAL: usize = 2_000;
 const REPLAY_BUFFER_CAPACITY: usize = 100_000;
 const N_EPISODES_PER_EVAL: usize = 5;
-
-type PyObsDtype = f32;
+const N_CRITICS: usize = 2;
+const TAU: f64 = 0.02;
+const TARGET_ENTROPY: f64 = -(DIM_ACT as f64);
+const LR_ENT_COEF: f64 = 3e-4;
+const CRITIC_LOSS: CriticLoss = CriticLoss::SmoothL1;
 
 mod obs {
     use super::*;
+    use border_py_gym_env::util::Array;
 
     #[derive(Clone, Debug)]
-    pub struct Obs(ArrayD<f32>);
+    pub struct Obs(Vec<(String, Array)>);
 
     #[derive(Clone, SubBatch)]
     pub struct ObsBatch(TensorSubBatch);
 
     impl border_core::Obs for Obs {
         fn dummy(_n: usize) -> Self {
-            Self(ArrayD::zeros(IxDyn(&[0])))
+            Self(vec![("".to_string(), Array::Empty)])
         }
 
         fn len(&self) -> usize {
-            self.0.shape()[0]
+            match self.0.get(0) {
+                None => 0,
+                Some(v) => v.1.len(),
+            }
         }
     }
 
-    impl From<ArrayD<f32>> for Obs {
-        fn from(obs: ArrayD<f32>) -> Self {
+    impl From<Vec<(String, Array)>> for Obs {
+        fn from(obs: Vec<(String, Array)>) -> Self {
             Obs(obs)
         }
     }
 
     impl From<Obs> for Tensor {
         fn from(obs: Obs) -> Tensor {
-            Tensor::try_from(&obs.0).unwrap()
+            let arrays = obs.0.into_iter().map(|e| e.1).collect::<Vec<_>>();
+            let array = Array::hstack(arrays);
+            Tensor::try_from(&array.as_f32_array()).unwrap()
         }
     }
 
@@ -102,7 +112,7 @@ mod act {
     // Required by Sac
     impl From<Act> for Tensor {
         fn from(value: Act) -> Self {
-            arrayd_to_tensor::<_, f32>(value.0, true)            
+            arrayd_to_tensor::<_, f32>(value.0, true)
         }
     }
 
@@ -150,36 +160,11 @@ mod act {
 use act::{Act, ActBatch, ActFilter};
 use obs::{Obs, ObsBatch};
 
-type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
+type ObsFilter = ArrayDictObsFilter<Obs>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
 type Evaluator = DefaultEvaluator<Env, Sac<Env, Mlp, Mlp2, ReplayBuffer>>;
-
-#[derive(Debug, Serialize)]
-struct PendulumRecord {
-    episode: usize,
-    step: usize,
-    reward: f32,
-    obs: Vec<f32>,
-    act_org: Vec<f32>,
-    act_filt: Vec<f32>,
-}
-
-impl TryFrom<&Record> for PendulumRecord {
-    type Error = anyhow::Error;
-
-    fn try_from(record: &Record) -> Result<Self> {
-        Ok(Self {
-            episode: record.get_scalar("episode")? as _,
-            step: record.get_scalar("step")? as _,
-            reward: record.get_scalar("reward")?,
-            obs: record.get_array1("obs")?.to_vec(),
-            act_org: record.get_array1("act_org")?.to_vec(),
-            act_filt: record.get_array1("act_filt")?.to_vec(),
-        })
-    }
-}
 
 fn create_agent(in_dim: i64, out_dim: i64) -> Sac<Env, Mlp, Mlp2, ReplayBuffer> {
     let device = tch::Device::cuda_if_available();
@@ -195,14 +180,22 @@ fn create_agent(in_dim: i64, out_dim: i64) -> Sac<Env, Mlp, Mlp2, ReplayBuffer> 
         .min_transitions_warmup(N_TRANSITIONS_WARMUP)
         .actor_config(actor_config)
         .critic_config(critic_config)
+        .tau(TAU)
+        .critic_loss(CRITIC_LOSS)
+        .n_critics(N_CRITICS)
+        .ent_coef_mode(EntCoefMode::Auto(TARGET_ENTROPY, LR_ENT_COEF))
         .device(device);
     Sac::build(sac_config)
 }
 
 fn env_config() -> GymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
     GymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
-        .name("Pendulum-v1".to_string())
-        .obs_filter_config(ObsFilter::default_config())
+        .name("FetchReach-v2".to_string())
+        .obs_filter_config(ObsFilter::default_config().add_key_and_types(vec![
+            ("observation", ArrayType::F32Array),
+            ("desired_goal", ArrayType::F32Array),
+            ("achieved_goal", ArrayType::F32Array),
+        ]))
         .act_filter_config(ActFilter::default_config())
 }
 
@@ -257,22 +250,16 @@ fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
 
     let _ = Evaluator::new(&env_config, 0, n_episodes)?.evaluate(&mut agent);
 
-    // // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
-    // let mut wtr = WriterBuilder::new()
-    //     .has_headers(false)
-    //     .from_writer(File::create(model_dir.to_string() + "/eval.csv")?);
-    // for record in recorder.iter() {
-    //     wtr.serialize(PendulumRecord::try_from(record)?)?;
-    // }
-
     Ok(())
 }
+
+
 
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
 
-    let matches = App::new("sac_pendulum")
+    let matches = App::new("sac_fetch_reach")
         .version("0.1.0")
         .author("Taku Yoshioka <yoshioka@laboro.ai>")
         .arg(
@@ -289,20 +276,23 @@ fn main() -> Result<()> {
         )
         .get_matches();
 
-    let do_train = (matches.is_present("train") && !matches.is_present("eval"))
-        || (!matches.is_present("train") && !matches.is_present("eval"));
-    let do_eval = (!matches.is_present("train") && matches.is_present("eval"))
-        || (!matches.is_present("train") && !matches.is_present("eval"));
+    let do_train = matches.is_present("train");
+    let do_eval = matches.is_present("eval");
+
+    if !do_train && !do_eval {
+        println!("You need to give either --train or --eval in the command line argument.");
+        return Ok(());
+    }
 
     if do_train {
         train(
             MAX_OPTS,
-            "./border/examples/model/sac_pendulum",
+            "./border/examples/model/sac_fetch_reach",
             EVAL_INTERVAL,
         )?;
     }
     if do_eval {
-        eval(5, true, "./border/examples/model/sac_pendulum/best")?;
+        eval(5, true, "./border/examples/model/sac_fetch_reach/best")?;
     }
 
     Ok(())
@@ -314,10 +304,10 @@ mod test {
     use tempdir::TempDir;
 
     #[test]
-    fn test_sac_pendulum() -> Result<()> {
+    fn test_sac_fetch_reach() -> Result<()> {
         tch::manual_seed(42);
 
-        let model_dir = TempDir::new("sac_pendulum")?;
+        let model_dir = TempDir::new("sac_fetch_reach")?;
         let model_dir = model_dir.path().to_str().unwrap();
         train(100, model_dir, 100)?;
         eval(1, false, (model_dir.to_string() + "/best").as_str())?;

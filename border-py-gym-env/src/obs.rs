@@ -1,7 +1,10 @@
-//! Observation for [PyGymEnv](crate::PyGymEnv).
+//! Observation for [`GymEnv`](crate::GymEnv).
 mod base;
 mod frame_stack_filter;
-mod raw_filter;
-pub use base::{pyobj_to_arrayd, PyGymEnvObs};
+mod array_filter;
+mod array_dict_filter;
+#[allow(deprecated)]
+pub use base::GymObs;
 pub use frame_stack_filter::{FrameStackFilter, FrameStackFilterConfig};
-pub use raw_filter::{PyGymEnvObsRawFilter, PyGymEnvObsRawFilterConfig};
+pub use array_filter::{ArrayObsFilter, ArrayObsFilterConfig};
+pub use array_dict_filter::{ArrayDictObsFilter, ArrayDictObsFilterConfig};

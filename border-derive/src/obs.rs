@@ -53,10 +53,6 @@ fn atari_env_obs(ident: proc_macro2::Ident, field_type: syn::Type) -> proc_macro
                 Obs(BorderAtariObs::dummy(n))
             }
 
-            fn merge(self, obs_reset: Self, is_done: &[i8]) -> Self {
-                Obs(self.0.merge(obs_reset.0, is_done))
-            }
-
             fn len(&self) -> usize {
                 self.0.len()
             }
@@ -89,10 +85,6 @@ fn common(ident: proc_macro2::Ident, field_type: syn::Type) -> proc_macro2::Toke
         impl border_core::Obs for #ident {
             fn dummy(n: usize) -> Self {
                 Obs(PyGymEnvObs::dummy(n))
-            }
-
-            fn merge(self, obs_reset: Self, is_done: &[i8]) -> Self {
-                Obs(self.0.merge(obs_reset.0, is_done))
             }
 
             fn len(&self) -> usize {

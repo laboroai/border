@@ -1,6 +1,6 @@
 //! Wrapper of gym environments implemented in Python.
 #![allow(clippy::float_cmp)]
-use crate::{AtariWrapper, PyGymEnvConfig};
+use crate::{AtariWrapper, GymEnvConfig};
 use anyhow::Result;
 use border_core::{record::Record, Act, Env, Info, Obs, Step};
 use log::{info, trace};
@@ -14,12 +14,12 @@ use std::{fmt::Debug, time::Duration};
 /// Information given at every step of the interaction with the environment.
 ///
 /// Currently, it is empty and used to match the type signature.
-pub struct PyGymInfo {}
+pub struct GymInfo {}
 
-impl Info for PyGymInfo {}
+impl Info for GymInfo {}
 
-/// Convert [PyObject] to [PyGymEnv]::Obs with a preprocessing.
-pub trait PyGymEnvObsFilter<O: Obs> {
+/// Convert [`PyObject`] to [`GymEnv`]::Obs with a preprocessing.
+pub trait GymObsFilter<O: Obs> {
     /// Configuration.
     type Config: Clone + Default + Serialize + DeserializeOwned;
 
@@ -45,10 +45,10 @@ pub trait PyGymEnvObsFilter<O: Obs> {
     }
 }
 
-/// Convert [PyGymEnv]::Act to [PyObject] with a preprocessing.
+/// Convert [`GymEnv`]::Act to [`PyObject`] with a preprocessing.
 ///
 /// This trait should support vectorized environments.
-pub trait PyGymEnvActFilter<A: Act> {
+pub trait GymActFilter<A: Act> {
     /// Configuration.
     type Config: Clone + Default + Serialize + DeserializeOwned;
 
@@ -78,22 +78,16 @@ pub trait PyGymEnvActFilter<A: Act> {
 
 /// An environment in [OpenAI gym](https://github.com/openai/gym).
 #[derive(Debug)]
-pub struct PyGymEnv<O, A, OF, AF>
+pub struct GymEnv<O, A, OF, AF>
 where
     O: Obs,
     A: Act,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     render: bool,
 
     env: PyObject,
-
-    #[allow(dead_code)]
-    action_space: i64,
-
-    #[allow(dead_code)]
-    observation_space: Vec<usize>,
 
     count_steps: usize,
 
@@ -117,12 +111,12 @@ where
     phantom: PhantomData<(O, A)>,
 }
 
-impl<O, A, OF, AF> PyGymEnv<O, A, OF, AF>
+impl<O, A, OF, AF> GymEnv<O, A, OF, AF>
 where
     O: Obs,
     A: Act,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     /// Set rendering mode.
     ///
@@ -159,17 +153,17 @@ where
     }
 }
 
-impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF>
+impl<O, A, OF, AF> Env for GymEnv<O, A, OF, AF>
 where
     O: Obs,
     A: Act + Debug,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     type Obs = O;
     type Act = A;
-    type Info = PyGymInfo;
-    type Config = PyGymEnvConfig<O, A, OF, AF>;
+    type Info = GymInfo;
+    type Config = GymEnvConfig<O, A, OF, AF>;
 
     /// Currently it supports non-vectorized environment.
     fn step_with_reset(&mut self, a: &Self::Act) -> (Step<Self>, Record)
@@ -197,12 +191,12 @@ where
 
     /// Resets the environment and returns an observation.
     ///
-    /// This method also resets the [`PyGymObsFilter`] adn [`PyGymActFilter`].
+    /// This method also resets the [`GymObsFilter`] adn [`GymActFilter`].
     ///
     /// In this environment, the length of `is_done` is assumed to be 1.
     ///
-    /// [`PyGymObsFilter`]: crate::PyGymEnvObsFilter
-    /// [`PyGymActFilter`]: crate::PyGymEnvActFilter
+    /// [`GymObsFilter`]: crate::GymObsFilter
+    /// [`GymActFilter`]: crate::GymActFilter
     fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<O> {
         trace!("PyGymEnv::reset()");
 
@@ -270,8 +264,8 @@ where
     /// Runs a step of the environment's dynamics.
     ///
     /// It returns [`Step`] and [`Record`] objects.
-    /// The [`Record`] is composed of [`Record`]s constructed in [`PyGymEnvObsFilter`] and
-    /// [`PyGymEnvActFilter`].
+    /// The [`Record`] is composed of [`Record`]s constructed in [`GymObsFilter`] and
+    /// [`GymActFilter`].
     fn step(&mut self, a: &A) -> (Step<Self>, Record) {
         fn is_done(step: &PyTuple) -> i8 {
             // terminated or truncated
@@ -320,13 +314,13 @@ where
             };
 
             (
-                Step::<Self>::new(obs, a.clone(), reward, is_done, PyGymInfo {}, O::dummy(1)),
+                Step::<Self>::new(obs, a.clone(), reward, is_done, GymInfo {}, O::dummy(1)),
                 record_o.merge(record_a),
             )
         })
     }
 
-    /// Constructs [`PyGymEnv`].
+    /// Constructs [`GymEnv`].
     ///
     /// * `seed` - The seed value of the random number generator.
     ///   This value will be used at the first call of the reset method.
@@ -349,6 +343,9 @@ where
         // import pybullet-gym if it exists
         if py.import("pybulletgym").is_ok() {}
 
+        // For some unknown reason, Mujoco requires this import
+        if py.import("IPython").is_ok() {}
+
         let name = config.name.as_str();
         let (env, render) = if let Some(mode) = config.atari_wrapper.as_ref() {
             let mode = match mode {
@@ -362,13 +359,17 @@ where
             (env, false)
         } else if !config.pybullet {
             let gym = py.import("f32_wrapper")?;
-            let kwargs = if let Some(render_mode) = config.render_mode.clone() {
-                Some(vec![("render_mode", render_mode)].into_py_dict(py))
-            } else {
-                None
+            let render = config.render_mode.is_some();
+            let env = {
+                let kwargs = if let Some(render_mode) = config.render_mode.clone() {
+                    Some(vec![("render_mode", render_mode)].into_py_dict(py))
+                } else {
+                    None
+                };
+                gym.getattr("make_f32")?.call((name,), kwargs)?
             };
-            let env = gym.getattr("make_f32")?.call((name,), kwargs)?;
-            (env, false)
+
+            (env, render)
         } else {
             let gym = py.import("f32_wrapper")?;
             let kwargs = None;
@@ -384,14 +385,9 @@ where
         // TODO: consider removing action_space and observation_space.
         // Act/obs types are specified by type parameters.
         let action_space = env.getattr("action_space")?;
-        let action_space = if let Ok(val) = action_space.getattr("n") {
-            val.extract()?
-        } else {
-            let action_space: Vec<i64> = action_space.getattr("shape")?.extract()?;
-            action_space[0]
-        };
+        println!("Action space = {:?}", action_space);
         let observation_space = env.getattr("observation_space")?;
-        let observation_space = observation_space.getattr("shape")?.extract()?;
+        println!("Observation space = {:?}", observation_space);
 
         let pybullet_state = if !config.pybullet {
             None
@@ -454,15 +450,13 @@ def update_camera_pos(env):
             Some(pybullet_state)
         };
 
-        Ok(PyGymEnv {
+        Ok(GymEnv {
             env: env.into(),
-            action_space,
-            observation_space,
             obs_filter: OF::build(&config.obs_filter_config.as_ref().unwrap())?,
             act_filter: AF::build(&config.act_filter_config.as_ref().unwrap())?,
             render,
             count_steps: 0,
-            wait: config.wait.clone(),
+            wait: config.wait,
             max_steps: config.max_steps,
             pybullet: config.pybullet,
             pybullet_state,

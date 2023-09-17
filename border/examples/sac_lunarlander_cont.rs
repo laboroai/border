@@ -7,10 +7,11 @@ use border_core::{
     },
     Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
-use border_derive::{Act, Obs, SubBatch};
+use border_derive::SubBatch;
 use border_py_gym_env::{
-    PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvContinuousAct,
-    PyGymEnvContinuousActRawFilter, PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
+    util::{arrayd_to_tensor, tensor_to_arrayd},
+    ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig,
+    GymObsFilter,
 };
 use border_tch_agent::{
     mlp::{Mlp, Mlp2, MlpConfig},
@@ -20,8 +21,10 @@ use border_tch_agent::{
 };
 use clap::{App, Arg};
 //use csv::WriterBuilder;
+use ndarray::{ArrayD, IxDyn};
 use serde::Serialize;
 use std::convert::TryFrom;
+use tch::Tensor;
 
 const DIM_OBS: i64 = 8;
 const DIM_ACT: i64 = 2;
@@ -38,35 +41,89 @@ const MODEL_DIR: &str = "./border/examples/model/sac_lunarlander_cont";
 
 type PyObsDtype = f32;
 
-#[derive(Clone, Debug, Obs)]
-struct Obs(PyGymEnvObs<PyObsDtype, f32>);
+mod obs {
+    use super::*;
 
-#[derive(Clone, SubBatch)]
-struct ObsBatch(TensorSubBatch);
+    #[derive(Clone, Debug)]
+    pub struct Obs(ArrayD<f32>);
 
-impl From<Obs> for ObsBatch {
-    fn from(obs: Obs) -> Self {
-        let tensor = obs.into();
-        Self(TensorSubBatch::from_tensor(tensor))
+    impl border_core::Obs for Obs {
+        fn dummy(_n: usize) -> Self {
+            Self(ArrayD::zeros(IxDyn(&[0])))
+        }
+
+        fn len(&self) -> usize {
+            self.0.shape()[0]
+        }
+    }
+
+    impl From<ArrayD<f32>> for Obs {
+        fn from(obs: ArrayD<f32>) -> Self {
+            Obs(obs)
+        }
+    }
+
+    impl From<Obs> for Tensor {
+        fn from(obs: Obs) -> Tensor {
+            Tensor::try_from(&obs.0).unwrap()
+        }
+    }
+
+    #[derive(Clone, SubBatch)]
+    pub struct ObsBatch(TensorSubBatch);
+
+    impl From<Obs> for ObsBatch {
+        fn from(obs: Obs) -> Self {
+            let tensor = obs.into();
+            Self(TensorSubBatch::from_tensor(tensor))
+        }
     }
 }
 
-#[derive(Clone, Debug, Act)]
-struct Act(PyGymEnvContinuousAct);
+mod act {
+    use super::*;
 
-#[derive(SubBatch)]
-struct ActBatch(TensorSubBatch);
+    #[derive(Clone, Debug)]
+    pub struct Act(ArrayD<f32>);
 
-impl From<Act> for ActBatch {
-    fn from(act: Act) -> Self {
-        let tensor = act.into();
-        Self(TensorSubBatch::from_tensor(tensor))
+    impl border_core::Act for Act {}
+
+    impl From<Act> for ArrayD<f32> {
+        fn from(value: Act) -> Self {
+            value.0
+        }
+    }
+
+    impl From<Tensor> for Act {
+        fn from(t: Tensor) -> Self {
+            Self(tensor_to_arrayd(t, true))
+        }
+    }
+
+    // Required by Sac
+    impl From<Act> for Tensor {
+        fn from(value: Act) -> Self {
+            arrayd_to_tensor::<_, f32>(value.0, true)
+        }
+    }
+
+    #[derive(SubBatch)]
+    pub struct ActBatch(TensorSubBatch);
+
+    impl From<Act> for ActBatch {
+        fn from(act: Act) -> Self {
+            let tensor = act.into();
+            Self(TensorSubBatch::from_tensor(tensor))
+        }
     }
 }
 
-type ObsFilter = PyGymEnvObsRawFilter<PyObsDtype, f32, Obs>;
-type ActFilter = PyGymEnvContinuousActRawFilter<Act>;
-type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+use act::{Act, ActBatch};
+use obs::{Obs, ObsBatch};
+
+type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
+type ActFilter = ContinuousActFilter<Act>;
+type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
 type Evaluator = DefaultEvaluator<Env, Sac<Env, Mlp, Mlp2, ReplayBuffer>>;
@@ -112,8 +169,8 @@ fn create_agent(in_dim: i64, out_dim: i64) -> Sac<Env, Mlp, Mlp2, ReplayBuffer> 
     Sac::build(sac_config)
 }
 
-fn env_config() -> PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
-    PyGymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
+fn env_config() -> GymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
+    GymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
         .name("LunarLanderContinuous-v2".to_string())
         .obs_filter_config(ObsFilter::default_config())
         .act_filter_config(ActFilter::default_config())

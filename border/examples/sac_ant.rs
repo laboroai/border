@@ -6,25 +6,28 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    Agent, Evaluator as _, DefaultEvaluator, Policy, Trainer, TrainerConfig,
+    Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
-use border_derive::{Act, Obs, SubBatch};
+use border_derive::SubBatch;
 use border_py_gym_env::{
-    PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvContinuousAct,
-    PyGymEnvContinuousActRawFilter, PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
+    util::{arrayd_to_tensor, tensor_to_arrayd},
+    ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig,
+    GymObsFilter,
 };
 use border_tch_agent::{
-    mlp::{MlpConfig, Mlp, Mlp2},
+    mlp::{Mlp, Mlp2, MlpConfig},
     opt::OptimizerConfig,
-    sac::{ActorConfig, CriticConfig, EntCoefMode, SacConfig, Sac},
+    sac::{ActorConfig, CriticConfig, EntCoefMode, Sac, SacConfig},
     util::CriticLoss,
     TensorSubBatch,
 };
 use clap::{App, Arg};
 use log::info;
+use ndarray::{ArrayD, IxDyn};
 use std::convert::TryFrom;
+use tch::Tensor;
 
-const DIM_OBS: i64 = 28;
+const DIM_OBS: i64 = 27;
 const DIM_ACT: i64 = 8;
 const LR_ACTOR: f64 = 3e-4;
 const LR_CRITIC: f64 = 3e-4;
@@ -44,35 +47,89 @@ const MODEL_DIR: &str = "./border/examples/model/sac_ant";
 
 type PyObsDtype = f32;
 
-#[derive(Clone, Debug, Obs)]
-struct Obs(PyGymEnvObs<PyObsDtype, f32>);
+mod obs {
+    use super::*;
 
-#[derive(Clone, SubBatch)]
-struct ObsBatch(TensorSubBatch);
+    #[derive(Clone, Debug)]
+    pub struct Obs(ArrayD<f32>);
 
-impl From<Obs> for ObsBatch {
-    fn from(obs: Obs) -> Self {
-        let tensor = obs.into();
-        Self(TensorSubBatch::from_tensor(tensor))
+    #[derive(Clone, SubBatch)]
+    pub struct ObsBatch(TensorSubBatch);
+
+    impl border_core::Obs for Obs {
+        fn dummy(_n: usize) -> Self {
+            Self(ArrayD::zeros(IxDyn(&[0])))
+        }
+
+        fn len(&self) -> usize {
+            self.0.shape()[0]
+        }
+    }
+
+    impl From<ArrayD<f32>> for Obs {
+        fn from(obs: ArrayD<f32>) -> Self {
+            Obs(obs)
+        }
+    }
+
+    impl From<Obs> for Tensor {
+        fn from(obs: Obs) -> Tensor {
+            Tensor::try_from(&obs.0).unwrap()
+        }
+    }
+
+    impl From<Obs> for ObsBatch {
+        fn from(obs: Obs) -> Self {
+            let tensor = obs.into();
+            Self(TensorSubBatch::from_tensor(tensor))
+        }
     }
 }
 
-#[derive(Clone, Debug, Act)]
-struct Act(PyGymEnvContinuousAct);
+mod act {
+    use super::*;
 
-#[derive(SubBatch)]
-struct ActBatch(TensorSubBatch);
+    #[derive(Clone, Debug)]
+    pub struct Act(ArrayD<f32>);
 
-impl From<Act> for ActBatch {
-    fn from(act: Act) -> Self {
-        let tensor = act.into();
-        Self(TensorSubBatch::from_tensor(tensor))
+    impl border_core::Act for Act {}
+
+    impl From<Act> for ArrayD<f32> {
+        fn from(value: Act) -> Self {
+            value.0
+        }
+    }
+
+    impl From<Tensor> for Act {
+        fn from(t: Tensor) -> Self {
+            Self(tensor_to_arrayd(t, true))
+        }
+    }
+
+    // Required by Sac
+    impl From<Act> for Tensor {
+        fn from(value: Act) -> Self {
+            arrayd_to_tensor::<_, f32>(value.0, true)
+        }
+    }
+
+    #[derive(SubBatch)]
+    pub struct ActBatch(TensorSubBatch);
+
+    impl From<Act> for ActBatch {
+        fn from(act: Act) -> Self {
+            let tensor = act.into();
+            Self(TensorSubBatch::from_tensor(tensor))
+        }
     }
 }
 
-type ObsFilter = PyGymEnvObsRawFilter<PyObsDtype, f32, Obs>;
-type ActFilter = PyGymEnvContinuousActRawFilter<Act>;
-type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+use act::{Act, ActBatch};
+use obs::{Obs, ObsBatch};
+
+type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
+type ActFilter = ContinuousActFilter<Act>;
+type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
 type Evaluator = DefaultEvaluator<Env, Sac<Env, Mlp, Mlp2, ReplayBuffer>>;
@@ -99,12 +156,11 @@ fn create_agent(in_dim: i64, out_dim: i64) -> Sac<Env, Mlp, Mlp2, ReplayBuffer> 
     Sac::build(sac_config)
 }
 
-fn env_config() -> PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
-    PyGymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
-        .name("AntPyBulletEnv-v0".to_string())
+fn env_config() -> GymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
+    GymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
+        .name("Ant-v4".to_string())
         .obs_filter_config(ObsFilter::default_config())
         .act_filter_config(ActFilter::default_config())
-        .pybullet(true)
 }
 
 fn train(max_opts: usize, model_dir: &str) -> Result<()> {
@@ -138,13 +194,13 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
     Ok(())
 }
 
-fn eval(model_dir: &str, render: bool) -> Result<()> {
-    let env_config = {
+fn eval(model_dir: &str, render: bool, wait: u64) -> Result<()> {
+    let env_config = { 
         let mut env_config = env_config();
         if render {
             env_config = env_config
                 .render_mode(Some("human".to_string()))
-                .set_wait_in_millis(10);
+                .set_wait_in_millis(wait);
         };
         env_config
     };
@@ -166,7 +222,7 @@ fn main() -> Result<()> {
     tch::manual_seed(42);
     fastrand::seed(42);
 
-    let matches = App::new("dqn_cartpole")
+    let matches = App::new("sac_ant")
         .version("0.1.0")
         .author("Taku Yoshioka <yoshioka@laboro.ai>")
         .arg(
@@ -207,7 +263,8 @@ fn main() -> Result<()> {
             model_dir.as_ref().to_str().unwrap().to_string()
         };
 
-        eval(model_dir.as_str(), true)?;
+        let wait = matches.value_of("wait").unwrap().parse().unwrap();
+        eval(model_dir.as_str(), true, wait)?;
     }
 
     Ok(())

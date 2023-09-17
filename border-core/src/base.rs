@@ -25,11 +25,6 @@ pub trait Obs: Clone + Debug {
     /// The observation created with this method is ignored.
     fn dummy(n: usize) -> Self;
 
-    /// Replace elements of observation where `is_done[i] == 1`.
-    ///
-    /// This method assumes that `is_done.len() == n_procs`.
-    fn merge(self, obs_reset: Self, is_done: &[i8]) -> Self;
-
     /// Returns the number of observations in the object.
     fn len(&self) -> usize;
 }
@@ -37,5 +32,9 @@ pub trait Obs: Clone + Debug {
 /// A set of actions of the environment.
 pub trait Act: Clone + Debug {
     /// Returns the number of actions in the object.
-    fn len(&self) -> usize;
+    ///
+    /// TODO: Consider to delete.
+    fn len(&self) -> usize {
+        unimplemented!();
+    }
 }
