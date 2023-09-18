@@ -53,3 +53,6 @@ test = false        # Skip test for now, PyBullet Gym requires modify code (see 
 
 [[example]]
 name = "pybullet_pyo3"
+
+[package.metadata.docs.rs]
+no-default-features = true
