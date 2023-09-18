@@ -1,17 +1,21 @@
-use border_derive::{Obs, SubBatch, Act};
-use border_py_gym_env::{GymObs, GymDiscreteAct};
-use border_core::shape;
-// use std::convert::TryFrom;
+use border_derive::{SubBatch, Act};
+use border_py_gym_env::GymDiscreteAct;
+use std::convert::TryFrom;
 use border_tch_agent::TensorSubBatch;
+use ndarray::ArrayD;
+use tch::Tensor;
 
-shape!(ObsShape, [4]);
-shape!(ActShape, [1]);
-
-#[derive(Debug, Clone, Obs)]
-struct Obs(GymObs<ObsShape, f64, f32>);
+#[derive(Debug, Clone)]
+struct Obs(ArrayD<f32>);
 
 #[derive(SubBatch)]
-struct ObsBatch(TensorSubBatch<ObsShape, f32>);
+struct ObsBatch(TensorSubBatch);
+
+impl From<Obs> for Tensor {
+    fn from(value: Obs) -> Self {
+        Tensor::try_from(&value.0).unwrap()
+    }
+}
 
 impl From<Obs> for ObsBatch {
     fn from(obs: Obs) -> Self {
@@ -24,7 +28,7 @@ impl From<Obs> for ObsBatch {
 struct Act(GymDiscreteAct);
 
 #[derive(SubBatch)]
-struct ActBatch(TensorSubBatch<ActShape, i64>);
+struct ActBatch(TensorSubBatch);
 
 impl From<Act> for ActBatch {
     fn from(act: Act) -> Self {

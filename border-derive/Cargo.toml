@@ -27,6 +27,7 @@ tch = { workspace = true, optional = true }
 border-tch-agent = { version = "0.0.5", path = "../border-tch-agent" }
 border-py-gym-env = { version = "0.0.5", path = "../border-py-gym-env" }
 border-core = { version = "0.0.5", path = "../border-core" }
+ndarray = { workspace = true }
 tch = { workspace = true }
 
 [features]
