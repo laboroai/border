@@ -4,7 +4,7 @@ use border_core::{ExperienceBufferBase, ReplayBufferBase};
 use crossbeam_channel::Sender;
 use std::marker::PhantomData;
 
-/// Configuration of [ReplayBufferProxy].
+/// Configuration of [`ReplayBufferProxy`].
 #[derive(Clone, Debug)]
 pub struct ReplayBufferProxyConfig {
     /// Number of samples buffered until sent to the trainer.

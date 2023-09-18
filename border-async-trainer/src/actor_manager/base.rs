@@ -10,12 +10,12 @@ use std::{
     thread::JoinHandle,
 };
 
-/// Manages [Actor]s.
+/// Manages [`Actor`]s.
 ///
 /// This struct handles the following requests:
 /// * From the [LearnerManager]() for updating the latest model info, stored in this struct.
-/// * From the [Actor]s for getting the latest model info.
-/// * From the [Actor]s for pushing sample batch to the `LearnerManager`.
+/// * From the [`Actor`]s for getting the latest model info.
+/// * From the [`Actor`]s for pushing sample batch to the `LearnerManager`.
 pub struct ActorManager<A, E, R, P>
 where
     A: Agent<E, R> + SyncModel,
