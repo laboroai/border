@@ -3,9 +3,10 @@ use crate::{
     actor_stats_fmt, ActorManager, ActorManagerConfig, AsyncTrainer, AsyncTrainerConfig, SyncModel,
 };
 use border_core::{
-    record::TensorboardRecorder, Agent, DefaultEvaluator, Env, ReplayBufferBase,
+    Agent, DefaultEvaluator, Env, ReplayBufferBase,
     StepProcessorBase,
 };
+use border_tensorboard::TensorboardRecorder;
 use crossbeam_channel::unbounded;
 use log::info;
 use std::{

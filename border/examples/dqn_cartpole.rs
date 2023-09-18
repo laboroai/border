@@ -1,6 +1,6 @@
 use anyhow::Result;
 use border_core::{
-    record::{/*BufferedRecorder,*/ Record, TensorboardRecorder},
+    record::Record,
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig, SubBatch,
@@ -8,14 +8,15 @@ use border_core::{
     Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
 use border_py_gym_env::{
-    ArrayObsFilter, GymActFilter, DiscreteActFilter, GymEnv, GymEnvConfig,
-    GymObsFilter, util::vec_to_tensor
+    util::vec_to_tensor, ArrayObsFilter, DiscreteActFilter, GymActFilter, GymEnv, GymEnvConfig,
+    GymObsFilter,
 };
 use border_tch_agent::{
     dqn::{Dqn, DqnConfig, DqnModelConfig},
     mlp::{Mlp, MlpConfig},
     TensorSubBatch,
 };
+use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg};
 // use csv::WriterBuilder;
 use ndarray::{ArrayD, IxDyn};

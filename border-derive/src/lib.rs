@@ -4,8 +4,6 @@
 //!
 //! These macros will implements some conversion traits for combining
 //! interfaces of an environment and an agent.
-//!
-//! Currently, these macros support types in `border_py_gym_env` crate.
 mod obs;
 mod subbatch;
 mod act;

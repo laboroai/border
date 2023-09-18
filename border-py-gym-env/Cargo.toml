@@ -15,20 +15,22 @@ autoexamples = false
 
 [dependencies]
 border-core = { version = "0.0.5", path = "../border-core" }
-numpy = "0.14.1"
-pyo3 = { version = "=0.14.5", default-features = false, features = ["auto-initialize"] }
-serde = { version = "=1.0.126", features = ["derive"] }
-log = "0.4"
-num-traits = "0.2.14"
-ndarray = { version = "0.15", features = ["serde"] }
-anyhow = "1.0.38"
-tch = { version = "0.8.0", optional = true }
-image = "0.23.14"
+numpy = { workspace = true }
+pyo3 = { workspace = true, default-features = false, features = [
+    "auto-initialize",
+] }
+serde = { workspace = true, features = ["derive"] }
+log = { workspace = true }
+num-traits = { workspace = true }
+ndarray = { workspace = true, features = ["serde"] }
+anyhow = { workspace = true }
+tch = { workspace = true, optional = true }
+image = { workspace = true }
 
 [dev-dependencies]
-fastrand = "1.4.0"
-env_logger = "0.8.2"
-csv = "1.1.5"
+fastrand = { workspace = true }
+env_logger = { workspace = true }
+csv = { workspace = true }
 
 [features]
 default = ["tch"]
@@ -47,7 +49,10 @@ test = false
 
 [[example]]
 name = "random_ant"
-test = false # Skip test for now, PyBullet Gym requires modify code (see Dockerfile in this repository)
+test = false        # Skip test for now, PyBullet Gym requires modify code (see Dockerfile in this repository)
 
 [[example]]
 name = "pybullet_pyo3"
+
+[package.metadata.docs.rs]
+no-default-features = true

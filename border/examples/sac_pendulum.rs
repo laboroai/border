@@ -1,6 +1,6 @@
 use anyhow::Result;
 use border_core::{
-    record::{/*BufferedRecorder,*/ Record, RecordValue, TensorboardRecorder},
+    record::{Record, RecordValue},
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
@@ -18,6 +18,7 @@ use border_tch_agent::{
     sac::{ActorConfig, CriticConfig, Sac, SacConfig},
     TensorSubBatch,
 };
+use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg};
 // use csv::WriterBuilder;
 use ndarray::{ArrayD, IxDyn};
@@ -102,7 +103,7 @@ mod act {
     // Required by Sac
     impl From<Act> for Tensor {
         fn from(value: Act) -> Self {
-            arrayd_to_tensor::<_, f32>(value.0, true)            
+            arrayd_to_tensor::<_, f32>(value.0, true)
         }
     }
 

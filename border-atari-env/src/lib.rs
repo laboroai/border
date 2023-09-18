@@ -28,7 +28,7 @@
 //!     BorderAtariAct, BorderAtariActRawFilter, BorderAtariEnv, BorderAtariEnvConfig,
 //!     BorderAtariObs, BorderAtariObsRawFilter,
 //! };
-//! use border_core::{record::BufferedRecorder, util, Env as _, Policy};
+//! use border_core::{util, Env as _, Policy, DefaultEvaluator, Evaluator as _};
 //!
 //! type Obs = BorderAtariObs;
 //! type Act = BorderAtariAct;
@@ -70,19 +70,17 @@
 //!
 //!     // Creates Pong environment
 //!     let env_config = env_config("pong".to_string());
-//!     let mut env = Env::build(&env_config, 42)?;
-//!     env.open()?;
 //!
 //!     // Creates a random policy
-//!     let n_acts = env.get_num_actions_atari();
+//!     let n_acts = 4; // number of actions;
 //!     let policy_config = RandomPolicyConfig {
 //!         n_acts: n_acts as _,
 //!     };
 //!     let mut policy = RandomPolicy::build(policy_config);
 //!
 //!     // Runs evaluation
-//!     let mut recorder = BufferedRecorder::new();
-//!     let _ = util::eval_with_recorder(&mut env, &mut policy, 5, &mut recorder)?;
+//!     let env_config = env_config.render(true);
+//!     let _ = DefaultEvaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
 //!
 //!     Ok(())
 //! }

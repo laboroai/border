@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// Configuration of [ActorManager](super::ActorManager).
+/// Configuration of [`ActorManager`](super::ActorManager).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ActorManagerConfig {
     /// Number of samples to be buffered in each actor until being pushed to the replay buffer.

@@ -1,4 +1,4 @@
-//! Train [Agent](crate::Agent).
+//! Train [`Agent`](crate::Agent).
 mod config;
 mod sampler;
 use crate::{

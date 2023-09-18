@@ -10,10 +10,11 @@ A reinforcement learning library in Rust.
 Border consists of the following crates:
 
 * [border-core](https://crates.io/crates/border-core) provides basic traits and functions generic to environments and reinforcmenet learning (RL) agents.
-* [border-py-gym-env](https://crates.io/crates/border-py-gym-env) is a wrapper of the [Gym](https://gym.openai.com) environments written in Python, with the support of [pybullet-gym](https://github.com/benelot/pybullet-gym) and [atari](https://github.com/mgbellemare/Arcade-Learning-Environment).
+* [border-tensorboard](https://crates.io/crates/border-tensorboard) has `TensorboardRecorder` struct to write records which can be shown in Tensorboard. It is based on [tensorboard-rs](https://crates.io/crates/tensorboard-rs).
+* [border-py-gym-env](https://crates.io/crates/border-py-gym-env) is a wrapper of the [Gymnasium](https://gymnasium.farama.org) environments written in Python.
 * [border-atari-env](https://crates.io/crates/border-atari-env) is a wrapper of [atari-env](https://crates.io/crates/atari-env), which is a part of [gym-rs](https://crates.io/crates/gym-rs).
-* [border-tch-agent](https://crates.io/crates/border-tch-agent) is a collection of RL agents based on [tch](https://crates.io/crates/tch). Deep Q network (DQN), implicit quantile network (IQN), and soft actor critic (SAC) are includes.
-* [border-async-trainer](https://crates.io/crates/border-async-trainer) defines some traits and functions for asynchronous training of RL agents by multiple actors, each of which runs a sampling process of an agent and an environment in parallel.
+* [border-tch-agent](https://crates.io/crates/border-tch-agent) is a collection of RL agents based on [tch](https://crates.io/crates/tch), including Deep Q network (DQN), implicit quantile network (IQN), and soft actor critic (SAC).
+* [border-async-trainer](https://crates.io/crates/border-async-trainer) defines some traits and functions for asynchronous training of RL agents by multiple actors, which runs sampling processes in parallel. In each sampling process, an agent interacts with an environment to collect samples to be sent to a shared replay buffer.
 
 You can use a part of these crates for your purposes, though [border-core](https://crates.io/crates/border-core) is mandatory. [This crate](https://crates.io/crates/border) is just a collection of examples. See [Documentation](https://docs.rs/border) for more details.
 
@@ -27,11 +28,11 @@ Border is experimental and currently under development. API is unstable.
 
 ## Examples
 
-In examples directory, you can see how to run some examples. Python>=3.7 and [gym](https://gym.openai.com) must be installed for running examples using [border-py-gym-env](https://crates.io/crates/border-py-gym-env). Some examples requires [PyBullet Gym](https://github.com/benelot/pybullet-gym). As the agents used in the examples are based on [tch-rs](https://github.com/LaurentMazare/tch-rs), libtorch is required to be installed.
+There are some example sctipts in `border/examples` directory. These are tested in Docker containers, speficically the one in `aarch64` directory on M2 Macbook air. Some scripts take few days for the training process, tested on Ubuntu22.04 virtual machine in  [GPUSOROBAN](https://soroban.highreso.jp), a computing cloud.
 
 ## Docker
 
-In `docker` directory, there are scripts for running a Docker container, in which you can try the examples described above. Currently, only `aarch64` is supported.
+In `docker` directory, there are scripts for running a Docker container, in which you can try the examples described above. Currently, only `aarch64` is mainly used for the development.
 
 ## Tests
 

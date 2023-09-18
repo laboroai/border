@@ -1,0 +1,30 @@
+[package]
+name = "border-tensorboard"
+version = "0.0.5"
+authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
+edition = "2018"
+rust-version = "1.68.2"
+
+description = "Reinforcement learning library"
+repository = "https://github.com/taku-y/border"
+keywords = ["rl"]
+categories = ["science"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+autoexamples = false
+
+[dependencies]
+border-core = { version = "0.0.5", path = "../border-core" }
+# serde = { workspace = true, features = ["derive"] }
+# serde_yaml = { workspace = true }
+tensorboard-rs = { workspace = true }
+# log = { workspace = true }
+# thiserror = { workspace = true }
+# anyhow = { workspace = true }
+# chrono = { workspace = true }
+# aquamarine = { workspace = true }
+# fastrand = { workspace = true }
+# segment-tree = { workspace = true }
+
+# [dev-dependencies]
+# tempdir = { workspace = true }

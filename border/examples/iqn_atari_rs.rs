@@ -5,7 +5,6 @@ use border_atari_env::{
     BorderAtariObsRawFilter,
 };
 use border_core::{
-    record::TensorboardRecorder,
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
@@ -19,6 +18,7 @@ use border_tch_agent::{
     mlp::Mlp,
     TensorSubBatch,
 };
+use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg, ArgMatches};
 use util_iqn_atari::{model_dir as model_dir_, Params};
 
@@ -107,11 +107,7 @@ fn init<'a>() -> ArgMatches<'a> {
     matches
 }
 
-fn show_config(
-    env_config: &EnvConfig,
-    agent_config: &IqnConfig,
-    trainer_config: &TrainerConfig,
-) {
+fn show_config(env_config: &EnvConfig, agent_config: &IqnConfig, trainer_config: &TrainerConfig) {
     println!("Device: {:?}", tch::Device::cuda_if_available());
     println!("{}", serde_yaml::to_string(&env_config).unwrap());
     println!("{}", serde_yaml::to_string(&agent_config).unwrap());

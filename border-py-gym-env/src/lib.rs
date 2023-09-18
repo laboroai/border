@@ -1,9 +1,14 @@
 //! A wrapper of [Gymnasium](https://gymnasium.farama.org) environments on Python.
 //!
-//! [`GymEnv`] is a wrapper of [gym](https://gym.openai.com) based on [`PyO3`](https://github.com/PyO3/pyo3).
-//! It supports some [classic control](https://gym.openai.com/envs/#classic_control),
-//! [`Atari`](https://gym.openai.com/envs/#atari), and [`PyBullet`](https://github.com/benelot/pybullet-gym)
-//! environments.
+//! [`GymEnv`] is a wrapper of [Gymnasium](https://gymnasium.farama.org) based on [`PyO3`](https://github.com/PyO3/pyo3).
+//! It has been tested on some of [classic control](https://gymnasium.farama.org/environments/classic_control/) and
+//! [Gymnasium-Robotics](https://robotics.farama.org) environments.
+//!
+//! ```note
+//! In a past, [`Atari`](https://gym.openai.com/envs/#atari), and
+//! [`PyBullet`](https://github.com/benelot/pybullet-gym) environments were supported.
+//! However, currently they are not tested.
+//! ```
 //!
 //! This wrapper accepts array-like observation and action
 //! ([`Box`](https://github.com/openai/gym/blob/master/gym/spaces/box.py) spaces), and
@@ -43,6 +48,6 @@ pub use base::{GymActFilter, GymEnv, GymInfo, GymObsFilter};
 pub use config::GymEnvConfig;
 #[allow(deprecated)]
 pub use obs::{
-    ArrayDictObsFilter, ArrayDictObsFilterConfig, ArrayObsFilter, FrameStackFilter, GymObs
+    ArrayDictObsFilter, ArrayDictObsFilterConfig, ArrayObsFilter, FrameStackFilter, GymObs,
 };
 // pub use vec::{PyVecGymEnv, PyVecGymEnvConfig};
