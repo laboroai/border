@@ -1,15 +1,14 @@
 use anyhow::Result;
-use border_core::{record::BufferedRecorder, util, Env as _, Policy};
+use border_core::{DefaultEvaluator, Evaluator as _, Policy};
 use border_py_gym_env::{
-    GymEnv, GymActFilter, GymEnvConfig, GymContinuousAct,
-    ContinuousActFilter, GymObsFilter, ArrayObsFilter,
+    ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
 use ndarray::{Array, ArrayD, IxDyn};
 use std::default::Default;
 
 mod obs {
     use super::*;
-    
+
     #[derive(Clone, Debug)]
     pub struct Obs(ArrayD<f32>);
 
@@ -51,12 +50,13 @@ mod act {
     }
 }
 
-use obs::Obs;
 use act::Act;
+use obs::Obs;
 
 type ObsFilter = ArrayObsFilter<f32, f32, Obs>;
 type ActFilter = ContinuousActFilter<Act>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
+type Evaluator = DefaultEvaluator<Env, RandomPolicy>;
 
 #[derive(Clone)]
 struct RandomPolicyConfig;
@@ -91,12 +91,9 @@ fn main() -> Result<()> {
         .obs_filter_config(<ObsFilter as GymObsFilter<Obs>>::Config::default())
         .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default())
         .render_mode(Some("human".to_string()));
-    let mut env = Env::build(&env_config, 0)?;
-    let mut recorder = BufferedRecorder::new();
     let mut policy = RandomPolicy;
-    // env.set_render(true);
 
-    let _ = util::eval_with_recorder(&mut env, &mut policy, 5, &mut recorder)?;
+    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
 
     Ok(())
 }
@@ -110,9 +107,9 @@ fn test_random_ant() {
         .obs_filter_config(<ObsFilter as GymObsFilter<Obs>>::Config::default())
         .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default())
         .pybullet(true);
-    let mut env = Env::build(&env_config, 0).unwrap();
+    // let mut env = Env::build(&env_config, 0).unwrap();
     let mut recorder = BufferedRecorder::new();
     let mut policy = RandomPolicy;
 
-    let _ = util::eval_with_recorder(&mut env, &mut policy, 1, &mut recorder).unwrap();
+    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
 }
