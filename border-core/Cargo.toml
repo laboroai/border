@@ -1,6 +1,6 @@
 [package]
 name = "border-core"
-version = "0.0.5"
+version = "0.0.6"
 authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
 edition = "2018"
 rust-version = "1.68.2"

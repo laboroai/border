@@ -1,6 +1,6 @@
 [package]
 name = "border"
-version = "0.0.5"
+version = "0.0.6"
 authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
 edition = "2018"
 rust-version = "1.68.2"
@@ -16,13 +16,13 @@ autoexamples = false
 [dependencies]
 aquamarine = { workspace = true }
 tch = { workspace = true, optional = true }
-border-async-trainer = { version = "0.0.5", path = "../border-async-trainer", optional = true }
+border-async-trainer = { version = "0.0.6", path = "../border-async-trainer", optional = true }
 anyhow = { workspace = true }
 log = { workspace = true }
 dirs = { workspace = true }
 zip = "0.5.12"
 reqwest = { version = "0.11.3", features = ["blocking"] }
-border-core = { version = "0.0.5", path = "../border-core" }
+border-core = { version = "0.0.6", path = "../border-core" }
 
 [[example]]
 name = "dqn_cartpole"
@@ -96,12 +96,12 @@ test = false
 clap = { workspace = true }
 csv = { workspace = true }
 tempdir = { workspace = true }
-border-derive = { version = "0.0.5", path = "../border-derive" }
-border-core = { version = "0.0.5", path = "../border-core" }
-border-tensorboard = { version = "0.0.5", path = "../border-tensorboard" }
-border-tch-agent = { version = "0.0.5", path = "../border-tch-agent" }
-border-py-gym-env = { version = "0.0.5", path = "../border-py-gym-env" }
-border-atari-env = { version = "0.0.5", path = "../border-atari-env" }
+border-derive = { version = "0.0.6", path = "../border-derive" }
+border-core = { version = "0.0.6", path = "../border-core" }
+border-tensorboard = { version = "0.0.6", path = "../border-tensorboard" }
+border-tch-agent = { version = "0.0.6", path = "../border-tch-agent" }
+border-py-gym-env = { version = "0.0.6", path = "../border-py-gym-env" }
+border-atari-env = { version = "0.0.6", path = "../border-atari-env" }
 serde = { workspace = true, features = ["derive"] }
 crossbeam-channel = { workspace = true }
 env_logger = { workspace = true }

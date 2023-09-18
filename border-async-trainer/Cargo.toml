@@ -1,6 +1,6 @@
 [package]
 name = "border-async-trainer"
-version = "0.0.5"
+version = "0.0.6"
 authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
 edition = "2018"
 rust-version = "1.68.2"
@@ -16,8 +16,8 @@ autoexamples = false
 [dependencies]
 anyhow = { workspace = true }
 aquamarine = { workspace = true }
-border-core = { version = "0.0.5", path = "../border-core" }
-border-tensorboard = { version = "0.0.5", path = "../border-tensorboard" }
+border-core = { version = "0.0.6", path = "../border-core" }
+border-tensorboard = { version = "0.0.6", path = "../border-tensorboard" }
 serde = { workspace = true, features = ["derive"] }
 log = { workspace = true }
 tokio = { version = "1.14.0", features = ["full"] }

@@ -1,6 +1,6 @@
 [package]
 name = "border-py-gym-env"
-version = "0.0.5"
+version = "0.0.6"
 authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
 edition = "2018"
 rust-version = "1.68.2"
@@ -14,7 +14,7 @@ readme = "README.md"
 autoexamples = false
 
 [dependencies]
-border-core = { version = "0.0.5", path = "../border-core" }
+border-core = { version = "0.0.6", path = "../border-core" }
 numpy = { workspace = true }
 pyo3 = { workspace = true, default-features = false, features = [
     "auto-initialize",

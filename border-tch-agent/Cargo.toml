@@ -1,6 +1,6 @@
 [package]
 name = "border-tch-agent"
-version = "0.0.5"
+version = "0.0.6"
 authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
 edition = "2018"
 rust-version = "1.68.2"
@@ -14,8 +14,8 @@ readme = "README.md"
 autoexamples = false
 
 [dependencies]
-border-core = { version = "0.0.5", path = "../border-core" }
-border-async-trainer = { version = "0.0.5", path = "../border-async-trainer", optional = true }
+border-core = { version = "0.0.6", path = "../border-core" }
+border-async-trainer = { version = "0.0.6", path = "../border-async-trainer", optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_yaml = { workspace = true }
 tensorboard-rs = { workspace = true }
