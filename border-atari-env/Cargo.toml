@@ -49,7 +49,6 @@ default = [
     "tch",
 ]
 sdl = ["atari-env-sys/sdl"]
-doc = []
 
 [[example]]
 name = "random_pong"
@@ -60,4 +59,3 @@ env_logger = { workspace = true }
 
 [package.metadata.docs.rs]
 no-default-features = true
-features = ["doc"]

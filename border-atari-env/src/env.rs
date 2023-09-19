@@ -12,7 +12,7 @@ use image::{
 use std::{default::Default, marker::PhantomData};
 use std::ptr::copy;
 use window::AtariWindow;
-#[cfg(not(doc))]
+#[cfg(feature = "atari-env-sys")]
 use winit::{event_loop::ControlFlow, platform::run_return::EventLoopExtRunReturn};
 use super::{BorderAtariObsFilter, BorderAtariActFilter};
 use itertools::izip;
@@ -329,7 +329,7 @@ where
     where
         Self: Sized,
     {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         {
             let act_org = act.clone();
             let (act, _record) = self.act_filter.filt(act_org.clone());
@@ -360,7 +360,7 @@ where
             (step, record)
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
 }

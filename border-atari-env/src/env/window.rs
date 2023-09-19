@@ -1,6 +1,6 @@
 use anyhow::Result;
 use crate::atari_env::AtariEnv;
-#[cfg(not(doc))]
+#[cfg(feature = "atari-env-sys")]
 use {
     pixels::{Pixels, SurfaceTexture},
     winit::{
@@ -11,17 +11,17 @@ use {
 };
 
 pub(super) struct AtariWindow {
-    #[cfg(not(doc))]
+    #[cfg(feature = "atari-env-sys")]
     pub(super) event_loop: EventLoop<()>,
-    #[cfg(not(doc))]
+    #[cfg(feature = "atari-env-sys")]
     window: Window,
-    #[cfg(not(doc))]
+    #[cfg(feature = "atari-env-sys")]
     pixels: Pixels<Window>,
 }
 
 impl AtariWindow {
     pub fn new(env: &AtariEnv) -> Result<Self> {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         {
             let event_loop = EventLoop::new();
             let window = WindowBuilder::new()
@@ -44,28 +44,28 @@ impl AtariWindow {
             })
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
 
     pub fn get_frame(&mut self) -> &mut [u8] {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         {
             self.pixels.get_frame()
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
 
     pub fn render_and_request_redraw(&mut self) {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         {
             self.pixels.render().unwrap();
             self.window.request_redraw();
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
 }

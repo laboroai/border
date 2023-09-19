@@ -60,7 +60,7 @@ impl Default for AleConfig {
 }
 
 pub struct Ale {
-    #[cfg(not(doc))]
+    #[cfg(feature = "atari-env-sys")]
     inner: *mut atari_env_sys::ALEInterface,
 }
 
@@ -69,19 +69,19 @@ unsafe impl Send for Ale {}
 
 impl Drop for Ale {
     fn drop(&mut self) {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         unsafe {
             atari_env_sys::ALE_del(self.inner);
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
 }
 
 impl Ale {
     pub fn new(rom_path: &Path, config: AleConfig) -> Self {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         {
             let ale = unsafe { atari_env_sys::ALE_new() };
             unsafe {
@@ -123,11 +123,11 @@ impl Ale {
             Self { inner: ale }
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
     pub fn available_actions(&self) -> Vec<AleAction> {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         {
             let n = unsafe { atari_env_sys::getLegalActionSize(self.inner) } as usize;
             let mut buf = vec![AleAction::Noop; n];
@@ -137,12 +137,12 @@ impl Ale {
             buf
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
 
     pub fn minimal_actions(&self) -> Vec<AleAction> {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         {
             let n = unsafe { atari_env_sys::getMinimalActionSize(self.inner) } as usize;
             let mut buf = vec![AleAction::Noop; n];
@@ -152,77 +152,77 @@ impl Ale {
             buf
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
 
     pub fn is_game_over(&self) -> bool {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         unsafe {
             atari_env_sys::game_over(self.inner)
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
 
     /// frame number since rom loading (Ale::new)
     pub fn rom_frame_number(&self) -> i32 {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         unsafe {
             atari_env_sys::getFrameNumber(self.inner)
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
 
     /// frame number of the current episode
     pub fn episode_frame_number(&self) -> i32 {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         unsafe {
             atari_env_sys::getEpisodeFrameNumber(self.inner)
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
 
     pub fn reset(&mut self) {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         unsafe {
             atari_env_sys::reset_game(self.inner);
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
 
     /// returns reward
     pub fn take_action(&mut self, action: AleAction) -> i32 {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         {
             let ret: ::std::os::raw::c_int =
                 unsafe { atari_env_sys::act(self.inner, action as i32) };
             ret.into()
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
 
     pub fn lives(&self) -> u32 {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         unsafe {
             atari_env_sys::lives(self.inner) as u32
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
 
     pub fn available_difficulty_settings(&self) -> Vec<i32> {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         {
             let n = unsafe { atari_env_sys::getAvailableDifficultiesSize(self.inner) } as usize;
             let mut buf = vec![0i32; n];
@@ -232,67 +232,67 @@ impl Ale {
             buf
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
 
     pub fn width(&self) -> u32 {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         unsafe {
             atari_env_sys::getScreenWidth(self.inner) as u32
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
     pub fn height(&self) -> u32 {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         unsafe {
             atari_env_sys::getScreenHeight(self.inner) as u32
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
 
     pub fn rgb24_size(&self) -> usize {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         return (self.width() as usize) * (self.height() as usize) * 3;
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
     /// bgr on little-endian, rgb on big-endian
     pub fn rgb24_native_endian(&self, buf: &mut [u8]) {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         unsafe {
             atari_env_sys::getScreenRGB(self.inner, buf.as_mut_ptr());
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
     /// always rgb in regardless of endianness
     pub fn rgb24(&self, buf: &mut [u8]) {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         unsafe {
             atari_env_sys::getScreenRGB2(self.inner, buf.as_mut_ptr());
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
 
     pub fn rgb32_size(&self) -> usize {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         return (self.width() as usize) * (self.height() as usize) * 4;
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
     /// always rgb in regardless of endianness
     pub fn rgb32(&self, buf: &mut [u8]) {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         {
             let n = buf.len() / 4;
             self.rgb24(&mut buf[n..]);
@@ -304,31 +304,31 @@ impl Ale {
             }
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
 
     pub fn ram_size(&self) -> usize {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         unsafe {
             atari_env_sys::getRAMSize(self.inner) as usize
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
     pub fn ram(&self, buf: &mut [u8]) {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         unsafe {
             atari_env_sys::getRAM(self.inner, buf.as_mut_ptr());
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
 
     pub fn save_png<P: AsRef<Path>>(&self, path: P) {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         {
             use std::os::unix::ffi::OsStrExt;
             let path = path.as_ref();
@@ -338,18 +338,18 @@ impl Ale {
             }
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
 
     /// Sets the random seed.
     pub fn seed(&self, seed: i32) {
-        #[cfg(not(doc))]
+        #[cfg(feature = "atari-env-sys")]
         unsafe {
             atari_env_sys::setInt(self.inner, c_str!("random_seed").as_ptr(), seed);
         }
 
-        #[cfg(doc)]
+        #[cfg(not(feature = "atari-env-sys"))]
         unimplemented!();
     }
 }
