@@ -3,7 +3,7 @@ use anyhow::Result;
 use core::f64;
 use serde::{Deserialize, Serialize};
 use tch::{
-    nn,
+    // nn,
     nn::{Adam, Optimizer as Optimizer_, OptimizerConfig as OptimizerConfig_, VarStore},
     Tensor,
 };
@@ -75,7 +75,7 @@ impl OptimizerConfig {
 /// This is a thin wrapper of [tch::nn::Optimizer].
 pub enum Optimizer {
     /// Adam optimizer.
-    Adam(Optimizer_<nn::Adam>),
+    Adam(Optimizer_),
 }
 
 impl Optimizer {

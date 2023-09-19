@@ -1,25 +1,27 @@
 use anyhow::Result;
 use border_core::{
-    record::{BufferedRecorder, Record, TensorboardRecorder},
+    record::Record,
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig, SubBatch,
     },
-    shape, util, Agent, Env as _, Policy, Trainer, TrainerConfig,
+    Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
 use border_py_gym_env::{
-    PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter,
-    PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
+    util::vec_to_tensor, ArrayObsFilter, DiscreteActFilter, GymActFilter, GymEnv, GymEnvConfig,
+    GymObsFilter,
 };
 use border_tch_agent::{
-    dqn::{DQNConfig, DQNModelConfig, DQN},
-    mlp::{MLPConfig, MLP},
+    dqn::{Dqn, DqnConfig, DqnModelConfig},
+    mlp::{Mlp, MlpConfig},
     TensorSubBatch,
 };
+use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg};
-use csv::WriterBuilder;
+// use csv::WriterBuilder;
+use ndarray::{ArrayD, IxDyn};
 use serde::Serialize;
-use std::{convert::TryFrom, fs::File};
+use std::convert::TryFrom; //, fs::File};
 use tch::Tensor;
 
 const DIM_OBS: i64 = 4;
@@ -37,140 +39,132 @@ const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const MODEL_DIR: &str = "./border/examples/model/dqn_cartpole";
 
-shape!(ObsShape, [DIM_OBS as usize]);
-shape!(ActShape, [1]);
-
 type PyObsDtype = f32;
 
-#[derive(Clone, Debug)]
-struct Obs(PyGymEnvObs<ObsShape, PyObsDtype, f32>);
+mod obs {
+    use super::*;
 
-impl border_core::Obs for Obs {
-    fn dummy(n: usize) -> Self {
-        Obs(PyGymEnvObs::dummy(n))
+    #[derive(Clone, Debug)]
+    pub struct Obs(ArrayD<f32>);
+
+    impl border_core::Obs for Obs {
+        fn dummy(_n: usize) -> Self {
+            Self(ArrayD::zeros(IxDyn(&[0])))
+        }
+
+        fn len(&self) -> usize {
+            self.0.shape()[0]
+        }
     }
 
-    fn merge(self, obs_reset: Self, is_done: &[i8]) -> Self {
-        Obs(self.0.merge(obs_reset.0, is_done))
+    impl From<ArrayD<f32>> for Obs {
+        fn from(obs: ArrayD<f32>) -> Self {
+            Obs(obs)
+        }
     }
 
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-impl From<PyGymEnvObs<ObsShape, PyObsDtype, f32>> for Obs {
-    fn from(obs: PyGymEnvObs<ObsShape, PyObsDtype, f32>) -> Self {
-        Obs(obs)
-    }
-}
-
-impl From<Obs> for Tensor {
-    fn from(obs: Obs) -> Tensor {
-        Tensor::try_from(&obs.0.obs).unwrap()
-    }
-}
-
-struct ObsBatch(TensorSubBatch<ObsShape, f32>);
-
-impl SubBatch for ObsBatch {
-    fn new(capacity: usize) -> Self {
-        Self(TensorSubBatch::new(capacity))
+    impl From<Obs> for Tensor {
+        fn from(obs: Obs) -> Tensor {
+            Tensor::try_from(&obs.0).unwrap()
+        }
     }
 
-    fn push(&mut self, i: usize, data: &Self) {
-        self.0.push(i, &data.0)
+    pub struct ObsBatch(TensorSubBatch);
+
+    impl SubBatch for ObsBatch {
+        fn new(capacity: usize) -> Self {
+            Self(TensorSubBatch::new(capacity))
+        }
+
+        fn push(&mut self, i: usize, data: &Self) {
+            self.0.push(i, &data.0)
+        }
+
+        fn sample(&self, ixs: &Vec<usize>) -> Self {
+            let buf = self.0.sample(ixs);
+            Self(buf)
+        }
     }
 
-    fn sample(&self, ixs: &Vec<usize>) -> Self {
-        let buf = self.0.sample(ixs);
-        Self(buf)
+    impl From<Obs> for ObsBatch {
+        fn from(obs: Obs) -> Self {
+            let tensor = obs.into();
+            Self(TensorSubBatch::from_tensor(tensor))
+        }
     }
-}
 
-impl From<Obs> for ObsBatch {
-    fn from(obs: Obs) -> Self {
-        let tensor = obs.into();
-        Self(TensorSubBatch::from_tensor(tensor))
-    }
-}
-
-impl From<ObsBatch> for Tensor {
-    fn from(b: ObsBatch) -> Self {
-        b.0.into()
-    }
-}
-
-#[derive(Clone, Debug)]
-struct Act(PyGymEnvDiscreteAct);
-
-impl border_core::Act for Act {
-    fn len(&self) -> usize {
-        self.0.len()
+    impl From<ObsBatch> for Tensor {
+        fn from(b: ObsBatch) -> Self {
+            b.0.into()
+        }
     }
 }
 
-impl Into<PyGymEnvDiscreteAct> for Act {
-    fn into(self) -> PyGymEnvDiscreteAct {
-        self.0
+mod act {
+    use super::*;
+
+    #[derive(Clone, Debug)]
+    pub struct Act(Vec<i32>);
+
+    impl border_core::Act for Act {}
+
+    impl From<Act> for Vec<i32> {
+        fn from(value: Act) -> Self {
+            value.0
+        }
+    }
+
+    impl From<Tensor> for Act {
+        // `t` must be a 1-dimentional tensor of `f32`
+        fn from(t: Tensor) -> Self {
+            let data: Vec<i64> = t.into();
+            let data = data.iter().map(|&e| e as i32).collect();
+            Act(data)
+        }
+    }
+
+    pub struct ActBatch(TensorSubBatch);
+
+    impl SubBatch for ActBatch {
+        fn new(capacity: usize) -> Self {
+            Self(TensorSubBatch::new(capacity))
+        }
+
+        fn push(&mut self, i: usize, data: &Self) {
+            self.0.push(i, &data.0)
+        }
+
+        fn sample(&self, ixs: &Vec<usize>) -> Self {
+            let buf = self.0.sample(ixs);
+            Self(buf)
+        }
+    }
+
+    impl From<Act> for ActBatch {
+        fn from(act: Act) -> Self {
+            let t = vec_to_tensor::<_, i64>(act.0, true);
+            Self(TensorSubBatch::from_tensor(t))
+        }
+    }
+
+    // Required by Dqn
+    impl From<ActBatch> for Tensor {
+        fn from(act: ActBatch) -> Self {
+            act.0.into()
+        }
     }
 }
 
-struct ActBatch(TensorSubBatch<ActShape, i64>);
+use act::{Act, ActBatch};
+use obs::{Obs, ObsBatch};
 
-impl SubBatch for ActBatch {
-    fn new(capacity: usize) -> Self {
-        Self(TensorSubBatch::new(capacity))
-    }
-
-    fn push(&mut self, i: usize, data: &Self) {
-        self.0.push(i, &data.0)
-    }
-
-    fn sample(&self, ixs: &Vec<usize>) -> Self {
-        let buf = self.0.sample(ixs);
-        Self(buf)
-    }
-}
-
-impl From<Act> for Tensor {
-    fn from(act: Act) -> Tensor {
-        let v = act.0.act.iter().map(|e| *e as i64).collect::<Vec<_>>();
-        let t: Tensor = TryFrom::<Vec<i64>>::try_from(v).unwrap();
-
-        // The first dimension of the action tensor is the number of processes,
-        // which is 1 for the non-vectorized environment.
-        t.unsqueeze(0)
-    }
-}
-
-impl From<Act> for ActBatch {
-    fn from(act: Act) -> Self {
-        let tensor = act.into();
-        Self(TensorSubBatch::from_tensor(tensor))
-    }
-}
-
-impl From<ActBatch> for Tensor {
-    fn from(act: ActBatch) -> Self {
-        act.0.into()
-    }
-}
-
-impl From<Tensor> for Act {
-    // `t` must be a 1-dimentional tensor of `f32` (?)
-    fn from(t: Tensor) -> Self {
-        let data: Vec<i64> = t.into();
-        let data: Vec<_> = data.iter().map(|e| *e as i32).collect();
-        Act(PyGymEnvDiscreteAct::new(data))
-    }
-}
-
-type ObsFilter = PyGymEnvObsRawFilter<ObsShape, PyObsDtype, f32, Obs>;
-type ActFilter = PyGymEnvDiscreteActRawFilter<Act>;
-type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
+type ActFilter = DiscreteActFilter<Act>;
+type EnvConfig = GymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
+type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
+type Evaluator = DefaultEvaluator<Env, Dqn<Env, Mlp, ReplayBuffer>>;
 
 #[derive(Debug, Serialize)]
 struct CartpoleRecord {
@@ -197,16 +191,16 @@ impl TryFrom<&Record> for CartpoleRecord {
     }
 }
 
-fn create_agent(in_dim: i64, out_dim: i64) -> DQN<Env, MLP, ReplayBuffer> {
+fn create_agent(in_dim: i64, out_dim: i64) -> Dqn<Env, Mlp, ReplayBuffer> {
     let device = tch::Device::cuda_if_available();
     let config = {
         let opt_config = border_tch_agent::opt::OptimizerConfig::Adam { lr: LR_CRITIC };
-        let mlp_config = MLPConfig::new(in_dim, vec![256, 256], out_dim);
-        let model_config = DQNModelConfig::default()
+        let mlp_config = MlpConfig::new(in_dim, vec![256, 256], out_dim, true);
+        let model_config = DqnModelConfig::default()
             .q_config(mlp_config)
             .out_dim(out_dim)
             .opt_config(opt_config);
-        DQNConfig::default()
+        DqnConfig::default()
             .n_updates_per_opt(N_UPDATES_PER_OPT)
             .min_transitions_warmup(N_TRANSITIONS_WARMUP)
             .batch_size(BATCH_SIZE)
@@ -216,22 +210,22 @@ fn create_agent(in_dim: i64, out_dim: i64) -> DQN<Env, MLP, ReplayBuffer> {
             .device(device)
     };
 
-    DQN::build(config)
+    Dqn::build(config)
 }
 
-fn env_config() -> PyGymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
-    PyGymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
+fn env_config() -> EnvConfig {
+    EnvConfig::default()
         .name("CartPole-v0".to_string())
         .obs_filter_config(ObsFilter::default_config())
         .act_filter_config(ActFilter::default_config())
 }
 
+fn create_evaluator(env_config: &EnvConfig) -> Result<Evaluator> {
+    Evaluator::new(env_config, 0, N_EPISODES_PER_EVAL)
+}
+
 fn train(max_opts: usize, model_dir: &str) -> Result<()> {
     let mut trainer = {
-        // let env_config = PyGymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
-        //     .name("CartPole-v0".to_string())
-        //     .obs_filter_config(ObsFilter::default_config())
-        //     .act_filter_config(ActFilter::default_config());
         let env_config = env_config();
         let step_proc_config = SimpleStepProcessorConfig {};
         let replay_buffer_config =
@@ -242,44 +236,44 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
             .eval_interval(EVAL_INTERVAL)
             .record_interval(EVAL_INTERVAL)
             .save_interval(EVAL_INTERVAL)
-            .eval_episodes(N_EPISODES_PER_EVAL)
             .model_dir(model_dir);
         let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
             config,
             env_config,
-            None,
             step_proc_config,
             replay_buffer_config,
         );
 
         trainer
     };
-
-    let mut recorder = TensorboardRecorder::new(model_dir);
     let mut agent = create_agent(DIM_OBS, DIM_ACT);
+    let mut recorder = TensorboardRecorder::new(model_dir);
+    let mut evaluator = create_evaluator(&env_config())?;
 
-    trainer.train(&mut agent, &mut recorder)?;
+    trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
 
     Ok(())
 }
 
-fn eval(model_dir: &str) -> Result<()> {
-    let mut env = Env::build(&env_config(), 0)?;
-    let mut agent = create_agent(DIM_OBS, DIM_ACT);
-    let mut recorder = BufferedRecorder::new();
-    env.set_render(true);
-    agent.load(model_dir)?;
-    agent.eval();
+fn eval(model_dir: &str, render: bool) -> Result<()> {
+    let env_config = {
+        let mut env_config = env_config();
+        if render {
+            env_config = env_config
+                .render_mode(Some("human".to_string()))
+                .set_wait_in_millis(10);
+        }
+        env_config
+    };
+    let mut agent = {
+        let mut agent = create_agent(DIM_OBS, DIM_ACT);
+        agent.load(model_dir)?;
+        agent.eval();
+        agent
+    };
+    // let mut recorder = BufferedRecorder::new();
 
-    let _ = util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder)?;
-
-    // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
-    let mut wtr = WriterBuilder::new()
-        .has_headers(false)
-        .from_writer(File::create(model_dir.to_string() + "/eval.csv")?);
-    for record in recorder.iter() {
-        wtr.serialize(CartpoleRecord::try_from(record)?)?;
-    }
+    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut agent);
 
     Ok(())
 }
@@ -290,39 +284,51 @@ fn main() -> Result<()> {
 
     let matches = App::new("dqn_cartpole")
         .version("0.1.0")
-        .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
+        .author("Taku Yoshioka <yoshioka@laboro.ai>")
         .arg(
-            Arg::with_name("skip training")
-                .long("skip_training")
+            Arg::with_name("train")
+                .long("train")
                 .takes_value(false)
-                .help("Skip training"),
+                .help("Do training only"),
+        )
+        .arg(
+            Arg::with_name("eval")
+                .long("eval")
+                .takes_value(false)
+                .help("Do evaluation only"),
         )
         .get_matches();
 
-    if !matches.is_present("skip training") {
+    let do_train = (matches.is_present("train") && !matches.is_present("eval"))
+        || (!matches.is_present("train") && !matches.is_present("eval"));
+    let do_eval = (!matches.is_present("train") && matches.is_present("eval"))
+        || (!matches.is_present("train") && !matches.is_present("eval"));
+
+    if do_train {
         train(MAX_OPTS, MODEL_DIR)?;
     }
-
-    eval(&format!("{}{}", MODEL_DIR, "/best")[..])?;
+    if do_eval {
+        eval(&(MODEL_DIR.to_owned() + "/best"), true)?;
+    }
 
     Ok(())
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::train;
-//     use anyhow::Result;
-//     use tempdir::TempDir; //, eval};
+#[cfg(test)]
+mod tests {
+    use super::{eval, train};
+    use anyhow::Result;
+    use tempdir::TempDir;
 
-//     #[test]
-//     fn test_dqn_cartpole() -> Result<()> {
-//         let tmp_dir = TempDir::new("dqn_cartpole")?;
-//         let model_dir = match tmp_dir.as_ref().to_str() {
-//             Some(s) => s,
-//             None => panic!("Failed to get string of temporary directory"),
-//         };
-//         train(100, model_dir, false)?;
-//         // eval(model_dir, false)?;
-//         Ok(())
-//     }
-// }
+    #[test]
+    fn test_dqn_cartpole() -> Result<()> {
+        let tmp_dir = TempDir::new("dqn_cartpole")?;
+        let model_dir = match tmp_dir.as_ref().to_str() {
+            Some(s) => s,
+            None => panic!("Failed to get string of temporary directory"),
+        };
+        train(100, model_dir)?;
+        eval(&(model_dir.to_owned() + "/best"), false)?;
+        Ok(())
+    }
+}

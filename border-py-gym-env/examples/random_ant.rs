@@ -1,20 +1,62 @@
 use anyhow::Result;
-use border_core::{record::BufferedRecorder, shape, util, Env as _, Policy};
+use border_core::{DefaultEvaluator, Evaluator as _, Policy};
 use border_py_gym_env::{
-    PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvContinuousAct,
-    PyGymEnvContinuousActRawFilter, PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
+    ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
-use ndarray::Array;
+use ndarray::{Array, ArrayD, IxDyn};
 use std::default::Default;
 
-shape!(ObsShape, [28]);
-shape!(ActShape, [8]);
+mod obs {
+    use super::*;
 
-type Obs = PyGymEnvObs<ObsShape, f32, f32>;
-type Act = PyGymEnvContinuousAct<ActShape>;
-type ObsFilter = PyGymEnvObsRawFilter<ObsShape, f32, f32, Obs>;
-type ActFilter = PyGymEnvContinuousActRawFilter<ActShape, Act>;
-type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+    #[derive(Clone, Debug)]
+    pub struct Obs(ArrayD<f32>);
+
+    impl border_core::Obs for Obs {
+        fn dummy(_n: usize) -> Self {
+            Self(ArrayD::zeros(IxDyn(&[0])))
+        }
+
+        fn len(&self) -> usize {
+            self.0.shape()[0]
+        }
+    }
+
+    impl From<ArrayD<f32>> for Obs {
+        fn from(obs: ArrayD<f32>) -> Self {
+            Obs(obs)
+        }
+    }
+}
+
+mod act {
+    use super::*;
+
+    #[derive(Clone, Debug)]
+    pub struct Act(ArrayD<f32>);
+
+    impl border_core::Act for Act {}
+
+    impl Act {
+        pub fn new(a: ArrayD<f32>) -> Self {
+            Self(a)
+        }
+    }
+
+    impl From<Act> for ArrayD<f32> {
+        fn from(value: Act) -> Self {
+            value.0
+        }
+    }
+}
+
+use act::Act;
+use obs::Obs;
+
+type ObsFilter = ArrayObsFilter<f32, f32, Obs>;
+type ActFilter = ContinuousActFilter<Act>;
+type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
+type Evaluator = DefaultEvaluator<Env, RandomPolicy>;
 
 #[derive(Clone)]
 struct RandomPolicyConfig;
@@ -44,17 +86,14 @@ fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     fastrand::seed(42);
 
-    let env_config = PyGymEnvConfig::default()
-        .name("AntPyBulletEnv-v0".to_string())
-        .obs_filter_config(<ObsFilter as PyGymEnvObsFilter<Obs>>::Config::default())
-        .act_filter_config(<ActFilter as PyGymEnvActFilter<Act>>::Config::default())
-        .pybullet(true);
-    let mut env = Env::build(&env_config, 0)?;
-    let mut recorder = BufferedRecorder::new();
-    env.set_render(true);
+    let env_config = GymEnvConfig::default()
+        .name("Ant-v4".to_string())
+        .obs_filter_config(<ObsFilter as GymObsFilter<Obs>>::Config::default())
+        .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default())
+        .render_mode(Some("human".to_string()));
     let mut policy = RandomPolicy;
 
-    let _ = util::eval_with_recorder(&mut env, &mut policy, 5, &mut recorder)?;
+    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
 
     Ok(())
 }
@@ -63,14 +102,14 @@ fn main() -> Result<()> {
 fn test_random_ant() {
     fastrand::seed(42);
 
-    let env_config = PyGymEnvConfig::default()
-        .name("AntPyBulletEnv-v0".to_string())
-        .obs_filter_config(<ObsFilter as PyGymEnvObsFilter<Obs>>::Config::default())
-        .act_filter_config(<ActFilter as PyGymEnvActFilter<Act>>::Config::default())
+    let env_config = GymEnvConfig::default()
+        .name("Ant-v4".to_string())
+        .obs_filter_config(<ObsFilter as GymObsFilter<Obs>>::Config::default())
+        .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default())
         .pybullet(true);
-    let mut env = Env::build(&env_config, 0).unwrap();
+    // let mut env = Env::build(&env_config, 0).unwrap();
     let mut recorder = BufferedRecorder::new();
     let mut policy = RandomPolicy;
 
-    let _ = util::eval_with_recorder(&mut env, &mut policy, 1, &mut recorder).unwrap();
+    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
 }

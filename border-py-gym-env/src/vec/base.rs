@@ -2,7 +2,7 @@
 #![allow(unused_variables, unreachable_code)]
 use crate::AtariWrapper;
 use super::PyVecGymEnvConfig;
-use crate::{PyGymEnvActFilter, PyGymEnvObsFilter, PyGymInfo};
+use crate::{GymActFilter, GymObsFilter, GymInfo};
 use anyhow::Result;
 use border_core::{record::Record, Act, Env, Obs, Step};
 use log::trace;
@@ -28,8 +28,8 @@ impl<O, A, OF, AF> PyVecGymEnv<O, A, OF, AF>
 where
     O: Obs,
     A: Act,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     /// Get the number of available actions of atari environments
     pub fn get_num_actions_atari(&self) -> i64 {
@@ -53,12 +53,12 @@ impl<O, A, OF, AF> Env for PyVecGymEnv<O, A, OF, AF>
 where
     O: Obs,
     A: Act,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     type Obs = O;
     type Act = A;
-    type Info = PyGymInfo;
+    type Info = GymInfo;
     type Config = PyVecGymEnvConfig<O, A, OF, AF>;
 
     /// Constructs [PyVecGymEnv].
@@ -124,6 +124,10 @@ where
         })
     }
 
+    fn reset_with_index(&mut self, ix: usize) -> Result<Self::Obs> {
+        unimplemented!();
+    }
+
     fn step(&mut self, a: &A) -> (Step<Self>, Record) {
         trace!("PyVecGymEnv::step()");
         trace!("{:?}", &a);
@@ -150,7 +154,7 @@ where
                 a.clone(),
                 reward,
                 is_done,
-                PyGymInfo {},
+                GymInfo {},
                 O::dummy(n),
             );
             let record = record_o.merge(record_a);

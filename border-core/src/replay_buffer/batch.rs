@@ -1,23 +1,36 @@
-//! A generic implementation of [Batch](crate::Batch).
+//! A generic implementation of [`StdBatchBase`](crate::StdBatchBase).
 use super::SubBatch;
-use crate::Batch as BatchBase;
+use crate::StdBatchBase;
 
-/// A generic implementation of [Batch](crate::Batch).
-pub struct Batch<O, A>
+/// A generic implementation of [`StdBatchBase`](`crate::StdBatchBase`).
+pub struct StdBatch<O, A>
 where
     O: SubBatch,
     A: SubBatch,
 {
-    pub(super) obs: O,
-    pub(super) act: A,
-    pub(super) next_obs: O,
-    pub(super) reward: Vec<f32>,
-    pub(super) is_done: Vec<i8>,
-    pub(super) weight: Option<Vec<f32>>,
-    pub(super) ix_sample: Option<Vec<usize>>,
+    /// Observations.
+    pub obs: O,
+
+    /// Actions.
+    pub act: A,
+
+    /// Next observations.
+    pub next_obs: O,
+
+    /// Rewards.
+    pub reward: Vec<f32>,
+
+    /// Done flags.
+    pub is_done: Vec<i8>,
+
+    /// Priority weights.
+    pub weight: Option<Vec<f32>>,
+
+    /// Sample indices.
+    pub ix_sample: Option<Vec<usize>>,
 }
 
-impl<O, A> BatchBase for Batch<O, A>
+impl<O, A> StdBatchBase for StdBatch<O, A>
 where
     O: SubBatch,
     A: SubBatch,
@@ -77,5 +90,36 @@ where
 
     fn ix_sample(&self) -> &Option<Vec<usize>> {
         &self.ix_sample
+    }
+
+    fn empty() -> Self {
+        Self {
+            obs: O::new(0),
+            act: A::new(0),
+            next_obs: O::new(0),
+            reward: vec![],
+            is_done: vec![],
+            ix_sample: None,
+            weight: None,
+        }
+    }
+}
+
+impl<O, A> StdBatch<O, A>
+where
+    O: SubBatch,
+    A: SubBatch,
+{
+    /// Creates new batch with the given capacity.
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            obs: O::new(capacity),
+            act: A::new(capacity),
+            next_obs: O::new(capacity),
+            reward: vec![0.0; capacity],
+            is_done: vec![0; capacity],
+            ix_sample: None,
+            weight: None,
+        }
     }
 }

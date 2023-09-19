@@ -9,18 +9,18 @@ pub fn derive(input: TokenStream) -> TokenStream {
     let field_type = get_field_type(data);
     let field_type_str = get_type_str(
         field_type.clone(),
-        "The item for deriving Act must be a new type like Act(PyGymEnvContinuousAct<ActShape, f32>)",
+        "The item for deriving Act must be a new type like Act(GymContinuousAct<ActShape, f32>)",
     );
 
-    let output = if field_type_str == "PyGymEnvContinuousAct" {
+    let output = if field_type_str == "GymContinuousAct" {
         py_gym_env_cont_act(ident, field_type)
-    } else if field_type_str == "PyGymEnvDiscreteAct" {
+    } else if field_type_str == "GymDiscreteAct" {
         py_gym_env_disc_act(ident, field_type)
     } else if field_type_str == "BorderAtariAct" {
         atari_env_act(ident, field_type)
     } else {
         panic!(
-            "Deriving Act support PyGymEnvDiscreteAct, PyGymEnvContinuousAct, or BorderAtariAct, given {:?}",
+            "Deriving Act support GymDiscreteAct, GymContinuousAct, or BorderAtariAct, given {:?}",
             field_type_str
         );
     };
@@ -60,7 +60,7 @@ fn py_gym_env_cont_act(
 
                 let act = ndarray::Array1::<f32>::from(act).into_shape(ndarray::IxDyn(&shape)).unwrap();
 
-                #ident(PyGymEnvContinuousAct::new(act))
+                #ident(GymContinuousAct::new(act))
             }
         }
     }.into_iter());
@@ -91,7 +91,7 @@ fn py_gym_env_disc_act(
             fn from(t: tch::Tensor) -> Self {
                 let data: Vec<i64> = t.into();
                 let data: Vec<_> = data.iter().map(|e| *e as i32).collect();
-                #ident(PyGymEnvDiscreteAct::new(data))
+                #ident(GymDiscreteAct::new(data))
             }
         }
     }.into_iter());

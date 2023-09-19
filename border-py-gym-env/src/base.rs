@@ -1,29 +1,32 @@
 //! Wrapper of gym environments implemented in Python.
 #![allow(clippy::float_cmp)]
-use crate::{AtariWrapper, PyGymEnvConfig};
+use crate::{AtariWrapper, GymEnvConfig};
 use anyhow::Result;
 use border_core::{record::Record, Act, Env, Info, Obs, Step};
 use log::{info, trace};
+// use pyo3::IntoPy;
 use pyo3::types::{IntoPyDict, PyTuple};
 use pyo3::{types::PyModule, PyObject, Python, ToPyObject};
+use serde::{de::DeserializeOwned, Serialize};
 use std::marker::PhantomData;
 use std::{fmt::Debug, time::Duration};
-use serde::{Serialize, de::DeserializeOwned};
 
 /// Information given at every step of the interaction with the environment.
 ///
 /// Currently, it is empty and used to match the type signature.
-pub struct PyGymInfo {}
+pub struct GymInfo {}
 
-impl Info for PyGymInfo {}
+impl Info for GymInfo {}
 
-/// Convert [PyObject] to [PyGymEnv]::Obs with a preprocessing.
-pub trait PyGymEnvObsFilter<O: Obs> {
+/// Convert [`PyObject`] to [`GymEnv`]::Obs with a preprocessing.
+pub trait GymObsFilter<O: Obs> {
     /// Configuration.
     type Config: Clone + Default + Serialize + DeserializeOwned;
 
     /// Build filter.
-    fn build(config: &Self::Config) -> Result<Self> where Self: Sized;
+    fn build(config: &Self::Config) -> Result<Self>
+    where
+        Self: Sized;
 
     /// Convert PyObject into observation with filtering.
     fn filt(&mut self, obs: PyObject) -> (O, Record);
@@ -42,15 +45,17 @@ pub trait PyGymEnvObsFilter<O: Obs> {
     }
 }
 
-/// Convert [PyGymEnv]::Act to [PyObject] with a preprocessing.
+/// Convert [`GymEnv`]::Act to [`PyObject`] with a preprocessing.
 ///
 /// This trait should support vectorized environments.
-pub trait PyGymEnvActFilter<A: Act> {
+pub trait GymActFilter<A: Act> {
     /// Configuration.
     type Config: Clone + Default + Serialize + DeserializeOwned;
 
     /// Build filter.
-    fn build(config: &Self::Config) -> Result<Self> where Self: Sized;
+    fn build(config: &Self::Config) -> Result<Self>
+    where
+        Self: Sized;
 
     /// Filter action and convert it to PyObject.
     ///
@@ -73,103 +78,46 @@ pub trait PyGymEnvActFilter<A: Act> {
 
 /// An environment in [OpenAI gym](https://github.com/openai/gym).
 #[derive(Debug)]
-pub struct PyGymEnv<O, A, OF, AF>
+pub struct GymEnv<O, A, OF, AF>
 where
     O: Obs,
     A: Act,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     render: bool,
+
     env: PyObject,
-    #[allow(dead_code)]
-    action_space: i64,
-    #[allow(dead_code)]
-    observation_space: Vec<usize>,
+
     count_steps: usize,
+
     max_steps: Option<usize>,
+
     obs_filter: OF,
+
     act_filter: AF,
-    wait_in_render: Duration,
+
+    wait: Duration,
+
     pybullet: bool,
+
     pybullet_state: Option<PyObject>,
+
+    /// Initial seed.
+    ///
+    /// This value will be used at the first call of the reset method.
+    initial_seed: Option<i64>,
+
     phantom: PhantomData<(O, A)>,
 }
 
-impl<O, A, OF, AF> PyGymEnv<O, A, OF, AF>
+impl<O, A, OF, AF> GymEnv<O, A, OF, AF>
 where
     O: Obs,
     A: Act,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
-    // /// Constructs an environment.
-    // ///
-    // /// `name` is the name of the environment, which is implemented in OpenAI gym.
-    // pub fn new(
-    //     name: &str,
-    //     obs_filter: OF,
-    //     act_filter: AF,
-    //     atari_wrapper: Option<AtariWrapper>,
-    // ) -> PyResult<Self> {
-    //     let gil = Python::acquire_gil();
-    //     let py = gil.python();
-
-    //     // sys.argv is used by pyglet library, which is responsible for rendering.
-    //     // Depending on the python interpreter, however, sys.argv can be empty.
-    //     // For that case, sys argv is set here.
-    //     // See https://github.com/PyO3/pyo3/issues/1241#issuecomment-715952517
-    //     let locals = [("sys", py.import("sys")?)].into_py_dict(py);
-    //     let _ = py.eval("sys.argv.insert(0, 'PyGymEnv')", None, Some(&locals))?;
-
-    //     // import pybullet-gym if it exists
-    //     if py.import("pybulletgym").is_ok() {}
-
-    //     let env = if let Some(mode) = atari_wrapper {
-    //         let mode = match mode {
-    //             AtariWrapper::Train => true,
-    //             AtariWrapper::Eval => false,
-    //         };
-    //         let gym = py.import("atari_wrappers")?;
-    //         let env = gym.call("make_env_single_proc", (name, true, mode), None)?;
-    //         env.call_method("seed", (42,), None)?;
-    //         env
-    //     } else {
-    //         let gym = py.import("gym")?;
-    //         let env = gym.call("make", (name,), None)?;
-    //         env.call_method("seed", (42,), None)?;
-    //         env
-    //     };
-
-    //     // TODO: consider removing action_space and observation_space.
-    //     // Act/obs types are specified by type parameters.
-    //     let action_space = env.getattr("action_space")?;
-    //     let action_space = if let Ok(val) = action_space.getattr("n") {
-    //         val.extract()?
-    //     } else {
-    //         let action_space: Vec<i64> = action_space.getattr("shape")?.extract()?;
-    //         action_space[0]
-    //     };
-    //     let observation_space = env.getattr("observation_space")?;
-    //     let observation_space = observation_space.getattr("shape")?.extract()?;
-
-    //     Ok(PyGymEnv {
-    //         render: false,
-    //         env: env.into(),
-    //         action_space,
-    //         observation_space,
-    //         // TODO: consider remove RefCell, raw value instead
-    //         count_steps: RefCell::new(0),
-    //         max_steps: None,
-    //         obs_filter,
-    //         act_filter,
-    //         wait_in_render: Duration::from_millis(0),
-    //         pybullet: false,
-    //         pybullet_state: None,
-    //         phantom: PhantomData,
-    //     })
-    // }
-
     /// Set rendering mode.
     ///
     /// If `true`, it renders the state at every step.
@@ -177,7 +125,10 @@ where
         self.render = render;
         if self.pybullet {
             pyo3::Python::with_gil(|py| {
-                self.env.call_method0(py, "render").unwrap();
+                // self.env.call_method0(py, "render").unwrap();
+                self.env
+                    .call_method(py, "render", ("human",), None)
+                    .unwrap();
             });
         }
     }
@@ -188,9 +139,9 @@ where
         self
     }
 
-    /// Set time for sleep in rendering.
-    pub fn set_wait_in_render(&mut self, d: Duration) {
-        self.wait_in_render = d;
+    /// Set wait time at every interaction steps.
+    pub fn set_wait(&mut self, d: Duration) {
+        self.wait = d;
     }
 
     /// Get the number of available actions of atari environments
@@ -202,22 +153,22 @@ where
     }
 }
 
-impl<O, A, OF, AF> Env for PyGymEnv<O, A, OF, AF>
+impl<O, A, OF, AF> Env for GymEnv<O, A, OF, AF>
 where
     O: Obs,
     A: Act + Debug,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     type Obs = O;
     type Act = A;
-    type Info = PyGymInfo;
-    type Config = PyGymEnvConfig<O, A, OF, AF>;
+    type Info = GymInfo;
+    type Config = GymEnvConfig<O, A, OF, AF>;
 
     /// Currently it supports non-vectorized environment.
     fn step_with_reset(&mut self, a: &Self::Act) -> (Step<Self>, Record)
     where
-            Self: Sized
+        Self: Sized,
     {
         let (step, record) = self.step(a);
         assert_eq!(step.is_done.len(), 1);
@@ -229,7 +180,7 @@ where
                 reward: step.reward,
                 is_done: step.is_done,
                 info: step.info,
-                init_obs
+                init_obs,
             }
         } else {
             step
@@ -238,9 +189,14 @@ where
         (step, record)
     }
 
-    /// Resets the environment, the obs/act filters and returns the observation tensor.
+    /// Resets the environment and returns an observation.
+    ///
+    /// This method also resets the [`GymObsFilter`] adn [`GymActFilter`].
     ///
     /// In this environment, the length of `is_done` is assumed to be 1.
+    ///
+    /// [`GymObsFilter`]: crate::GymObsFilter
+    /// [`GymActFilter`]: crate::GymActFilter
     fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<O> {
         trace!("PyGymEnv::reset()");
 
@@ -257,28 +213,72 @@ where
             }
         };
 
-        if !reset {
+        let ret = if !reset {
             Ok(O::dummy(1))
         } else {
             pyo3::Python::with_gil(|py| {
-                let obs = self.env.call_method0(py, "reset")?;
+                let obs = {
+                    let ret_values = if let Some(seed) = self.initial_seed {
+                        self.initial_seed = None;
+                        let kwargs = match self.pybullet {
+                            true => None,
+                            false => Some(vec![("seed", seed)].into_py_dict(py)),
+                        };
+                        self.env.call_method(py, "reset", (), kwargs)?
+                    } else {
+                        self.env.call_method0(py, "reset")?
+                    };
+                    let ret_values_: &PyTuple = ret_values.extract(py).unwrap();
+                    ret_values_.get_item(0).extract().unwrap()
+                };
+
                 if self.pybullet && self.render {
                     let floor: &PyModule =
                         self.pybullet_state.as_ref().unwrap().extract(py).unwrap();
-                    // floor.call1("add_floor", (&self.env,)).unwrap();
                     floor.getattr("add_floor")?.call1((&self.env,)).unwrap();
                 }
                 Ok(self.obs_filter.reset(obs))
             })
+        };
+
+        if self.pybullet && self.render {
+            pyo3::Python::with_gil(|py| {
+                // self.env.call_method0(py, "render").unwrap();
+                self.env
+                    .call_method(py, "render", ("human",), None)
+                    .unwrap();
+            });
         }
+
+        ret
+    }
+
+    /// Resets the environment with the given index.
+    ///
+    /// Specifically, env.reset(seed=ix) is called in the Python interpreter.
+    fn reset_with_index(&mut self, ix: usize) -> Result<Self::Obs> {
+        self.initial_seed = Some(ix as _);
+        self.reset(None)
     }
 
     /// Runs a step of the environment's dynamics.
     ///
     /// It returns [`Step`] and [`Record`] objects.
-    /// The [`Record`] is composed of [`Record`]s constructed in [`PyGymEnvObsFilter`] and
-    /// [`PyGymEnvActFilter`].
+    /// The [`Record`] is composed of [`Record`]s constructed in [`GymObsFilter`] and
+    /// [`GymActFilter`].
     fn step(&mut self, a: &A) -> (Step<Self>, Record) {
+        fn is_done(step: &PyTuple) -> i8 {
+            // terminated or truncated
+            let terminated: bool = step.get_item(2).extract().unwrap();
+            let truncated: bool = step.get_item(3).extract().unwrap();
+
+            if terminated | truncated {
+                1
+            } else {
+                0
+            }
+        }
+
         trace!("PyGymEnv::step()");
 
         pyo3::Python::with_gil(|py| {
@@ -288,9 +288,12 @@ where
                 } else {
                     let cam: &PyModule = self.pybullet_state.as_ref().unwrap().extract(py).unwrap();
                     // cam.call1("update_camera_pos", (&self.env,)).unwrap();
-                    cam.getattr("update_camera_pos").unwrap().call1((&self.env,)).unwrap();
+                    cam.getattr("update_camera_pos")
+                        .unwrap()
+                        .call1((&self.env,))
+                        .unwrap();
                 }
-                std::thread::sleep(self.wait_in_render);
+                std::thread::sleep(self.wait);
             }
 
             let (a_py, record_a) = self.act_filter.filt(a.clone());
@@ -299,11 +302,7 @@ where
             let obs = step.get_item(0).to_owned();
             let (obs, record_o) = self.obs_filter.filt(obs.to_object(py));
             let reward: Vec<f32> = vec![step.get_item(1).extract().unwrap()];
-            let mut is_done: Vec<i8> = vec![if step.get_item(2).extract().unwrap() {
-                1
-            } else {
-                0
-            }];
+            let mut is_done: Vec<i8> = vec![is_done(step)];
 
             // let c = *self.count_steps.borrow();
             self.count_steps += 1; //.replace(c + 1);
@@ -315,13 +314,16 @@ where
             };
 
             (
-                Step::<Self>::new(obs, a.clone(), reward, is_done, PyGymInfo {}, O::dummy(1)),
+                Step::<Self>::new(obs, a.clone(), reward, is_done, GymInfo {}, O::dummy(1)),
                 record_o.merge(record_a),
             )
         })
     }
 
-    /// Constructs [PyGymEnv].
+    /// Constructs [`GymEnv`].
+    ///
+    /// * `seed` - The seed value of the random number generator.
+    ///   This value will be used at the first call of the reset method.
     fn build(config: &Self::Config, seed: i64) -> Result<Self> {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -341,39 +343,51 @@ where
         // import pybullet-gym if it exists
         if py.import("pybulletgym").is_ok() {}
 
+        // For some unknown reason, Mujoco requires this import
+        if py.import("IPython").is_ok() {}
+
         let name = config.name.as_str();
-        let env = if let Some(mode) = config.atari_wrapper.as_ref() {
+        let (env, render) = if let Some(mode) = config.atari_wrapper.as_ref() {
             let mode = match mode {
                 AtariWrapper::Train => true,
                 AtariWrapper::Eval => false,
             };
             let gym = py.import("atari_wrappers")?;
-            let env = gym.getattr("make_env_single_proc")?.call((name, true, mode), None)?;
-            env.call_method("seed", (seed,), None)?;
-            env
+            let env = gym
+                .getattr("make_env_single_proc")?
+                .call((name, true, mode), None)?;
+            (env, false)
         } else if !config.pybullet {
             let gym = py.import("f32_wrapper")?;
-            let env = gym.getattr("make_f32")?.call((name,), None)?;
-            env.call_method("seed", (seed,), None)?;
-            env
+            let render = config.render_mode.is_some();
+            let env = {
+                let kwargs = if let Some(render_mode) = config.render_mode.clone() {
+                    Some(vec![("render_mode", render_mode)].into_py_dict(py))
+                } else {
+                    None
+                };
+                gym.getattr("make_f32")?.call((name,), kwargs)?
+            };
+
+            (env, render)
         } else {
-            let gym = py.import("gym")?;
-            let env = gym.getattr("make")?.call((name,), None)?;
-            env.call_method("seed", (seed,), None)?;
-            env
+            let gym = py.import("f32_wrapper")?;
+            let kwargs = None;
+            let env = gym.getattr("make_f32")?.call((name,), kwargs)?;
+            if config.render_mode.is_some() {
+                env.call_method("render", ("human",), None).unwrap();
+                (env, true)
+            } else {
+                (env, false)
+            }
         };
 
         // TODO: consider removing action_space and observation_space.
         // Act/obs types are specified by type parameters.
         let action_space = env.getattr("action_space")?;
-        let action_space = if let Ok(val) = action_space.getattr("n") {
-            val.extract()?
-        } else {
-            let action_space: Vec<i64> = action_space.getattr("shape")?.extract()?;
-            action_space[0]
-        };
+        println!("Action space = {:?}", action_space);
         let observation_space = env.getattr("observation_space")?;
-        let observation_space = observation_space.getattr("shape")?.extract()?;
+        println!("Observation space = {:?}", observation_space);
 
         let pybullet_state = if !config.pybullet {
             None
@@ -385,15 +399,23 @@ where
 _torsoId = None
 _floor = False
 
+def unwrap(env):
+    while True:
+        if hasattr(env, "_p"):
+            return env
+        else:
+            env = env.env
+
 def add_floor(env):
     global _floor
     if not _floor:
-        p = env.env._p
+        env = unwrap(env)
+        p = env._p
         import pybullet_data
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
         p.loadURDF("plane.urdf")
         _floor = True
-        env.env.stateId = p.saveState()
+        env.stateId = p.saveState()
 
 def get_torso_id(p):
     global _torsoId
@@ -409,8 +431,9 @@ def get_torso_id(p):
     return _torsoId
 
 def update_camera_pos(env):
-    p = env.env._p
-    torsoId = get_torso_id(env.env._p)
+    env = unwrap(env)
+    p = env._p
+    torsoId = get_torso_id(p)
     if torsoId >= 0:
         distance = 5
         yaw = 0
@@ -427,18 +450,17 @@ def update_camera_pos(env):
             Some(pybullet_state)
         };
 
-        Ok(PyGymEnv {
+        Ok(GymEnv {
             env: env.into(),
-            action_space,
-            observation_space,
             obs_filter: OF::build(&config.obs_filter_config.as_ref().unwrap())?,
             act_filter: AF::build(&config.act_filter_config.as_ref().unwrap())?,
-            render: false,
+            render,
             count_steps: 0,
-            wait_in_render: Duration::from_millis(0),
+            wait: config.wait,
             max_steps: config.max_steps,
             pybullet: config.pybullet,
             pybullet_state,
+            initial_seed: Some(seed),
             phantom: PhantomData,
         })
     }

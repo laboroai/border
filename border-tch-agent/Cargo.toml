@@ -1,8 +1,9 @@
 [package]
 name = "border-tch-agent"
-version = "0.0.5"
-authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
+version = "0.0.6"
+authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
 edition = "2018"
+rust-version = "1.68.2"
 
 description = "Reinforcement learning library"
 repository = "https://github.com/taku-y/border"
@@ -13,25 +14,25 @@ readme = "README.md"
 autoexamples = false
 
 [dependencies]
-border-core = { version = "0.0.5", path = "../border-core" }
-border-async-trainer = { version = "0.0.5", path = "../border-async-trainer", optional = true }
-serde = { version = "=1.0.126", features = ["derive"] }
-serde_yaml = "0.8.7"
-tensorboard-rs = "0.2.4"
-log = "0.4"
-thiserror = "1.0"
-anyhow = "1.0.38"
-chrono = "0.4"
-aquamarine = "0.1"
-tch = "0.5.0"
-fastrand = "1.4.0"
-segment-tree = "2.0.0"
+border-core = { version = "0.0.6", path = "../border-core" }
+border-async-trainer = { version = "0.0.6", path = "../border-async-trainer", optional = true }
+serde = { workspace = true, features = ["derive"] }
+serde_yaml = { workspace = true }
+tensorboard-rs = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+aquamarine = { workspace = true }
+tch = { workspace = true }
+fastrand = { workspace = true }
+segment-tree = { workspace = true }
 
 [dev-dependencies]
-tempdir = "0.3.7"
+tempdir = { workspace = true }
 
 [package.metadata.docs.rs]
-features = [ "doc-only" ]
+features = ["doc-only"]
 
 [features]
 doc-only = ["tch/doc-only"]

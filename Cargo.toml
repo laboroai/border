@@ -1,11 +1,36 @@
 [workspace]
-
 members = [
     "border-core",
+    "border-tensorboard",
     "border-py-gym-env",
     "border-tch-agent",
     "border-derive",
     "border-atari-env",
     "border-async-trainer",
-    "border"
+    "border",
 ]
+exclude = ["docker/"]
+
+[workspace.dependencies]
+clap = "2.33.3"
+csv = "1.1.5"
+fastrand = "1.4.0"
+tch = "0.8.0"
+anyhow = "1.0.38"
+crossbeam-channel = "0.5.1"
+serde_yaml = "0.8.7"
+aquamarine = "0.1"
+log = "0.4"
+dirs = "3.0.2"
+thiserror = "1.0"
+serde = "=1.0.126"
+numpy = "0.14.1"
+env_logger = "0.8.2"
+tempdir = "0.3.7"
+num-traits = "0.2.14"
+tensorboard-rs = "0.2.4"
+pyo3 = { version = "=0.14.5", default-features=false }
+ndarray = "0.15.1"
+chrono = "0.4"
+segment-tree = "2.0.0"
+image = "0.23.14"

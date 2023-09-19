@@ -1,10 +1,13 @@
 //! DQN agent implemented with tch-rs.
-use super::{config::DQNConfig, explorer::DQNExplorer, model::DQNModel};
-use crate::{model::{ModelBase, SubModel}, util::{OutDim, track}};
+use super::{config::DqnConfig, explorer::DqnExplorer, model::DqnModel};
+use crate::{
+    model::{ModelBase, SubModel},
+    util::{track, OutDim},
+};
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, Batch, Env, Policy, ReplayBufferBase,
+    Agent, Env, Policy, ReplayBufferBase, StdBatchBase,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use std::{fs, marker::PhantomData, path::Path};
@@ -12,7 +15,7 @@ use tch::{no_grad, Device, Tensor};
 
 #[allow(clippy::upper_case_acronyms)]
 /// DQN agent implemented with tch-rs.
-pub struct DQN<E, Q, R>
+pub struct Dqn<E, Q, R>
 where
     E: Env,
     Q: SubModel<Output = Tensor>,
@@ -20,21 +23,22 @@ where
     E::Obs: Into<Q::Input>,
     E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    <R::Batch as Batch>::ObsBatch: Into<Q::Input>,
-    <R::Batch as Batch>::ActBatch: Into<Tensor>,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
     pub(in crate::dqn) soft_update_interval: usize,
     pub(in crate::dqn) soft_update_counter: usize,
     pub(in crate::dqn) n_updates_per_opt: usize,
     pub(in crate::dqn) min_transitions_warmup: usize,
     pub(in crate::dqn) batch_size: usize,
-    pub(in crate::dqn) qnet: DQNModel<Q>,
-    pub(in crate::dqn) qnet_tgt: DQNModel<Q>,
+    pub(in crate::dqn) qnet: DqnModel<Q>,
+    pub(in crate::dqn) qnet_tgt: DqnModel<Q>,
     pub(in crate::dqn) train: bool,
     pub(in crate::dqn) phantom: PhantomData<(E, R)>,
     pub(in crate::dqn) discount_factor: f64,
     pub(in crate::dqn) tau: f64,
-    pub(in crate::dqn) explorer: DQNExplorer,
+    pub(in crate::dqn) explorer: DqnExplorer,
     pub(in crate::dqn) device: Device,
     pub(in crate::dqn) n_opts: usize,
     pub(in crate::dqn) double_dqn: bool,
@@ -42,7 +46,7 @@ where
     pub(in crate::dqn) clip_td_err: Option<(f64, f64)>,
 }
 
-impl<E, Q, R> DQN<E, Q, R>
+impl<E, Q, R> Dqn<E, Q, R>
 where
     E: Env,
     Q: SubModel<Output = Tensor>,
@@ -50,8 +54,9 @@ where
     E::Obs: Into<Q::Input>,
     E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    <R::Batch as Batch>::ObsBatch: Into<Q::Input>,
-    <R::Batch as Batch>::ActBatch: Into<Tensor>,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
     fn update_critic(&mut self, buffer: &mut R) -> f32 {
         let batch = buffer.batch(self.batch_size).unwrap();
@@ -87,7 +92,7 @@ where
             let n = ws.len() as i64;
             let td_errs = match self.clip_td_err {
                 None => (&pred - &tgt).abs(),
-                Some((min, max)) => (&pred - &tgt).abs().clip(min, max)
+                Some((min, max)) => (&pred - &tgt).abs().clip(min, max),
             };
             let loss = Tensor::of_slice(&ws[..]).to(self.device) * &td_errs;
             let loss = loss.smooth_l1_loss(
@@ -130,7 +135,7 @@ where
     }
 }
 
-impl<E, Q, R> Policy<E> for DQN<E, Q, R>
+impl<E, Q, R> Policy<E> for Dqn<E, Q, R>
 where
     E: Env,
     Q: SubModel<Output = Tensor>,
@@ -138,18 +143,22 @@ where
     E::Obs: Into<Q::Input>,
     E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    <R::Batch as Batch>::ObsBatch: Into<Q::Input>,
-    <R::Batch as Batch>::ActBatch: Into<Tensor>,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
-    type Config = DQNConfig<Q>;
+    type Config = DqnConfig<Q>;
 
     /// Constructs DQN agent.
     fn build(config: Self::Config) -> Self {
-        let device = config.device.expect("No device is given for DQN agent").into();
-        let qnet = DQNModel::build(config.model_config, device);
+        let device = config
+            .device
+            .expect("No device is given for DQN agent")
+            .into();
+        let qnet = DqnModel::build(config.model_config, device);
         let qnet_tgt = qnet.clone();
 
-        DQN {
+        Dqn {
             qnet,
             qnet_tgt,
             soft_update_interval: config.soft_update_interval,
@@ -175,8 +184,8 @@ where
             let a = self.qnet.forward(&obs.clone().into());
             let a = if self.train {
                 match &mut self.explorer {
-                    DQNExplorer::Softmax(softmax) => softmax.action(&a),
-                    DQNExplorer::EpsilonGreedy(egreedy) => egreedy.action(&a),
+                    DqnExplorer::Softmax(softmax) => softmax.action(&a),
+                    DqnExplorer::EpsilonGreedy(egreedy) => egreedy.action(&a),
                 }
             } else {
                 if fastrand::f32() < 0.01 {
@@ -192,7 +201,7 @@ where
     }
 }
 
-impl<E, Q, R> Agent<E, R> for DQN<E, Q, R>
+impl<E, Q, R> Agent<E, R> for Dqn<E, Q, R>
 where
     E: Env,
     Q: SubModel<Output = Tensor>,
@@ -200,8 +209,9 @@ where
     E::Obs: Into<Q::Input>,
     E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    <R::Batch as Batch>::ObsBatch: Into<Q::Input>,
-    <R::Batch as Batch>::ActBatch: Into<Tensor>,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
     fn train(&mut self) {
         self.train = true;
@@ -241,13 +251,10 @@ where
 }
 
 #[cfg(feature = "border-async-trainer")]
-use {
-    crate::util::NamedTensors,
-    border_async_trainer::SyncModel,
-};
+use {crate::util::NamedTensors, border_async_trainer::SyncModel};
 
 #[cfg(feature = "border-async-trainer")]
-impl<E, Q, R> SyncModel for DQN<E, Q, R>
+impl<E, Q, R> SyncModel for Dqn<E, Q, R>
 where
     E: Env,
     Q: SubModel<Output = Tensor>,
@@ -255,13 +262,17 @@ where
     E::Obs: Into<Q::Input>,
     E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    <R::Batch as Batch>::ObsBatch: Into<Q::Input>,
-    <R::Batch as Batch>::ActBatch: Into<Tensor>,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
     type ModelInfo = NamedTensors;
 
     fn model_info(&self) -> (usize, Self::ModelInfo) {
-        (self.n_opts, NamedTensors::copy_from(self.qnet.get_var_store()))
+        (
+            self.n_opts,
+            NamedTensors::copy_from(self.qnet.get_var_store()),
+        )
     }
 
     fn sync_model(&mut self, model_info: &Self::ModelInfo) {

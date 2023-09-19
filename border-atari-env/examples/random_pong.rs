@@ -3,7 +3,7 @@ use border_atari_env::{
     BorderAtariAct, BorderAtariActRawFilter, BorderAtariEnv, BorderAtariEnvConfig, BorderAtariObs,
     BorderAtariObsRawFilter,
 };
-use border_core::{record::BufferedRecorder, util, Env as _, Policy};
+use border_core::{DefaultEvaluator, Env as _, Evaluator, Policy};
 
 type Obs = BorderAtariObs;
 type Act = BorderAtariAct;
@@ -43,17 +43,26 @@ fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     fastrand::seed(42);
 
-    let env_config = env_config("pong".to_string());
-    let mut env = Env::build(&env_config, 42)?;
-    let mut recorder = BufferedRecorder::new();
-    let n_acts = env.get_num_actions_atari();
-    let policy_config = RandomPolicyConfig {
-        n_acts: n_acts as _,
-    };
-    let mut policy = RandomPolicy::build(policy_config);
+    // Pong environment configuration
+    let env_config = env_config("pong".to_string()).render(true);
 
-    env.open()?;
-    let _ = util::eval_with_recorder(&mut env, &mut policy, 5, &mut recorder)?;
+    // Creates a random policy
+    let mut policy = {
+        let policy_config = {
+            let n_acts = {
+                let env = Env::build(&env_config, 42)?;
+                env.get_num_actions_atari()
+            };
+            RandomPolicyConfig {
+                n_acts: n_acts as _,
+            }
+        };
+        RandomPolicy::build(policy_config)
+    };
+
+    // Runs evaluation
+    let env_config = env_config.render(true);
+    let _ = DefaultEvaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
 
     Ok(())
 }

@@ -1,8 +1,9 @@
 [package]
 name = "border-async-trainer"
-version = "0.0.5"
-authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
+version = "0.0.6"
+authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
 edition = "2018"
+rust-version = "1.68.2"
 
 description = "Atari environment based on gym-rs"
 repository = "https://github.com/taku-y/border"
@@ -13,16 +14,18 @@ readme = "README.md"
 autoexamples = false
 
 [dependencies]
-anyhow = "1.0.38"
-border-core = { version = "0.0.5", path = "../border-core" }
-serde = { version = "=1.0.126", features = ["derive"] }
-log = "0.4"
+anyhow = { workspace = true }
+aquamarine = { workspace = true }
+border-core = { version = "0.0.6", path = "../border-core" }
+border-tensorboard = { version = "0.0.6", path = "../border-tensorboard" }
+serde = { workspace = true, features = ["derive"] }
+log = { workspace = true }
 tokio = { version = "1.14.0", features = ["full"] }
 async-trait = "0.1.51"
-crossbeam-channel = "0.5.1"
-serde_yaml = "0.8.7"
-thiserror = "1.0"
+crossbeam-channel = { workspace = true }
+serde_yaml = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
-env_logger = "0.8.2"
+env_logger = { workspace = true }
 test-log = "0.2.8"

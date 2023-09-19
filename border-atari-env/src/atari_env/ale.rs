@@ -341,4 +341,15 @@ impl Ale {
         #[cfg(doc)]
         unimplemented!();
     }
+
+    /// Sets the random seed.
+    pub fn seed(&self, seed: i32) {
+        #[cfg(not(doc))]
+        unsafe {
+            atari_env_sys::setInt(self.inner, c_str!("random_seed").as_ptr(), seed);
+        }
+
+        #[cfg(doc)]
+        unimplemented!();
+    }
 }

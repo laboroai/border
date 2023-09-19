@@ -1,26 +1,24 @@
-use border_core::{Act, Shape};
+use border_core::Act;
 use ndarray::ArrayD;
-use std::{fmt::Debug, marker::PhantomData};
+use std::fmt::Debug;
 
 /// Represents an action.
 #[derive(Clone, Debug)]
-pub struct PyGymEnvContinuousAct<S: Shape> {
+pub struct GymContinuousAct {
     /// Stores an action.
     pub act: ArrayD<f32>,
-    pub(crate) phantom: PhantomData<S>,
 }
 
-impl<S: Shape> PyGymEnvContinuousAct<S> {
+impl GymContinuousAct {
     /// Constructs an action.
     pub fn new(act: ArrayD<f32>) -> Self {
         Self {
             act,
-            phantom: PhantomData,
         }
     }
 }
 
-impl<S: Shape> Act for PyGymEnvContinuousAct<S> {
+impl Act for GymContinuousAct {
     fn len(&self) -> usize {
         let shape = self.act.shape();
         if shape.len() == 1 {

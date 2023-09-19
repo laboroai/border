@@ -27,3 +27,11 @@ results
 **/test.png
 abci/**
 venv/**
+
+.markdownlint.json
+
+__pycache__
+
+.vscode/**
+doc/**
+

@@ -1,254 +1,177 @@
-// use anyhow::Result;
-// use border::{
-//     agent::{
-//         tch::{
-//             iqn::{EpsilonGreedy, IQNBuilder},
-//             ReplayBuffer,
-//         },
-//         OptInterval,
-//     },
-//     env::py_gym_env::{
-//         act_d::{PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter},
-//         obs::{PyGymEnvObs, PyGymEnvObsRawFilter},
-//         tch::{act_d::TchPyGymEnvDiscreteActBuffer, obs::TchPyGymEnvObsBuffer},
-//         PyGymEnv, Shape,
-//     },
-//     shape,
-// };
-// use border_core::{
-//     record::{BufferedRecorder, Record, TensorboardRecorder},
-//     util, Agent, TrainerBuilder,
-// };
-// use clap::{App, Arg};
-// use csv::WriterBuilder;
-// use serde::Serialize;
-// use std::{convert::TryFrom, default::Default, fs::File};
-
 use anyhow::Result;
-use border::try_from;
 use border_core::{
-    record::{BufferedRecorder, Record, TensorboardRecorder},
-    shape, util, Agent, Shape, TrainerBuilder,
+    record::Record,
+    replay_buffer::{
+        SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
+        SimpleStepProcessorConfig, SubBatch,
+    },
+    Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
-use border_py_gym_env::{newtype_act_d, newtype_obs, PyGymEnv, PyGymEnvDiscreteAct};
+use border_py_gym_env::{
+    util::vec_to_tensor, ArrayObsFilter, DiscreteActFilter, GymActFilter, GymEnv, GymEnvConfig,
+    GymObsFilter,
+};
 use border_tch_agent::{
-    iqn::{EpsilonGreedy, IQNBuilder},
-    replay_buffer::TchTensorBuffer,
-    util::OptInterval,
+    iqn::{EpsilonGreedy, Iqn as Iqn_, IqnConfig, IqnModelConfig},
+    mlp::{Mlp, MlpConfig},
+    TensorSubBatch,
 };
+use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg};
-use csv::WriterBuilder;
+// use csv::WriterBuilder;
+use ndarray::{ArrayD, IxDyn};
 use serde::Serialize;
-use std::{convert::TryFrom, fs::File};
+use std::convert::TryFrom;
 use tch::Tensor;
 
-const DIM_FEATURE: i64 = 256;
-const DIM_EMBED: i64 = 64;
+const DIM_OBS: i64 = 4;
 const DIM_ACT: i64 = 2;
 const LR_CRITIC: f64 = 0.001;
+const DIM_FEATURE: i64 = 256;
+const DIM_EMBED: i64 = 64;
 const DISCOUNT_FACTOR: f64 = 0.99;
 const BATCH_SIZE: usize = 64;
 const N_TRANSITIONS_WARMUP: usize = 100;
 const N_UPDATES_PER_OPT: usize = 1;
-const TAU: f64 = 0.1;
+const TAU: f64 = 0.1; //0.005;
 const SOFT_UPDATE_INTERVAL: usize = 100;
-const OPT_INTERVAL: OptInterval = OptInterval::Steps(1);
+const OPT_INTERVAL: usize = 50;
 const MAX_OPTS: usize = 10000;
 const EVAL_INTERVAL: usize = 500;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const EPS_START: f64 = 1.0;
 const EPS_FINAL: f64 = 0.1;
-const FINAL_STEP: usize = 5000; // MAX_OPTS;
+const FINAL_STEP: usize = MAX_OPTS;
 const MODEL_DIR: &str = "border/examples/model/iqn_cartpole";
 
-shape!(ObsShape, [4]);
-shape!(ActShape, [1]);
-newtype_obs!(Obs, ObsFilter, ObsShape, f64, f32);
-newtype_act_d!(Act, ActFilter);
+type PyObsDtype = f32;
 
-impl From<Obs> for Tensor {
-    fn from(obs: Obs) -> Tensor {
-        try_from(obs.0.obs).unwrap()
+mod obs {
+    use super::*;
+
+    #[derive(Clone, Debug)]
+    pub struct Obs(ArrayD<f32>);
+
+    impl border_core::Obs for Obs {
+        fn dummy(_n: usize) -> Self {
+            Self(ArrayD::zeros(IxDyn(&[0])))
+        }
+
+        fn len(&self) -> usize {
+            self.0.shape()[0]
+        }
+    }
+
+    impl From<ArrayD<f32>> for Obs {
+        fn from(obs: ArrayD<f32>) -> Self {
+            Obs(obs)
+        }
+    }
+
+    impl From<Obs> for Tensor {
+        fn from(obs: Obs) -> Tensor {
+            Tensor::try_from(&obs.0).unwrap()
+        }
+    }
+
+    pub struct ObsBatch(TensorSubBatch);
+
+    impl SubBatch for ObsBatch {
+        fn new(capacity: usize) -> Self {
+            Self(TensorSubBatch::new(capacity))
+        }
+
+        fn push(&mut self, i: usize, data: &Self) {
+            self.0.push(i, &data.0)
+        }
+
+        fn sample(&self, ixs: &Vec<usize>) -> Self {
+            let buf = self.0.sample(ixs);
+            Self(buf)
+        }
+    }
+
+    impl From<Obs> for ObsBatch {
+        fn from(obs: Obs) -> Self {
+            let tensor = obs.into();
+            Self(TensorSubBatch::from_tensor(tensor))
+        }
+    }
+
+    impl From<ObsBatch> for Tensor {
+        fn from(b: ObsBatch) -> Self {
+            b.0.into()
+        }
     }
 }
 
-impl From<Act> for Tensor {
-    fn from(act: Act) -> Tensor {
-        let v = act.0.act.iter().map(|e| *e as i64).collect::<Vec<_>>();
-        let t: Tensor = TryFrom::<Vec<i64>>::try_from(v).unwrap();
+mod act {
+    use super::*;
 
-        // The first dimension of the action tensor is the number of processes,
-        // which is 1 for the non-vectorized environment.
-        t.unsqueeze(0)
+    #[derive(Clone, Debug)]
+    pub struct Act(Vec<i32>);
+
+    impl border_core::Act for Act {}
+
+    impl From<Act> for Vec<i32> {
+        fn from(value: Act) -> Self {
+            value.0
+        }
+    }
+
+    impl From<Tensor> for Act {
+        // `t` must be a 1-dimentional tensor of `f32`
+        fn from(t: Tensor) -> Self {
+            let data: Vec<i64> = t.into();
+            let data = data.iter().map(|&e| e as i32).collect();
+            Act(data)
+        }
+    }
+
+    pub struct ActBatch(TensorSubBatch);
+
+    impl SubBatch for ActBatch {
+        fn new(capacity: usize) -> Self {
+            Self(TensorSubBatch::new(capacity))
+        }
+
+        fn push(&mut self, i: usize, data: &Self) {
+            self.0.push(i, &data.0)
+        }
+
+        fn sample(&self, ixs: &Vec<usize>) -> Self {
+            let buf = self.0.sample(ixs);
+            Self(buf)
+        }
+    }
+
+    impl From<Act> for ActBatch {
+        fn from(act: Act) -> Self {
+            let t = vec_to_tensor::<_, i64>(act.0, true);
+            Self(TensorSubBatch::from_tensor(t))
+        }
+    }
+
+    // Required by Dqn
+    impl From<ActBatch> for Tensor {
+        fn from(act: ActBatch) -> Self {
+            act.0.into()
+        }
     }
 }
 
-impl From<Tensor> for Act {
-    /// `t` must be a 1-dimentional tensor of `f32`.
-    fn from(t: Tensor) -> Self {
-        let data: Vec<i64> = t.into();
-        let data: Vec<_> = data.iter().map(|e| *e as i32).collect();
-        Act(PyGymEnvDiscreteAct::new(data))
-    }
-}
+use act::{Act, ActBatch};
+use obs::{Obs, ObsBatch};
 
-type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
-type ObsBuffer = TchTensorBuffer<f32, ObsShape, Obs>;
-type ActBuffer = TchTensorBuffer<i64, ActShape, Act>;
-
-mod iqn_model {
-    use border_tch_agent::{
-        iqn::{IQNModel, IQNModelBuilder},
-        model::SubModel,
-        util::OutDim,
-    };
-    use serde::{Deserialize, Serialize};
-    use tch::{nn, nn::Module, Device, Tensor};
-
-    #[allow(clippy::upper_case_acronyms)]
-    #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
-    pub struct FCConfig {
-        in_dim: i64,
-        out_dim: i64,
-        relu: bool,
-    }
-
-    impl OutDim for FCConfig {
-        fn get_out_dim(&self) -> i64 {
-            self.out_dim
-        }
-
-        fn set_out_dim(&mut self, v: i64) {
-            self.out_dim = v;
-        }
-    }
-
-    impl FCConfig {
-        fn new(in_dim: i64, out_dim: i64, relu: bool) -> Self {
-            Self {
-                in_dim,
-                out_dim,
-                relu,
-            }
-        }
-    }
-
-    #[allow(clippy::upper_case_acronyms)]
-    // Fully connected layer as feature extractor and network output
-    pub struct FC {
-        in_dim: i64,
-        out_dim: i64,
-        relu: bool,
-        device: Device,
-        seq: nn::Sequential,
-    }
-
-    impl FC {
-        fn create_net(
-            var_store: &nn::VarStore,
-            in_dim: i64,
-            out_dim: i64,
-            relu: bool,
-        ) -> nn::Sequential {
-            let p = &var_store.root();
-            let mut seq = nn::seq().add(nn::linear(p / "cl1", in_dim, out_dim, Default::default()));
-            if relu {
-                seq = seq.add_fn(|xs| xs.relu());
-            }
-            seq
-        }
-    }
-
-    impl SubModel for FC {
-        type Config = FCConfig;
-        type Input = Tensor;
-        type Output = Tensor;
-
-        fn forward(&self, x: &Self::Input) -> Tensor {
-            self.seq.forward(&x.to(self.device))
-        }
-
-        fn build(var_store: &nn::VarStore, config: Self::Config) -> Self {
-            let in_dim = config.in_dim;
-            let out_dim = config.out_dim;
-            let relu = config.relu;
-            let device = var_store.device();
-            let seq = Self::create_net(var_store, in_dim, out_dim, relu);
-
-            Self {
-                in_dim,
-                out_dim,
-                relu,
-                device,
-                seq,
-            }
-        }
-
-        fn clone_with_var_store(&self, var_store: &nn::VarStore) -> Self {
-            let in_dim = self.in_dim;
-            let out_dim = self.out_dim;
-            let relu = self.relu;
-            let device = var_store.device();
-            let seq = Self::create_net(&var_store, in_dim, out_dim, relu);
-
-            Self {
-                in_dim,
-                out_dim,
-                relu,
-                device,
-                seq,
-            }
-        }
-    }
-
-    // IQN model
-    pub fn create_iqn_model(
-        in_dim: i64,
-        feature_dim: i64,
-        embed_dim: i64,
-        out_dim: i64,
-        learning_rate: f64,
-        device: Device,
-    ) -> IQNModel<FC, FC> {
-        let fe_config = FCConfig::new(in_dim, feature_dim, true);
-        let m_config = FCConfig::new(feature_dim, out_dim, false);
-        IQNModelBuilder::default()
-            .feature_dim(feature_dim)
-            .embed_dim(embed_dim)
-            .learning_rate(learning_rate)
-            .build_with_submodel_configs(fe_config, m_config, device)
-    }
-}
-
-fn create_agent() -> impl Agent<Env> {
-    let device = tch::Device::cuda_if_available();
-    let iqn_model = iqn_model::create_iqn_model(
-        ObsShape::shape()[0] as _,
-        DIM_FEATURE,
-        DIM_EMBED,
-        DIM_ACT,
-        LR_CRITIC,
-        device,
-    );
-    IQNBuilder::default()
-        .opt_interval(OPT_INTERVAL)
-        .n_updates_per_opt(N_UPDATES_PER_OPT)
-        .min_transitions_warmup(N_TRANSITIONS_WARMUP)
-        .batch_size(BATCH_SIZE)
-        .discount_factor(DISCOUNT_FACTOR)
-        .tau(TAU)
-        .soft_update_interval(SOFT_UPDATE_INTERVAL)
-        .explorer(EpsilonGreedy::with_params(EPS_START, EPS_FINAL, FINAL_STEP))
-        .replay_buffer_capacity(REPLAY_BUFFER_CAPACITY)
-        .build::<_, _, _, ObsBuffer, ActBuffer>(iqn_model, device)
-}
-
-fn create_env() -> Env {
-    let obs_filter = ObsFilter::default();
-    let act_filter = ActFilter::default();
-    Env::new("CartPole-v0", obs_filter, act_filter, None).unwrap()
-}
+type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
+type ActFilter = DiscreteActFilter<Act>;
+type EnvConfig = GymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
+type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
+type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
+type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
+type Iqn = Iqn_<Env, Mlp, Mlp, ReplayBuffer>;
+type Evaluator = DefaultEvaluator<Env, Iqn>;
 
 #[derive(Debug, Serialize)]
 struct CartpoleRecord {
@@ -275,52 +198,137 @@ impl TryFrom<&Record> for CartpoleRecord {
     }
 }
 
+fn env_config() -> EnvConfig {
+    GymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
+        .name("CartPole-v0".to_string())
+        .obs_filter_config(ObsFilter::default_config())
+        .act_filter_config(ActFilter::default_config())
+}
+
+fn create_evaluator(env_config: &EnvConfig) -> Result<Evaluator> {
+    Evaluator::new(env_config, 0, N_EPISODES_PER_EVAL)
+}
+
+fn create_agent(in_dim: i64, out_dim: i64) -> Iqn {
+    let device = tch::Device::cuda_if_available();
+    let config = {
+        let opt_config = border_tch_agent::opt::OptimizerConfig::Adam { lr: LR_CRITIC };
+        let f_config = MlpConfig::new(in_dim, vec![], DIM_FEATURE, true);
+        let m_config = MlpConfig::new(DIM_FEATURE, vec![], out_dim, false);
+        let model_config = IqnModelConfig::default()
+            .feature_dim(DIM_FEATURE)
+            .embed_dim(DIM_EMBED)
+            .opt_config(opt_config)
+            .f_config(f_config)
+            .m_config(m_config);
+
+        IqnConfig::default()
+            .n_updates_per_opt(N_UPDATES_PER_OPT)
+            .min_transitions_warmup(N_TRANSITIONS_WARMUP)
+            .batch_size(BATCH_SIZE)
+            .discount_factor(DISCOUNT_FACTOR)
+            .tau(TAU)
+            .model_config(model_config)
+            .explorer(EpsilonGreedy::with_params(EPS_START, EPS_FINAL, FINAL_STEP))
+            .soft_update_interval(SOFT_UPDATE_INTERVAL)
+            .device(device)
+    };
+
+    Iqn::build(config)
+}
+
+fn train(max_opts: usize, model_dir: &str, eval_interval: usize) -> Result<()> {
+    let mut trainer = {
+        let env_config = env_config();
+        let step_proc_config = SimpleStepProcessorConfig {};
+        let replay_buffer_config =
+            SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
+        let config = TrainerConfig::default()
+            .max_opts(max_opts)
+            .opt_interval(OPT_INTERVAL)
+            .eval_interval(eval_interval)
+            .record_interval(eval_interval)
+            .save_interval(eval_interval)
+            .model_dir(model_dir);
+        let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
+            config,
+            env_config,
+            step_proc_config,
+            replay_buffer_config,
+        );
+
+        trainer
+    };
+    let mut agent = create_agent(DIM_OBS, DIM_ACT);
+    let mut recorder = TensorboardRecorder::new(model_dir);
+    let mut evaluator = create_evaluator(&env_config())?;
+
+    trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
+
+    Ok(())
+}
+
+fn eval(model_dir: &str, render: bool) -> Result<()> {
+    let env_config = {
+        let mut env_config = env_config();
+        if render {
+            env_config = env_config
+                .render_mode(Some("human".to_string()))
+                .set_wait_in_millis(10);
+        }
+        env_config
+    };
+    let mut agent = {
+        let mut agent = create_agent(DIM_OBS, DIM_ACT);
+        agent.load(model_dir)?;
+        agent.eval();
+        agent
+    };
+    // let mut recorder = BufferedRecorder::new();
+
+    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut agent);
+
+    Ok(())
+}
+
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
 
     let matches = App::new("dqn_cartpole")
         .version("0.1.0")
-        .author("Taku Yoshioka <taku.yoshioka.4096@gmail.com>")
+        .author("Taku Yoshioka <yoshioka@laboro.ai>")
         .arg(
             Arg::with_name("skip training")
-                .long("skip_training")
+                .long("skip-training")
                 .takes_value(false)
                 .help("Skip training"),
         )
         .get_matches();
 
     if !matches.is_present("skip training") {
-        let env = create_env();
-        let env_eval = create_env();
-        let agent = create_agent();
-        let mut trainer = TrainerBuilder::default()
-            .max_opts(MAX_OPTS)
-            .eval_interval(EVAL_INTERVAL)
-            .n_episodes_per_eval(N_EPISODES_PER_EVAL)
-            .model_dir(MODEL_DIR)
-            .build(env, env_eval, agent);
-        let mut recorder = TensorboardRecorder::new(MODEL_DIR);
-
-        trainer.train(&mut recorder);
+        train(MAX_OPTS, MODEL_DIR, EVAL_INTERVAL)?;
     }
 
-    let mut env = create_env();
-    let mut agent = create_agent();
-    let mut recorder = BufferedRecorder::new();
-    env.set_render(true);
-    agent.load(MODEL_DIR)?;
-    agent.eval();
-
-    util::eval_with_recorder(&mut env, &mut agent, 5, &mut recorder);
-
-    // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
-    let mut wtr = WriterBuilder::new()
-        .has_headers(false)
-        .from_writer(File::create("border/examples/model/iqn_cartpole_eval.csv")?);
-    for record in recorder.iter() {
-        wtr.serialize(CartpoleRecord::try_from(record)?)?;
-    }
+    eval(&(MODEL_DIR.to_owned() + "/best"), true)?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use tempdir::TempDir;
+
+    #[test]
+    fn test_iqn_cartpole() -> Result<()> {
+        tch::manual_seed(42);
+
+        let model_dir = TempDir::new("sac_pendulum")?;
+        let model_dir = model_dir.path().to_str().unwrap();
+        train(100, model_dir, 100)?;
+        eval((model_dir.to_string() + "/best").as_str(), false)?;
+
+        Ok(())
+    }
 }

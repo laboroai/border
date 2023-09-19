@@ -1,6 +1,6 @@
-//! SubBatch, which consists [Batch](crate::Batch).
+//! SubBatch, which consists [`StdBatchBase`](`crate::StdBatchBase`).
 
-/// Represents a SubBatch, which consists [Batch](crate::Batch).
+/// Represents a SubBatch, which consists [`StdBatchBase`](`crate::StdBatchBase`).
 pub trait SubBatch {
     /// Builds a subbatch with a capacity.
     fn new(capacity: usize) -> Self;

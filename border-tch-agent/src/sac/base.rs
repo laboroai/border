@@ -1,4 +1,4 @@
-use super::{SACConfig, Actor, Critic, EntCoef};
+use super::{Actor, Critic, EntCoef, SacConfig};
 use crate::{
     model::{ModelBase, SubModel, SubModel2},
     util::{track, CriticLoss, OutDim},
@@ -6,7 +6,7 @@ use crate::{
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, Batch, Env, Policy, ReplayBufferBase,
+    Agent, Env, Policy, ReplayBufferBase, StdBatchBase,
 };
 use serde::{de::DeserializeOwned, Serialize};
 // use log::info;
@@ -18,14 +18,14 @@ type ActMean = Tensor;
 type ActStd = Tensor;
 
 fn normal_logp(x: &Tensor) -> Tensor {
-    let tmp: Tensor =
-        Tensor::from(-0.5 * (2.0 * std::f32::consts::PI).ln() as f32) - 0.5 * x.pow(2);
+    let tmp: Tensor = Tensor::from(-0.5 * (2.0 * std::f32::consts::PI).ln() as f32)
+        - 0.5 * x.pow_tensor_scalar(2);
     tmp.sum_dim_intlist(&[-1], false, tch::Kind::Float)
 }
 
 /// Soft actor critic (SAC) agent.
 #[allow(clippy::upper_case_acronyms)]
-pub struct SAC<E, Q, P, R>
+pub struct Sac<E, Q, P, R>
 where
     E: Env,
     Q: SubModel2<Output = ActionValue>,
@@ -36,8 +36,9 @@ where
     Q::Input2: From<ActMean>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
     P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    <R::Batch as Batch>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
-    <R::Batch as Batch>::ActBatch: Into<Q::Input2> + Into<Tensor>,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
     pub(super) qnets: Vec<Critic<Q>>,
     pub(super) qnets_tgt: Vec<Critic<Q>>,
@@ -53,13 +54,13 @@ where
     pub(super) batch_size: usize,
     pub(super) train: bool,
     pub(super) reward_scale: f32,
+    pub(super) n_opts: usize,
     pub(super) critic_loss: CriticLoss,
-    // pub(super) expr_sampling: ExperienceSampling,
     pub(super) phantom: PhantomData<(E, R)>,
     pub(super) device: tch::Device,
 }
 
-impl<E, Q, P, R> SAC<E, Q, P, R>
+impl<E, Q, P, R> Sac<E, Q, P, R>
 where
     E: Env,
     Q: SubModel2<Output = ActionValue>,
@@ -70,8 +71,9 @@ where
     Q::Input2: From<ActMean>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
     P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    <R::Batch as Batch>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
-    <R::Batch as Batch>::ActBatch: Into<Q::Input2> + Into<Tensor>,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
     fn action_logp(&self, o: &P::Input) -> (Tensor, Tensor) {
         let (mean, lstd) = self.pi.forward(o);
@@ -79,7 +81,7 @@ where
         let z = Tensor::randn(mean.size().as_slice(), tch::kind::FLOAT_CPU).to(self.device);
         let a = (&std * &z + &mean).tanh();
         let log_p = normal_logp(&z)
-            - (Tensor::from(1f32) - a.pow(2.0) + Tensor::from(self.epsilon))
+            - (Tensor::from(1f32) - a.pow_tensor_scalar(2.0) + Tensor::from(self.epsilon))
                 .log()
                 .sum_dim_intlist(&[-1], false, tch::Kind::Float);
 
@@ -178,6 +180,7 @@ where
             loss_actor += self.update_actor(&batch);
             loss_critic += self.update_critic(batch);
             self.soft_update();
+            self.n_opts += 1;
         }
 
         loss_critic /= self.n_updates_per_opt as f32;
@@ -194,7 +197,7 @@ where
     }
 }
 
-impl<E, Q, P, R> Policy<E> for SAC<E, Q, P, R>
+impl<E, Q, P, R> Policy<E> for Sac<E, Q, P, R>
 where
     E: Env,
     Q: SubModel2<Output = ActionValue>,
@@ -205,14 +208,18 @@ where
     Q::Input2: From<ActMean>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
     P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    <R::Batch as Batch>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
-    <R::Batch as Batch>::ActBatch: Into<Q::Input2> + Into<Tensor>,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
-    type Config = SACConfig<Q, P>;
+    type Config = SacConfig<Q, P>;
 
-    /// Constructs [SAC] agent.
+    /// Constructs [Sac] agent.
     fn build(config: Self::Config) -> Self {
-        let device = config.device.expect("No device is given for SAC agent").into();
+        let device = config
+            .device
+            .expect("No device is given for SAC agent")
+            .into();
         let n_critics = config.n_critics;
         let pi = Actor::build(config.actor_config, device).unwrap();
         let mut qnets = vec![];
@@ -223,7 +230,11 @@ where
             qnets_tgt.push(critic);
         }
 
-        SAC {
+        if let Some(seed) = config.seed.as_ref() {
+            tch::manual_seed(*seed);
+        }
+
+        Sac {
             qnets,
             qnets_tgt,
             pi,
@@ -239,7 +250,7 @@ where
             train: config.train,
             reward_scale: config.reward_scale,
             critic_loss: config.critic_loss,
-            // expr_sampling: self.expr_sampling,
+            n_opts: 0,
             device,
             phantom: PhantomData,
         }
@@ -258,7 +269,7 @@ where
     }
 }
 
-impl<E, Q, P, R> Agent<E, R> for SAC<E, Q, P, R>
+impl<E, Q, P, R> Agent<E, R> for Sac<E, Q, P, R>
 where
     E: Env,
     Q: SubModel2<Output = ActionValue>,
@@ -269,8 +280,9 @@ where
     Q::Input2: From<ActMean>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
     P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    <R::Batch as Batch>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
-    <R::Batch as Batch>::ActBatch: Into<Q::Input2> + Into<Tensor>,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
     fn train(&mut self) {
         self.train = true;
@@ -314,5 +326,38 @@ where
         self.ent_coef
             .load(&path.as_ref().join("ent_coef.pt").as_path())?;
         Ok(())
+    }
+}
+
+#[cfg(feature = "border-async-trainer")]
+use {crate::util::NamedTensors, border_async_trainer::SyncModel};
+
+#[cfg(feature = "border-async-trainer")]
+impl<E, Q, P, R> SyncModel for Sac<E, Q, P, R>
+where
+    E: Env,
+    Q: SubModel2<Output = ActionValue>,
+    P: SubModel<Output = (ActMean, ActStd)>,
+    R: ReplayBufferBase,
+    E::Obs: Into<Q::Input1> + Into<P::Input>,
+    E::Act: Into<Q::Input2> + From<Tensor>,
+    Q::Input2: From<ActMean>,
+    Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
+    P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
+{
+    type ModelInfo = NamedTensors;
+
+    fn model_info(&self) -> (usize, Self::ModelInfo) {
+        (
+            self.n_opts,
+            NamedTensors::copy_from(self.pi.get_var_store()),
+        )
+    }
+
+    fn sync_model(&mut self, model_info: &Self::ModelInfo) {
+        model_info.copy_to(self.pi.get_var_store_mut());
     }
 }

@@ -1,17 +1,19 @@
 //! Gym environment in Python.
-use super::{PyGymEnvActFilter, PyGymEnvObsFilter};
+use std::time::Duration;
+
+use super::{GymActFilter, GymObsFilter};
 use crate::AtariWrapper;
 use border_core::{Act, Obs};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
-/// Configuration of [PyGymEnv](super::PyGymEnv).
-pub struct PyGymEnvConfig<O, A, OF, AF>
+/// Configuration of [`GymEnv`](super::GymEnv).
+pub struct GymEnvConfig<O, A, OF, AF>
 where
     O: Obs,
     A: Act,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     /// The maximum interaction steps in an episode.
     pub max_steps: Option<usize>,
@@ -27,19 +29,25 @@ where
     /// Name of the environment, e.g., `CartPole-v0`.
     pub name: String,
 
-    /// Configuration of [PyGymEnvObsFilter].
+    /// Rendering mode, e.g., "human" or "rgb_array".
+    pub render_mode: Option<String>,
+
+    /// Configuration of [`GymObsFilter`].
     pub obs_filter_config: Option<OF::Config>,
 
-    /// Configuration of [PyGymEnvActFilter].
+    /// Configuration of [`GymActFilter`].
     pub act_filter_config: Option<AF::Config>,
+
+    /// Wait time at every interaction steps.
+    pub wait: Duration
 }
 
-impl<O, A, OF, AF> Clone for PyGymEnvConfig<O, A, OF, AF>
+impl<O, A, OF, AF> Clone for GymEnvConfig<O, A, OF, AF>
 where
     O: Obs,
     A: Act,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     fn clone(&self) -> Self {
         Self {
@@ -47,18 +55,20 @@ where
             atari_wrapper: self.atari_wrapper.clone(),
             pybullet: self.pybullet,
             name: self.name.clone(),
+            render_mode: self.render_mode.clone(),
             obs_filter_config: self.obs_filter_config.clone(),
             act_filter_config: self.act_filter_config.clone(),
+            wait: self.wait.clone(),
         }
     }
 }
 
-impl<O, A, OF, AF> Default for PyGymEnvConfig<O, A, OF, AF>
+impl<O, A, OF, AF> Default for GymEnvConfig<O, A, OF, AF>
 where
     O: Obs,
     A: Act,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     fn default() -> Self {
         Self {
@@ -66,18 +76,20 @@ where
             atari_wrapper: None,
             pybullet: false,
             name: "".to_string(),
+            render_mode: None,
             obs_filter_config: None,
             act_filter_config: None,
+            wait: Duration::from_millis(0),
         }
     }
 }
 
-impl<O, A, OF, AF> PyGymEnvConfig<O, A, OF, AF>
+impl<O, A, OF, AF> GymEnvConfig<O, A, OF, AF>
 where
     O: Obs,
     A: Act,
-    OF: PyGymEnvObsFilter<O>,
-    AF: PyGymEnvActFilter<A>,
+    OF: GymObsFilter<O>,
+    AF: GymActFilter<A>,
 {
     /// Set `True` when using PyBullet environments.
     pub fn pybullet(mut self, v: bool) -> Self {
@@ -97,6 +109,11 @@ where
         self
     }
 
+    pub fn render_mode(mut self, render_mode: Option<String>) -> Self {
+        self.render_mode = render_mode;
+        self
+    }
+
     /// Set the observation filter config.
     pub fn obs_filter_config(mut self, obs_filter_config: OF::Config) -> Self {
         self.obs_filter_config = Some(obs_filter_config);
@@ -106,6 +123,12 @@ where
     /// Set the action filter config.
     pub fn act_filter_config(mut self, act_filter_config: AF::Config) -> Self {
         self.act_filter_config = Some(act_filter_config);
+        self
+    }
+
+    /// Set wait time in milli seconds.
+    pub fn set_wait_in_millis(mut self, millis: u64) -> Self {
+        self.wait = Duration::from_millis(millis);
         self
     }
 }

@@ -1,0 +1,7 @@
+---
+model_dir: "./border/examples/atari/model/dqn_asterix_ddqn_async/"
+record_interval: 50000
+eval_interval: 50000
+max_train_steps: 100000000
+save_interval: 10000000
+sync_interval: 100

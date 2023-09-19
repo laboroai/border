@@ -1,13 +1,15 @@
 use crate::PushedItemMessage;
 use anyhow::Result;
-use border_core::ReplayBufferBase;
+use border_core::{ExperienceBufferBase, ReplayBufferBase};
 use crossbeam_channel::Sender;
 use std::marker::PhantomData;
 
-/// Configuration of [ReplayBufferProxy].
+/// Configuration of [`ReplayBufferProxy`].
 #[derive(Clone, Debug)]
 pub struct ReplayBufferProxyConfig {
     /// Number of samples buffered until sent to the trainer.
+    ///
+    /// Here, a sample corresponds to a `R::PushedItem` for [`ReplayBufferProxy`]`<R>`.
     pub n_buffer: usize,
 }
 
@@ -44,14 +46,8 @@ impl<R: ReplayBufferBase> ReplayBufferProxy<R> {
     }
 }
 
-impl<R: ReplayBufferBase> ReplayBufferBase for ReplayBufferProxy<R> {
-    type Config = ReplayBufferProxyConfig;
+impl<R: ReplayBufferBase> ExperienceBufferBase for ReplayBufferProxy<R> {
     type PushedItem = R::PushedItem;
-    type Batch = R::Batch;
-
-    fn build(_config: &Self::Config) -> Self {
-        unimplemented!();
-    }
 
     fn push(&mut self, tr: Self::PushedItem) -> Result<()> {
         self.buffer.push(tr);
@@ -76,6 +72,15 @@ impl<R: ReplayBufferBase> ReplayBufferBase for ReplayBufferProxy<R> {
     }
 
     fn len(&self) -> usize {
+        unimplemented!();
+    }
+}
+
+impl<R: ReplayBufferBase> ReplayBufferBase for ReplayBufferProxy<R> {
+    type Config = ReplayBufferProxyConfig;
+    type Batch = R::Batch;
+
+    fn build(_config: &Self::Config) -> Self {
         unimplemented!();
     }
 

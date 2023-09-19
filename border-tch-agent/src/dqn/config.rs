@@ -1,7 +1,7 @@
 //! Configuration of DQN agent.
 use super::{
-    explorer::{DQNExplorer, Softmax},
-    DQNModelConfig,
+    explorer::{DqnExplorer, Softmax},
+    DqnModelConfig,
 };
 use crate::{model::SubModel, util::OutDim, Device};
 use anyhow::Result;
@@ -16,15 +16,14 @@ use std::{
 };
 use tch::Tensor;
 
-#[allow(clippy::upper_case_acronyms)]
-/// Configuration of [DQN](super::DQN) agent.
+/// Configuration of [Dqn](super::Dqn) agent.
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
-pub struct DQNConfig<Q>
+pub struct DqnConfig<Q>
 where
     Q: SubModel<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
 {
-    pub(super) model_config: DQNModelConfig<Q::Config>,
+    pub(super) model_config: DqnModelConfig<Q::Config>,
     pub(super) soft_update_interval: usize,
     pub(super) n_updates_per_opt: usize,
     pub(super) min_transitions_warmup: usize,
@@ -32,7 +31,7 @@ where
     pub(super) discount_factor: f64,
     pub(super) tau: f64,
     pub(super) train: bool,
-    pub(super) explorer: DQNExplorer,
+    pub(super) explorer: DqnExplorer,
     #[serde(default)]
     pub(super) clip_reward: Option<f64>,
     #[serde(default)]
@@ -42,7 +41,7 @@ where
     phantom: PhantomData<Q>,
 }
 
-impl<Q> Clone for DQNConfig<Q>
+impl<Q> Clone for DqnConfig<Q>
 where
     Q: SubModel<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
@@ -67,7 +66,7 @@ where
     }
 }
 
-impl<Q> Default for DQNConfig<Q>
+impl<Q> Default for DqnConfig<Q>
 where
     Q: SubModel<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
@@ -84,7 +83,7 @@ where
             tau: 0.005,
             train: false,
             // replay_burffer_capacity: 100,
-            explorer: DQNExplorer::Softmax(Softmax::new()),
+            explorer: DqnExplorer::Softmax(Softmax::new()),
             // expr_sampling: ExperienceSampling::Uniform,
             clip_reward: None,
             double_dqn: false,
@@ -95,7 +94,7 @@ where
     }
 }
 
-impl<Q> DQNConfig<Q>
+impl<Q> DqnConfig<Q>
 where
     Q: SubModel<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
@@ -137,13 +136,13 @@ where
     }
 
     /// Explorer.
-    pub fn explorer(mut self, v: DQNExplorer) -> Self {
+    pub fn explorer(mut self, v: DqnExplorer) -> Self {
         self.explorer = v;
         self
     }
 
     /// Sets the configuration of the model.
-    pub fn model_config(mut self, model_config: DQNModelConfig<Q::Config>) -> Self {
+    pub fn model_config(mut self, model_config: DqnModelConfig<Q::Config>) -> Self {
         self.model_config = model_config;
         self
     }
@@ -179,7 +178,7 @@ where
         self
     }
 
-    /// Loads [DQNConfig] from YAML file.
+    /// Loads [DqnConfig] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let path_ = path.as_ref().to_owned();
         let file = File::open(path)?;
@@ -189,7 +188,7 @@ where
         Ok(b)
     }
 
-    /// Saves [DQNConfig].
+    /// Saves [DqnConfig].
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let path_ = path.as_ref().to_owned();
         let mut file = File::create(path)?;

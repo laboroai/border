@@ -4,10 +4,14 @@ use super::Env;
 /// Additional information to `Obs` and `Act`.
 pub trait Info {}
 
-/// All information given at every step of agent-envieronment interaction.
+/// Represents an action, observation and reward tuple `(a_t, o_t+1, r_t)`
+/// with some additional information.
+///
+/// An environment emits [`Step`] object at every interaction steps.
+/// This object might be used to create transitions `(o_t, a_t, o_t+1, r_t)`.
 ///
 /// Old versions of the library support veectorized environments, which requires
-/// elements in [Step] to be able to handle multiple values.
+/// elements in [`Step`] to be able to handle multiple values.
 /// This is why `reward` and `is_done` are vector.
 pub struct Step<E: Env> {
     /// Action.
@@ -30,7 +34,7 @@ pub struct Step<E: Env> {
 }
 
 impl<E: Env> Step<E> {
-    /// Constructs a [Step] object.
+    /// Constructs a [`Step`] object.
     pub fn new(
         obs: E::Obs,
         act: E::Act,
@@ -50,7 +54,15 @@ impl<E: Env> Step<E> {
     }
 }
 
-/// Process [Step] and output an item.
+/// Process [`Step`] and output an item [`Self::Output`].
+///
+/// This trait is used in [`Trainer`](crate::Trainer). [`Step`] object is transformed to
+/// [`Self::Output`], which will be pushed into a replay buffer implementing
+/// [`ExperienceBufferBase`](crate::ExperienceBufferBase).
+/// The type [`Self::Output`] should be the same with [`ExperienceBufferBase::PushedItem`].
+///
+/// [`Self::Output`]: StepProcessorBase::Output
+/// [`ExperienceBufferBase::PushedItem`]: crate::ExperienceBufferBase::PushedItem
 pub trait StepProcessorBase<E: Env> {
     /// Configuration.
     type Config: Clone;
@@ -64,6 +76,6 @@ pub trait StepProcessorBase<E: Env> {
     /// Resets the object.
     fn reset(&mut self, init_obs: E::Obs);
 
-    /// Processes a [Step].
+    /// Processes a [`Step`] object.
     fn process(&mut self, step: Step<E>) -> Self::Output;
 }

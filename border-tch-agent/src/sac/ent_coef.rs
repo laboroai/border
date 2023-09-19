@@ -19,7 +19,7 @@ pub struct EntCoef {
     var_store: nn::VarStore,
     log_alpha: Tensor,
     target_entropy: Option<f64>,
-    opt: Option<nn::Optimizer<nn::Adam>>,
+    opt: Option<nn::Optimizer>,
 }
 
 impl EntCoef {

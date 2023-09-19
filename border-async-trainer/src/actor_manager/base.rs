@@ -10,12 +10,12 @@ use std::{
     thread::JoinHandle,
 };
 
-/// Manages [Actor]s.
+/// Manages [`Actor`]s.
 ///
 /// This struct handles the following requests:
 /// * From the [LearnerManager]() for updating the latest model info, stored in this struct.
-/// * From the [Actor]s for getting the latest model info.
-/// * From the [Actor]s for pushing sample batch to the `LearnerManager`.
+/// * From the [`Actor`]s for getting the latest model info.
+/// * From the [`Actor`]s for pushing sample batch to the `LearnerManager`.
 pub struct ActorManager<A, E, R, P>
 where
     A: Agent<E, R> + SyncModel,
@@ -37,8 +37,8 @@ where
 
     /// Number of samples to be buffered in each actor before being pushed to the replay buffer.
     ///
-    /// At the same time, [Actor] asks for [ActorManager] to get the model parameters.
-    samples_per_push: usize,
+    /// This parameter is used as `n_buffer` in [`ReplayBufferProxyConfig`].
+    n_buffer: usize,
 
     /// Flag to stop training
     stop: Arc<Mutex<bool>>,
@@ -89,7 +89,7 @@ where
             agent_configs: agent_configs.clone(),
             env_config: env_config.clone(),
             step_proc_config: step_proc_config.clone(),
-            samples_per_push: config.samples_per_push,
+            n_buffer: config.n_buffer,
             stop,
             threads: vec![],
             batch_message_receiver: None,
@@ -122,12 +122,7 @@ where
             let model_info = self.model_info.as_ref().unwrap().clone();
             let guard_init_model = guard_init_model.clone();
             let handle = std::thread::spawn(move || {
-                Self::run_model_info_loop(
-                    model_info_receiver,
-                    model_info,
-                    stop,
-                    guard_init_model,
-                );
+                Self::run_model_info_loop(model_info_receiver, model_info, stop, guard_init_model);
             });
             self.threads.push(handle);
             info!("Starts thread for updating model info");
@@ -145,10 +140,11 @@ where
             .enumerate()
             .for_each(|(id, agent_config)| {
                 let sender = s.clone();
-                let replay_buffer_proxy_config = ReplayBufferProxyConfig { n_buffer: 1 };
+                let replay_buffer_proxy_config = ReplayBufferProxyConfig {
+                    n_buffer: self.n_buffer,
+                };
                 let env_config = self.env_config.clone();
                 let step_proc_config = self.step_proc_config.clone();
-                let samples_per_push = self.samples_per_push;
                 let stop = self.stop.clone();
                 let seed = id;
                 let guard = guard_init_env.clone();
@@ -165,7 +161,6 @@ where
                         env_config,
                         step_proc_config,
                         replay_buffer_proxy_config,
-                        samples_per_push,
                         stop,
                         seed as i64,
                         stats,

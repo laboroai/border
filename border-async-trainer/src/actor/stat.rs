@@ -1,16 +1,16 @@
 use std::time::Duration;
 
-/// Stats of sampling process in each [Actor](crate::Actor).
+/// Stats of sampling process in each [`Actor`](crate::Actor).
 #[derive(Clone, Debug)]
 pub struct ActorStat {
     /// The number of steps for interaction between agent and env.
     pub env_steps: usize,
 
-    /// Duration of sampling loop in [Actor](crate::Actor).
+    /// Duration of sampling loop in [`Actor`](crate::Actor).
     pub duration: Duration,
 }
 
-/// Returns a formatted string of the set of [ActorStat] for reporting.
+/// Returns a formatted string of the set of [`ActorStat`] for reporting.
 pub fn actor_stats_fmt(stats: &Vec<ActorStat>) -> String {
     let mut s = "actor_id, samples, samples/sec, duration\n".to_string();
     for (i, stat) in stats.iter().enumerate() {

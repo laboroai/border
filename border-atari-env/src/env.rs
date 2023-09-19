@@ -39,7 +39,7 @@ fn env(rom_dir: &str, name: &str) -> AtariEnv {
 /// A wrapper of atari learning environment.
 ///
 /// Preprocessing is the same in the link:
-/// https://stable-baselines3.readthedocs.io/en/master/common/atari_wrappers.html#stable_baselines3.common.atari_wrappers.AtariWrapper.
+/// <https://stable-baselines3.readthedocs.io/en/master/common/atari_wrappers.html#stable_baselines3.common.atari_wrappers.AtariWrapper>.
 pub struct BorderAtariEnv<O, A, OF, AF>
 where
     O: Obs,
@@ -235,7 +235,7 @@ where
     where
         Self: Sized,
     {
-        Ok(Self {
+        let mut env = Self {
             train: config.train,
             env: env(config.rom_dir.as_str(), config.name.as_str()),
             window: None,
@@ -246,7 +246,13 @@ where
             obs_filter: OF::build(&config.obs_filter_config)?,
             act_filter: AF::build(&config.act_filter_config)?,
             phantom: PhantomData,
-        })
+        };
+
+        if config.render {
+            let _ = env.open();
+        }
+
+        Ok(env)
     }
 
     fn reset(&mut self, _is_done: Option<&Vec<i8>>) -> Result<Self::Obs> {
@@ -285,6 +291,11 @@ where
         }
 
         Ok(self.obs_filter.filt(self.frames.clone().into()).0)
+    }
+
+    fn reset_with_index(&mut self, ix: usize) -> Result<Self::Obs> {
+        self.env.seed(ix as i32);
+        self.reset(None)
     }
 
     /// Currently it supports non-vectorized environment.

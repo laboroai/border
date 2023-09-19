@@ -18,10 +18,10 @@ use std::{
 };
 use tch::Tensor;
 
-/// Constructs [SAC](super::SAC).
+/// Constructs [Sac](super::Sac).
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
-pub struct SACConfig<Q, P>
+pub struct SacConfig<Q, P>
 where
     Q: SubModel2<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + Debug + PartialEq + Clone,
@@ -44,11 +44,12 @@ where
     pub(super) reward_scale: f32,
     pub(super) replay_burffer_capacity: usize,
     pub(super) n_critics: usize,
+    pub(super) seed: Option<i64>,
     pub device: Option<Device>,
     // expr_sampling: ExperienceSampling,
 }
 
-impl<Q, P> Clone for SACConfig<Q, P>
+impl<Q, P> Clone for SacConfig<Q, P>
 where
     Q: SubModel2<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + Debug + PartialEq + Clone,
@@ -73,12 +74,13 @@ where
             reward_scale: self.reward_scale.clone(),
             replay_burffer_capacity: self.replay_burffer_capacity.clone(),
             n_critics: self.n_critics.clone(),
+            seed: self.seed.clone(),
             device: self.device.clone() 
         }
     }
 }
 
-impl<Q, P> Default for SACConfig<Q, P>
+impl<Q, P> Default for SacConfig<Q, P>
 where
     Q: SubModel2<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + Debug + PartialEq + Clone,
@@ -103,13 +105,14 @@ where
             reward_scale: 1.0,
             replay_burffer_capacity: 100,
             n_critics: 1,
+            seed: None,
             device: None,
             // expr_sampling: ExperienceSampling::Uniform,
         }
     }
 }
 
-impl<Q, P> SACConfig<Q, P>
+impl<Q, P> SacConfig<Q, P>
 where
     Q: SubModel2<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + Debug + PartialEq + Clone,
@@ -190,13 +193,19 @@ where
         self
     }
 
+    /// Random seed.
+    pub fn seed(mut self, seed: i64) -> Self {
+        self.seed = Some(seed);
+        self
+    }
+
     /// Device.
     pub fn device(mut self, device: tch::Device) -> Self {
         self.device = Some(device.into());
         self
     }
 
-    /// Constructs [SACConfig] from YAML file.
+    /// Constructs [SacConfig] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let path_ = path.as_ref().to_owned();
         let file = File::open(path)?;
@@ -206,7 +215,7 @@ where
         Ok(b)
     }
 
-    /// Saves [SACConfig].
+    /// Saves [SacConfig].
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let path_ = path.as_ref().to_owned();
         let mut file = File::create(path)?;

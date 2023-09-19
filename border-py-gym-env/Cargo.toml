@@ -1,8 +1,9 @@
 [package]
 name = "border-py-gym-env"
-version = "0.0.5"
-authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
+version = "0.0.6"
+authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
 edition = "2018"
+rust-version = "1.68.2"
 
 description = "Reinforcement learning library"
 repository = "https://github.com/taku-y/border"
@@ -13,24 +14,23 @@ readme = "README.md"
 autoexamples = false
 
 [dependencies]
-border-core = { version = "0.0.5", path = "../border-core" }
-numpy = "0.14.1"
-# numpy = "=0.13.0"
-pyo3 = { version = "=0.14.5", default-features = false, features = ["auto-initialize"] }
-# pyo3 = { version = "=0.13.0", default-features = false }
-serde = { version = "=1.0.126", features = ["derive"] }
-log = "0.4"
-num-traits = "0.2.14"
-ndarray = { version = "0.15", features = ["serde"] }
-# ndarray = { version = "0.14.0", features = ["serde"] }
-anyhow = "1.0.38"
-tch = { version = "0.5.0", optional = true }
-image = "0.23.14"
+border-core = { version = "0.0.6", path = "../border-core" }
+numpy = { workspace = true }
+pyo3 = { workspace = true, default-features = false, features = [
+    "auto-initialize",
+] }
+serde = { workspace = true, features = ["derive"] }
+log = { workspace = true }
+num-traits = { workspace = true }
+ndarray = { workspace = true, features = ["serde"] }
+anyhow = { workspace = true }
+tch = { workspace = true, optional = true }
+image = { workspace = true }
 
 [dev-dependencies]
-fastrand = "1.4.0"
-env_logger = "0.8.2"
-csv = "1.1.5"
+fastrand = { workspace = true }
+env_logger = { workspace = true }
+csv = { workspace = true }
 
 [features]
 default = ["tch"]
@@ -44,5 +44,15 @@ name = "random_lunarlander_cont"
 test = true
 
 [[example]]
+name = "random_fetch_reach"
+test = false
+
+[[example]]
 name = "random_ant"
-test = true
+test = false        # Skip test for now, PyBullet Gym requires modify code (see Dockerfile in this repository)
+
+[[example]]
+name = "pybullet_pyo3"
+
+[package.metadata.docs.rs]
+no-default-features = true

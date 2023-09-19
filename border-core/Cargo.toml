@@ -1,8 +1,9 @@
 [package]
 name = "border-core"
-version = "0.0.5"
-authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
+version = "0.0.6"
+authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
 edition = "2018"
+rust-version = "1.68.2"
 
 description = "Reinforcement learning library"
 repository = "https://github.com/taku-y/border"
@@ -13,18 +14,17 @@ readme = "README.md"
 autoexamples = false
 
 [dependencies]
-serde = { version = "=1.0.126", features = ["derive"] }
-serde_yaml = "0.8.7"
-tensorboard-rs = "0.2.4"
-log = "0.4"
-thiserror = "1.0"
-anyhow = "1.0.38"
-chrono = "0.4"
-aquamarine = "0.1"
-# Consider removing fastrand
-fastrand = "1.4.0"
-segment-tree = "2.0.0"
+serde = { workspace = true, features = ["derive"] }
+serde_yaml = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+aquamarine = { workspace = true }
+fastrand = { workspace = true }
+segment-tree = { workspace = true }
+# Consider to replace with fastrand
 rand = "0.8.4"
 
 [dev-dependencies]
-tempdir = "0.3.7"
+tempdir = { workspace = true }

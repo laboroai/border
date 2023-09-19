@@ -1,8 +1,9 @@
 [package]
 name = "border-derive"
-version = "0.0.5"
-authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
+version = "0.0.6"
+authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
 edition = "2018"
+rust-version = "1.68.2"
 
 description = "Derive macros for observation and action in RL environments of border"
 repository = "https://github.com/taku-y/border"
@@ -20,19 +21,20 @@ darling = "0.13"
 proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "1.0", features = ["full"] }
-tch = { version = "0.5.0", optional = true }
+tch = { workspace = true, optional = true }
 
 [dev-dependencies]
-border-tch-agent = { version = "0.0.5", path = "../border-tch-agent" }
-border-py-gym-env = { version = "0.0.5", path = "../border-py-gym-env" }
-border-core = { version = "0.0.5", path = "../border-core" }
-tch = "0.5.0"
+border-tch-agent = { version = "0.0.6", path = "../border-tch-agent" }
+border-py-gym-env = { version = "0.0.6", path = "../border-py-gym-env" }
+border-core = { version = "0.0.6", path = "../border-core" }
+ndarray = { workspace = true }
+tch = { workspace = true }
 
 [features]
-# default = ["tch"]
+default = ["tch"]
 
 [[example]]
 name = "test1"
 
 [package.metadata.docs.rs]
-features = [ "doc-only" ]
+features = ["doc-only"]

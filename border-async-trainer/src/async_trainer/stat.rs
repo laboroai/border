@@ -1,5 +1,5 @@
 use std::time::Duration;
-/// Stats of [AsyncTrainer](crate::AsyncTrainer)`::train()`.
+/// Stats of [`AsyncTrainer`](crate::AsyncTrainer)`::train()`.
 pub struct AsyncTrainStat {
     /// The number of samples pushed to the replay buffer per second.
     pub samples_per_sec: f32,

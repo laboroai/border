@@ -14,8 +14,8 @@ jobs:
       strategy:
         matrix:
           os: [ubuntu-latest, windows-latest, macOS-latest]
-          rust: [stable, nightly]
-          python-version: [3.7]
+          rust: [1.68.2]
+          python-version: [3.8]
       steps:
         - uses: actions/checkout@v2
 
@@ -37,17 +37,27 @@ jobs:
           name: Prepare LD_LIBRARY_PATH (Ubuntu only)
           run: echo LD_LIBRARY_PATH=${pythonLocation}/lib >> $GITHUB_ENV
 
-        - name: Install gym
+        - if: matrix.os == 'ubuntu-latest'
+          name: Install gym (Ubuntu)
           run: |
-            pip install Box2D
-            pip install box2d-py
-            pip install gym[atari]
-            pip install gym[Box_2D]
+            pip install mujoco==2.3.7
+            pip install gymnasium[box2d]==0.29.0
+            pip install gymnasium-robotics==1.2.2
+            pip install pybullet==3.2.5
 
-        - name: Install pybullet-gym
+        - if: matrix.os != 'ubuntu-latest'
+          name: Install gym (Windows/Mac)
+          run: |
+            pip install gymnasium[box2d]==0.29.0
+            pip install pybullet==3.2.5
+
+        - if: matrix.os == 'ubuntu-latest'
+          name: Install pybullet-gym
           run:  |
             git clone https://github.com/benelot/pybullet-gym.git
             cd pybullet-gym
+            sed -i 's/return state, sum(self.rewards), bool(done), {}/return state, sum(self.rewards), bool(done), bool(done), {}/g' ./pybulletgym/envs/roboschool/envs/locomotion/walker_base_env.py
+            sed -i 's/id='\''AntPyBulletEnv-v0'\'',/id='\''AntPyBulletEnv-v0'\'', order_enforce=False,/g' ./pybulletgym/envs/__init__.py
             pip install -e .
 
         - if: matrix.os != 'windows-latest'
@@ -64,3 +74,12 @@ jobs:
 
         - name: Test border-py-gym-env
           run: cargo test -p border-py-gym-env
+
+        - if: matrix.os == 'ubuntu-latest'
+          name: Test border
+          run: |
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends --fix-missing \
+              libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev libsdl2-ttf-dev \
+              libsdl2-dev libsdl-image1.2-dev
+            cargo test -p border --features=tch

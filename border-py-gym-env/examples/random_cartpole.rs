@@ -1,24 +1,64 @@
 use anyhow::Result;
-use border_core::{
-    record::{BufferedRecorder, Record},
-    shape, util, Env as _, Policy,
-};
+use border_core::{record::Record, DefaultEvaluator, Evaluator as _, Policy};
 use border_py_gym_env::{
-    PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct, PyGymEnvDiscreteActRawFilter,
-    PyGymEnvObs, PyGymEnvObsFilter, PyGymEnvObsRawFilter,
+    ArrayObsFilter, DiscreteActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
 use serde::Serialize;
-use std::{convert::TryFrom, fs::File};
-
-shape!(ObsShape, [4]);
+use std::convert::TryFrom;
 
 type PyObsDtype = f32;
 
-type Obs = PyGymEnvObs<ObsShape, PyObsDtype, f32>;
-type Act = PyGymEnvDiscreteAct;
-type ObsFilter = PyGymEnvObsRawFilter<ObsShape, PyObsDtype, f32, Obs>;
-type ActFilter = PyGymEnvDiscreteActRawFilter<Act>;
-type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
+mod obs {
+    use ndarray::{ArrayD, IxDyn};
+
+    #[derive(Clone, Debug)]
+    pub struct CartPoleObs(ArrayD<f32>);
+
+    impl border_core::Obs for CartPoleObs {
+        fn len(&self) -> usize {
+            self.0.shape()[0]
+        }
+
+        fn dummy(_n: usize) -> Self {
+            Self(ArrayD::zeros(IxDyn(&[0])))
+        }
+    }
+
+    impl From<ArrayD<f32>> for CartPoleObs {
+        fn from(value: ArrayD<f32>) -> Self {
+            Self(value)
+        }
+    }
+}
+
+mod act {
+    #[derive(Clone, Debug)]
+    pub struct CartPoleAct(Vec<i32>);
+
+    impl CartPoleAct {
+        pub fn new(v: Vec<i32>) -> Self {
+            Self(v)
+        }
+    }
+
+    impl border_core::Act for CartPoleAct {}
+
+    impl From<CartPoleAct> for Vec<i32> {
+        fn from(value: CartPoleAct) -> Self {
+            value.0
+        }
+    }
+}
+
+use act::CartPoleAct;
+use obs::CartPoleObs;
+
+type Obs = CartPoleObs;
+type Act = CartPoleAct;
+type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
+type ActFilter = DiscreteActFilter<Act>;
+type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
+type Evaluator = DefaultEvaluator<Env, RandomPolicy>;
 
 #[derive(Clone)]
 struct RandomPolicyConfig;
@@ -67,25 +107,23 @@ fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     fastrand::seed(42);
 
-    let env_config = PyGymEnvConfig::default()
-        .name("CartPole-v0".to_string())
-        .obs_filter_config(<ObsFilter as PyGymEnvObsFilter<Obs>>::Config::default())
-        .act_filter_config(<ActFilter as PyGymEnvActFilter<Act>>::Config::default());
-    let mut env = Env::build(&env_config, 0)?;
-    let mut recorder = BufferedRecorder::new();
-    env.set_render(true);
+    let env_config = GymEnvConfig::default()
+        .name("CartPole-v1".to_string())
+        .render_mode(Some("human".to_string()))
+        .obs_filter_config(<ObsFilter as GymObsFilter<Obs>>::Config::default())
+        .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default());
     let mut policy = RandomPolicy;
 
-    let _ = util::eval_with_recorder(&mut env, &mut policy, 5, &mut recorder)?;
+    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
 
-    let mut wtr = csv::WriterBuilder::new()
-        .has_headers(false)
-        .from_writer(File::create(
-            "border-py-gym-env/examples/random_cartpole_eval.csv",
-        )?);
-    for record in recorder.iter() {
-        wtr.serialize(CartpoleRecord::try_from(record)?)?;
-    }
+    // let mut wtr = csv::WriterBuilder::new()
+    //     .has_headers(false)
+    //     .from_writer(File::create(
+    //         "border-py-gym-env/examples/random_cartpole_eval.csv",
+    //     )?);
+    // for record in recorder.iter() {
+    //     wtr.serialize(CartpoleRecord::try_from(record)?)?;
+    // }
 
     Ok(())
 }
@@ -94,13 +132,13 @@ fn main() -> Result<()> {
 fn test_random_cartpole() {
     fastrand::seed(42);
 
-    let env_config = PyGymEnvConfig::default()
-        .name("CartPole-v0".to_string())
-        .obs_filter_config(<ObsFilter as PyGymEnvObsFilter<Obs>>::Config::default())
-        .act_filter_config(<ActFilter as PyGymEnvActFilter<Act>>::Config::default());
-    let mut env = Env::build(&env_config, 0).unwrap();
-    let mut recorder = BufferedRecorder::new();
+    let env_config = GymEnvConfig::default()
+        .name("CartPole-v1".to_string())
+        .obs_filter_config(<ObsFilter as GymObsFilter<Obs>>::Config::default())
+        .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default());
     let mut policy = RandomPolicy;
 
-    let _ = util::eval_with_recorder(&mut env, &mut policy, 1, &mut recorder).unwrap();
+    let _ = Evaluator::new(&env_config, 0, 5)
+        .unwrap()
+        .evaluate(&mut policy);
 }

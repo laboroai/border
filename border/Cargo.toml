@@ -1,8 +1,9 @@
 [package]
 name = "border"
-version = "0.0.5"
-authors = ["Taku Yoshioka <taku.yoshioka.4096@gmail.com>"]
+version = "0.0.6"
+authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
 edition = "2018"
+rust-version = "1.68.2"
 
 description = "Reinforcement learning library"
 repository = "https://github.com/taku-y/border"
@@ -13,15 +14,15 @@ readme = "README.md"
 autoexamples = false
 
 [dependencies]
-aquamarine = "0.1"
-tch = { version = "0.5.0", optional = true }
-border-async-trainer = { version = "0.0.5", path = "../border-async-trainer", optional = true }
-anyhow = "1.0.38"
-log = "0.4"
-dirs = "3.0.2"
+aquamarine = { workspace = true }
+tch = { workspace = true, optional = true }
+border-async-trainer = { version = "0.0.6", path = "../border-async-trainer", optional = true }
+anyhow = { workspace = true }
+log = { workspace = true }
+dirs = { workspace = true }
 zip = "0.5.12"
-reqwest = { version = "0.11.3", features = ["blocking"]}
-border-core = { version = "0.0.5", path = "../border-core" }
+reqwest = { version = "0.11.3", features = ["blocking"] }
+border-core = { version = "0.0.6", path = "../border-core" }
 
 [[example]]
 name = "dqn_cartpole"
@@ -29,105 +30,93 @@ required-features = ["tch"]
 test = true
 
 [[example]]
-name = "sac_lunarlander_cont"
+name = "iqn_cartpole"
 required-features = ["tch"]
-
-# [[example]]
-# name = "iqn_cartpole"
+test = true
 
 [[example]]
 name = "sac_pendulum"
+required-features = ["tch"]
 test = true
 
-# [[example]]
-# name = "quantile_loss"
-
 [[example]]
-name = "random_atari"
+name = "sac_lunarlander_cont"
 required-features = ["tch"]
+test = false
+
+# [[example]]
+# name = "random_atari"
+# required-features = ["tch"]
+# test = false
 
 [[example]]
 name = "dqn_atari"
+path = "examples/atari/dqn_atari.rs"
 required-features = ["tch"]
-
-[[example]]
-name = "dqn_atari_rs"
-required-features = ["tch"]
+test = false
 
 [[example]]
 name = "dqn_atari_async"
+path = "examples/atari/dqn_atari_async.rs"
 required-features = ["tch", "border-async-trainer"]
+test = false
 
 [[example]]
-name = "iqn_atari"
+name = "sac_fetch_reach"
+path = "examples/gym-robotics/sac_fetch_reach.rs"
 required-features = ["tch"]
-# # required_features = [ "adam_eps" ]
+test = false
 
 [[example]]
 name = "iqn_atari_rs"
 required-features = ["tch"]
-
-# [[example]]
-# name = "iqn_regression"
-
-# [[example]]
-# name = "random_ant"
+test = false
 
 [[example]]
 name = "sac_ant"
 required-features = ["tch"]
+test = false
 
-# [[example]]
-# name = "dqn_atari_vec"
-# # test = true
-
-# [[example]]
-# name = "sac_lunarlander_cont"
-
-# [[example]]
-# name = "macro"
-
-# [[example]]
-# name = "random_lunarlander_cont"
-
-# [[example]]
-# name = "sac_lunarlander_cont_vec"
-
-# [[example]]
-# name = "pyo3"
+[[example]]
+name = "sac_ant_async"
+required-features = ["tch", "border-async-trainer"]
+test = false
 
 [[example]]
 name = "make_cfg_dqn_atari"
 required-features = ["border-async-trainer"]
+test = false
 
 [[example]]
 name = "make_cfg_iqn_atari"
 required-features = ["border-async-trainer"]
+test = false
 
 [dev-dependencies]
-clap = "2.33.3"
-csv = "1.1.5"
-tempdir = "0.3.7"
-border-derive = { version = "0.0.5", path = "../border-derive" }
-border-core = { version = "0.0.5", path = "../border-core" }
-border-tch-agent = { version = "0.0.5", path = "../border-tch-agent" }
-border-py-gym-env = { version = "0.0.5", path = "../border-py-gym-env" }
-border-atari-env = { version = "0.0.5", path = "../border-atari-env" }
-serde = { version = "1.0.117", features = ["derive"] }
-crossbeam-channel = "0.5.1"
-env_logger = "0.8.2"
-numpy = "0.14.1"
-ndarray = { version = "0.15", features = ["serde"] }
-num-traits = "0.2.14"
-pyo3 = { version = "=0.14.5", default-features = false }
-fastrand = "1.4.0"
-chrono = "0.4"
-tensorboard-rs = "0.2.4"
-thiserror = "1.0"
-serde_yaml = "0.8.7"
+clap = { workspace = true }
+csv = { workspace = true }
+tempdir = { workspace = true }
+border-derive = { version = "0.0.6", path = "../border-derive" }
+border-core = { version = "0.0.6", path = "../border-core" }
+border-tensorboard = { version = "0.0.6", path = "../border-tensorboard" }
+border-tch-agent = { version = "0.0.6", path = "../border-tch-agent" }
+border-py-gym-env = { version = "0.0.6", path = "../border-py-gym-env" }
+border-atari-env = { version = "0.0.6", path = "../border-atari-env" }
+serde = { workspace = true, features = ["derive"] }
+crossbeam-channel = { workspace = true }
+env_logger = { workspace = true }
+numpy = { workspace = true }
+ndarray = { workspace = true, features = ["serde"] }
+num-traits = { workspace = true }
+pyo3 = { workspace = true, default-features = false }
+fastrand = { workspace = true }
+chrono = { workspace = true }
+tensorboard-rs = { workspace = true }
+thiserror = { workspace = true }
+serde_yaml = { workspace = true }
 
 [package.metadata.docs.rs]
-features = [ "doc-only" ]
+features = ["doc-only"]
 
 [features]
 # default = [ "adam_eps" ]
