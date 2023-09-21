@@ -26,7 +26,7 @@ where
 {
     pub(in crate::dqn) soft_update_interval: usize,
     pub(in crate::dqn) soft_update_counter: usize,
-    pub(in crate::dqn) n_updates_per_opt: usize,
+    // pub(in crate::dqn) n_updates_per_opt: usize,
     pub(in crate::dqn) min_transitions_warmup: usize,
     pub(in crate::dqn) batch_size: usize,
     pub(in crate::dqn) qnet: DqnModel<Q>,
@@ -55,8 +55,7 @@ where
     <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
     <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
-    fn update_critic(&mut self, buffer: &mut R) -> f32 {
-        let batch = buffer.batch(self.batch_size).unwrap();
+    fn update_critic(&mut self, batch: R::Batch) -> f32 {
         let (obs, act, next_obs, reward, is_done, ixs, weight) = batch.unpack();
         let obs = obs.into();
         let act = act.into().to(self.device);
@@ -86,6 +85,8 @@ where
         });
 
         let loss = if let Some(ws) = weight {
+            unimplemented!()
+            /*
             let n = ws.len() as i64;
             let td_errs = match self.clip_td_err {
                 None => (&pred - &tgt).abs(),
@@ -101,6 +102,7 @@ where
             let td_errs = Vec::<f32>::from(td_errs);
             buffer.update_priority(&ixs, &Some(td_errs));
             loss
+            */
         } else {
             let loss = pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0);
             self.qnet.backward_step(&loss);
@@ -108,27 +110,6 @@ where
         };
 
         f32::from(loss)
-    }
-
-    fn opt_(&mut self, buffer: &mut R) -> Record {
-        let mut loss_critic = 0f32;
-
-        for _ in 0..self.n_updates_per_opt {
-            let loss = self.update_critic(buffer);
-            loss_critic += loss;
-        }
-
-        self.soft_update_counter += 1;
-        if self.soft_update_counter == self.soft_update_interval {
-            self.soft_update_counter = 0;
-            track(&mut self.qnet_tgt, &mut self.qnet, self.tau);
-        }
-
-        loss_critic /= self.n_updates_per_opt as f32;
-
-        self.n_opts += 1;
-
-        Record::from_slice(&[("loss_critic", RecordValue::Scalar(loss_critic))])
     }
 }
 
@@ -157,7 +138,7 @@ where
             qnet_tgt,
             soft_update_interval: config.soft_update_interval,
             soft_update_counter: 0,
-            n_updates_per_opt: config.n_updates_per_opt,
+            // n_updates_per_opt: config.n_updates_per_opt,
             min_transitions_warmup: config.min_transitions_warmup,
             batch_size: config.batch_size,
             discount_factor: config.discount_factor,
@@ -219,12 +200,29 @@ where
         self.train
     }
 
-    fn opt(&mut self, buffer: &mut R) -> Option<Record> {
-        if buffer.len() >= self.min_transitions_warmup {
-            Some(self.opt_(buffer))
-        } else {
-            None
+    fn opt(&mut self, batch: R::Batch) -> Record {
+        let loss_critic = self.update_critic(batch);
+
+        /*
+        let mut loss_critic = 0f32;
+
+        for _ in 0..self.n_updates_per_opt {
+            let loss = self.update_critic(batch);
+            loss_critic += loss;
         }
+        */
+
+        self.soft_update_counter += 1;
+        if self.soft_update_counter == self.soft_update_interval {
+            self.soft_update_counter = 0;
+            track(&mut self.qnet_tgt, &mut self.qnet, self.tau);
+        }
+
+        // loss_critic /= self.n_updates_per_opt as f32;
+
+        self.n_opts += 1;
+
+        Record::from_slice(&[("loss_critic", RecordValue::Scalar(loss_critic))])
     }
 
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<()> {
@@ -241,6 +239,14 @@ where
         self.qnet_tgt
             .load(&path.as_ref().join("qnet_tgt.pt").as_path())?;
         Ok(())
+    }
+
+    fn min_transitions_warmup(&self) -> usize {
+        self.min_transitions_warmup
+    }
+
+    fn batch_size(&self) -> usize {
+        self.batch_size
     }
 }
 

@@ -36,7 +36,7 @@ where
     pub(super) epsilon: f64,
     pub(super) min_lstd: f64,
     pub(super) max_lstd: f64,
-    pub(super) n_updates_per_opt: usize,
+    // pub(super) n_updates_per_opt: usize,
     pub(super) min_transitions_warmup: usize,
     pub(super) batch_size: usize,
     pub(super) train: bool,
@@ -65,7 +65,7 @@ where
             epsilon: self.epsilon.clone(),
             min_lstd: self.min_lstd.clone(),
             max_lstd: self.max_lstd.clone(),
-            n_updates_per_opt: self.n_updates_per_opt.clone(),
+            // n_updates_per_opt: self.n_updates_per_opt.clone(),
             min_transitions_warmup: self.min_transitions_warmup.clone(),
             batch_size: self.batch_size.clone(),
             train: self.train.clone(),
@@ -95,7 +95,7 @@ where
             epsilon: 1e-4,
             min_lstd: -20.0,
             max_lstd: 2.0,
-            n_updates_per_opt: 1,
+            // n_updates_per_opt: 1,
             min_transitions_warmup: 1,
             batch_size: 1,
             train: false,
@@ -116,11 +116,13 @@ where
     P: SubModel<Output = (Tensor, Tensor)>,
     P::Config: DeserializeOwned + Serialize + OutDim + Debug + PartialEq + Clone,
 {
+    /*
     /// Sets the numper of parameter update steps per optimization step.
     pub fn n_updates_per_opt(mut self, v: usize) -> Self {
         self.n_updates_per_opt = v;
         self
     }
+    */
 
     /// Interval before starting optimization.
     pub fn min_transitions_warmup(mut self, v: usize) -> Self {

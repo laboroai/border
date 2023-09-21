@@ -25,7 +25,7 @@ where
 {
     pub(super) model_config: DqnModelConfig<Q::Config>,
     pub(super) soft_update_interval: usize,
-    pub(super) n_updates_per_opt: usize,
+    // pub(super) n_updates_per_opt: usize,
     pub(super) min_transitions_warmup: usize,
     pub(super) batch_size: usize,
     pub(super) discount_factor: f64,
@@ -50,7 +50,7 @@ where
         Self {
             model_config: self.model_config.clone(),
             soft_update_interval: self.soft_update_interval,
-            n_updates_per_opt: self.n_updates_per_opt,
+            // n_updates_per_opt: self.n_updates_per_opt,
             min_transitions_warmup: self.min_transitions_warmup,
             batch_size: self.batch_size,
             discount_factor: self.discount_factor,
@@ -76,7 +76,7 @@ where
         Self {
             model_config: Default::default(),
             soft_update_interval: 1,
-            n_updates_per_opt: 1,
+            // n_updates_per_opt: 1,
             min_transitions_warmup: 1,
             batch_size: 1,
             discount_factor: 0.99,
@@ -105,11 +105,13 @@ where
         self
     }
 
+    /*
     /// Sets the numper of parameter update steps per optimization step.
     pub fn n_updates_per_opt(mut self, v: usize) -> Self {
         self.n_updates_per_opt = v;
         self
     }
+    */
 
     /// Interval before starting optimization.
     pub fn min_transitions_warmup(mut self, v: usize) -> Self {

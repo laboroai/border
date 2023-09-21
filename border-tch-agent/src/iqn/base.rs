@@ -34,7 +34,7 @@ where
 {
     pub(in crate::iqn) soft_update_interval: usize,
     pub(in crate::iqn) soft_update_counter: usize,
-    pub(in crate::iqn) n_updates_per_opt: usize,
+    // pub(in crate::iqn) n_updates_per_opt: usize,
     pub(in crate::iqn) min_transitions_warmup: usize,
     pub(in crate::iqn) batch_size: usize,
     pub(in crate::iqn) iqn: IqnModel<F, M>,
@@ -65,9 +65,8 @@ where
     <R::Batch as StdBatchBase>::ObsBatch: Into<F::Input>,
     <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
-    fn update_critic(&mut self, buffer: &mut R) -> f32 {
+    fn update_critic(&mut self, batch: R::Batch) -> f32 {
         trace!("IQN::update_critic()");
-        let batch = buffer.batch(self.batch_size).unwrap();
         let (obs, act, next_obs, reward, is_done, _ixs, _weight) = batch.unpack();
         let obs = obs.into();
         let act = act.into().to(self.device);
@@ -166,27 +165,6 @@ where
 
         f32::from(loss)
     }
-
-    fn opt_(&mut self, buffer: &mut R) -> Record {
-        let mut loss_critic = 0f32;
-
-        for _ in 0..self.n_updates_per_opt {
-            let loss = self.update_critic(buffer);
-            loss_critic += loss;
-        }
-
-        self.soft_update_counter += 1;
-        if self.soft_update_counter == self.soft_update_interval {
-            self.soft_update_counter = 0;
-            track(&mut self.iqn_tgt, &mut self.iqn, self.tau);
-        }
-
-        loss_critic /= self.n_updates_per_opt as f32;
-
-        self.n_opts += 1;
-
-        Record::from_slice(&[("loss_critic", RecordValue::Scalar(loss_critic))])
-    }
 }
 
 impl<E, F, M, R> Policy<E> for Iqn<E, F, M, R>
@@ -219,7 +197,7 @@ where
             iqn_tgt,
             soft_update_interval: config.soft_update_interval,
             soft_update_counter: 0,
-            n_updates_per_opt: config.n_updates_per_opt,
+            // n_updates_per_opt: config.n_updates_per_opt,
             min_transitions_warmup: config.min_transitions_warmup,
             batch_size: config.batch_size,
             discount_factor: config.discount_factor,
@@ -288,12 +266,29 @@ where
         self.train
     }
 
-    fn opt(&mut self, buffer: &mut R) -> Option<Record> {
-        if buffer.len() >= self.min_transitions_warmup {
-            Some(self.opt_(buffer))
-        } else {
-            None
+    fn opt(&mut self, batch: R::Batch) -> Record {
+        let loss_critic = self.update_critic(batch);
+
+        /*
+        let mut loss_critic = 0f32;
+
+        for _ in 0..self.n_updates_per_opt {
+            let loss = self.update_critic(batch);
+            loss_critic += loss;
         }
+        */
+
+        self.soft_update_counter += 1;
+        if self.soft_update_counter == self.soft_update_interval {
+            self.soft_update_counter = 0;
+            track(&mut self.iqn_tgt, &mut self.iqn, self.tau);
+        }
+
+        // loss_critic /= self.n_updates_per_opt as f32;
+
+        self.n_opts += 1;
+
+        Record::from_slice(&[("loss_critic", RecordValue::Scalar(loss_critic))])
     }
 
     // /// Update model parameters.
@@ -357,5 +352,13 @@ where
         self.iqn_tgt
             .load(&path.as_ref().join("iqn_tgt.pt").as_path())?;
         Ok(())
+    }
+
+    fn min_transitions_warmup(&self) -> usize {
+        self.min_transitions_warmup
+    }
+
+    fn batch_size(&self) -> usize {
+        self.batch_size
     }
 }

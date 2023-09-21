@@ -225,8 +225,9 @@ where
         // Do optimization step
         *env_steps += 1;
 
-        if *env_steps % self.opt_interval == 0 {
-            let record = agent.opt(buffer).map_or(None, |r| Some(record_.merge(r)));
+        if buffer.len() >= agent.min_transitions_warmup() && *env_steps % self.opt_interval == 0 {
+            let batch = buffer.batch(agent.batch_size()).unwrap();
+            let record = Some(record_.merge(agent.opt(batch)));
             Ok(record)
         } else {
             Ok(None)
@@ -252,6 +253,7 @@ where
         agent.train();
 
         loop {
+            
             let record = self.train_step(agent, &mut buffer, &mut sampler, &mut env_steps)?;
 
             // Postprocessing after each training step

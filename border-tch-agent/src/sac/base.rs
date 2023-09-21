@@ -49,7 +49,7 @@ where
     pub(super) epsilon: f64,
     pub(super) min_lstd: f64,
     pub(super) max_lstd: f64,
-    pub(super) n_updates_per_opt: usize,
+    // pub(super) n_updates_per_opt: usize,
     pub(super) min_transitions_warmup: usize,
     pub(super) batch_size: usize,
     pub(super) train: bool,
@@ -170,30 +170,6 @@ where
             track(qnet_tgt, qnet, self.tau);
         }
     }
-
-    fn opt_(&mut self, buffer: &mut R) -> Record {
-        let mut loss_critic = 0f32;
-        let mut loss_actor = 0f32;
-
-        for _ in 0..self.n_updates_per_opt {
-            let batch = buffer.batch(self.batch_size).unwrap();
-            loss_actor += self.update_actor(&batch);
-            loss_critic += self.update_critic(batch);
-            self.soft_update();
-        }
-
-        loss_critic /= self.n_updates_per_opt as f32;
-        loss_actor /= self.n_updates_per_opt as f32;
-
-        Record::from_slice(&[
-            ("loss_critic", RecordValue::Scalar(loss_critic)),
-            ("loss_actor", RecordValue::Scalar(loss_actor)),
-            (
-                "ent_coef",
-                RecordValue::Scalar(self.ent_coef.alpha().double_value(&[0]) as f32),
-            ),
-        ])
-    }
 }
 
 impl<E, Q, P, R> Policy<E> for Sac<E, Q, P, R>
@@ -236,7 +212,7 @@ where
             epsilon: config.epsilon,
             min_lstd: config.min_lstd,
             max_lstd: config.max_lstd,
-            n_updates_per_opt: config.n_updates_per_opt,
+            // n_updates_per_opt: config.n_updates_per_opt,
             min_transitions_warmup: config.min_transitions_warmup,
             batch_size: config.batch_size,
             train: config.train,
@@ -288,12 +264,34 @@ where
         self.train
     }
 
-    fn opt(&mut self, buffer: &mut R) -> Option<Record> {
-        if buffer.len() >= self.min_transitions_warmup {
-            Some(self.opt_(buffer))
-        } else {
-            None
+    fn opt(&mut self, batch: R::Batch) -> Record {
+        let loss_critic = self.update_actor(&batch);
+        let loss_actor = self.update_critic(batch);
+        self.soft_update();
+        
+        /*
+        let mut loss_critic = 0f32;
+        let mut loss_actor = 0f32;
+
+        for _ in 0..self.n_updates_per_opt {
+            let batch = buffer.batch(self.batch_size).unwrap();
+            loss_actor += self.update_actor(&batch);
+            loss_critic += self.update_critic(batch);
+            self.soft_update();
         }
+
+        loss_critic /= self.n_updates_per_opt as f32;
+        loss_actor /= self.n_updates_per_opt as f32;
+        */
+
+        Record::from_slice(&[
+            ("loss_critic", RecordValue::Scalar(loss_critic)),
+            ("loss_actor", RecordValue::Scalar(loss_actor)),
+            (
+                "ent_coef",
+                RecordValue::Scalar(self.ent_coef.alpha().double_value(&[0]) as f32),
+            ),
+        ])
     }
 
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<()> {
@@ -318,5 +316,13 @@ where
         self.ent_coef
             .load(&path.as_ref().join("ent_coef.pt").as_path())?;
         Ok(())
+    }
+
+    fn min_transitions_warmup(&self) -> usize {
+        self.min_transitions_warmup
+    }
+
+    fn batch_size(&self) -> usize {
+        self.batch_size
     }
 }

@@ -16,7 +16,7 @@ pub trait Agent<E: Env, R: ReplayBufferBase>: Policy<E> {
     fn is_train(&self) -> bool;
 
     /// Do an optimization step.
-    fn opt(&mut self, buffer: &mut R) -> Option<Record>;
+    fn opt(&mut self, batch: R::Batch) -> Record;
 
     /// Save the agent in the given directory.
     /// This method commonly creates a number of files consisting the agent
@@ -26,4 +26,10 @@ pub trait Agent<E: Env, R: ReplayBufferBase>: Policy<E> {
 
     /// Load the agent from the given directory.
     fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<()>;
+
+    /// Number of samples needed to start training
+    fn min_transitions_warmup(&self) -> usize;
+
+    /// Batch size for one optimization step
+    fn batch_size(&self) -> usize;
 }
