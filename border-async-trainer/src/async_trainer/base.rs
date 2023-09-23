@@ -307,8 +307,16 @@ where
                 continue
             }
 
+            let time_batch = SystemTime::now();
             let batch = async_buffer.batch(agent.batch_size()).unwrap();
+            let duration_batch = time_batch.elapsed().unwrap().as_secs_f32();
+
+            let time_tmp = SystemTime::now();
             let mut record = agent.opt(batch);
+            let duration_tmp = time_tmp.elapsed().unwrap().as_secs_f32();
+
+            record.insert("batch_time_per_opt", Scalar(duration_batch));
+            record.insert("opt_time_per_opt", Scalar(duration_tmp));
 
             opt_steps += 1;
             opt_steps_ += 1;
