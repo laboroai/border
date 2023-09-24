@@ -1,5 +1,5 @@
 [package]
-name = "border-core"
+name = "border-candle-agent"
 version.workspace = true
 edition.workspace = true
 description.workspace = true
@@ -10,17 +10,25 @@ license.workspace = true
 readme = "README.md"
 
 [dependencies]
+border-core = { version = "0.0.6", path = "../border-core" }
+border-async-trainer = { version = "0.0.6", path = "../border-async-trainer", optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_yaml = { workspace = true }
+tensorboard-rs = { workspace = true }
 log = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 chrono = { workspace = true }
 aquamarine = { workspace = true }
+candle-core = { workspace = true }
 fastrand = { workspace = true }
 segment-tree = { workspace = true }
-# Consider to replace with fastrand
-rand = "0.8.4"
 
 [dev-dependencies]
 tempdir = { workspace = true }
+
+# [package.metadata.docs.rs]
+# features = ["doc-only"]
+
+# [features]
+# doc-only = ["tch/doc-only"]

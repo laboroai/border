@@ -4,12 +4,23 @@ members = [
     "border-tensorboard",
     "border-py-gym-env",
     "border-tch-agent",
+    "border-candle-agent",
     "border-derive",
     "border-atari-env",
     "border-async-trainer",
     "border",
 ]
 exclude = ["docker/"]
+
+[workspace.package]
+version = "0.0.6"
+edition = "2018"
+rust-version = "1.70"
+description = "Reinforcement learning library"
+repository = "https://github.com/taku-y/border"
+keywords = ["rl"]
+categories = ["science"]
+license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
 clap = "2.33.3"
@@ -34,3 +45,4 @@ ndarray = "0.15.1"
 chrono = "0.4"
 segment-tree = "2.0.0"
 image = "0.23.14"
+candle-core = "0.2.2"

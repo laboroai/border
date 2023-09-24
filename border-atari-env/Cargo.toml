@@ -1,17 +1,13 @@
 [package]
 name = "border-atari-env"
-version = "0.0.6"
-authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
-edition = "2018"
-rust-version = "1.68.2"
-
-description = "Atari environment based on gym-rs"
-repository = "https://github.com/taku-y/border"
-keywords = ["rl"]
-categories = ["science"]
-license = "GPL-2.0-or-later"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+package.license = "GPL-2.0-or-later"
 readme = "README.md"
-autoexamples = false
 
 [dependencies]
 anyhow = { workspace = true }
