@@ -219,14 +219,20 @@ where
         &mut self,
         record: &mut Record,
         opt_steps2_: &mut i32,
+        time_len: &mut f32,
         time_batch: &mut f32,
         time_opt: &mut f32,
+        time_sample: &mut f32,
     ) {
+        record.insert("len_time_per_opt", Scalar(*time_len / *opt_steps2_ as f32));
         record.insert("batch_time_per_opt", Scalar(*time_batch / *opt_steps2_ as f32));
         record.insert("opt_time_per_opt", Scalar(*time_opt / *opt_steps2_ as f32));
+        record.insert("sample_time_per_opt", Scalar(*time_sample / *opt_steps2_ as f32));
         
+        *time_len = 0f32;
         *time_batch = 0f32;
         *time_opt = 0f32;
+        *time_sample = 0f32;
         *opt_steps2_ = 0i32;
     }
 
@@ -312,8 +318,10 @@ where
         let mut samples_total_prev = 0;
         let time_total = SystemTime::now();
         let mut time = SystemTime::now();
+        let mut time_len = 0f32;
         let mut time_batch = 0f32;
         let mut time_opt = 0f32;
+        let mut time_sample = 0f32;
 
         info!("Send model info first in AsyncTrainer");
         self.sync(&mut agent);
@@ -322,9 +330,11 @@ where
 
         info!("Starts training loop");
         loop {
+            let tmp_time = SystemTime::now();
             if async_buffer.len() < agent.min_transitions_warmup() {
                 continue
             }
+            time_len += tmp_time.elapsed().unwrap().as_secs_f32();
 
             let tmp_time = SystemTime::now();
             let batch = async_buffer.batch(agent.batch_size()).unwrap();
@@ -350,11 +360,22 @@ where
                 self.eval(&mut agent, &mut env, &mut record, &mut max_eval_reward);
             }
             if do_record {
+                let tmp_time = SystemTime::now();
+                let samples_total = async_buffer.samples_total();
+                time_sample += tmp_time.elapsed().unwrap().as_secs_f32();
+
                 info!("Records training logs");
-                self.record(&mut record, &mut opt_steps_, &mut samples_total_prev, &mut time, async_buffer.samples_total());
+                self.record(&mut record, &mut opt_steps_, &mut samples_total_prev, &mut time, samples_total);
             }
             if do_record2 {
-                self.record2(&mut record, &mut opt_steps2_, &mut time_batch, &mut time_opt);
+                self.record2(
+                    &mut record,
+                    &mut opt_steps2_,
+                    &mut time_len,
+                    &mut time_batch,
+                    &mut time_opt,
+                    &mut time_sample,
+                );
             }
             if do_flush {
                 info!("Flushes records");
