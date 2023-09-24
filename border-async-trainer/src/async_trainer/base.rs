@@ -214,6 +214,22 @@ where
         *time = SystemTime::now();
     }
 
+    #[inline]
+    fn record2(
+        &mut self,
+        record: &mut Record,
+        opt_steps2_: &mut i32,
+        time_batch: &mut f32,
+        time_opt: &mut f32,
+    ) {
+        record.insert("batch_time_per_opt", Scalar(*time_batch / *opt_steps2_ as f32));
+        record.insert("opt_time_per_opt", Scalar(*time_opt / *opt_steps2_ as f32));
+        
+        *time_batch = 0f32;
+        *time_opt = 0f32;
+        *opt_steps2_ = 0i32;
+    }
+
     /// Flush record.
     #[inline]
     fn flush(&mut self, opt_steps: usize, mut record: Record, recorder: &mut impl Recorder) {
@@ -292,9 +308,12 @@ where
         let mut max_eval_reward = f32::MIN;
         let mut opt_steps = 0;
         let mut opt_steps_ = 0;
+        let mut opt_steps2_ = 0;
         let mut samples_total_prev = 0;
         let time_total = SystemTime::now();
         let mut time = SystemTime::now();
+        let mut time_batch = 0f32;
+        let mut time_opt = 0f32;
 
         info!("Send model info first in AsyncTrainer");
         self.sync(&mut agent);
@@ -307,22 +326,21 @@ where
                 continue
             }
 
-            let time_batch = SystemTime::now();
+            let tmp_time = SystemTime::now();
             let batch = async_buffer.batch(agent.batch_size()).unwrap();
-            let duration_batch = time_batch.elapsed().unwrap().as_secs_f32();
+            time_batch += tmp_time.elapsed().unwrap().as_secs_f32();
 
             let time_tmp = SystemTime::now();
             let mut record = agent.opt(batch);
-            let duration_tmp = time_tmp.elapsed().unwrap().as_secs_f32();
-
-            record.insert("batch_time_per_opt", Scalar(duration_batch));
-            record.insert("opt_time_per_opt", Scalar(duration_tmp));
+            time_opt += time_tmp.elapsed().unwrap().as_secs_f32();
 
             opt_steps += 1;
             opt_steps_ += 1;
+            opt_steps2_ += 1;
 
             let do_eval = opt_steps % self.eval_interval == 0;
             let do_record = opt_steps % self.record_interval == 0;
+            let do_record2 = do_record;
             let do_flush = do_eval || do_record;
             let do_save = opt_steps % self.save_interval == 0;
             let do_sync = opt_steps % self.sync_interval == 0;
@@ -334,6 +352,9 @@ where
             if do_record {
                 info!("Records training logs");
                 self.record(&mut record, &mut opt_steps_, &mut samples_total_prev, &mut time, async_buffer.samples_total());
+            }
+            if do_record2 {
+                self.record2(&mut record, &mut opt_steps2_, &mut time_batch, &mut time_opt);
             }
             if do_flush {
                 info!("Flushes records");
