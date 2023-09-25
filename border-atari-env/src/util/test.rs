@@ -45,9 +45,9 @@ impl SubBatch for ObsBatch {
     }
 
     #[inline]
-    fn push(&mut self, i: usize, data: &Self) {
+    fn push(&mut self, i: usize, data: Self) {
         unsafe {
-            let src: *const u8 = &data.buf[0];
+            let src: *const u8 = data.buf[0];
             let dst: *mut u8 = &mut self.buf[i * self.m];
             copy(src, dst, self.m);
         }
@@ -100,9 +100,9 @@ impl SubBatch for ActBatch {
     }
 
     #[inline]
-    fn push(&mut self, i: usize, data: &Self) {
+    fn push(&mut self, i: usize, data: Self) {
         unsafe {
-            let src: *const u8 = &data.buf[0];
+            let src: *const u8 = data.buf[0];
             let dst: *mut u8 = &mut self.buf[i * self.m];
             copy(src, dst, self.m);
         }
