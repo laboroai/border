@@ -220,19 +220,25 @@ where
         record: &mut Record,
         opt_steps2_: &mut i32,
         time_len: &mut f32,
+        time_mintra: &mut f32,
         time_batch: &mut f32,
         time_opt: &mut f32,
         time_sample: &mut f32,
+        cnt_mintra_loop: &mut i32,
     ) {
         record.insert("len_time_per_opt", Scalar(*time_len / *opt_steps2_ as f32));
+        record.insert("mintra_time_per_opt", Scalar(*time_mintra / *opt_steps2_ as f32));
         record.insert("batch_time_per_opt", Scalar(*time_batch / *opt_steps2_ as f32));
         record.insert("opt_time_per_opt", Scalar(*time_opt / *opt_steps2_ as f32));
         record.insert("sample_time_per_opt", Scalar(*time_sample / *opt_steps2_ as f32));
+        record.insert("cnt_mintra_loop_per_opt", Scalar(*cnt_mintra_loop as f32 / *opt_steps2_ as f32));
         
         *time_len = 0f32;
+        *time_mintra = 0f32;
         *time_batch = 0f32;
         *time_opt = 0f32;
         *time_sample = 0f32;
+        *cnt_mintra_loop = 0i32;
         *opt_steps2_ = 0i32;
     }
 
@@ -316,9 +322,11 @@ where
         let mut opt_steps_ = 0;
         let mut opt_steps2_ = 0;
         let mut samples_total_prev = 0;
+        let mut cnt_mintra_loop = 0;
         let time_total = SystemTime::now();
         let mut time = SystemTime::now();
         let mut time_len = 0f32;
+        let mut time_mintra = 0f32;
         let mut time_batch = 0f32;
         let mut time_opt = 0f32;
         let mut time_sample = 0f32;
@@ -330,11 +338,17 @@ where
 
         info!("Starts training loop");
         loop {
+            
             let tmp_time = SystemTime::now();
-            if async_buffer.len() < agent.min_transitions_warmup() {
+            let buffer_len = async_buffer.len();
+            time_len += tmp_time.elapsed().unwrap().as_secs_f32();
+
+            let tmp_time = SystemTime::now();
+            if buffer_len < agent.min_transitions_warmup() {
+                cnt_mintra_loop += 1;
                 continue
             }
-            time_len += tmp_time.elapsed().unwrap().as_secs_f32();
+            time_mintra += tmp_time.elapsed().unwrap().as_secs_f32();
 
             let tmp_time = SystemTime::now();
             let batch = async_buffer.batch(agent.batch_size()).unwrap();
@@ -372,9 +386,11 @@ where
                     &mut record,
                     &mut opt_steps2_,
                     &mut time_len,
+                    &mut time_mintra,
                     &mut time_batch,
                     &mut time_opt,
                     &mut time_sample,
+                    &mut cnt_mintra_loop,
                 );
             }
             if do_flush {
