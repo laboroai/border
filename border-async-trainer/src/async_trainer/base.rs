@@ -470,6 +470,9 @@ where
         for msg in receiver.iter() {
             for pushed_item in msg.pushed_items.into_iter() {
                 buffer.lock().unwrap().push(pushed_item).unwrap();
+                if *samples_total.lock().unwrap() > 10000 {
+                    std::thread::sleep(std::time::Duration::from_millis(1000));
+                }
                 *samples_total.lock().unwrap() += 1;
             }
         }
