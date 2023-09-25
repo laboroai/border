@@ -23,7 +23,7 @@ pub trait ExperienceBufferBase {
 /// which is used to train agents.
 pub trait ReplayBufferBase: ExperienceBufferBase {
     /// Configuration of the replay buffer.
-    type Config: Clone;
+    type Config: ReplayBufferBaseConfig + Clone;
 
     /// Batch generated from the buffer.
     type Batch;
@@ -43,4 +43,13 @@ pub trait ReplayBufferBase: ExperienceBufferBase {
     /// TODO: Consider to move this method to another trait.
     /// There are cases where prioritization is not required.
     fn update_priority(&mut self, ixs: &Option<Vec<usize>>, td_err: &Option<Vec<f32>>);
+}
+
+/// Interface of replay buffer configs.
+pub trait ReplayBufferBaseConfig {
+    /// set capacity
+    fn set_capacity(&mut self, capacity: usize);
+
+    /// get capacity
+    fn get_capacity(&self) -> usize;
 }

@@ -8,6 +8,7 @@ use std::{
     path::Path,
 };
 use super::{WeightNormalizer, WeightNormalizer::All};
+use crate::ReplayBufferBaseConfig;
 
 /// Configuration for prioritized experience replay.
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
@@ -111,5 +112,15 @@ impl SimpleReplayBufferConfig {
         let mut file = File::create(path)?;
         file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;
         Ok(())
+    }
+}
+
+impl ReplayBufferBaseConfig for SimpleReplayBufferConfig {
+    fn set_capacity(&mut self, capacity: usize) {
+        self.capacity = capacity;
+    }
+
+    fn get_capacity(&self) -> usize {
+        self.capacity
     }
 }

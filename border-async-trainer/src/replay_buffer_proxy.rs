@@ -1,6 +1,6 @@
 use crate::PushedItemMessage;
 use anyhow::Result;
-use border_core::{ExperienceBufferBase, ReplayBufferBase};
+use border_core::{ExperienceBufferBase, ReplayBufferBase, ReplayBufferBaseConfig};
 use crossbeam_channel::{Sender, TrySendError};
 use std::marker::PhantomData;
 
@@ -11,6 +11,16 @@ pub struct ReplayBufferProxyConfig {
     ///
     /// Here, a sample corresponds to a `R::PushedItem` for [`ReplayBufferProxy`]`<R>`.
     pub n_buffer: usize,
+}
+
+impl ReplayBufferBaseConfig for ReplayBufferProxyConfig {
+    fn set_capacity(&mut self, capacity: usize) {
+        unimplemented!()
+    }
+
+    fn get_capacity(&self) -> usize {
+        unimplemented!()
+    }
 }
 
 /// A wrapper of replay buffer for asynchronous trainer.

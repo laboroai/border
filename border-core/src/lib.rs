@@ -7,8 +7,8 @@ pub mod util;
 
 mod base;
 pub use base::{
-    Act, Agent, StdBatchBase, Env, ExperienceBufferBase, Info, Obs, Policy, ReplayBufferBase, Step,
-    StepProcessorBase,
+    Act, Agent, StdBatchBase, Env, ExperienceBufferBase, Info, Obs, Policy, ReplayBufferBase,
+    ReplayBufferBaseConfig, Step, StepProcessorBase,
 };
 
 mod shape;
