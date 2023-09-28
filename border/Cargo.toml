@@ -12,6 +12,7 @@ readme = "README.md"
 [dependencies]
 aquamarine = { workspace = true }
 tch = { workspace = true, optional = true }
+candle-core = { workspace = true, optional = true }
 border-async-trainer = { version = "0.0.6", path = "../border-async-trainer", optional = true }
 anyhow = { workspace = true }
 log = { workspace = true }
@@ -31,8 +32,13 @@ required-features = ["tch"]
 test = true
 
 [[example]]
-name = "sac_pendulum"
+name = "sac_pendulum_tch"
 required-features = ["tch"]
+test = true
+
+[[example]]
+name = "sac_pendulum"
+required-features = ["candle-core"]
 test = true
 
 [[example]]
@@ -65,6 +71,7 @@ test = false
 
 [[example]]
 name = "iqn_atari_rs"
+path = "examples/atari/iqn_atari.rs"
 required-features = ["tch"]
 test = false
 
@@ -81,11 +88,13 @@ test = false
 [[example]]
 name = "make_cfg_dqn_atari"
 required-features = ["border-async-trainer"]
+path = "examples/atari/make_cfg_dqn_atari.rs"
 test = false
 
 [[example]]
 name = "make_cfg_iqn_atari"
 required-features = ["border-async-trainer"]
+path = "examples/atari/make_cfg_iqn_atari.rs"
 test = false
 
 [dev-dependencies]
@@ -98,6 +107,7 @@ border-tensorboard = { version = "0.0.6", path = "../border-tensorboard" }
 border-tch-agent = { version = "0.0.6", path = "../border-tch-agent" }
 border-py-gym-env = { version = "0.0.6", path = "../border-py-gym-env" }
 border-atari-env = { version = "0.0.6", path = "../border-atari-env" }
+border-candle-agent = { version = "0.0.6", path = "../border-candle-agent" }
 serde = { workspace = true, features = ["derive"] }
 crossbeam-channel = { workspace = true }
 env_logger = { workspace = true }

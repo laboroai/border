@@ -6,7 +6,7 @@ pub trait SubBatch {
     fn new(capacity: usize) -> Self;
 
     /// Pushes the samples in `data`.
-    fn push(&mut self, i: usize, data: Self);
+    fn push(&mut self, ix: usize, data: Self);
 
     /// Takes samples in the batch.
     fn sample(&self, ixs: &Vec<usize>) -> Self;

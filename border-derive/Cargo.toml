@@ -18,16 +18,19 @@ proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "1.0", features = ["full"] }
 tch = { workspace = true, optional = true }
+candle-core = { workspace = true, optional = true }
 
 [dev-dependencies]
 border-tch-agent = { version = "0.0.6", path = "../border-tch-agent" }
+border-candle-agent = { version = "0.0.6", path = "../border-candle-agent" }
 border-py-gym-env = { version = "0.0.6", path = "../border-py-gym-env" }
 border-core = { version = "0.0.6", path = "../border-core" }
 ndarray = { workspace = true }
 tch = { workspace = true }
+candle-core = { workspace = true }
 
-[features]
-default = ["tch"]
+# [features]
+# default = ["tch"]
 
 [[example]]
 name = "test1"
