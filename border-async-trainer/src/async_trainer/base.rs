@@ -57,7 +57,6 @@ pub struct AsyncTrainer<A, E, R>
 where
     A: Agent<E, R> + SyncModel,
     E: Env,
-    // R: ReplayBufferBase + Sync + Send + 'static,
     R: ReplayBufferBase + Send + 'static,
     R::PushedItem: Send + 'static,
 {
@@ -110,7 +109,6 @@ impl<A, E, R> AsyncTrainer<A, E, R>
 where
     A: Agent<E, R> + SyncModel,
     E: Env,
-    // R: ReplayBufferBase + Sync + Send + 'static,
     R: ReplayBufferBase + Send + 'static,
     R::PushedItem: Send + 'static,
 {
@@ -283,8 +281,10 @@ where
             E::build(&self.env_config, 0).unwrap()
         };
         let mut agent = A::build(self.agent_config.clone());
-        let mut buffer =
-            SplittedReplayBuffer::new(self.replay_buffer_config.clone(), self.n_div_replaybuffer);
+        let mut async_buffer = 
+            AsyncReplayBuffer::new(self.replay_buffer_config.clone(), self.n_div_replaybuffer);
+        async_buffer.run(self.r_bulk_pushed_item.clone());
+
         // let buffer = Arc::new(Mutex::new(R::build(&self.replay_buffer_config)));
         agent.train();
 
@@ -302,11 +302,8 @@ where
 
         info!("Starts training loop");
         loop {
-            // Update replay buffer
-            let msgs: Vec<_> = self.r_bulk_pushed_item.try_iter().collect();
-            buffer.push(msgs);
 
-            let record = agent.opt(&mut buffer.get_free_buffer_for_opt().lock().unwrap());
+            let record = agent.opt(&mut async_buffer.get_buffer_for_opt().lock().unwrap());
 
             if let Some(mut record) = record {
                 opt_steps += 1;
@@ -329,7 +326,7 @@ where
                         &mut opt_steps_,
                         &mut time,
                         &mut samples_total_prev,
-                        buffer.samples_total(),
+                        async_buffer.samples_total(),
                     );
                 }
                 if do_flush {
@@ -357,7 +354,7 @@ where
 
         let duration = time_total.elapsed().unwrap();
         let time_total = duration.as_secs_f32();
-        let samples_per_sec = buffer.samples_total() as f32 / time_total;
+        let samples_per_sec = async_buffer.samples_total() as f32 / time_total;
         let opt_per_sec = self.max_train_steps as f32 / time_total;
         AsyncTrainStat {
             samples_per_sec,
@@ -372,10 +369,8 @@ where
     R: ReplayBufferBase + Send + 'static,
     R::PushedItem: Send + 'static,
 {
-    splitted_buffers: Vec<Arc<Mutex<R>>>,
-    samples_total: usize,
-    rng: fastrand::Rng,
-    // thread: Option<JoinHandle<()>>,
+    splitted_buffers: Arc<Vec<Arc<Mutex<R>>>>,
+    // rng: fastrand::Rng,
 }
 
 impl<R> SplittedReplayBuffer<R>
@@ -395,64 +390,35 @@ where
             .map(|_| Arc::new(Mutex::new(R::build(&replay_buffer_config))))
             .collect::<Vec<_>>();
         Self {
-            splitted_buffers,
-            samples_total: 0,
-            rng: fastrand::Rng::with_seed(0),
+            splitted_buffers: Arc::new(splitted_buffers),
+            // rng: fastrand::Rng::with_seed(0),
         }
     }
 
-    fn push(&mut self, msgs: Vec<PushedItemMessage<R::PushedItem>>) {
-        let samples = msgs.iter().map(|msg| msg.pushed_items.len()).sum::<usize>();
-        // println!("samples: {}", samples);
+    fn ix_push_buffer(&self) -> usize {
+        let ixs_free = self.ixs_free_buffer();
+        if ixs_free.len() >= 3 {
+            // If there are 3 or more free buffers, use one of the free buffers.
+            // This is to leave 2 or more choice when selecting a BUFFER in the OPT.
+            // If there is only one choice, the possibility arises that the same buffer will always be selected.
 
-        if samples == 0 {
-            return;
+            // println!("ixs_free.len(): {}", ixs_free.len());
+            ixs_free[fastrand::usize(..ixs_free.len())]
+        } else {
+            // If there are no more than 3 free buffers, use one of the non-free buffers.
+            let ixs_not_free = self.ixs_not_free_buffer();
+            // println!("ixs_not_free.len(): {}", ixs_not_free.len());
+            ixs_not_free[fastrand::usize(..ixs_not_free.len())]
         }
-
-        self.samples_total += samples;
-
-        let ix_buffer = {
-            let ixs_free = self.ixs_free_buffer();
-            if ixs_free.len() >= 3 {
-                // If there are 3 or more free buffers, use one of the free buffers.
-                // This is to leave 2 or more choice when selecting a BUFFER in the OPT.
-                // If there is only one choice, the possibility arises that the same buffer will always be selected.
-
-                // println!("ixs_free.len(): {}", ixs_free.len());
-                ixs_free[self.rng.usize(..ixs_free.len())]
-            } else {
-                // If there are no more than 3 free buffers, use one of the non-free buffers.
-                let ixs_not_free = self.ixs_not_free_buffer();
-                // println!("ixs_not_free.len(): {}", ixs_not_free.len());
-                ixs_not_free[self.rng.usize(..ixs_not_free.len())]
-            }
-        };
-
-        let _ = self.splitted_buffers[ix_buffer].lock().unwrap(); // Wait until the lock is released.
-        let buffer = self.splitted_buffers[ix_buffer].clone();
-
-        std::thread::spawn(move || {
-            for msg in msgs.into_iter() {
-                let mut buffer_ = buffer.lock().unwrap();
-                for pushed_item in msg.pushed_items.into_iter() {
-                    buffer_.push(pushed_item).unwrap();
-                }
-            }
-        });
     }
 
-    fn get_free_buffer_for_opt(&mut self) -> Arc<Mutex<R>> {
+    fn ix_opt_buffer(&self) -> usize {
         let ixs_free = self.ixs_free_buffer();
         // println!(
         //     "ixs_free.len() in get_free_buffer_for_opt: {}",
         //     ixs_free.len()
         // );
-        let ix_buffer = ixs_free[self.rng.usize(..ixs_free.len())];
-        self.splitted_buffers[ix_buffer].clone()
-    }
-
-    fn samples_total(&self) -> usize {
-        self.samples_total
+        ixs_free[fastrand::usize(..ixs_free.len())]
     }
 
     fn ixs_free_buffer(&self) -> Vec<usize> {
@@ -475,5 +441,78 @@ where
                 Err(_) => Some(i),
             })
             .collect::<Vec<_>>()
+    }
+}
+
+struct AsyncReplayBuffer<R>
+where
+    R: ReplayBufferBase + Send + 'static,
+    R::PushedItem: Send + 'static,
+{
+    splitted_buffers: Arc<SplittedReplayBuffer<R>>,
+    samples_total: Arc<Mutex<usize>>,
+}
+
+impl<R> AsyncReplayBuffer<R>
+where
+    R: ReplayBufferBase + Send + 'static,
+    R::PushedItem: Send + 'static,
+{
+    fn new(replay_buffer_config: R::Config, n_div: usize) -> Self {
+        Self {
+            splitted_buffers: Arc::new(SplittedReplayBuffer::new(replay_buffer_config, n_div)),
+            samples_total: Arc::new(Mutex::new(0)),
+        }
+    }
+
+    fn run(
+        &mut self,
+        receiver: Receiver<PushedItemMessage<R::PushedItem>>,
+    ) {
+        let splitted_buffers = self.splitted_buffers.clone();
+        let samples_total = self.samples_total.clone();
+        std::thread::spawn(move || {
+            Self::recieve_and_push(
+                splitted_buffers,
+                samples_total,
+                receiver,
+            );
+        });
+    }
+
+    fn recieve_and_push(
+        splitted_buffers: Arc<SplittedReplayBuffer<R>>,
+        samples_total: Arc<Mutex<usize>>,
+        receiver: Receiver<PushedItemMessage<R::PushedItem>>,
+    ) {
+        for msg in receiver.iter() {
+            let samples = msg.pushed_items.len();
+
+            if samples == 0 {
+                continue
+            }
+
+            *samples_total.lock().unwrap() += samples;
+            // println!("samples: {}", samples);        
+    
+            let ix_buffer = splitted_buffers.ix_push_buffer();
+            let buf = splitted_buffers.splitted_buffers[ix_buffer].clone();
+            
+            std::thread::spawn(move || {
+                let mut buf_ = buf.lock().unwrap();
+                for pushed_item in msg.pushed_items.into_iter() {
+                    buf_.push(pushed_item).unwrap();
+                }
+            });
+        }
+    }
+
+    fn get_buffer_for_opt(&self) -> Arc<Mutex<R>> {
+        let ix_buffer = self.splitted_buffers.ix_opt_buffer();
+        self.splitted_buffers.splitted_buffers[ix_buffer].clone()
+    }
+
+    fn samples_total(&self) -> usize {
+        self.samples_total.lock().unwrap().clone()
     }
 }
