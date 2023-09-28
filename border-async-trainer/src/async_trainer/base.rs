@@ -1,8 +1,8 @@
-use crate::{AsyncTrainerConfig, PushedItemMessage, SyncModel, AsyncTrainStat};
+use crate::{AsyncTrainStat, AsyncTrainerConfig, PushedItemMessage, SyncModel};
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue::Scalar, Recorder},
-    Agent, Env, Obs, ReplayBufferBase,
+    Agent, Env, Obs, ReplayBufferBase, ReplayBufferBaseConfig,
 };
 use crossbeam_channel::{Receiver, Sender};
 use log::info;
@@ -46,7 +46,7 @@ use std::{
 /// * The model parameters of the [`Agent`] in [`AsyncTrainer`] are wrapped in
 ///   [`SyncModel::ModelInfo`] and periodically sent to the [`Agent`]s in [`Actor`]s.
 ///   [`Agent`] must implement [`SyncModel`] to synchronize its model.
-/// 
+///
 /// [`ActorManager`]: crate::ActorManager
 /// [`Actor`]: crate::Actor
 /// [`ReplayBufferBase::PushedItem`]: border_core::ReplayBufferBase::PushedItem
@@ -58,7 +58,7 @@ where
     A: Agent<E, R> + SyncModel,
     E: Env,
     // R: ReplayBufferBase + Sync + Send + 'static,
-    R: ReplayBufferBase,
+    R: ReplayBufferBase + Send + 'static,
     R::PushedItem: Send + 'static,
 {
     /// Where to save the trained model.
@@ -81,6 +81,9 @@ where
 
     /// The number of episodes for evaluation
     eval_episodes: usize,
+
+    /// Number of replay buffer Divisions
+    n_div_replaybuffer: usize,
 
     /// Receiver of pushed items.
     r_bulk_pushed_item: Receiver<PushedItemMessage<R::PushedItem>>,
@@ -108,7 +111,7 @@ where
     A: Agent<E, R> + SyncModel,
     E: Env,
     // R: ReplayBufferBase + Sync + Send + 'static,
-    R: ReplayBufferBase,
+    R: ReplayBufferBase + Send + 'static,
     R::PushedItem: Send + 'static,
 {
     /// Creates [`AsyncTrainer`].
@@ -129,6 +132,7 @@ where
             save_interval: config.save_interval,
             sync_interval: config.sync_interval,
             eval_episodes: config.eval_episodes,
+            n_div_replaybuffer: config.n_div_replaybuffer,
             agent_config: agent_config.clone(),
             env_config: env_config.clone(),
             replay_buffer_config: replay_buffer_config.clone(),
@@ -192,14 +196,15 @@ where
         &mut self,
         record: &mut Record,
         opt_steps_: &mut usize,
-        samples: &mut usize,
         time: &mut SystemTime,
+        samples_total_prev: &mut usize,
         samples_total: usize,
     ) {
+        let samples = samples_total - *samples_total_prev;
         let duration = time.elapsed().unwrap().as_secs_f32();
         let ops = (*opt_steps_ as f32) / duration;
-        let sps = (*samples as f32) / duration;
-        let spo = (*samples as f32) / (*opt_steps_ as f32);
+        let sps = (samples as f32) / duration;
+        let spo = (samples as f32) / (*opt_steps_ as f32);
         record.insert("samples_total", Scalar(samples_total as _));
         record.insert("opt_steps_per_sec", Scalar(ops));
         record.insert("samples_per_sec", Scalar(sps));
@@ -208,7 +213,7 @@ where
 
         // Reset counter
         *opt_steps_ = 0;
-        *samples = 0;
+        *samples_total_prev = samples_total;
         *time = SystemTime::now();
     }
 
@@ -266,7 +271,11 @@ where
     /// These values will typically be monitored with tensorboard.
     ///
     /// [`ExperienceBufferBase::PushedItem`]: border_core::ExperienceBufferBase::PushedItem
-    pub fn train(&mut self, recorder: &mut impl Recorder, guard_init_env: Arc<Mutex<bool>>) -> AsyncTrainStat {
+    pub fn train(
+        &mut self,
+        recorder: &mut impl Recorder,
+        guard_init_env: Arc<Mutex<bool>>,
+    ) -> AsyncTrainStat {
         // TODO: error handling
         let mut env = {
             let mut tmp = guard_init_env.lock().unwrap();
@@ -274,7 +283,8 @@ where
             E::build(&self.env_config, 0).unwrap()
         };
         let mut agent = A::build(self.agent_config.clone());
-        let mut buffer = R::build(&self.replay_buffer_config);
+        let mut buffer =
+            SplittedReplayBuffer::new(self.replay_buffer_config.clone(), self.n_div_replaybuffer);
         // let buffer = Arc::new(Mutex::new(R::build(&self.replay_buffer_config)));
         agent.train();
 
@@ -283,9 +293,8 @@ where
         let mut max_eval_reward = f32::MIN;
         let mut opt_steps = 0;
         let mut opt_steps_ = 0;
-        let mut samples = 0;
         let time_total = SystemTime::now();
-        let mut samples_total = 0;
+        let mut samples_total_prev = 0;
         let mut time = SystemTime::now();
 
         info!("Send model info first in AsyncTrainer");
@@ -295,15 +304,9 @@ where
         loop {
             // Update replay buffer
             let msgs: Vec<_> = self.r_bulk_pushed_item.try_iter().collect();
-            msgs.into_iter().for_each(|msg| {
-                samples += msg.pushed_items.len();
-                samples_total += msg.pushed_items.len();
-                msg.pushed_items
-                    .into_iter()
-                    .for_each(|pushed_item| buffer.push(pushed_item).unwrap())
-            });
+            buffer.push(msgs);
 
-            let record = agent.opt(&mut buffer);
+            let record = agent.opt(&mut buffer.get_free_buffer_for_opt().lock().unwrap());
 
             if let Some(mut record) = record {
                 opt_steps += 1;
@@ -321,7 +324,13 @@ where
                 }
                 if do_record {
                     info!("Records training logs");
-                    self.record(&mut record, &mut opt_steps_, &mut samples, &mut time, samples_total);
+                    self.record(
+                        &mut record,
+                        &mut opt_steps_,
+                        &mut time,
+                        &mut samples_total_prev,
+                        buffer.samples_total(),
+                    );
                 }
                 if do_flush {
                     info!("Flushes records");
@@ -348,12 +357,123 @@ where
 
         let duration = time_total.elapsed().unwrap();
         let time_total = duration.as_secs_f32();
-        let samples_per_sec = samples_total as f32 / time_total;
+        let samples_per_sec = buffer.samples_total() as f32 / time_total;
         let opt_per_sec = self.max_train_steps as f32 / time_total;
         AsyncTrainStat {
             samples_per_sec,
             duration,
             opt_per_sec,
         }
+    }
+}
+
+struct SplittedReplayBuffer<R>
+where
+    R: ReplayBufferBase + Send + 'static,
+    R::PushedItem: Send + 'static,
+{
+    splitted_buffers: Vec<Arc<Mutex<R>>>,
+    samples_total: usize,
+    rng: fastrand::Rng,
+    // thread: Option<JoinHandle<()>>,
+}
+
+impl<R> SplittedReplayBuffer<R>
+where
+    R: ReplayBufferBase + Send + 'static,
+    R::PushedItem: Send + 'static,
+{
+    fn new(mut replay_buffer_config: R::Config, n_div: usize) -> Self {
+        // Refer to the comments on the push method for the reason why 3 or more are required.
+        assert!(n_div >= 3);
+
+        let new_capacity = replay_buffer_config.get_capacity() / n_div;
+        replay_buffer_config.set_capacity(new_capacity);
+
+        let splitted_buffers = (0..n_div)
+            .into_iter()
+            .map(|_| Arc::new(Mutex::new(R::build(&replay_buffer_config))))
+            .collect::<Vec<_>>();
+        Self {
+            splitted_buffers,
+            samples_total: 0,
+            rng: fastrand::Rng::with_seed(0),
+        }
+    }
+
+    fn push(&mut self, msgs: Vec<PushedItemMessage<R::PushedItem>>) {
+        let samples = msgs.iter().map(|msg| msg.pushed_items.len()).sum::<usize>();
+        // println!("samples: {}", samples);
+
+        if samples == 0 {
+            return;
+        }
+
+        self.samples_total += samples;
+
+        let ix_buffer = {
+            let ixs_free = self.ixs_free_buffer();
+            if ixs_free.len() >= 3 {
+                // If there are 3 or more free buffers, use one of the free buffers.
+                // This is to leave 2 or more choice when selecting a BUFFER in the OPT.
+                // If there is only one choice, the possibility arises that the same buffer will always be selected.
+
+                // println!("ixs_free.len(): {}", ixs_free.len());
+                ixs_free[self.rng.usize(..ixs_free.len())]
+            } else {
+                // If there are no more than 3 free buffers, use one of the non-free buffers.
+                let ixs_not_free = self.ixs_not_free_buffer();
+                // println!("ixs_not_free.len(): {}", ixs_not_free.len());
+                ixs_not_free[self.rng.usize(..ixs_not_free.len())]
+            }
+        };
+
+        let _ = self.splitted_buffers[ix_buffer].lock().unwrap(); // Wait until the lock is released.
+        let buffer = self.splitted_buffers[ix_buffer].clone();
+
+        std::thread::spawn(move || {
+            for msg in msgs.into_iter() {
+                let mut buffer_ = buffer.lock().unwrap();
+                for pushed_item in msg.pushed_items.into_iter() {
+                    buffer_.push(pushed_item).unwrap();
+                }
+            }
+        });
+    }
+
+    fn get_free_buffer_for_opt(&mut self) -> Arc<Mutex<R>> {
+        let ixs_free = self.ixs_free_buffer();
+        // println!(
+        //     "ixs_free.len() in get_free_buffer_for_opt: {}",
+        //     ixs_free.len()
+        // );
+        let ix_buffer = ixs_free[self.rng.usize(..ixs_free.len())];
+        self.splitted_buffers[ix_buffer].clone()
+    }
+
+    fn samples_total(&self) -> usize {
+        self.samples_total
+    }
+
+    fn ixs_free_buffer(&self) -> Vec<usize> {
+        self.splitted_buffers
+            .iter()
+            .enumerate()
+            .filter_map(|(i, buffer)| match buffer.try_lock() {
+                Ok(_) => Some(i),
+                Err(_) => None,
+            })
+            .collect::<Vec<_>>()
+    }
+
+    fn ixs_not_free_buffer(&self) -> Vec<usize> {
+        self.splitted_buffers
+            .iter()
+            .enumerate()
+            .filter_map(|(i, buffer)| match buffer.try_lock() {
+                Ok(_) => None,
+                Err(_) => Some(i),
+            })
+            .collect::<Vec<_>>()
     }
 }

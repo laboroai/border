@@ -23,6 +23,7 @@ async-trait = "0.1.51"
 crossbeam-channel = "0.5.1"
 serde_yaml = "0.8.7"
 thiserror = "1.0"
+fastrand = "1.4.0"
 
 [dev-dependencies]
 env_logger = "0.8.2"
