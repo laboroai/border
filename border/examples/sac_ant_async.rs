@@ -3,22 +3,18 @@ use border_async_trainer::{
     actor_stats_fmt, ActorManager as ActorManager_, ActorManagerConfig,
     AsyncTrainer as AsyncTrainer_, AsyncTrainerConfig,
 };
-use border_atari_env::{
-    BorderAtariAct, BorderAtariActRawFilter, BorderAtariEnv, BorderAtariEnvConfig, BorderAtariObs,
-    BorderAtariObsRawFilter,
-};
 use border_core::{
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    DefaultEvaluator, Env as _,
+    DefaultEvaluator,
 };
-use border_derive::{Act, Obs, SubBatch};
+use border_derive::SubBatch;
 use border_py_gym_env::{
     util::{arrayd_to_tensor, tensor_to_arrayd},
-    ArrayObsFilter, ContinuousActFilter, GymActFilter, GymContinuousAct, GymEnv, GymEnvConfig,
-    GymObs, GymObsFilter,
+    ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig,
+    GymObsFilter,
 };
 use border_tch_agent::{
     mlp::{Mlp, Mlp2, MlpConfig},

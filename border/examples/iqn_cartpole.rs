@@ -82,8 +82,8 @@ mod obs {
             Self(TensorSubBatch::new(capacity))
         }
 
-        fn push(&mut self, i: usize, data: &Self) {
-            self.0.push(i, &data.0)
+        fn push(&mut self, i: usize, data: Self) {
+            self.0.push(i, data.0)
         }
 
         fn sample(&self, ixs: &Vec<usize>) -> Self {
@@ -136,8 +136,8 @@ mod act {
             Self(TensorSubBatch::new(capacity))
         }
 
-        fn push(&mut self, i: usize, data: &Self) {
-            self.0.push(i, &data.0)
+        fn push(&mut self, i: usize, data: Self) {
+            self.0.push(i, data.0)
         }
 
         fn sample(&self, ixs: &Vec<usize>) -> Self {

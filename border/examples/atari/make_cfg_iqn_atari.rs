@@ -27,7 +27,7 @@ fn make_iqn_config(params: &Params) -> IqnConfig<Cnn, Mlp> {
     let hidden_dim = params.hidden_dim;
     let f_config = CnnConfig::new(n_stack, feature_dim)
         .skip_linear(true);
-    let m_config = MlpConfig::new(feature_dim, vec![hidden_dim], out_dim);
+    let m_config = MlpConfig::new(feature_dim, vec![hidden_dim], out_dim, false);
     let model_config = IqnModelConfig::default()
         .feature_dim(feature_dim)
         .embed_dim(params.embed_dim)
@@ -69,7 +69,6 @@ fn make_trainer_config(env_name: String, params: &Params) -> Result<TrainerConfi
         .opt_interval(opt_interval)
         .record_interval(record_interval)
         .eval_interval(params.eval_interval)
-        .eval_episodes(params.eval_episodes)
         .model_dir(model_dir)
         .save_interval(params.save_interval))
 }
