@@ -1,6 +1,7 @@
 //! A generic implementation of [`StdBatchBase`](crate::StdBatchBase).
 use super::SubBatch;
-use crate::StdBatchBase;
+use crate::{StdBatchBase, PushedItemBase, util::shuffle};
+use rand::{Rng, thread_rng};
 
 /// A generic implementation of [`StdBatchBase`](`crate::StdBatchBase`).
 pub struct StdBatch<O, A>
@@ -104,6 +105,50 @@ where
         }
     }
 }
+
+impl<O, A> PushedItemBase for StdBatch<O, A>
+where
+    O: SubBatch,
+    A: SubBatch,
+{
+    fn size(&self) -> usize {
+        self.reward.len()
+    }
+
+    fn shuffle_and_chunk(self, n: usize) -> Vec<Self> {
+        let batch_size = self.reward.len();
+        let seed: [u8; 32] = thread_rng().gen();
+        
+        let mut obs_iter = shuffle(self.obs.into_vec(), seed.clone()).into_iter();
+        let mut act_iter = shuffle(self.act.into_vec(), seed.clone()).into_iter();
+        let mut next_obs_iter = shuffle(self.next_obs.into_vec(), seed.clone()).into_iter();
+        let mut reward_iter = shuffle(self.reward, seed.clone()).into_iter();
+        let mut is_done_iter = shuffle(self.is_done, seed.clone()).into_iter();
+        let mut weight_iter = match self.weight {
+            Some(x) => shuffle(x.into_iter().map(|e| Some(e)).collect::<Vec<_>>(), seed.clone()).into_iter(),
+            None => vec![None; batch_size].into_iter(),
+        };
+        let mut ix_sample_iter = match self.ix_sample {
+            Some(x) => shuffle(x.into_iter().map(|e| Some(e)).collect::<Vec<_>>(), seed.clone()).into_iter(),
+            None => vec![None; batch_size].into_iter(),
+        };
+
+        let chunk_size = (batch_size as f64 / n as f64).ceil() as usize;
+
+        (0..n).into_iter().map(|_| {
+            Self {
+                obs: O::concat(obs_iter.by_ref().take(chunk_size).collect::<Vec<_>>()),
+                act: A::concat(act_iter.by_ref().take(chunk_size).collect::<Vec<_>>()),
+                next_obs: O::concat(next_obs_iter.by_ref().take(chunk_size).collect::<Vec<_>>()),
+                reward: reward_iter.by_ref().take(chunk_size).collect(),
+                is_done: is_done_iter.by_ref().take(chunk_size).collect(),
+                weight: weight_iter.by_ref().take(chunk_size).collect(),
+                ix_sample: ix_sample_iter.by_ref().take(chunk_size).collect(),
+            }
+        }).collect()
+    }
+}
+
 
 impl<O, A> StdBatch<O, A>
 where

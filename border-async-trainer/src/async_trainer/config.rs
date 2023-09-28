@@ -30,8 +30,11 @@ pub struct AsyncTrainerConfig {
     /// The number of episodes for evaluation
     pub eval_episodes: usize,
 
-    /// Number of replay buffer Divisions
+    /// Number of replay buffer divisions
     pub n_div_replaybuffer: usize,
+
+    /// Number of pushed_item divisions
+    pub n_div_pushed_item: usize,
 
     /// capacity of channel between each actor-manager and async-trainer
     pub channel_capacity: usize,

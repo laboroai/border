@@ -9,7 +9,7 @@ pub use agent::Agent;
 pub use batch::StdBatchBase;
 pub use env::Env;
 pub use policy::Policy;
-pub use replay_buffer::{ExperienceBufferBase, ReplayBufferBase, ReplayBufferBaseConfig};
+pub use replay_buffer::{ExperienceBufferBase, PushedItemBase, ReplayBufferBase, ReplayBufferBaseConfig};
 use std::fmt::Debug;
 pub use step::{Info, Step, StepProcessorBase};
 

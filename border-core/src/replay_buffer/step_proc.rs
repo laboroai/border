@@ -1,6 +1,6 @@
 //! A generic implementation of [StepProcessorBase](crate::StepProcessorBase).
 use std::{default::Default, marker::PhantomData};
-use crate::{Obs, Env, StepProcessorBase};
+use crate::{Obs, Env, StepProcessorBase, PushedItemBase};
 use super::{StdBatch, SubBatch};
 
 /// Configuration of [SimpleStepProcessor].

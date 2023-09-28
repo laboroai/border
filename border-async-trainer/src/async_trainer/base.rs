@@ -2,7 +2,7 @@ use crate::{AsyncTrainStat, AsyncTrainerConfig, PushedItemMessage, SyncModel};
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue::Scalar, Recorder},
-    Agent, Env, Obs, ReplayBufferBase, ReplayBufferBaseConfig,
+    Agent, Env, Obs, ReplayBufferBase, ReplayBufferBaseConfig, PushedItemBase,
 };
 use crossbeam_channel::{Receiver, Sender};
 use log::info;
@@ -81,8 +81,11 @@ where
     /// The number of episodes for evaluation
     eval_episodes: usize,
 
-    /// Number of replay buffer Divisions
+    /// Number of replay buffer divisions
     n_div_replaybuffer: usize,
+
+    /// Number of pushed item divisions
+    n_div_pushed_item: usize,
 
     /// Receiver of pushed items.
     r_bulk_pushed_item: Receiver<PushedItemMessage<R::PushedItem>>,
@@ -131,6 +134,7 @@ where
             sync_interval: config.sync_interval,
             eval_episodes: config.eval_episodes,
             n_div_replaybuffer: config.n_div_replaybuffer,
+            n_div_pushed_item: config.n_div_pushed_item,
             agent_config: agent_config.clone(),
             env_config: env_config.clone(),
             replay_buffer_config: replay_buffer_config.clone(),
@@ -282,8 +286,11 @@ where
         };
         let mut agent = A::build(self.agent_config.clone());
         let mut async_buffer = 
-            AsyncReplayBuffer::new(self.replay_buffer_config.clone(), self.n_div_replaybuffer);
-        async_buffer.run(self.r_bulk_pushed_item.clone());
+            AsyncReplayBuffer::new(
+                self.replay_buffer_config.clone(),
+                self.n_div_replaybuffer,
+            );
+        async_buffer.run(self.r_bulk_pushed_item.clone(), self.n_div_pushed_item);
 
         // let buffer = Arc::new(Mutex::new(R::build(&self.replay_buffer_config)));
         agent.train();
@@ -378,14 +385,14 @@ where
     R: ReplayBufferBase + Send + 'static,
     R::PushedItem: Send + 'static,
 {
-    fn new(mut replay_buffer_config: R::Config, n_div: usize) -> Self {
+    fn new(mut replay_buffer_config: R::Config, n_div_replaybuffer: usize) -> Self {
         // Refer to the comments on the push method for the reason why 3 or more are required.
-        assert!(n_div >= 3);
+        assert!(n_div_replaybuffer >= 3);
 
-        let new_capacity = replay_buffer_config.get_capacity() / n_div;
+        let new_capacity = replay_buffer_config.get_capacity() / n_div_replaybuffer;
         replay_buffer_config.set_capacity(new_capacity);
 
-        let splitted_buffers = (0..n_div)
+        let splitted_buffers = (0..n_div_replaybuffer)
             .into_iter()
             .map(|_| Arc::new(Mutex::new(R::build(&replay_buffer_config))))
             .collect::<Vec<_>>();
@@ -458,9 +465,16 @@ where
     R: ReplayBufferBase + Send + 'static,
     R::PushedItem: Send + 'static,
 {
-    fn new(replay_buffer_config: R::Config, n_div: usize) -> Self {
+    fn new(
+        replay_buffer_config: R::Config,
+        n_div_replaybuffer: usize,
+    ) -> Self {
+        let splitted_buffers = Arc::new(SplittedReplayBuffer::new(
+            replay_buffer_config,
+            n_div_replaybuffer,
+        ));
         Self {
-            splitted_buffers: Arc::new(SplittedReplayBuffer::new(replay_buffer_config, n_div)),
+            splitted_buffers,
             samples_total: Arc::new(Mutex::new(0)),
         }
     }
@@ -468,6 +482,7 @@ where
     fn run(
         &mut self,
         receiver: Receiver<PushedItemMessage<R::PushedItem>>,
+        n_div_pushed_item: usize,
     ) {
         let splitted_buffers = self.splitted_buffers.clone();
         let samples_total = self.samples_total.clone();
@@ -476,6 +491,7 @@ where
                 splitted_buffers,
                 samples_total,
                 receiver,
+                n_div_pushed_item,
             );
         });
     }
@@ -484,26 +500,39 @@ where
         splitted_buffers: Arc<SplittedReplayBuffer<R>>,
         samples_total: Arc<Mutex<usize>>,
         receiver: Receiver<PushedItemMessage<R::PushedItem>>,
+        n_div_pushed_item: usize
     ) {
         for msg in receiver.iter() {
-            let samples = msg.pushed_items.len();
+            // let samples = msg.pushed_items.len();
+            let samples = msg.pushed_items.iter().map(|e| e.size()).sum::<usize>();
+            // println!("samples: {}", samples);
 
             if samples == 0 {
                 continue
             }
 
             *samples_total.lock().unwrap() += samples;
-            // println!("samples: {}", samples);        
     
-            let ix_buffer = splitted_buffers.ix_push_buffer();
-            let buf = splitted_buffers.splitted_buffers[ix_buffer].clone();
-            
-            std::thread::spawn(move || {
-                let mut buf_ = buf.lock().unwrap();
-                for pushed_item in msg.pushed_items.into_iter() {
-                    buf_.push(pushed_item).unwrap();
+            for pushed_item in msg.pushed_items.into_iter() {
+                if pushed_item.size() == 0 {
+                    continue
                 }
-            });
+
+                let chunks = if n_div_pushed_item == 1 {
+                    vec![pushed_item]
+                } else {
+                    pushed_item.shuffle_and_chunk(n_div_pushed_item)
+                };
+
+                for chunk in chunks {
+                    let ix_buffer = splitted_buffers.ix_push_buffer();
+                    let buf = splitted_buffers.splitted_buffers[ix_buffer].clone();    
+                    std::thread::spawn(move || {
+                        let mut buf_ = buf.lock().unwrap();
+                        buf_.push(chunk).unwrap();
+                    });
+                }
+            }
         }
     }
 

@@ -10,4 +10,10 @@ pub trait SubBatch: Clone {
 
     /// Takes samples in the batch.
     fn sample(&self, ixs: &Vec<usize>) -> Self;
+
+    /// Convert to a vector with each data in batch as an element.
+    fn into_vec(self) -> Vec<Self>;
+
+    /// Concat vectors
+    fn concat(vec: Vec<Self>) -> Self;
 }
