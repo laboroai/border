@@ -83,7 +83,7 @@ impl SubBatch for TensorSubBatch {
     ///
     /// If the internal buffer is empty, it will be initialized with the shape
     /// `[capacity, data.buf.size()[1..]]`.
-    fn push(&mut self, index: usize, data: &Self) {
+    fn push(&mut self, index: usize, data: Self) {
         if data.buf.is_none() {
             return;
         }

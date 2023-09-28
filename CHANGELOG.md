@@ -2,6 +2,12 @@
 
 ## v0.0.6 (20??-??-??)
 
+### Changed
+
+* Take `self` in the signature of `push()` method of replay buffer (`border-core`)
+
+## v0.0.6 (2023-09-19)
+
 ### Added
 
 * Docker files (`border`).
