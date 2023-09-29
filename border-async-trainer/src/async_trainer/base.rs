@@ -10,6 +10,7 @@ use std::{
     marker::PhantomData,
     sync::{Arc, Mutex},
     time::SystemTime,
+    collections::HashSet,
 };
 
 #[cfg_attr(doc, aquamarine::aquamarine)]
@@ -413,7 +414,10 @@ where
             ixs_free[fastrand::usize(..ixs_free.len())]
         } else {
             // If there are no more than 3 free buffers, use one of the non-free buffers.
-            let ixs_not_free = self.ixs_not_free_buffer();
+            
+            // println!("ixs_free: {:?}", ixs_free);
+            let ixs_not_free = self.ixs_not_free_buffer(ixs_free);
+            // println!("ixs_not_free: {:?}", ixs_not_free);
             // println!("ixs_not_free.len(): {}", ixs_not_free.len());
             ixs_not_free[fastrand::usize(..ixs_not_free.len())]
         }
@@ -439,15 +443,10 @@ where
             .collect::<Vec<_>>()
     }
 
-    fn ixs_not_free_buffer(&self) -> Vec<usize> {
-        self.splitted_buffers
-            .iter()
-            .enumerate()
-            .filter_map(|(i, buffer)| match buffer.try_lock() {
-                Ok(_) => None,
-                Err(_) => Some(i),
-            })
-            .collect::<Vec<_>>()
+    fn ixs_not_free_buffer(&self, ixs_free_buffer: Vec<usize>) -> Vec<usize> {
+        let ixs_all_buffer: HashSet<usize> = (0..self.splitted_buffers.len()).into_iter().collect();
+        let ixs_free_buffer: HashSet<usize> = ixs_free_buffer.into_iter().collect();
+        ixs_all_buffer.difference(&ixs_free_buffer).cloned().collect()
     }
 }
 
