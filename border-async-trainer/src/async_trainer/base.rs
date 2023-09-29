@@ -4,7 +4,7 @@ use border_core::{
     record::{Record, RecordValue::Scalar, Recorder},
     Agent, Env, Obs, ReplayBufferBase, ReplayBufferBaseConfig, PushedItemBase,
 };
-use crossbeam_channel::{Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender, unbounded};
 use log::info;
 use std::{
     marker::PhantomData,
@@ -414,7 +414,7 @@ where
             ixs_free[fastrand::usize(..ixs_free.len())]
         } else {
             // If there are no more than 3 free buffers, use one of the non-free buffers.
-            
+
             // println!("ixs_free: {:?}", ixs_free);
             let ixs_not_free = self.ixs_not_free_buffer(ixs_free);
             // println!("ixs_not_free: {:?}", ixs_not_free);
@@ -525,11 +525,18 @@ where
 
                 for chunk in chunks {
                     let ix_buffer = splitted_buffers.ix_push_buffer();
-                    let buf = splitted_buffers.splitted_buffers[ix_buffer].clone();    
+                    // println!("ix_buffer: {}", ix_buffer);
+                    let buf = splitted_buffers.splitted_buffers[ix_buffer].clone();
+                    let (s, r) = unbounded();
+                    
                     std::thread::spawn(move || {
                         let mut buf_ = buf.lock().unwrap();
+                        s.send(()).unwrap();
                         buf_.push(chunk).unwrap();
                     });
+                    
+                    // Wait until buffer lock is taken in the child thread
+                    r.recv().unwrap()
                 }
             }
         }
