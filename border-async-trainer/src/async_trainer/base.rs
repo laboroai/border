@@ -378,6 +378,7 @@ where
     R::PushedItem: Send + 'static,
 {
     splitted_buffers: Arc<Vec<Arc<Mutex<R>>>>,
+    ix_selected_buffer_for_opt: Arc<Mutex<usize>>,
     // rng: fastrand::Rng,
 }
 
@@ -399,23 +400,33 @@ where
             .collect::<Vec<_>>();
         Self {
             splitted_buffers: Arc::new(splitted_buffers),
+            ix_selected_buffer_for_opt: Arc::new(Mutex::new(0)),
             // rng: fastrand::Rng::with_seed(0),
         }
     }
 
     fn ix_push_buffer(&self) -> usize {
-        let ixs_free = self.ixs_free_buffer();
-        if ixs_free.len() >= 3 {
-            // If there are 3 or more free buffers, use one of the free buffers.
-            // This is to leave 2 or more choice when selecting a BUFFER in the OPT.
-            // If there is only one choice, the possibility arises that the same buffer will always be selected.
+        let ix_selected_buffer_for_opt = self.ix_selected_buffer_for_opt.lock().unwrap().clone();
+        
+        // If the last buffer used by opt is free, use it.
+        match self.splitted_buffers[ix_selected_buffer_for_opt].try_lock() {
+            Ok(_) => return ix_selected_buffer_for_opt,
+            Err(_) => {}
+        }
 
+        let ixs_free = self.ixs_free_buffer();
+
+        if ixs_free.len() >= 2 {
+            // To leave at least one choice when selecting an opt buffer,
+            // use one from the free buffers only if there are at least two free buffers.
+            // The assumption is that an opt buffer is selected from free buffers
+            // except the buffer selected for the last opt.
+                        
+            // println!("ixs_free: {:?}", ixs_free);
+            // println!("ix_selected_buffer_for_opt: {}", self.ix_selected_buffer_for_opt.lock().unwrap());
             // println!("ixs_free.len(): {}", ixs_free.len());
             ixs_free[fastrand::usize(..ixs_free.len())]
         } else {
-            // If there are no more than 3 free buffers, use one of the non-free buffers.
-
-            // println!("ixs_free: {:?}", ixs_free);
             let ixs_not_free = self.ixs_not_free_buffer(ixs_free);
             // println!("ixs_not_free: {:?}", ixs_not_free);
             // println!("ixs_not_free.len(): {}", ixs_not_free.len());
@@ -424,12 +435,25 @@ where
     }
 
     fn ix_opt_buffer(&self) -> usize {
-        let ixs_free = self.ixs_free_buffer();
-        // println!(
-        //     "ixs_free.len() in get_free_buffer_for_opt: {}",
-        //     ixs_free.len()
-        // );
-        ixs_free[fastrand::usize(..ixs_free.len())]
+        let ixs_free_except_prev = {
+            let mut ixs = self.ixs_free_buffer();
+
+            // Use a different buffer from the previous one
+            let ix_selected_buffer_for_opt = self.ix_selected_buffer_for_opt.lock().unwrap().clone();
+            ixs.retain(|&x| x != ix_selected_buffer_for_opt);
+
+            // println!(
+            //     "ixs_free.len() in get_free_buffer_for_opt: {}",
+            //     ixs_free.len()
+            // );
+            ixs 
+        };
+        
+        if ixs_free_except_prev.len() > 0 {
+            ixs_free_except_prev[fastrand::usize(..ixs_free_except_prev.len())]
+        } else {
+            fastrand::usize(..self.splitted_buffers.len())
+        }
     }
 
     fn ixs_free_buffer(&self) -> Vec<usize> {
@@ -544,6 +568,7 @@ where
 
     fn get_buffer_for_opt(&self) -> Arc<Mutex<R>> {
         let ix_buffer = self.splitted_buffers.ix_opt_buffer();
+        *self.splitted_buffers.ix_selected_buffer_for_opt.lock().unwrap() = ix_buffer;
         self.splitted_buffers.splitted_buffers[ix_buffer].clone()
     }
 
