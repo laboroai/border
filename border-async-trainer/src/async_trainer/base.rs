@@ -536,32 +536,29 @@ where
 
             *samples_total.lock().unwrap() += samples;
     
-            for pushed_item in msg.pushed_items.into_iter() {
-                if pushed_item.size() == 0 {
-                    continue
-                }
-
-                let chunks = if n_div_pushed_item == 1 {
-                    vec![pushed_item]
+            let chunks = {
+                let marged_pushed_item = R::PushedItem::concat(msg.pushed_items.into_iter().collect::<Vec<_>>());
+                if n_div_pushed_item == 1 {
+                    vec![marged_pushed_item]
                 } else {
-                    pushed_item.shuffle_and_chunk(n_div_pushed_item)
-                };
+                    marged_pushed_item.shuffle_and_chunk(n_div_pushed_item)
+                }    
+            };
 
-                for chunk in chunks {
-                    let ix_buffer = splitted_buffers.ix_push_buffer();
-                    // println!("ix_buffer: {}", ix_buffer);
-                    let buf = splitted_buffers.splitted_buffers[ix_buffer].clone();
-                    let (s, r) = unbounded();
-                    
-                    std::thread::spawn(move || {
-                        let mut buf_ = buf.lock().unwrap();
-                        s.send(()).unwrap();
-                        buf_.push(chunk).unwrap();
-                    });
-                    
-                    // Wait until buffer lock is taken in the child thread
-                    r.recv().unwrap()
-                }
+            for chunk in chunks {
+                let ix_buffer = splitted_buffers.ix_push_buffer();
+                // println!("ix_buffer: {}", ix_buffer);
+                let buf = splitted_buffers.splitted_buffers[ix_buffer].clone();
+                let (s, r) = unbounded();
+                
+                std::thread::spawn(move || {
+                    let mut buf_ = buf.lock().unwrap();
+                    s.send(()).unwrap();
+                    buf_.push(chunk).unwrap();
+                });
+                
+                // Wait until buffer lock is taken in the child thread
+                r.recv().unwrap()
             }
         }
     }

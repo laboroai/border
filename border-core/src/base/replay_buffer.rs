@@ -24,6 +24,9 @@ pub trait PushedItemBase: Sized {
     
     /// split into n items after shuffle.
     fn shuffle_and_chunk(self, n: usize) -> Vec<Self>;
+
+    /// concat items
+    fn concat(vec: Vec<Self>) -> Self;
 }
 
 /// Interface of replay buffers.

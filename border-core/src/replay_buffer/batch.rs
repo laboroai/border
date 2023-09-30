@@ -147,6 +147,41 @@ where
             }
         }).collect()
     }
+
+    fn concat(vec: Vec<Self>) -> Self {
+        let mut obs_vec = Vec::new();
+        let mut act_vec = Vec::new();
+        let mut next_obs_vec = Vec::new();
+        let mut reward = Vec::new();
+        let mut is_done = Vec::new();
+        let mut weight = Some(Vec::new());
+        let mut ix_sample = Some(Vec::new());
+        for mut item in vec.into_iter() {
+            obs_vec.push(item.obs);
+            act_vec.push(item.act);
+            next_obs_vec.push(item.next_obs);
+            reward.append(&mut item.reward);
+            is_done.append(&mut item.is_done);
+            match item.weight {
+                Some(mut x) => weight.as_mut().unwrap().append(&mut x),
+                None => weight = None,
+            };
+            match item.ix_sample {
+                Some(mut x) => ix_sample.as_mut().unwrap().append(&mut x),
+                None => ix_sample = None,
+            };
+        }
+        
+        Self {
+            obs: O::concat(obs_vec),
+            act: A::concat(act_vec),
+            next_obs: O::concat(next_obs_vec),
+            reward,
+            is_done,
+            weight,
+            ix_sample,
+        }
+    }
 }
 
 
