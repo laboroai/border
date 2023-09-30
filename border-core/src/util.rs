@@ -5,6 +5,7 @@ use crate::{
     Env, Policy
 };
 use anyhow::Result;
+use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
 
 // /// Takes an action based on the policy and apply it to the environment.
 // ///
@@ -180,4 +181,10 @@ where
     }
 
     Ok((r_total, prev_obs))
+}
+
+pub fn shuffle<T>(mut vec: Vec<T>, seed: [u8; 32]) -> Vec<T> {
+    let mut rng = StdRng::from_seed(seed);
+    vec.shuffle(&mut rng);
+    vec
 }

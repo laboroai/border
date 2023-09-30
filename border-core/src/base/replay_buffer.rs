@@ -8,13 +8,25 @@ use anyhow::Result;
 /// This trait is usually required by processes sampling experiences.
 pub trait ExperienceBufferBase {
     /// Items pushed into the buffer.
-    type PushedItem;
+    type PushedItem: PushedItemBase;
 
     /// Pushes a transition into the buffer.
     fn push(&mut self, tr: Self::PushedItem) -> Result<()>;
 
     /// The number of samples in the buffer.
     fn len(&self) -> usize;
+}
+
+/// Trait for items pushed into the buffer.
+pub trait PushedItemBase: Sized {
+    /// Number of samples
+    fn size(&self) -> usize;
+    
+    /// split into n items after shuffle.
+    fn shuffle_and_chunk(self, n: usize) -> Vec<Self>;
+
+    /// concat items
+    fn concat(vec: Vec<Self>) -> Self;
 }
 
 /// Interface of replay buffers.

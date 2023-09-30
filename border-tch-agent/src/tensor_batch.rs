@@ -107,6 +107,14 @@ where
             phantom: PhantomData,
         }
     }
+
+    fn into_vec(self) -> Vec<Self> {
+        unimplemented!()
+    }
+
+    fn concat(_vec: Vec<Self>) -> Self {
+        unimplemented!()
+    }
 }
 
 impl<S, D> From<TensorSubBatch<S, D>> for Tensor {

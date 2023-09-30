@@ -2,7 +2,7 @@ use crate::{AsyncTrainStat, AsyncTrainerConfig, PushedItemMessage, SyncModel};
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue::Scalar, Recorder},
-    Agent, Env, Obs, ReplayBufferBase, ReplayBufferBaseConfig,
+    Agent, Env, Obs, ReplayBufferBase, ReplayBufferBaseConfig, PushedItemBase,
 };
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use log::info;
@@ -85,6 +85,9 @@ where
     /// Number of replay buffer divisions
     n_div_replaybuffer: usize,
 
+    /// Number of pushed item divisions
+    n_div_pushed_item: usize,
+
     /// Receiver of pushed items.
     r_bulk_pushed_item: Receiver<PushedItemMessage<R::PushedItem>>,
 
@@ -132,6 +135,7 @@ where
             sync_interval: config.sync_interval,
             eval_episodes: config.eval_episodes,
             n_div_replaybuffer: config.n_div_replaybuffer,
+            n_div_pushed_item: config.n_div_pushed_item,
             agent_config: agent_config.clone(),
             env_config: env_config.clone(),
             replay_buffer_config: replay_buffer_config.clone(),
@@ -287,7 +291,7 @@ where
                 self.replay_buffer_config.clone(),
                 self.n_div_replaybuffer,
             );
-        async_buffer.run(self.r_bulk_pushed_item.clone());
+        async_buffer.run(self.r_bulk_pushed_item.clone(), self.n_div_pushed_item);
 
         // let buffer = Arc::new(Mutex::new(R::build(&self.replay_buffer_config)));
         agent.train();
@@ -405,8 +409,9 @@ where
         let ix_selected_buffer_for_opt = self.ix_selected_buffer_for_opt.lock().unwrap().clone();
         
         // If the last buffer used by opt is free, use it.
-        if let Ok(_) = self.splitted_buffers[ix_selected_buffer_for_opt].try_lock() {
-            return ix_selected_buffer_for_opt
+        match self.splitted_buffers[ix_selected_buffer_for_opt].try_lock() {
+            Ok(_) => return ix_selected_buffer_for_opt,
+            Err(_) => {}
         }
 
         let ixs_free = self.ixs_free_buffer();
@@ -500,6 +505,7 @@ where
     fn run(
         &mut self,
         receiver: Receiver<PushedItemMessage<R::PushedItem>>,
+        n_div_pushed_item: usize,
     ) {
         let splitted_buffers = self.splitted_buffers.clone();
         let samples_total = self.samples_total.clone();
@@ -508,6 +514,7 @@ where
                 splitted_buffers,
                 samples_total,
                 receiver,
+                n_div_pushed_item,
             );
         });
     }
@@ -516,35 +523,51 @@ where
         splitted_buffers: Arc<SplittedReplayBuffer<R>>,
         samples_total: Arc<Mutex<usize>>,
         receiver: Receiver<PushedItemMessage<R::PushedItem>>,
+        n_div_pushed_item: usize
     ) {
         for msg in receiver.iter() {
-            let samples = msg.pushed_items.len();
+            // let samples = msg.pushed_items.len();
+            let samples = msg.pushed_items.iter().map(|e| e.size()).sum::<usize>();
+            // println!("samples: {}", samples);
+
+            if samples == 0 {
+                continue
+            }
 
             *samples_total.lock().unwrap() += samples;
     
-            let ix_buffer = splitted_buffers.ix_push_buffer();
-            // println!("ix_buffer: {}", ix_buffer);
-            let buf = splitted_buffers.splitted_buffers[ix_buffer].clone();
-            let (s, r) = unbounded();
-            
-            std::thread::spawn(move || {
-                let try_lock_result = buf.try_lock();
-                s.send(()).unwrap();
-                let mut buf_ = match try_lock_result {
-                    Ok(b) => b,
-                    Err(_) => buf.lock().unwrap(),
-                };
+            let chunks = {
+                let marged_pushed_item = R::PushedItem::concat(msg.pushed_items.into_iter().collect::<Vec<_>>());
+                if n_div_pushed_item == 1 {
+                    vec![marged_pushed_item]
+                } else {
+                    marged_pushed_item.shuffle_and_chunk(n_div_pushed_item)
+                }    
+            };
 
-                for pushed_item in msg.pushed_items.into_iter() {
-                    buf_.push(pushed_item).unwrap();
-                }
-            });
-            
-            // Wait until buffer lock is taken in the child thread
-            // Without this, the next push_buffer selection will be 
-            // executed before the currently selected push_buffer is locked,
-            // and the currently selected push_buffer may be selected as a free_buffer.
-            r.recv().unwrap()
+            for chunk in chunks {
+                let ix_buffer = splitted_buffers.ix_push_buffer();
+                // println!("ix_buffer: {}", ix_buffer);
+                let buf = splitted_buffers.splitted_buffers[ix_buffer].clone();
+                let (s, r) = unbounded();
+                
+                std::thread::spawn(move || {
+                    let try_lock_result = buf.try_lock();
+                    s.send(()).unwrap();
+                    let mut buf_ = match try_lock_result {
+                        Ok(b) => b,
+                        Err(_) => buf.lock().unwrap(),
+                    };
+
+                    buf_.push(chunk).unwrap();
+                });
+                
+                // Wait until buffer lock is taken in the child thread
+                // Without this, the next push_buffer selection will be 
+                // executed before the currently selected push_buffer is locked,
+                // and the currently selected push_buffer may be selected as a free_buffer.
+                r.recv().unwrap()
+            }
         }
     }
 
