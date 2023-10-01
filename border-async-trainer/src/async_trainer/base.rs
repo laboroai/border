@@ -526,7 +526,10 @@ where
     }
 
     fn get_buffer_for_opt(&self) -> Arc<Mutex<R>> {
+        let time_tmp = SystemTime::now();
         let ix_buffer = self.splitted_buffers.ix_opt_buffer();
+        println!("time ix_opt_buffer: {}", time_tmp.elapsed().unwrap().as_secs_f32());
+        
         self.splitted_buffers.splitted_buffers[ix_buffer].clone()
     }
 
