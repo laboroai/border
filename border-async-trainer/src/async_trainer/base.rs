@@ -307,9 +307,21 @@ where
         info!("Starts training loop");
         loop {
 
-            let record = agent.opt(&mut async_buffer.get_buffer_for_opt().lock().unwrap());
+            let record = {                
+                let time_tmp = SystemTime::now();
+                let buf = async_buffer.get_buffer_for_opt();
+                let mut buf = buf.lock().unwrap();
+                println!("time get_buffer_for_opt: {}", time_tmp.elapsed().unwrap().as_secs_f32());
+                
+                let time_tmp = SystemTime::now();
+                let record = agent.opt(&mut buf);
+                println!("time opt: {}", time_tmp.elapsed().unwrap().as_secs_f32());
+                record
+            };
 
             if let Some(mut record) = record {
+                let time_tmp = SystemTime::now();
+
                 opt_steps += 1;
                 opt_steps_ += 1;
 
@@ -352,6 +364,7 @@ where
                     info!("Sends the trained model info to ActorManager");
                     self.sync(&agent);
                 }
+                println!("time others: {}", time_tmp.elapsed().unwrap().as_secs_f32());
             }
         }
         info!("Stopped training loop");
