@@ -1,7 +1,7 @@
 //! This program is used to quickly check pybullet works properly with pyo3.
 
 use anyhow::Result;
-use pyo3::{Python, types::IntoPyDict};
+use pyo3::{types::IntoPyDict, Python};
 // With a version of tch, commenting out the following line causes segmentation fault.
 // use tch::Tensor;
 

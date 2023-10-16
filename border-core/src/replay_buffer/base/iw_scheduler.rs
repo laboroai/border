@@ -20,7 +20,12 @@ pub struct IwScheduler {
 impl IwScheduler {
     /// Creates a scheduler.
     pub fn new(beta_0: f32, beta_final: f32, n_opts_final: usize) -> Self {
-        Self { beta_0, beta_final, n_opts_final, n_opts: 0 }
+        Self {
+            beta_0,
+            beta_final,
+            n_opts_final,
+            n_opts: 0,
+        }
     }
 
     /// Gets the exponents of importance sampling weight.

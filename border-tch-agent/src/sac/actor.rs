@@ -1,5 +1,5 @@
 //! Actor of SAC agent.
-mod config;
 mod base;
-pub use config::ActorConfig;
+mod config;
 pub use base::Actor;
+pub use config::ActorConfig;

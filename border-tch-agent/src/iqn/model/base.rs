@@ -487,7 +487,7 @@ mod test {
             .feature_dim(feature_dim)
             .embed_dim(embed_dim)
             .learning_rate(learning_rate);
-        
+
         IqnModel::build_with_submodel_configs(config, fe_config, m_config, device)
     }
 

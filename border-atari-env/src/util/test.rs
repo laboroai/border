@@ -179,7 +179,7 @@ impl<R: ReplayBufferBase> Agent_<Env, R> for RandomAgent {
         if buffer.len() <= 100 {
             None
         } else {
-        // Do nothing
+            // Do nothing
             self.n_opts_steps += 1;
             Some(Record::empty())
         }

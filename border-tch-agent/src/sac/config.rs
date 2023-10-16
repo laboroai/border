@@ -75,7 +75,7 @@ where
             replay_burffer_capacity: self.replay_burffer_capacity.clone(),
             n_critics: self.n_critics.clone(),
             seed: self.seed.clone(),
-            device: self.device.clone() 
+            device: self.device.clone(),
         }
     }
 }

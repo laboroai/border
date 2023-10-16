@@ -31,7 +31,7 @@ impl From<candle_core::Device> for Device {
                 unimplemented!();
                 // let n = cuda_device.
                 // Self::Cuda(n)
-            },
+            }
         }
     }
 }

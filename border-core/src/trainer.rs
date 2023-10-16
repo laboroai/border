@@ -3,7 +3,7 @@ mod config;
 mod sampler;
 use crate::{
     record::{Record, Recorder},
-    Agent, Env, ReplayBufferBase, StepProcessorBase, Evaluator,
+    Agent, Env, Evaluator, ReplayBufferBase, StepProcessorBase,
 };
 use anyhow::Result;
 pub use config::TrainerConfig;
@@ -221,7 +221,12 @@ where
     }
 
     /// Train the agent.
-    pub fn train<A, S, D>(&mut self, agent: &mut A, recorder: &mut S, evaluator: &mut D) -> Result<()>
+    pub fn train<A, S, D>(
+        &mut self,
+        agent: &mut A,
+        recorder: &mut S,
+        evaluator: &mut D,
+    ) -> Result<()>
     where
         A: Agent<E, R>,
         S: Recorder,

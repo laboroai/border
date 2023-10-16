@@ -1,5 +1,8 @@
 use anyhow::Result;
-use border_tch_agent::{iqn::{IqnExplorer, EpsilonGreedy}, opt::OptimizerConfig};
+use border_tch_agent::{
+    iqn::{EpsilonGreedy, IqnExplorer},
+    opt::OptimizerConfig,
+};
 use std::{default::Default, path::Path};
 
 #[derive(Clone)]
@@ -43,7 +46,7 @@ impl Default for Params {
                 lr: 1e-5,
                 // eps: 0.01 / 32.0
             },
-        
+
             // Agent parameters
             replay_buffer_capacity: 1_048_576,
             per: false,
@@ -52,11 +55,7 @@ impl Default for Params {
             min_transition_warmup: 2500,
             soft_update_interval: 10_000,
             tau: 1.0,
-            explorer: EpsilonGreedy::with_params(
-                1.0,
-                0.02,
-                1_000_000,
-            ),
+            explorer: EpsilonGreedy::with_params(1.0, 0.02, 1_000_000),
 
             // Trainer parameters
             max_opts: 50_000_000,

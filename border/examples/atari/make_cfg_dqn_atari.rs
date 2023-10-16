@@ -6,7 +6,7 @@ use border_core::{
     TrainerConfig,
 };
 use border_tch_agent::{
-    cnn::{CnnConfig, Cnn},
+    cnn::{Cnn, CnnConfig},
     dqn::{DqnConfig, DqnModelConfig}, //, EpsilonGreedy, DQNExplorer},
     opt::OptimizerConfig,
 };

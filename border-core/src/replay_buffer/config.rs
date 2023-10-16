@@ -1,4 +1,5 @@
 //! Configuration of [SimpleReplayBuffer](super::SimpleReplayBuffer).
+use super::{WeightNormalizer, WeightNormalizer::All};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -7,7 +8,6 @@ use std::{
     io::{BufReader, Write},
     path::Path,
 };
-use super::{WeightNormalizer, WeightNormalizer::All};
 
 /// Configuration for prioritized experience replay.
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]

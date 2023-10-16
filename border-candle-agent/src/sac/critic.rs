@@ -1,15 +1,18 @@
 //! Critic of SAC agent.
-use crate::{opt::{Optimizer, OptimizerConfig}, model::SubModel2};
+use crate::{
+    model::SubModel2,
+    opt::{Optimizer, OptimizerConfig},
+};
 use anyhow::{Context, Result};
 use candle_core::{DType, Device, Tensor};
 use candle_nn::{VarBuilder, VarMap};
+use log::info;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
     fs::File,
     io::{BufReader, Write},
     path::Path,
 };
-use log::info;
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 /// Configuration of [`Critic`].

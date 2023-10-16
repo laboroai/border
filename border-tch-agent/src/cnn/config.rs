@@ -20,7 +20,11 @@ pub struct CnnConfig {
 impl CnnConfig {
     /// Constructs [`CnnConfig`]
     pub fn new(n_stack: i64, out_dim: i64) -> Self {
-        Self { n_stack, out_dim, skip_linear: false }
+        Self {
+            n_stack,
+            out_dim,
+            skip_linear: false,
+        }
     }
 
     pub fn skip_linear(mut self, skip_linear: bool) -> Self {

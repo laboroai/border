@@ -51,23 +51,23 @@ pub trait SubModel2 {
 }
 
 // /// Base interface of a neural nrtwork model owing its [`VarMap`].
-// /// 
+// ///
 // /// [`VarMap`]: candle_nn::VarMap
 // pub trait ModelBase {
-    // /// Trains the network given a loss.
-    // fn backward_step(&mut self, loss: &Tensor);
+// /// Trains the network given a loss.
+// fn backward_step(&mut self, loss: &Tensor);
 
-    // /// Returns `var_store` as mutable reference.
-    // fn get_var_store_mut(&mut self) -> &mut nn::VarStore;
+// /// Returns `var_store` as mutable reference.
+// fn get_var_store_mut(&mut self) -> &mut nn::VarStore;
 
-    // /// Returns `var_store`.
-    // fn get_var_store(&self) -> &nn::VarStore;
+// /// Returns `var_store`.
+// fn get_var_store(&self) -> &nn::VarStore;
 
-    // /// Save parameters of the neural network.
-    // fn save<T: AsRef<Path>>(&self, path: T) -> Result<()>;
+// /// Save parameters of the neural network.
+// fn save<T: AsRef<Path>>(&self, path: T) -> Result<()>;
 
-    // /// Load parameters of the neural network.
-    // fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<()>;
+// /// Load parameters of the neural network.
+// fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<()>;
 // }
 
 // /// Neural networks with a single input and a single output.

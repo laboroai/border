@@ -40,7 +40,7 @@ pub enum CriticLoss {
 // }
 
 /// Apply soft update on model parameters.
-/// 
+///
 /// dest = tau * src + (1.0 - tau) * dest
 pub fn track(dest: &VarMap, src: &VarMap, tau: f64) -> Result<()> {
     trace!("dest");

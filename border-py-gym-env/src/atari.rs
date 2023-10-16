@@ -1,5 +1,5 @@
 //! Parameters of atari environments
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 /// Specifies training or evaluation mode.

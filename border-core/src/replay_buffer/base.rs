@@ -1,8 +1,8 @@
 //! Simple generic replay buffer.
 mod iw_scheduler;
 mod sum_tree;
-use super::{config::PerConfig, StdBatch, SimpleReplayBufferConfig, SubBatch};
-use crate::{StdBatchBase, ExperienceBufferBase, ReplayBufferBase};
+use super::{config::PerConfig, SimpleReplayBufferConfig, StdBatch, SubBatch};
+use crate::{ExperienceBufferBase, ReplayBufferBase, StdBatchBase};
 use anyhow::Result;
 pub use iw_scheduler::IwScheduler;
 use rand::{rngs::StdRng, RngCore, SeedableRng};
@@ -127,7 +127,6 @@ where
         Ok(())
     }
 }
-
 
 impl<O, A> ReplayBufferBase for SimpleReplayBuffer<O, A>
 where

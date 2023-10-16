@@ -1,8 +1,8 @@
-use anyhow::Result;
-use super::{MlpConfig, mlp_forward};
+use super::{mlp_forward, MlpConfig};
 use crate::model::{SubModel1, SubModel2};
+use anyhow::Result;
 use candle_core::{Device, Tensor, D};
-use candle_nn::{Linear, VarBuilder, linear};
+use candle_nn::{linear, Linear, VarBuilder};
 
 /// Returns vector of linear modules from [`MlpConfig`].
 fn create_linear_layers(prefix: &str, vs: VarBuilder, config: &MlpConfig) -> Result<Vec<Linear>> {

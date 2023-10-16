@@ -26,7 +26,7 @@ pub fn get_model_from_url<T: AsRef<Path>>(
     if path_zip.as_path().exists() {
         info!("Exists zip file {:?}, skips download", path_zip);
         path_dir.push(&file_base);
-        return Ok(path_dir)
+        return Ok(path_dir);
     }
 
     let mut zip_file = File::create(&path_zip.as_path()).context(format!(

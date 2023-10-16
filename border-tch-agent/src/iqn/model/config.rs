@@ -1,10 +1,7 @@
 //! IQN model.
-use crate::{
-    opt::OptimizerConfig,
-    util::OutDim,
-};
+use crate::{opt::OptimizerConfig, util::OutDim};
 use anyhow::Result;
-use serde::{Deserialize, de::DeserializeOwned, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
     default::Default,
     fs::File,

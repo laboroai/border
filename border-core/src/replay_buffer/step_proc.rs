@@ -1,12 +1,11 @@
 //! A generic implementation of [StepProcessorBase](crate::StepProcessorBase).
-use std::{default::Default, marker::PhantomData};
-use crate::{Obs, Env, StepProcessorBase};
 use super::{StdBatch, SubBatch};
+use crate::{Env, Obs, StepProcessorBase};
+use std::{default::Default, marker::PhantomData};
 
 /// Configuration of [SimpleStepProcessor].
 #[derive(Clone, Debug)]
-pub struct SimpleStepProcessorConfig {
-}
+pub struct SimpleStepProcessorConfig {}
 
 impl Default for SimpleStepProcessorConfig {
     fn default() -> Self {
@@ -20,7 +19,7 @@ impl Default for SimpleStepProcessorConfig {
 /// `E::Obs.len()` must be 1.
 pub struct SimpleStepProcessor<E, O, A> {
     prev_obs: Option<O>,
-    phantom: PhantomData<(E, A)>
+    phantom: PhantomData<(E, A)>,
 }
 
 impl<E, O, A> StepProcessorBase<E> for SimpleStepProcessor<E, O, A>
@@ -35,7 +34,7 @@ where
     fn build(_config: &Self::Config) -> Self {
         Self {
             prev_obs: None,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 
@@ -61,7 +60,15 @@ where
                 self.prev_obs.replace(step.init_obs.into());
             }
 
-            StdBatch {obs, act, next_obs, reward, is_done, ix_sample, weight}
+            StdBatch {
+                obs,
+                act,
+                next_obs,
+                reward,
+                is_done,
+                ix_sample,
+                weight,
+            }
         };
 
         batch

@@ -1,5 +1,5 @@
 use border_core::replay_buffer::SubBatch;
-use candle_core::{Device, Tensor, DType, error::Result};
+use candle_core::{error::Result, DType, Device, Tensor};
 
 /// Adds capability of constructing [Tensor] with a static method.
 pub trait ZeroTensor {
@@ -53,8 +53,8 @@ impl SubBatch for TensorSubBatch {
     }
 
     /// Pushes given data.
-    /// 
-    /// if ix + data.buf.len() exceeds the self.capacity, 
+    ///
+    /// if ix + data.buf.len() exceeds the self.capacity,
     /// the tail samples in data is placed in the head of the buffer of self.
     fn push(&mut self, ix: usize, data: Self) {
         if self.buf.len() == self.capacity {
@@ -62,13 +62,13 @@ impl SubBatch for TensorSubBatch {
                 let ix_ = (ix + i) % self.capacity;
                 self.buf[ix_] = sample;
             }
-        } else if self.buf.len() <self.capacity  {
+        } else if self.buf.len() < self.capacity {
             for (i, sample) in data.buf.into_iter().enumerate() {
                 if self.buf.len() < self.capacity {
                     self.buf.push(sample);
                 } else {
                     let ix_ = (ix + i) % self.capacity;
-                    self.buf[ix_] = sample;                        
+                    self.buf[ix_] = sample;
                 }
             }
         } else {

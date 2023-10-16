@@ -1,6 +1,6 @@
+use super::CnnConfig;
 use crate::model::SubModel;
 use tch::{nn, nn::Module, Device, Tensor};
-use super::CnnConfig;
 
 #[allow(clippy::upper_case_acronyms)]
 /// Convolutional neural network, which has the same architecture of the DQN paper.

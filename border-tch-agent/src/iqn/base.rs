@@ -1,5 +1,5 @@
 //! IQN agent implemented with tch-rs.
-use super::{average, IqnExplorer, IqnConfig, IqnModel, IqnSample};
+use super::{average, IqnConfig, IqnExplorer, IqnModel, IqnSample};
 use crate::{
     model::{ModelBase, SubModel},
     util::{quantile_huber_loss, track, OutDim},
@@ -7,7 +7,7 @@ use crate::{
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, StdBatchBase, Env, Policy, ReplayBufferBase,
+    Agent, Env, Policy, ReplayBufferBase, StdBatchBase,
 };
 use log::trace;
 use serde::{de::DeserializeOwned, Serialize};

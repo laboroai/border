@@ -61,7 +61,7 @@ where
             double_dqn: self.double_dqn,
             clip_td_err: self.clip_td_err,
             device: self.device.clone(),
-            phantom: PhantomData,    
+            phantom: PhantomData,
         }
     }
 }

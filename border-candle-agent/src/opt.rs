@@ -44,11 +44,19 @@ impl OptimizerConfig {
     /// Override learning rate.
     pub fn learning_rate(self, lr: f64) -> Self {
         match self {
-            Self::AdamW { lr: _, beta1, beta2, eps, weight_decay } => {
-                Self::AdamW {
-                    lr, beta1, beta2, eps, weight_decay
-                }
-            }
+            Self::AdamW {
+                lr: _,
+                beta1,
+                beta2,
+                eps,
+                weight_decay,
+            } => Self::AdamW {
+                lr,
+                beta1,
+                beta2,
+                eps,
+                weight_decay,
+            },
         }
     }
 }

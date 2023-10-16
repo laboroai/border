@@ -1,6 +1,6 @@
-use anyhow::Result;
 use super::{mlp_forward, MlpConfig};
 use crate::model::SubModel1;
+use anyhow::Result;
 use candle_core::{Device, Module, Tensor};
 use candle_nn::{linear, Linear, VarBuilder};
 

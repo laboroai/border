@@ -1,4 +1,10 @@
 use anyhow::Result;
+use border_candle_agent::{
+    mlp::{Mlp, Mlp2, MlpConfig},
+    opt::OptimizerConfig,
+    sac::{ActorConfig, CriticConfig, Sac, SacConfig},
+    TensorSubBatch,
+};
 use border_core::{
     record::{Record, RecordValue},
     replay_buffer::{
@@ -12,20 +18,14 @@ use border_py_gym_env::{
     util::{arrayd_to_pyobj, arrayd_to_tensor, tensor_to_arrayd},
     ArrayObsFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
-use border_candle_agent::{
-    mlp::{Mlp, Mlp2, MlpConfig},
-    opt::OptimizerConfig,
-    sac::{ActorConfig, CriticConfig, Sac, SacConfig},
-    TensorSubBatch,
-};
 use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg};
 // use csv::WriterBuilder;
+use candle_core::{Device, Tensor};
 use ndarray::{ArrayD, IxDyn};
 use pyo3::PyObject;
 use serde::Serialize;
 use std::convert::TryFrom;
-use candle_core::{Tensor, Device};
 
 const DIM_OBS: usize = 3;
 const DIM_ACT: usize = 1;

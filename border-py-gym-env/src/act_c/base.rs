@@ -12,9 +12,7 @@ pub struct GymContinuousAct {
 impl GymContinuousAct {
     /// Constructs an action.
     pub fn new(act: ArrayD<f32>) -> Self {
-        Self {
-            act,
-        }
+        Self { act }
     }
 }
 

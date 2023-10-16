@@ -41,7 +41,6 @@ where
     // Q::Config: DeserializeOwned + Serialize + OutDim,
     Q: DeserializeOwned + Serialize + OutDim,
 {
-
     /// Sets configurations for action-value function.
     // pub fn q_config(mut self, v: Q::Config) -> Self {
     pub fn q_config(mut self, v: Q) -> Self {
