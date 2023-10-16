@@ -195,7 +195,7 @@ fn create_agent(in_dim: i64, out_dim: i64) -> Dqn<Env, Mlp, ReplayBuffer> {
     let device = tch::Device::cuda_if_available();
     let config = {
         let opt_config = border_tch_agent::opt::OptimizerConfig::Adam { lr: LR_CRITIC };
-        let mlp_config = MlpConfig::new(in_dim, vec![256, 256], out_dim, true);
+        let mlp_config = MlpConfig::new(in_dim, vec![256, 256], out_dim, false);
         let model_config = DqnModelConfig::default()
             .q_config(mlp_config)
             .out_dim(out_dim)

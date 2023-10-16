@@ -213,7 +213,7 @@ fn create_agent(in_dim: i64, out_dim: i64) -> Iqn {
     let device = tch::Device::cuda_if_available();
     let config = {
         let opt_config = border_tch_agent::opt::OptimizerConfig::Adam { lr: LR_CRITIC };
-        let f_config = MlpConfig::new(in_dim, vec![], DIM_FEATURE, true);
+        let f_config = MlpConfig::new(in_dim, vec![], DIM_FEATURE, false);
         let m_config = MlpConfig::new(DIM_FEATURE, vec![], out_dim, false);
         let model_config = IqnModelConfig::default()
             .feature_dim(DIM_FEATURE)

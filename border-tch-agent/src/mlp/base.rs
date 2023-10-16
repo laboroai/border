@@ -33,7 +33,7 @@ impl Mlp {
             Default::default(),
         ));
 
-        if !config.activation_out {
+        if config.activation_out {
             seq = seq.add_fn(|x| x.relu());
         }
 

@@ -156,10 +156,10 @@ fn create_agent(in_dim: i64, out_dim: i64) -> Sac<Env, Mlp, Mlp2, ReplayBuffer> 
     let actor_config = ActorConfig::default()
         .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
         .out_dim(out_dim)
-        .pi_config(MlpConfig::new(in_dim, vec![64, 64], out_dim, true));
+        .pi_config(MlpConfig::new(in_dim, vec![64, 64], out_dim, false));
     let critic_config = CriticConfig::default()
         .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
-        .q_config(MlpConfig::new(in_dim + out_dim, vec![64, 64], 1, true));
+        .q_config(MlpConfig::new(in_dim + out_dim, vec![64, 64], 1, false));
     let sac_config = SacConfig::default()
         .batch_size(BATCH_SIZE)
         .min_transitions_warmup(N_TRANSITIONS_WARMUP)

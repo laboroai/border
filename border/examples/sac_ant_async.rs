@@ -161,10 +161,10 @@ mod config {
         let actor_config = ActorConfig::default()
             .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
             .out_dim(out_dim)
-            .pi_config(MlpConfig::new(in_dim, vec![400, 300], out_dim, true));
+            .pi_config(MlpConfig::new(in_dim, vec![400, 300], out_dim, false));
         let critic_config = CriticConfig::default()
             .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
-            .q_config(MlpConfig::new(in_dim + out_dim, vec![400, 300], 1, true));
+            .q_config(MlpConfig::new(in_dim + out_dim, vec![400, 300], 1, false));
 
         SacConfig::default()
             .batch_size(BATCH_SIZE)
