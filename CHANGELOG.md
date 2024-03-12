@@ -1,10 +1,12 @@
 # Changelog
 
-## v0.0.6 (20??-??-??)
+## v0.0.7 (20??-??-??)
 
 ### Changed
 
 * Take `self` in the signature of `push()` method of replay buffer (`border-core`)
+* Add candle agent (`border-candle-agent`)
+* Fix a bug in `MlpConfig` (`border-tch-agent`)
 
 ## v0.0.6 (2023-09-19)
 

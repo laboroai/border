@@ -17,8 +17,8 @@ version = "0.0.6"
 edition = "2018"
 rust-version = "1.70"
 description = "Reinforcement learning library"
-repository = "https://github.com/taku-y/border"
-keywords = ["rl"]
+repository = "https://github.com/laboroai/border"
+keywords = ["Reinforcement learning"]
 categories = ["science"]
 license = "MIT OR Apache-2.0"
 
