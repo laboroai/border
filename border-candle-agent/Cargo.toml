@@ -24,6 +24,9 @@ candle-core = { workspace = true }
 candle-nn = { workspace = true }
 fastrand = { workspace = true }
 segment-tree = { workspace = true }
+rand = { workspace = true }
+itertools = { workspace = true }
+ordered-float = { workspace = true }
 
 [dev-dependencies]
 tempdir = { workspace = true }

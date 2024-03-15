@@ -23,6 +23,11 @@ border-core = { version = "0.0.6", path = "../border-core" }
 
 [[example]]
 name = "dqn_cartpole"
+required-features = ["candle-core"]
+test = false
+
+[[example]]
+name = "dqn_cartpole_tch"
 required-features = ["tch"]
 test = true
 
