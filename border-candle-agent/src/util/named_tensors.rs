@@ -1,6 +1,6 @@
 use candle_core::Tensor;
 use candle_nn::VarMap;
-use std::{collections::HashMap, iter::FromIterator};
+use std::collections::HashMap;
 // use tch::{nn::VarStore, Device::Cpu, Tensor};
 
 /// Named tensors to send model parameters using a channel.
@@ -10,7 +10,7 @@ pub struct NamedTensors {
 
 impl NamedTensors {
     /// Copy data of [`VarMap`] to CPU.
-    pub fn copy_from(vs: &VarMap) -> Self {
+    pub fn copy_from(_vs: &VarMap) -> Self {
         unimplemented!();
 
         // let src = vs.variables();
@@ -24,7 +24,7 @@ impl NamedTensors {
     }
 
     /// Copy named tensors to [`VarMap`].
-    pub fn copy_to(&self, vs: &mut VarMap) {
+    pub fn copy_to(&self, _vs: &mut VarMap) {
         unimplemented!();
 
         // let src = &self.named_tensors;
@@ -58,8 +58,8 @@ impl Clone for NamedTensors {
 
 #[cfg(test)]
 mod test {
-    use super::NamedTensors;
-    use std::convert::{TryFrom, TryInto};
+    // use super::NamedTensors;
+    // use std::convert::{TryFrom, TryInto};
     // use tch::{
     //     nn::{self, Module},
     //     Device::Cpu,

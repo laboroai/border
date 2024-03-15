@@ -4,7 +4,7 @@ use candle_core::Tensor;
 /// Returns the quantile huber loss.
 ///
 /// `x` and `tau` has the same shape.
-pub fn quantile_huber_loss(x: &Tensor, tau: &Tensor) -> Tensor {
+pub fn quantile_huber_loss(_x: &Tensor, _tau: &Tensor) -> Tensor {
     // TODO: implements this
     panic!();
     // debug_assert_eq!(x.size().as_slice(), tau.size().as_slice());

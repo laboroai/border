@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 mod named_tensors;
 mod quantile_loss;
 pub use quantile_loss::quantile_huber_loss;
-// pub use named_tensors::NamedTensors;
+pub use named_tensors::NamedTensors;
 
 /// Critic loss type.
 #[allow(clippy::upper_case_acronyms)]
@@ -68,10 +68,10 @@ pub fn track(dest: &VarMap, src: &VarMap, tau: f64) -> Result<()> {
 
 pub trait OutDim {
     /// Returns the output dimension.
-    fn get_out_dim(&self) -> usize;
+    fn get_out_dim(&self) -> i64;
 
     /// Sets the  output dimension.
-    fn set_out_dim(&mut self, v: usize);
+    fn set_out_dim(&mut self, v: i64);
 }
 
 #[test]

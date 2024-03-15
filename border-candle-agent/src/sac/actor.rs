@@ -42,7 +42,7 @@ where
     }
 
     /// Sets output dimension of the model.
-    pub fn out_dim(mut self, v: usize) -> Self {
+    pub fn out_dim(mut self, v: i64) -> Self {
         match &mut self.pi_config {
             None => {}
             Some(pi_config) => pi_config.set_out_dim(v),
@@ -82,7 +82,7 @@ where
     varmap: VarMap,
 
     // Dimension of the action vector.
-    out_dim: usize,
+    out_dim: i64,
     // pub(super) out_dim: i64,
 
     // Action-value function
@@ -117,7 +117,7 @@ where
 
     fn _build(
         device: Device,
-        out_dim: usize,
+        out_dim: i64,
         opt_config: OptimizerConfig,
         pi_config: P::Config,
         pi: P,

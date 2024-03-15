@@ -1,6 +1,6 @@
 //! RL agents implemented with [candle](https://crates.io/crates/candle-core).
 // pub mod cnn;
-// pub mod dqn;
+pub mod dqn;
 // pub mod iqn;
 pub mod mlp;
 pub mod model;

@@ -6,7 +6,7 @@ use candle_nn::{linear, Linear, VarBuilder};
 
 /// Returns vector of linear modules from [`MlpConfig`].
 fn create_linear_layers(prefix: &str, vs: VarBuilder, config: &MlpConfig) -> Result<Vec<Linear>> {
-    let mut in_out_pairs: Vec<(usize, usize)> = (0..config.units.len() - 1)
+    let mut in_out_pairs: Vec<(i64, i64)> = (0..config.units.len() - 1)
         .map(|i| (config.units[i], config.units[i + 1]))
         .collect();
     in_out_pairs.insert(0, (config.in_dim, config.units[0]));
@@ -15,7 +15,9 @@ fn create_linear_layers(prefix: &str, vs: VarBuilder, config: &MlpConfig) -> Res
     Ok(in_out_pairs
         .iter()
         .enumerate()
-        .map(|(i, &(in_dim, out_dim))| linear(in_dim, out_dim, vs.pp(format!("ln{}", i))).unwrap())
+        .map(|(i, &(in_dim, out_dim))| {
+            linear(in_dim as _, out_dim as _, vs.pp(format!("ln{}", i))).unwrap()
+        })
         .collect())
 }
 
@@ -47,8 +49,8 @@ impl SubModel1 for Mlp2 {
         let (head1, head2) = {
             let in_dim = *config.units.last().unwrap();
             let out_dim = config.out_dim;
-            let head1 = linear(in_dim, out_dim, vs.pp(format!("mean"))).unwrap();
-            let head2 = linear(in_dim, out_dim, vs.pp(format!("std"))).unwrap();
+            let head1 = linear(in_dim as _, out_dim as _, vs.pp(format!("mean"))).unwrap();
+            let head2 = linear(in_dim as _, out_dim as _, vs.pp(format!("std"))).unwrap();
             (head1, head2)
         };
 
