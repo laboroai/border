@@ -114,11 +114,10 @@ where
     }
 
     fn opt_(&mut self, buffer: &mut R) -> Record {
-        let mut loss_critic = 0f32;
+        let mut loss = 0f32;
 
         for _ in 0..self.n_updates_per_opt {
-            let loss = self.update_critic(buffer);
-            loss_critic += loss;
+            loss += self.update_critic(buffer);
         }
 
         self.soft_update_counter += 1;
@@ -127,11 +126,11 @@ where
             track(&mut self.qnet_tgt, &mut self.qnet, self.tau);
         }
 
-        loss_critic /= self.n_updates_per_opt as f32;
+        loss /= self.n_updates_per_opt as f32;
 
         self.n_opts += 1;
 
-        Record::from_slice(&[("loss_critic", RecordValue::Scalar(loss_critic))])
+        Record::from_slice(&[("loss", RecordValue::Scalar(loss))])
     }
 }
 

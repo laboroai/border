@@ -1,11 +1,4 @@
 use anyhow::Result;
-use border_candle_agent::{
-    dqn::{Dqn, DqnConfig, DqnModel, DqnModelConfig},
-    mlp::{Mlp, Mlp2, MlpConfig},
-    model::SubModel1,
-    opt::OptimizerConfig,
-    TensorSubBatch,
-};
 use border_core::{
     record::Record,
     replay_buffer::{
@@ -15,15 +8,21 @@ use border_core::{
     Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
 use border_py_gym_env::{
-    util::{arrayd_to_pyobj, arrayd_to_tensor, tensor_to_arrayd, vec_to_tensor},
-    ArrayObsFilter, DiscreteActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
+    util::vec_to_tensor, ArrayObsFilter, DiscreteActFilter, GymActFilter, GymEnv, GymEnvConfig,
+    GymObsFilter,
+};
+use border_tch_agent::{
+    dqn::{Dqn, DqnConfig, DqnModelConfig},
+    mlp::{Mlp, MlpConfig},
+    TensorSubBatch,
 };
 use border_tensorboard::TensorboardRecorder;
-use candle_core::{Device, Tensor};
 use clap::{App, Arg};
+// use csv::WriterBuilder;
 use ndarray::{ArrayD, IxDyn};
-use serde::{de::DeserializeOwned, Serialize};
-use std::convert::TryFrom;
+use serde::Serialize;
+use std::convert::TryFrom; //, fs::File};
+use tch::Tensor;
 
 const DIM_OBS: i64 = 4;
 const DIM_ACT: i64 = 2;
@@ -35,10 +34,10 @@ const N_UPDATES_PER_OPT: usize = 1;
 const TAU: f64 = 0.005;
 const OPT_INTERVAL: usize = 50;
 const MAX_OPTS: usize = 1000;
-const EVAL_INTERVAL: usize = 500;
+const EVAL_INTERVAL: usize = 100;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
-const MODEL_DIR: &str = "./border/examples/model/dqn_cartpole";
+const MODEL_DIR: &str = "./border/examples/model/dqn_cartpole_tch";
 
 type PyObsDtype = f32;
 
@@ -66,7 +65,7 @@ mod obs {
 
     impl From<Obs> for Tensor {
         fn from(obs: Obs) -> Tensor {
-            arrayd_to_tensor::<_, f32>(obs.0, false).unwrap()
+            Tensor::try_from(&obs.0).unwrap()
         }
     }
 
@@ -116,11 +115,11 @@ mod act {
     }
 
     impl From<Tensor> for Act {
-        // `t` must be a 1-dimentional tensor of `i64`
+        // `t` must be a 1-dimentional tensor of `f32`
         fn from(t: Tensor) -> Self {
-            let data = t.to_vec1::<i64>().expect("Failed to convert Tensor to Act");
+            let data: Vec<i64> = t.into();
             let data = data.iter().map(|&e| e as i32).collect();
-            Self(data)
+            Act(data)
         }
     }
 
@@ -143,8 +142,7 @@ mod act {
 
     impl From<Act> for ActBatch {
         fn from(act: Act) -> Self {
-            let t =
-                vec_to_tensor::<_, i64>(act.0, true).expect("Failed to convert Act to ActBatch");
+            let t = vec_to_tensor::<_, i64>(act.0, true);
             Self(TensorSubBatch::from_tensor(t))
         }
     }
@@ -168,59 +166,58 @@ type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
 type Evaluator = DefaultEvaluator<Env, Dqn<Env, Mlp, ReplayBuffer>>;
 
-// #[derive(Debug, Serialize)]
-// struct CartpoleRecord {
-//     episode: usize,
-//     step: usize,
-//     reward: f32,
-//     obs: Vec<f64>,
-// }
+#[derive(Debug, Serialize)]
+struct CartpoleRecord {
+    episode: usize,
+    step: usize,
+    reward: f32,
+    obs: Vec<f64>,
+}
 
-// impl TryFrom<&Record> for CartpoleRecord {
-//     type Error = anyhow::Error;
+impl TryFrom<&Record> for CartpoleRecord {
+    type Error = anyhow::Error;
 
-//     fn try_from(record: &Record) -> Result<Self> {
-//         Ok(Self {
-//             episode: record.get_scalar("episode")? as _,
-//             step: record.get_scalar("step")? as _,
-//             reward: record.get_scalar("reward")?,
-//             obs: record
-//                 .get_array1("obs")?
-//                 .iter()
-//                 .map(|v| *v as f64)
-//                 .collect(),
-//         })
-//     }
-// }
+    fn try_from(record: &Record) -> Result<Self> {
+        Ok(Self {
+            episode: record.get_scalar("episode")? as _,
+            step: record.get_scalar("step")? as _,
+            reward: record.get_scalar("reward")?,
+            obs: record
+                .get_array1("obs")?
+                .iter()
+                .map(|v| *v as f64)
+                .collect(),
+        })
+    }
+}
 
-fn create_env_config() -> EnvConfig {
+fn create_agent(in_dim: i64, out_dim: i64) -> Dqn<Env, Mlp, ReplayBuffer> {
+    let device = tch::Device::cuda_if_available();
+    let config = {
+        let opt_config = border_tch_agent::opt::OptimizerConfig::Adam { lr: LR_CRITIC };
+        let mlp_config = MlpConfig::new(in_dim, vec![256, 256], out_dim, false);
+        let model_config = DqnModelConfig::default()
+            .q_config(mlp_config)
+            .out_dim(out_dim)
+            .opt_config(opt_config);
+        DqnConfig::default()
+            .n_updates_per_opt(N_UPDATES_PER_OPT)
+            .min_transitions_warmup(N_TRANSITIONS_WARMUP)
+            .batch_size(BATCH_SIZE)
+            .discount_factor(DISCOUNT_FACTOR)
+            .tau(TAU)
+            .model_config(model_config)
+            .device(device)
+    };
+
+    Dqn::build(config)
+}
+
+fn env_config() -> EnvConfig {
     EnvConfig::default()
         .name("CartPole-v0".to_string())
         .obs_filter_config(ObsFilter::default_config())
         .act_filter_config(ActFilter::default_config())
-}
-
-fn create_agent_config(in_dim: i64, out_dim: i64) -> DqnConfig<Mlp> {
-    let device = Device::cuda_if_available(0).unwrap();
-    let opt_config = OptimizerConfig::default().learning_rate(LR_CRITIC);
-    let mlp_config = MlpConfig::new(in_dim, vec![256, 256], out_dim, false);
-    let model_config = DqnModelConfig::default()
-        .q_config(mlp_config)
-        .out_dim(out_dim)
-        .opt_config(opt_config);
-    DqnConfig::default()
-        .n_updates_per_opt(N_UPDATES_PER_OPT)
-        .min_transitions_warmup(N_TRANSITIONS_WARMUP)
-        .batch_size(BATCH_SIZE)
-        .discount_factor(DISCOUNT_FACTOR)
-        .tau(TAU)
-        .model_config(model_config)
-        .device(device)
-}
-
-fn create_agent(in_dim: i64, out_dim: i64) -> Dqn<Env, Mlp, ReplayBuffer> {
-    let config = create_agent_config(in_dim, out_dim);
-    Dqn::build(config)
 }
 
 fn create_evaluator(env_config: &EnvConfig) -> Result<Evaluator> {
@@ -229,7 +226,7 @@ fn create_evaluator(env_config: &EnvConfig) -> Result<Evaluator> {
 
 fn train(max_opts: usize, model_dir: &str) -> Result<()> {
     let mut trainer = {
-        let env_config = create_env_config();
+        let env_config = env_config();
         let step_proc_config = SimpleStepProcessorConfig {};
         let replay_buffer_config =
             SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
@@ -251,7 +248,7 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
     };
     let mut agent = create_agent(DIM_OBS, DIM_ACT);
     let mut recorder = TensorboardRecorder::new(model_dir);
-    let mut evaluator = create_evaluator(&create_env_config())?;
+    let mut evaluator = create_evaluator(&env_config())?;
 
     trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
 
@@ -260,7 +257,7 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
 
 fn eval(model_dir: &str, render: bool) -> Result<()> {
     let env_config = {
-        let mut env_config = create_env_config();
+        let mut env_config = env_config();
         if render {
             env_config = env_config
                 .render_mode(Some("human".to_string()))
@@ -283,9 +280,7 @@ fn eval(model_dir: &str, render: bool) -> Result<()> {
 
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-    // TODO: set seed
-    // let device = candle_core::Device;
-    // device.set_seed(42)?;
+    tch::manual_seed(42);
 
     let matches = App::new("dqn_cartpole")
         .version("0.1.0")
@@ -319,21 +314,21 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::{eval, train};
-//     use anyhow::Result;
-//     use tempdir::TempDir;
+#[cfg(test)]
+mod tests {
+    use super::{eval, train};
+    use anyhow::Result;
+    use tempdir::TempDir;
 
-//     #[test]
-//     fn test_dqn_cartpole() -> Result<()> {
-//         let tmp_dir = TempDir::new("dqn_cartpole")?;
-//         let model_dir = match tmp_dir.as_ref().to_str() {
-//             Some(s) => s,
-//             None => panic!("Failed to get string of temporary directory"),
-//         };
-//         train(100, model_dir)?;
-//         eval(&(model_dir.to_owned() + "/best"), false)?;
-//         Ok(())
-//     }
-// }
+    #[test]
+    fn test_dqn_cartpole() -> Result<()> {
+        let tmp_dir = TempDir::new("dqn_cartpole")?;
+        let model_dir = match tmp_dir.as_ref().to_str() {
+            Some(s) => s,
+            None => panic!("Failed to get string of temporary directory"),
+        };
+        train(100, model_dir)?;
+        eval(&(model_dir.to_owned() + "/best"), false)?;
+        Ok(())
+    }
+}

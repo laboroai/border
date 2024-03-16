@@ -69,7 +69,6 @@ mod obs {
     impl From<Obs> for Tensor {
         fn from(obs: Obs) -> Tensor {
             arrayd_to_tensor::<_, f32>(obs.0, false).unwrap()
-            // Tensor::try_from(&obs.0).unwrap()
         }
     }
 
