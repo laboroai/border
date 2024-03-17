@@ -18,7 +18,7 @@ anyhow = { workspace = true }
 log = { workspace = true }
 dirs = { workspace = true }
 zip = "0.5.12"
-reqwest = { version = "0.11.3", features = ["blocking"] }
+reqwest = { workspace = true }
 border-core = { version = "0.0.6", path = "../border-core" }
 
 [[example]]
@@ -74,11 +74,10 @@ path = "examples/gym-robotics/sac_fetch_reach.rs"
 required-features = ["tch"]
 test = false
 
-[[example]]
-name = "iqn_atari_rs"
-path = "examples/atari/iqn_atari.rs"
-required-features = ["tch"]
-test = false
+# [[example]]
+# name = "iqn_atari_rs"
+# required-features = ["tch"]
+# test = false
 
 [[example]]
 name = "sac_ant"
@@ -90,17 +89,15 @@ name = "sac_ant_async"
 required-features = ["tch", "border-async-trainer"]
 test = false
 
-[[example]]
-name = "make_cfg_dqn_atari"
-required-features = ["border-async-trainer"]
-path = "examples/atari/make_cfg_dqn_atari.rs"
-test = false
+# [[example]]
+# name = "make_cfg_dqn_atari"
+# required-features = ["border-async-trainer"]
+# test = false
 
-[[example]]
-name = "make_cfg_iqn_atari"
-required-features = ["border-async-trainer"]
-path = "examples/atari/make_cfg_iqn_atari.rs"
-test = false
+# [[example]]
+# name = "make_cfg_iqn_atari"
+# required-features = ["border-async-trainer"]
+# test = false
 
 [dev-dependencies]
 clap = { workspace = true }
