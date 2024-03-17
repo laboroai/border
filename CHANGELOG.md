@@ -1,6 +1,10 @@
 # Changelog
 
-## v0.0.6 (20??-??-??)
+## v0.0.7 (20??-??-??)
+
+### Added
+
+Support MLflow tracking (`border-mlflow-tracking`) (https://github.com/taku-y/border/issues/2).
 
 ### Changed
 
