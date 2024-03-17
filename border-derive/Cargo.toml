@@ -34,6 +34,7 @@ candle-core = { workspace = true }
 
 [[example]]
 name = "test1"
+required-features = ["tch"]
 
 [package.metadata.docs.rs]
 features = ["doc-only"]
