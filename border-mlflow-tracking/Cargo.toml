@@ -1,5 +1,5 @@
 [package]
-name = "border-core"
+name = "border-mlflow-tracking"
 version.workspace = true
 edition.workspace = true
 description.workspace = true
@@ -10,17 +10,17 @@ license.workspace = true
 readme = "README.md"
 
 [dependencies]
-serde = { workspace = true, features = ["derive"] }
-serde_yaml = { workspace = true }
-log = { workspace = true }
-thiserror = { workspace = true }
+border-core = { version = "0.0.6", path = "../border-core" }
+reqwest = { workspace = true }
 anyhow = { workspace = true }
-chrono = { workspace = true }
-aquamarine = { workspace = true }
-fastrand = { workspace = true }
-segment-tree = { workspace = true }
-# Consider to replace with fastrand
-rand = "0.8.4"
+serde = { workspace = true, features = ["derive"] }
+log = { workspace = true }
+serde_json = { workspace = true }
+flatten-serde-json = "0.1.0"
 
 [dev-dependencies]
-tempdir = { workspace = true }
+env_logger = { workspace = true }
+
+[[example]]
+name = "tracking_basic"
+# test = true

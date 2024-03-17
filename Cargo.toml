@@ -2,14 +2,26 @@
 members = [
     "border-core",
     "border-tensorboard",
+    "border-mlflow-tracking",
     "border-py-gym-env",
     "border-tch-agent",
+    "border-candle-agent",
     "border-derive",
     "border-atari-env",
     "border-async-trainer",
     "border",
 ]
 exclude = ["docker/"]
+
+[workspace.package]
+version = "0.0.6"
+edition = "2018"
+rust-version = "1.70"
+description = "Reinforcement learning library"
+repository = "https://github.com/taku-y/border"
+keywords = ["rl"]
+categories = ["science"]
+license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
 clap = "2.33.3"
@@ -23,7 +35,8 @@ aquamarine = "0.1"
 log = "0.4"
 dirs = "3.0.2"
 thiserror = "1.0"
-serde = "=1.0.126"
+serde = "1.0.194"
+serde_json = "^1.0.114"
 numpy = "0.14.1"
 env_logger = "0.8.2"
 tempdir = "0.3.7"
@@ -34,3 +47,6 @@ ndarray = "0.15.1"
 chrono = "0.4"
 segment-tree = "2.0.0"
 image = "0.23.14"
+candle-core = "0.2.2"
+candle-nn = "0.2.2"
+reqwest = { version = "0.11.26", features = ["json", "blocking"] }

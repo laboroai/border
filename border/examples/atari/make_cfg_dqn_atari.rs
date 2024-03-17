@@ -65,7 +65,6 @@ fn make_trainer_config(env_name: String, params: &Params) -> Result<TrainerConfi
         .opt_interval(opt_interval)
         .record_interval(record_interval)
         .eval_interval(params.eval_interval)
-        .eval_episodes(params.eval_episodes)
         .model_dir(model_dir)
         .save_interval(params.save_interval))
 }
@@ -86,7 +85,6 @@ fn make_async_trainer_config(env_name: String, params: &Params) -> Result<AsyncT
         max_train_steps: max_opts,
         save_interval: params.save_interval,
         sync_interval: 100,
-        eval_episodes: params.eval_episodes,
     })
 }
 

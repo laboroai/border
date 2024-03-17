@@ -1,17 +1,13 @@
 [package]
 name = "border-tensorboard"
-version = "0.0.6"
-authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
-edition = "2018"
-rust-version = "1.68.2"
-
-description = "Reinforcement learning library"
-repository = "https://github.com/taku-y/border"
-keywords = ["rl"]
-categories = ["science"]
-license = "MIT OR Apache-2.0"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
 readme = "README.md"
-autoexamples = false
 
 [dependencies]
 border-core = { version = "0.0.6", path = "../border-core" }
