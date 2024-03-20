@@ -14,6 +14,7 @@ use border_core::{
     },
     Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
+use border_mlflow_tracking::MlflowTrackingClient;
 use border_py_gym_env::{
     util::{arrayd_to_pyobj, arrayd_to_tensor, tensor_to_arrayd, vec_to_tensor},
     ArrayObsFilter, DiscreteActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
@@ -32,10 +33,10 @@ const DISCOUNT_FACTOR: f64 = 0.99;
 const BATCH_SIZE: usize = 64;
 const N_TRANSITIONS_WARMUP: usize = 100;
 const N_UPDATES_PER_OPT: usize = 1;
-const TAU: f64 = 0.005;
-const OPT_INTERVAL: usize = 50;
-const MAX_OPTS: usize = 1000;
-const EVAL_INTERVAL: usize = 500;
+const TAU: f64 = 0.01;
+const OPT_INTERVAL: usize = 1; // 50
+const MAX_OPTS: usize = 100000;
+const EVAL_INTERVAL: usize = 100;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const MODEL_DIR: &str = "./border/examples/model/dqn_cartpole";
@@ -227,8 +228,8 @@ fn create_evaluator(env_config: &EnvConfig) -> Result<Evaluator> {
     Evaluator::new(env_config, 0, N_EPISODES_PER_EVAL)
 }
 
-fn train(max_opts: usize, model_dir: &str) -> Result<()> {
-    let mut trainer = {
+fn train(max_opts: usize, model_dir: &str, mlflow: bool) -> Result<()> {
+    let (mut trainer, config) = {
         let env_config = create_env_config();
         let step_proc_config = SimpleStepProcessorConfig {};
         let replay_buffer_config =
@@ -241,16 +242,33 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
             .save_interval(EVAL_INTERVAL)
             .model_dir(model_dir);
         let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
-            config,
+            config.clone(),
             env_config,
             step_proc_config,
             replay_buffer_config,
         );
 
-        trainer
+        (trainer, config)
     };
     let mut agent = create_agent(DIM_OBS, DIM_ACT);
-    let mut recorder = TensorboardRecorder::new(model_dir);
+    // let mut recorder = match mlflow {
+    //     true => {
+    //         let client =
+    //             MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("")?;
+    //         let mut recorder_run = client.create_recorder("")?;
+    //         recorder_run.log_params(&config)?;
+    //         recorder_run
+    //     }
+    //     false => TensorboardRecorder::new(model_dir),
+    // };
+    let mut recorder = {
+        let client =
+            MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Default")?;
+        let mut recorder_run = client.create_recorder("")?;
+        recorder_run.log_params(&config)?;
+        recorder_run
+    };
+
     let mut evaluator = create_evaluator(&create_env_config())?;
 
     trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
@@ -302,15 +320,22 @@ fn main() -> Result<()> {
                 .takes_value(false)
                 .help("Do evaluation only"),
         )
+        .arg(
+            Arg::with_name("mlflow")
+                .long("mlflow")
+                .takes_value(false)
+                .help("User mlflow tracking"),
+        )
         .get_matches();
 
     let do_train = (matches.is_present("train") && !matches.is_present("eval"))
         || (!matches.is_present("train") && !matches.is_present("eval"));
     let do_eval = (!matches.is_present("train") && matches.is_present("eval"))
         || (!matches.is_present("train") && !matches.is_present("eval"));
+    let mlflow = matches.is_present("mlflow");
 
     if do_train {
-        train(MAX_OPTS, MODEL_DIR)?;
+        train(MAX_OPTS, MODEL_DIR, mlflow)?;
     }
     if do_eval {
         eval(&(MODEL_DIR.to_owned() + "/best"), true)?;

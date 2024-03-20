@@ -110,6 +110,7 @@ border-tch-agent = { version = "0.0.6", path = "../border-tch-agent" }
 border-py-gym-env = { version = "0.0.6", path = "../border-py-gym-env" }
 border-atari-env = { version = "0.0.6", path = "../border-atari-env" }
 border-candle-agent = { version = "0.0.6", path = "../border-candle-agent" }
+border-mlflow-tracking = { version = "0.0.6", path = "../border-mlflow-tracking" }
 serde = { workspace = true, features = ["derive"] }
 crossbeam-channel = { workspace = true }
 env_logger = { workspace = true }
