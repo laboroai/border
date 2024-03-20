@@ -89,4 +89,10 @@ impl Optimizer {
             Self::AdamW(opt) => Ok(opt.backward_step(loss)?),
         }
     }
+
+    pub fn step(&mut self, grads: &candle_core::backprop::GradStore) -> Result<()> {
+        match self {
+            Self::AdamW(opt) => Ok(opt.step(grads)?),
+        }
+    }
 }

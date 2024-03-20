@@ -99,7 +99,7 @@ where
 
             reward + is_not_done * self.discount_factor * q.squeeze(D::Minus1).unwrap()
         }
-        .unwrap();
+        .unwrap().detach().unwrap();
 
         let loss = if let Some(_ws) = weight {
             // Prioritized weighting loss, will be implemented later

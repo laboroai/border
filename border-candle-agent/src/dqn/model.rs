@@ -158,6 +158,15 @@ where
     }
 
     pub fn backward_step(&mut self, loss: &Tensor) -> Result<()> {
+        // Consider to use gradient clipping, below code
+        // let mut grads = loss.backward()?;
+        // for (_, var) in self.varmap.data().lock().unwrap().iter() {
+        //     let g1 = grads.get(var).unwrap();
+        //     let g2 = g1.clamp(-1.0, 1.0)?;
+        //     let _ = grads.remove(&var).unwrap();
+        //     let _ = grads.insert(&var, g2);
+        // }
+        // self.opt.step(&grads)
         self.opt.backward_step(loss)
     }
 
