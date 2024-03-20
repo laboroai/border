@@ -1,6 +1,7 @@
 use anyhow::Result;
 use border_core::{
     record::Record,
+    record::Recorder,
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
@@ -19,8 +20,9 @@ use border_tch_agent::{
     TensorSubBatch,
 };
 use border_tensorboard::TensorboardRecorder;
-use clap::{App, Arg};
+use clap::{App, Arg, ArgMatches};
 //use csv::WriterBuilder;
+use border_mlflow_tracking::MlflowTrackingClient;
 use ndarray::{ArrayD, IxDyn};
 use serde::Serialize;
 use std::convert::TryFrom;
@@ -176,8 +178,25 @@ fn env_config() -> GymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
         .act_filter_config(ActFilter::default_config())
 }
 
-fn train(max_opts: usize, model_dir: &str) -> Result<()> {
-    let mut trainer = {
+fn create_recorder(
+    model_dir: &str,
+    mlflow: bool,
+    config: &TrainerConfig,
+) -> Result<Box<dyn Recorder>> {
+    match mlflow {
+        true => {
+            let client =
+                MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Default")?;
+            let recorder_run = client.create_recorder("")?;
+            recorder_run.log_params(&config)?;
+            Ok(Box::new(recorder_run))
+        }
+        false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
+    }
+}
+
+fn train(max_opts: usize, model_dir: &str, mlflow: bool) -> Result<()> {
+    let (mut trainer, config) = {
         let env_config = env_config();
         let step_proc_config = SimpleStepProcessorConfig {};
         let replay_buffer_config =
@@ -190,16 +209,16 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
             .save_interval(EVAL_INTERVAL)
             .model_dir(model_dir);
         let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
-            config,
+            config.clone(),
             env_config,
             step_proc_config,
             replay_buffer_config,
         );
 
-        trainer
+        (trainer, config)
     };
     let mut agent = create_agent(DIM_OBS, DIM_ACT);
-    let mut recorder = TensorboardRecorder::new(model_dir);
+    let mut recorder = create_recorder(model_dir, mlflow, &config)?;
     let mut evaluator = Evaluator::new(&env_config(), 0, N_EPISODES_PER_EVAL)?;
 
     trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
@@ -238,26 +257,37 @@ fn eval(model_dir: &str, render: bool) -> Result<()> {
     Ok(())
 }
 
+fn create_matches<'a>() -> ArgMatches<'a> {
+    App::new("sac_lunarlander_cont")
+    .version("0.1.0")
+    .author("Taku Yoshioka <yoshioka@laboro.ai>")
+    .arg(
+        Arg::with_name("train")
+            .long("train")
+            .takes_value(false)
+            .help("Do training only"),
+    )
+    .arg(
+        Arg::with_name("eval")
+            .long("eval")
+            .takes_value(false)
+            .help("Do evaluation only"),
+    )
+    .arg(
+        Arg::with_name("mlflow")
+            .long("mlflow")
+            .takes_value(false)
+            .help("User mlflow tracking"),
+    )
+    .get_matches()
+}
+
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
 
-    let matches = App::new("sac_lunarlander_cont")
-        .version("0.1.0")
-        .author("Taku Yoshioka <yoshioka@laboro.ai>")
-        .arg(
-            Arg::with_name("train")
-                .long("train")
-                .takes_value(false)
-                .help("Do training only"),
-        )
-        .arg(
-            Arg::with_name("eval")
-                .long("eval")
-                .takes_value(false)
-                .help("Do evaluation only"),
-        )
-        .get_matches();
+    let matches = create_matches();
+    let mlflow = matches.is_present("mlflow");
 
     let do_train = (matches.is_present("train") && !matches.is_present("eval"))
         || (!matches.is_present("train") && !matches.is_present("eval"));
@@ -265,7 +295,7 @@ fn main() -> Result<()> {
         || (!matches.is_present("train") && !matches.is_present("eval"));
 
     if do_train {
-        train(MAX_OPTS, MODEL_DIR)?;
+        train(MAX_OPTS, MODEL_DIR, mlflow)?;
     }
     if do_eval {
         eval(&(MODEL_DIR.to_owned() + "/best"), true)?;

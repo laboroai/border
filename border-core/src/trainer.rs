@@ -221,15 +221,14 @@ where
     }
 
     /// Train the agent.
-    pub fn train<A, S, D>(
+    pub fn train<A, D>(
         &mut self,
         agent: &mut A,
-        recorder: &mut S,
+        recorder: &mut Box<dyn Recorder>,
         evaluator: &mut D,
     ) -> Result<()>
     where
         A: Agent<E, R>,
-        S: Recorder,
         D: Evaluator<E, A>,
     {
         let env = E::build(&self.env_config_train, 0)?;

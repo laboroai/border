@@ -1,6 +1,6 @@
 use anyhow::Result;
 use border_core::{
-    record::Record,
+    record::{Record, Recorder},
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig, SubBatch,
@@ -19,6 +19,7 @@ use border_tch_agent::{
 use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg};
 // use csv::WriterBuilder;
+use border_mlflow_tracking::MlflowTrackingClient;
 use ndarray::{ArrayD, IxDyn};
 use serde::Serialize;
 use std::convert::TryFrom; //, fs::File};
@@ -224,8 +225,25 @@ fn create_evaluator(env_config: &EnvConfig) -> Result<Evaluator> {
     Evaluator::new(env_config, 0, N_EPISODES_PER_EVAL)
 }
 
-fn train(max_opts: usize, model_dir: &str) -> Result<()> {
-    let mut trainer = {
+fn create_recorder(
+    model_dir: &str,
+    mlflow: bool,
+    config: &TrainerConfig,
+) -> Result<Box<dyn Recorder>> {
+    match mlflow {
+        true => {
+            let client =
+                MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Default")?;
+            let recorder_run = client.create_recorder("")?;
+            recorder_run.log_params(&config)?;
+            Ok(Box::new(recorder_run))
+        }
+        false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
+    }
+}
+
+fn train(max_opts: usize, model_dir: &str, mlflow: bool) -> Result<()> {
+    let (mut trainer, config) = {
         let env_config = env_config();
         let step_proc_config = SimpleStepProcessorConfig {};
         let replay_buffer_config =
@@ -238,16 +256,16 @@ fn train(max_opts: usize, model_dir: &str) -> Result<()> {
             .save_interval(EVAL_INTERVAL)
             .model_dir(model_dir);
         let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
-            config,
+            config.clone(),
             env_config,
             step_proc_config,
             replay_buffer_config,
         );
 
-        trainer
+        (trainer, config)
     };
     let mut agent = create_agent(DIM_OBS, DIM_ACT);
-    let mut recorder = TensorboardRecorder::new(model_dir);
+    let mut recorder = create_recorder(model_dir, mlflow, &config)?;
     let mut evaluator = create_evaluator(&env_config())?;
 
     trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
@@ -303,9 +321,10 @@ fn main() -> Result<()> {
         || (!matches.is_present("train") && !matches.is_present("eval"));
     let do_eval = (!matches.is_present("train") && matches.is_present("eval"))
         || (!matches.is_present("train") && !matches.is_present("eval"));
+    let mlflow = matches.is_present("mlflow");
 
     if do_train {
-        train(MAX_OPTS, MODEL_DIR)?;
+        train(MAX_OPTS, MODEL_DIR, mlflow)?;
     }
     if do_eval {
         eval(&(MODEL_DIR.to_owned() + "/best"), true)?;
@@ -327,7 +346,7 @@ mod tests {
             Some(s) => s,
             None => panic!("Failed to get string of temporary directory"),
         };
-        train(100, model_dir)?;
+        train(100, model_dir, false)?;
         eval(&(model_dir.to_owned() + "/best"), false)?;
         Ok(())
     }

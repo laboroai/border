@@ -6,7 +6,7 @@ use border_candle_agent::{
     TensorSubBatch,
 };
 use border_core::{
-    record::{Record, RecordValue},
+    record::{Record, RecordValue, Recorder},
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
@@ -19,16 +19,17 @@ use border_py_gym_env::{
     ArrayObsFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
 use border_tensorboard::TensorboardRecorder;
-use clap::{App, Arg};
+use clap::{App, Arg, ArgMatches};
 // use csv::WriterBuilder;
+use border_mlflow_tracking::MlflowTrackingClient;
 use candle_core::{Device, Tensor};
 use ndarray::{ArrayD, IxDyn};
 use pyo3::PyObject;
 use serde::Serialize;
 use std::convert::TryFrom;
 
-const DIM_OBS: usize = 3;
-const DIM_ACT: usize = 1;
+const DIM_OBS: i64 = 3;
+const DIM_ACT: i64 = 1;
 const LR_ACTOR: f64 = 3e-4;
 const LR_CRITIC: f64 = 3e-4;
 const BATCH_SIZE: usize = 128;
@@ -182,7 +183,7 @@ impl TryFrom<&Record> for PendulumRecord {
     }
 }
 
-fn create_agent(in_dim: usize, out_dim: usize) -> Result<Sac<Env, Mlp, Mlp2, ReplayBuffer>> {
+fn create_agent(in_dim: i64, out_dim: i64) -> Result<Sac<Env, Mlp, Mlp2, ReplayBuffer>> {
     let device = Device::cuda_if_available(0)?;
     let actor_config = ActorConfig::default()
         .opt_config(OptimizerConfig::default().learning_rate(LR_ACTOR))
@@ -207,8 +208,25 @@ fn env_config() -> GymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
         .act_filter_config(ActFilter::default_config())
 }
 
-fn train(max_opts: usize, model_dir: &str, eval_interval: usize) -> Result<()> {
-    let mut trainer = {
+fn create_recorder(
+    model_dir: &str,
+    mlflow: bool,
+    config: &TrainerConfig,
+) -> Result<Box<dyn Recorder>> {
+    match mlflow {
+        true => {
+            let client =
+                MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Default")?;
+            let recorder_run = client.create_recorder("")?;
+            recorder_run.log_params(&config)?;
+            Ok(Box::new(recorder_run))
+        }
+        false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
+    }
+}
+
+fn train(max_opts: usize, model_dir: &str, eval_interval: usize, mlflow: bool) -> Result<()> {
+    let (mut trainer, config) = {
         let env_config = env_config();
         let step_proc_config = SimpleStepProcessorConfig {};
         let replay_buffer_config =
@@ -221,16 +239,16 @@ fn train(max_opts: usize, model_dir: &str, eval_interval: usize) -> Result<()> {
             .save_interval(eval_interval)
             .model_dir(model_dir);
         let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
-            config,
+            config.clone(),
             env_config,
             step_proc_config,
             replay_buffer_config,
         );
 
-        trainer
+        (trainer, config)
     };
     let mut agent = create_agent(DIM_OBS, DIM_ACT)?;
-    let mut recorder = TensorboardRecorder::new(model_dir);
+    let mut recorder = create_recorder(model_dir, mlflow, &config)?;
     let mut evaluator = Evaluator::new(&env_config(), 0, N_EPISODES_PER_EVAL)?;
 
     trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
@@ -269,10 +287,8 @@ fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
     Ok(())
 }
 
-fn main() -> Result<()> {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-
-    let matches = App::new("sac_pendulum")
+fn create_matches<'a>() -> ArgMatches<'a> {
+    App::new("sac_pendulum")
         .version("0.1.0")
         .author("Taku Yoshioka <yoshioka@laboro.ai>")
         .arg(
@@ -287,7 +303,20 @@ fn main() -> Result<()> {
                 .takes_value(false)
                 .help("Do evaluation only"),
         )
-        .get_matches();
+        .arg(
+            Arg::with_name("mlflow")
+                .long("mlflow")
+                .takes_value(false)
+                .help("User mlflow tracking"),
+        )
+        .get_matches()
+}
+
+fn main() -> Result<()> {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+
+    let matches = create_matches();
+    let mlflow = matches.is_present("mlflow");
 
     let do_train = (matches.is_present("train") && !matches.is_present("eval"))
         || (!matches.is_present("train") && !matches.is_present("eval"));
@@ -299,6 +328,7 @@ fn main() -> Result<()> {
             MAX_OPTS,
             "./border/examples/model/sac_pendulum",
             EVAL_INTERVAL,
+            mlflow,
         )?;
     }
     if do_eval {
@@ -317,7 +347,7 @@ mod test {
     fn test_sac_pendulum() -> Result<()> {
         let model_dir = TempDir::new("sac_pendulum")?;
         let model_dir = model_dir.path().to_str().unwrap();
-        train(100, model_dir, 100)?;
+        train(100, model_dir, 100, false)?;
         eval(1, false, (model_dir.to_string() + "/best").as_str())?;
 
         Ok(())

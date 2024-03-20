@@ -1,13 +1,12 @@
 use anyhow::Result;
 use border_candle_agent::{
-    dqn::{Dqn, DqnConfig, DqnModel, DqnModelConfig},
-    mlp::{Mlp, Mlp2, MlpConfig},
-    model::SubModel1,
+    dqn::{Dqn, DqnConfig, DqnModelConfig},
+    mlp::{Mlp, MlpConfig},
     opt::OptimizerConfig,
     TensorSubBatch,
 };
 use border_core::{
-    record::Record,
+    record::Recorder,
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig, SubBatch,
@@ -16,15 +15,15 @@ use border_core::{
 };
 use border_mlflow_tracking::MlflowTrackingClient;
 use border_py_gym_env::{
-    util::{arrayd_to_pyobj, arrayd_to_tensor, tensor_to_arrayd, vec_to_tensor},
+    util::{arrayd_to_tensor, vec_to_tensor},
     ArrayObsFilter, DiscreteActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
 use border_tensorboard::TensorboardRecorder;
 use candle_core::{Device, Tensor};
-use clap::{App, Arg};
+use clap::{App, Arg, ArgMatches};
 use ndarray::{ArrayD, IxDyn};
-use serde::{de::DeserializeOwned, Serialize};
-use std::convert::TryFrom;
+// use serde::{de::DeserializeOwned, Serialize};
+// use std::convert::TryFrom;
 
 const DIM_OBS: i64 = 4;
 const DIM_ACT: i64 = 2;
@@ -228,6 +227,23 @@ fn create_evaluator(env_config: &EnvConfig) -> Result<Evaluator> {
     Evaluator::new(env_config, 0, N_EPISODES_PER_EVAL)
 }
 
+fn create_recorder(
+    model_dir: &str,
+    mlflow: bool,
+    config: &TrainerConfig,
+) -> Result<Box<dyn Recorder>> {
+    match mlflow {
+        true => {
+            let client =
+                MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Default")?;
+            let recorder_run = client.create_recorder("")?;
+            recorder_run.log_params(&config)?;
+            Ok(Box::new(recorder_run))
+        }
+        false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
+    }
+}
+
 fn train(max_opts: usize, model_dir: &str, mlflow: bool) -> Result<()> {
     let (mut trainer, config) = {
         let env_config = create_env_config();
@@ -251,24 +267,7 @@ fn train(max_opts: usize, model_dir: &str, mlflow: bool) -> Result<()> {
         (trainer, config)
     };
     let mut agent = create_agent(DIM_OBS, DIM_ACT);
-    // let mut recorder = match mlflow {
-    //     true => {
-    //         let client =
-    //             MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("")?;
-    //         let mut recorder_run = client.create_recorder("")?;
-    //         recorder_run.log_params(&config)?;
-    //         recorder_run
-    //     }
-    //     false => TensorboardRecorder::new(model_dir),
-    // };
-    let mut recorder = {
-        let client =
-            MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Default")?;
-        let mut recorder_run = client.create_recorder("")?;
-        recorder_run.log_params(&config)?;
-        recorder_run
-    };
-
+    let mut recorder = create_recorder(model_dir, mlflow, &config)?;
     let mut evaluator = create_evaluator(&create_env_config())?;
 
     trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
@@ -299,13 +298,8 @@ fn eval(model_dir: &str, render: bool) -> Result<()> {
     Ok(())
 }
 
-fn main() -> Result<()> {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-    // TODO: set seed
-    // let device = candle_core::Device;
-    // device.set_seed(42)?;
-
-    let matches = App::new("dqn_cartpole")
+fn create_matches<'a>() -> ArgMatches<'a> {
+    App::new("dqn_cartpole")
         .version("0.1.0")
         .author("Taku Yoshioka <yoshioka@laboro.ai>")
         .arg(
@@ -326,8 +320,16 @@ fn main() -> Result<()> {
                 .takes_value(false)
                 .help("User mlflow tracking"),
         )
-        .get_matches();
+        .get_matches()
+}
 
+fn main() -> Result<()> {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    // TODO: set seed
+    // let device = candle_core::Device;
+    // device.set_seed(42)?;
+
+    let matches = create_matches();
     let do_train = (matches.is_present("train") && !matches.is_present("eval"))
         || (!matches.is_present("train") && !matches.is_present("eval"));
     let do_eval = (!matches.is_present("train") && matches.is_present("eval"))
