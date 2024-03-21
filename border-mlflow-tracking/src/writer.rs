@@ -53,6 +53,8 @@ pub struct MlflowTrackingRecorder {
     experiment_id: String,
     run_id: String,
     run_name: String,
+    user_name: String,
+    password: String,
 }
 
 impl MlflowTrackingRecorder {
@@ -64,6 +66,8 @@ impl MlflowTrackingRecorder {
             experiment_id: experiment_id.to_string(),
             run_id: run.info.run_id.clone(),
             run_name: run.info.run_name.clone(),
+            user_name: "".to_string(),
+            password: "".to_string(),
         })
     }
 
@@ -116,6 +120,7 @@ impl Recorder for MlflowTrackingRecorder {
                         let _resp = self
                             .client
                             .post(&url)
+                            .basic_auth(&self.user_name, Some(&self.password))
                             .json(&params) // auto serialize
                             .send()
                             .unwrap();
@@ -141,6 +146,7 @@ impl Drop for MlflowTrackingRecorder {
         let _resp = self
             .client
             .post(&url)
+            .basic_auth(&self.user_name, Some(&self.password))
             .json(&params) // auto serialize
             .send()
             .unwrap();

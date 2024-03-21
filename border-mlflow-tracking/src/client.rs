@@ -51,6 +51,12 @@ pub struct MlflowTrackingClient {
 
     /// Current experiment ID.
     experiment_id: Option<String>,
+
+    /// User name of the tracking server.
+    user_name: String,
+
+    /// Password.
+    password: String,
 }
 
 impl MlflowTrackingClient {
@@ -59,6 +65,19 @@ impl MlflowTrackingClient {
             client: Client::new(),
             base_url: base_url.as_ref().to_string(),
             experiment_id: None,
+            user_name: "".to_string(),
+            password: "".to_string(),
+        }
+    }
+
+    /// Set user name and password for basic authentication of the tracking server.
+    pub fn basic_auth(self, user_name: impl AsRef<str>, password: impl AsRef<str>) -> Self {
+        Self {
+            client: self.client,
+            base_url: self.base_url,
+            experiment_id: self.experiment_id,
+            user_name: user_name.as_ref().to_string(),
+            password: password.as_ref().to_string(),
         }
     }
 
@@ -82,6 +101,8 @@ impl MlflowTrackingClient {
             client: self.client,
             base_url: self.base_url,
             experiment_id: Some(experiment_id),
+            user_name: self.user_name,
+            password: self.password,
         })
 
         // let experiment_id = self.get_experiment_id(&name);
@@ -103,6 +124,7 @@ impl MlflowTrackingClient {
         let resp = self
             .client
             .get(url)
+            .basic_auth(&self.user_name, Some(&self.password))
             .query(&[("experiment_name", name.as_ref())])
             .send()
             .unwrap();
@@ -128,6 +150,7 @@ impl MlflowTrackingClient {
         let resp = self
             .client
             .post(url)
+            .basic_auth(&self.user_name, Some(&self.password))
             .json(&params) // auto serialize
             .send()
             .unwrap();

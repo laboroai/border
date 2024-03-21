@@ -215,8 +215,9 @@ fn create_recorder(
 ) -> Result<Box<dyn Recorder>> {
     match mlflow {
         true => {
-            let client =
-                MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Default")?;
+            let client = MlflowTrackingClient::new("http://localhost:8080")
+                //.basic_auth("user_name", "password") // when using basic authentication
+                .set_experiment_id("Default")?;
             let recorder_run = client.create_recorder("")?;
             recorder_run.log_params(&config)?;
             Ok(Box::new(recorder_run))
