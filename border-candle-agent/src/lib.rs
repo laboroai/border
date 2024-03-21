@@ -32,6 +32,7 @@ impl From<candle_core::Device> for Device {
                 // let n = cuda_device.
                 // Self::Cuda(n)
             }
+            _ => unimplemented!(),
         }
     }
 }

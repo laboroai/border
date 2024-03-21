@@ -131,7 +131,7 @@ where
                     (next_q - self.ent_coef.alpha()?.broadcast_mul(&next_log_p))?
                 };
                 ((self.reward_scale as f64) * reward)? + (1f64 - &is_done)? * self.gamma * next_q
-            }?.detach()?;
+            }?.detach();
 
             debug_assert_eq!(tgt.dims(), [self.batch_size]);
 

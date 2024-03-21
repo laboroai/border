@@ -57,7 +57,7 @@ impl EntCoef {
 
     /// Returns the entropy coefficient.
     pub fn alpha(&self) -> Result<Tensor> {
-        Ok(self.log_alpha.detach()?.exp()?)
+        Ok(self.log_alpha.detach().exp()?)
     }
 
     /// Does an optimization step given a loss.
@@ -72,7 +72,7 @@ impl EntCoef {
         if let Some(target_entropy) = &self.target_entropy {
             let target_entropy = Tensor::try_from(*target_entropy)?;
             let loss = {
-                let tmp = ((&self.log_alpha * (logp + target_entropy)?.detach()?)? * -1f64)?;
+                let tmp = ((&self.log_alpha * (logp + target_entropy)?.detach())? * -1f64)?;
                 tmp.mean(0)?
             };
             self.backward_step(&loss);
