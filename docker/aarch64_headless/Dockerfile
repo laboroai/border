@@ -96,6 +96,7 @@ RUN echo 'export CARGO_TARGET_DIR=$HOME/target' >> ~/.bashrc
 RUN echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.mujoco/mujoco210/bin' >> ~/.bashrc
 RUN echo 'export MUJOCO_GL=glfw' >> ~/.bashrc
 RUN echo 'source $HOME/venv/bin/activate' >> ~/.bashrc
+RUN echo 'export RUSTFLAGS="-C target-feature=+fp16"' >> ~/.bashrc
 
 RUN rm /bin/sh && mv /bin/sh_tmp /bin/sh
 
