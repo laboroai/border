@@ -64,6 +64,8 @@ RUN source /root/venv/bin/activate && pip3 install mujoco==2.3.7
 RUN source /root/venv/bin/activate && pip3 install gymnasium[box2d]==0.29.0
 RUN source /root/venv/bin/activate && pip3 install gymnasium-robotics==1.2.2
 RUN source /root/venv/bin/activate && pip3 install tensorboard==2.16.2
+RUN source /root/venv/bin/activate && pip3 install tabulate==0.9.0
+RUN source /root/venv/bin/activate && pip3 install mlflow-export-import==1.2.0
 # RUN source /home/ubuntu/venv/bin/activate && pip3 install robosuite==1.3.2
 # RUN source /home/ubuntu/venv/bin/activate && pip3 install -U 'mujoco-py<2.2,>=2.1'
 # RUN source /home/ubuntu/venv/bin/activate && pip3 install dm-control==1.0.8
