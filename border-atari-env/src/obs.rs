@@ -14,6 +14,8 @@
 //! Instead, the scaling is applied in CNN model.
 use anyhow::Result;
 use border_core::{record::Record, Obs};
+#[cfg(feature = "candle-core")]
+use candle_core::{Device::Cpu, Tensor};
 use serde::{Deserialize, Serialize};
 use std::{default::Default, marker::PhantomData};
 #[cfg(feature = "tch")]
@@ -50,6 +52,18 @@ impl From<BorderAtariObs> for Tensor {
         let tmp = &obs.frames;
         // Assumes the batch size is 1, implying non-vectorized environment
         Tensor::try_from(tmp).unwrap().reshape(&[1, 4, 1, 84, 84])
+    }
+}
+
+#[cfg(feature = "candle-core")]
+impl From<BorderAtariObs> for Tensor {
+    fn from(obs: BorderAtariObs) -> Tensor {
+        let tmp = obs.frames;
+        // Assumes the batch size is 1, implying non-vectorized environment
+        Tensor::from_vec(tmp, &[1 * 4 * 1 * 84 * 84], &Cpu)
+            .unwrap()
+            .reshape(&[1, 4, 1, 84, 84])
+            .unwrap()
     }
 }
 
