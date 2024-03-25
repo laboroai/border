@@ -108,6 +108,75 @@ mod trainer_config {
     }
 }
 
+mod replay_buffer_config {
+    use border_core::replay_buffer::{PerConfig, SimpleReplayBufferConfig};
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Deserialize, Serialize)]
+    pub struct DqnAtariReplayBufferConfig {
+        #[serde(
+            default = "default_capacity",
+            skip_serializing_if = "is_default_capacity"
+        )]
+        pub capacity: usize,
+
+        #[serde(default = "default_seed", skip_serializing_if = "is_default_seed")]
+        pub seed: u64,
+
+        /// Currently, fixed to None
+        #[serde(
+            default = "default_per_config",
+            skip_serializing_if = "is_default_per_config"
+        )]
+        pub per_config: Option<PerConfig>,
+    }
+
+    fn default_capacity() -> usize {
+        262144
+    }
+
+    fn default_seed() -> u64 {
+        42
+    }
+
+    fn default_per_config() -> Option<PerConfig> {
+        None
+    }
+
+    fn is_default_capacity(v: &usize) -> bool {
+        *v == default_capacity()
+    }
+
+    fn is_default_seed(v: &u64) -> bool {
+        *v == default_seed()
+    }
+
+    fn is_default_per_config(v: &Option<PerConfig>) -> bool {
+        *v == default_per_config()
+    }
+
+    impl Default for DqnAtariReplayBufferConfig {
+        fn default() -> Self {
+            Self {
+                capacity: default_capacity(),
+                seed: default_seed(),
+                per_config: default_per_config(),
+            }
+        }
+    }
+
+    impl Into<SimpleReplayBufferConfig> for DqnAtariReplayBufferConfig {
+        fn into(self) -> SimpleReplayBufferConfig {
+            SimpleReplayBufferConfig {
+                capacity: self.capacity,
+                seed: self.seed,
+                per_config: self.per_config,
+            }
+        }
+    }
+}
+
+pub use replay_buffer_config::DqnAtariReplayBufferConfig;
 pub use trainer_config::DqnAtariTrainerConfig;
 
 #[derive(Clone)]

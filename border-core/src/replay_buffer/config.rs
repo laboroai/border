@@ -70,8 +70,13 @@ impl PerConfig {
 /// Configuration of [SimpleReplayBuffer](super::SimpleReplayBuffer).
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct SimpleReplayBufferConfig {
+    /// Capacity of the buffer.
     pub capacity: usize,
+
+    /// Random seed for sampling.
     pub seed: u64,
+
+    /// Config for prioritized sampling.
     pub per_config: Option<PerConfig>,
 }
 

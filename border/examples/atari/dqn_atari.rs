@@ -116,6 +116,15 @@ mod config {
         file.write_all(serde_yaml::to_string(&config)?.as_bytes())?;
         Ok(())
     }
+
+    pub fn create_replay_buffer_config(matches: &ArgMatches) -> Result<()> {
+        let model_dir = utils::model_dir(matches);
+        let config = util_dqn_atari::DqnAtariReplayBufferConfig::default();
+        let path = model_dir + "/replay_buffer.yaml";
+        let mut file = std::fs::File::create(path)?;
+        file.write_all(serde_yaml::to_string(&config)?.as_bytes())?;
+        Ok(())
+    }
 }
 
 mod utils {
@@ -305,6 +314,7 @@ fn play(matches: ArgMatches) -> Result<()> {
 
 fn create_config(matches: ArgMatches) -> Result<()> {
     config::create_trainer_config(&matches)?;
+    config::create_replay_buffer_config(&matches)?;
     Ok(())
 }
 
