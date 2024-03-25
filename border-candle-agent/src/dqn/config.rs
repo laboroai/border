@@ -16,7 +16,7 @@ use std::{
     path::Path,
 };
 
-/// Configuration of [Dqn](super::Dqn) agent.
+/// Configuration of [`Dqn`](super::Dqn) agent.
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct DqnConfig<Q>
 where

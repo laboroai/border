@@ -83,7 +83,6 @@ where
 
     // Dimension of the action vector.
     out_dim: i64,
-    // pub(super) out_dim: i64,
 
     // Action-value function
     pi_config: P::Config,

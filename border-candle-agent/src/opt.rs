@@ -10,11 +10,31 @@ pub enum OptimizerConfig {
     /// AdamW optimizer.
     AdamW {
         lr: f64,
+        #[serde(default = "default_beta1")]
         beta1: f64,
+        #[serde(default = "default_beta2")]
         beta2: f64,
+        #[serde(default = "default_eps")]
         eps: f64,
+        #[serde(default = "default_weight_decay")]
         weight_decay: f64,
     },
+}
+
+fn default_beta1() -> f64 {
+    ParamsAdamW::default().beta1
+}
+
+fn default_beta2() -> f64 {
+    ParamsAdamW::default().beta2
+}
+
+fn default_eps() -> f64 {
+    ParamsAdamW::default().eps
+}
+
+fn default_weight_decay() -> f64 {
+    ParamsAdamW::default().weight_decay
 }
 
 impl OptimizerConfig {

@@ -21,6 +21,7 @@ where
     Q: OutDim,
 {
     pub q_config: Option<Q>,
+    #[serde(default)]
     pub opt_config: OptimizerConfig,
 }
 
