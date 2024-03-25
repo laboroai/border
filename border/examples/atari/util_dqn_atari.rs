@@ -112,32 +112,6 @@ impl<'a> Params<'a> {
 }
 
 #[allow(dead_code)]
-pub fn model_dir(env_name: String, params: &Params) -> Result<String> {
-    let per = params.per;
-    let ddqn = params.double_dqn;
-    let debug = params.debug;
-
-    let mut model_dir = format!("./border/examples/atari/model/dqn_{}", env_name);
-    if ddqn {
-        model_dir.push_str("_ddqn");
-    }
-
-    if per {
-        model_dir.push_str("_per");
-    }
-
-    if debug {
-        model_dir.push_str("_debug");
-    }
-
-    if !Path::new(&model_dir).exists() {
-        std::fs::create_dir(Path::new(&model_dir))?;
-    }
-
-    Ok(model_dir)
-}
-
-#[allow(dead_code)]
 pub fn model_dir_async(env_name: String, params: &Params) -> Result<String> {
     let per = params.per;
     let ddqn = params.double_dqn;

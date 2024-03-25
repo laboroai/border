@@ -109,7 +109,7 @@ mod utils {
             .value_of("name")
             .expect("The name of the environment was not given")
             .to_string();
-        format!("./border/examples/atari/model/dqn_{}", name)
+        format!("./border/examples/atari/model/candle/dqn_{}", name)
 
         // let mut params = Params::default();
 
