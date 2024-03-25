@@ -1,3 +1,4 @@
+mod util_dqn_atari;
 use anyhow::Result;
 use border_atari_env::{
     BorderAtariAct, BorderAtariActRawFilter, BorderAtariEnv, BorderAtariEnvConfig, BorderAtariObs,
@@ -66,6 +67,9 @@ mod obs_act_types {
 use obs_act_types::*;
 
 mod config {
+    use self::util_dqn_atari::DqnAtariTrainerConfig;
+    use std::io::Write;
+
     use super::*;
 
     pub fn env_config(name: impl Into<String>) -> EnvConfig {
@@ -89,8 +93,12 @@ mod config {
     }
 
     pub fn load_trainer_config<'a>(model_dir: impl Into<&'a str>) -> Result<TrainerConfig> {
-        let config_path = format!("{}/trainer.yaml", model_dir.into());
-        TrainerConfig::load(config_path)
+        let path = format!("{}/trainer.yaml", model_dir.into());
+        let file = std::fs::File::open(path)?;
+        let rdr = std::io::BufReader::new(file);
+        let b: DqnAtariTrainerConfig = serde_yaml::from_reader(rdr)?;
+        Ok(b.into())
+        // TrainerConfig::load(config_path)
     }
 
     pub fn load_replay_buffer_config<'a>(
@@ -98,6 +106,15 @@ mod config {
     ) -> Result<SimpleReplayBufferConfig> {
         let config_path = format!("{}/replay_buffer.yaml", model_dir.into());
         SimpleReplayBufferConfig::load(config_path)
+    }
+
+    pub fn create_trainer_config(matches: &ArgMatches) -> Result<()> {
+        let model_dir = utils::model_dir(matches);
+        let config = util_dqn_atari::DqnAtariTrainerConfig::default();
+        let path = model_dir + "/trainer.yaml";
+        let mut file = std::fs::File::create(path)?;
+        file.write_all(serde_yaml::to_string(&config)?.as_bytes())?;
+        Ok(())
     }
 }
 
@@ -178,6 +195,11 @@ mod utils {
                     .long("play-gdrive")
                     .takes_value(false)
                     .help("Play with the trained model downloaded from google drive"),
+            )
+            .arg(
+                Arg::with_name("create-config")
+                    .long("create-config")
+                    .help("Create config files"),
             )
             // not supported yet
             // .arg(
@@ -281,11 +303,18 @@ fn play(matches: ArgMatches) -> Result<()> {
     Ok(())
 }
 
+fn create_config(matches: ArgMatches) -> Result<()> {
+    config::create_trainer_config(&matches)?;
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let matches = utils::create_matches();
 
     if matches.is_present("play") || matches.is_present("play-gdrive") {
         play(matches)?;
+    } else if matches.is_present("create-config"){
+        create_config(matches)?;
     } else {
         train(matches)?;
     }
