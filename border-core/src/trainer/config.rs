@@ -10,13 +10,13 @@ use std::{
 /// Configuration of [`Trainer`](super::Trainer).
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct TrainerConfig {
-    pub(super) max_opts: usize,
-    pub(super) eval_threshold: Option<f32>,
-    pub(super) model_dir: Option<String>,
-    pub(super) opt_interval: usize,
-    pub(super) eval_interval: usize,
-    pub(super) record_interval: usize,
-    pub(super) save_interval: usize,
+    pub max_opts: usize,
+    pub eval_threshold: Option<f32>,
+    pub model_dir: Option<String>,
+    pub opt_interval: usize,
+    pub eval_interval: usize,
+    pub record_interval: usize,
+    pub save_interval: usize,
 }
 
 impl Default for TrainerConfig {

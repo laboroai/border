@@ -16,12 +16,12 @@ where
     OF: BorderAtariObsFilter<O>,
     AF: BorderAtariActFilter<A>,
 {
-    pub(super) rom_dir: String,
-    pub(super) name: String,
-    pub(super) obs_filter_config: OF::Config,
-    pub(super) act_filter_config: AF::Config,
-    pub(super) train: bool,
-    pub(super) render: bool,
+    pub rom_dir: String,
+    pub name: String,
+    pub obs_filter_config: OF::Config,
+    pub act_filter_config: AF::Config,
+    pub train: bool,
+    pub render: bool,
 }
 
 impl<O, A, OF, AF> Clone for BorderAtariEnvConfig<O, A, OF, AF>

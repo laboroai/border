@@ -4,10 +4,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 /// Configuration of [`Mlp`](super::Mlp).
 pub struct MlpConfig {
-    pub(super) in_dim: i64,
-    pub(super) units: Vec<i64>,
-    pub(super) out_dim: i64,
-    pub(super) activation_out: bool,
+    pub in_dim: i64,
+    pub units: Vec<i64>,
+    pub out_dim: i64,
+    pub activation_out: bool,
 }
 
 impl MlpConfig {
