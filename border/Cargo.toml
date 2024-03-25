@@ -59,6 +59,12 @@ test = false
 [[example]]
 name = "dqn_atari"
 path = "examples/atari/dqn_atari.rs"
+required-features = ["candle-core"]
+test = false
+
+[[example]]
+name = "dqn_atari_tch"
+path = "examples/atari/dqn_atari_tch.rs"
 required-features = ["tch"]
 test = false
 
