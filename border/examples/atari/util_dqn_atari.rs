@@ -408,9 +408,10 @@ mod candle_dqn_config {
     }
 }
 
-pub use candle_dqn_config::DqnAtariAgentConfig;
 pub use replay_buffer_config::DqnAtariReplayBufferConfig;
 pub use trainer_config::DqnAtariTrainerConfig;
+#[cfg(feature = "candle-core")]
+pub use candle_dqn_config::DqnAtariAgentConfig;
 
 #[derive(Clone)]
 pub struct Params<'a> {

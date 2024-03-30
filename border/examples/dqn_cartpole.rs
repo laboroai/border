@@ -228,23 +228,26 @@ fn create_evaluator(env_config: &EnvConfig) -> Result<Evaluator> {
 }
 
 fn create_recorder(
+    matches: &ArgMatches,
     model_dir: &str,
-    mlflow: bool,
     config: &TrainerConfig,
 ) -> Result<Box<dyn Recorder>> {
-    match mlflow {
+    match matches.is_present("mlflow") {
         true => {
             let client =
                 MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Default")?;
             let recorder_run = client.create_recorder("")?;
             recorder_run.log_params(&config)?;
+            recorder_run.set_tag("env", "cartpole")?;
+            recorder_run.set_tag("algo", "dqn")?;
+            recorder_run.set_tag("backend", "candle")?;
             Ok(Box::new(recorder_run))
         }
         false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
     }
 }
 
-fn train(max_opts: usize, model_dir: &str, mlflow: bool) -> Result<()> {
+fn train(matches: &ArgMatches, max_opts: usize, model_dir: &str) -> Result<()> {
     let (mut trainer, config) = {
         let env_config = create_env_config();
         let step_proc_config = SimpleStepProcessorConfig {};
@@ -267,7 +270,7 @@ fn train(max_opts: usize, model_dir: &str, mlflow: bool) -> Result<()> {
         (trainer, config)
     };
     let mut agent = create_agent(DIM_OBS, DIM_ACT);
-    let mut recorder = create_recorder(model_dir, mlflow, &config)?;
+    let mut recorder = create_recorder(&matches, model_dir, &config)?;
     let mut evaluator = create_evaluator(&create_env_config())?;
 
     trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
@@ -334,10 +337,9 @@ fn main() -> Result<()> {
         || (!matches.is_present("train") && !matches.is_present("eval"));
     let do_eval = (!matches.is_present("train") && matches.is_present("eval"))
         || (!matches.is_present("train") && !matches.is_present("eval"));
-    let mlflow = matches.is_present("mlflow");
 
     if do_train {
-        train(MAX_OPTS, MODEL_DIR, mlflow)?;
+        train(&matches, MAX_OPTS, MODEL_DIR)?;
     }
     if do_eval {
         eval(&(MODEL_DIR.to_owned() + "/best"), true)?;
