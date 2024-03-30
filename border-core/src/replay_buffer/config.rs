@@ -12,6 +12,7 @@ use std::{
 /// Configuration for prioritized experience replay.
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct PerConfig {
+    /// Exponent for prioritization.
     pub alpha: f32,
     /// Initial value of $\beta$.
     pub beta_0: f32,

@@ -176,6 +176,239 @@ mod replay_buffer_config {
     }
 }
 
+#[cfg(feature = "candle-core")]
+mod candle_dqn_config {
+    use std::marker::PhantomData;
+
+    use border_candle_agent::{
+        cnn::{Cnn, CnnConfig},
+        dqn::{DqnConfig, DqnExplorer, DqnModelConfig, EpsilonGreedy},
+        opt::OptimizerConfig,
+        Device,
+    };
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Deserialize, Serialize)]
+    pub struct DqnAtariAgentConfig {
+        #[serde(
+            default = "default_model_config",
+            skip_serializing_if = "is_default_model_config"
+        )]
+        pub model_config: DqnModelConfig<CnnConfig>,
+        #[serde(
+            default = "default_soft_update_interval",
+            skip_serializing_if = "is_default_soft_update_interval"
+        )]
+        pub soft_update_interval: usize,
+        #[serde(
+            default = "default_n_updates_per_opt",
+            skip_serializing_if = "is_default_n_updates_per_opt"
+        )]
+        pub n_updates_per_opt: usize,
+        #[serde(
+            default = "default_min_transitions_warmup",
+            skip_serializing_if = "is_default_min_transitions_warmup"
+        )]
+        pub min_transitions_warmup: usize,
+        #[serde(
+            default = "default_batch_size",
+            skip_serializing_if = "is_default_batch_size"
+        )]
+        pub batch_size: usize,
+        #[serde(
+            default = "default_discount_factor",
+            skip_serializing_if = "is_default_discount_factor"
+        )]
+        pub discount_factor: f64,
+        #[serde(default = "default_tau", skip_serializing_if = "is_default_tau")]
+        pub tau: f64,
+        #[serde(default = "default_train", skip_serializing_if = "is_default_train")]
+        pub train: bool,
+        #[serde(
+            default = "default_explorer",
+            skip_serializing_if = "is_default_explorer"
+        )]
+        pub explorer: DqnExplorer,
+        #[serde(
+            default = "default_clip_reward",
+            skip_serializing_if = "is_default_clip_reward"
+        )]
+        pub clip_reward: Option<f64>,
+        #[serde(
+            default = "default_double_dqn",
+            skip_serializing_if = "is_default_double_dqn"
+        )]
+        pub double_dqn: bool,
+        #[serde(
+            default = "default_clip_td_err",
+            skip_serializing_if = "is_default_clip_td_err"
+        )]
+        pub clip_td_err: Option<(f64, f64)>,
+        #[serde(default = "default_device", skip_serializing_if = "is_default_device")]
+        pub device: Option<Device>,
+        // phantom: PhantomData<CnnConfig>,
+    }
+
+    impl Default for DqnAtariAgentConfig {
+        fn default() -> Self {
+            DqnAtariAgentConfig {
+                model_config: DqnModelConfig {
+                    q_config: Some(CnnConfig {
+                        n_stack: 4,
+                        out_dim: 0,
+                        skip_linear: false,
+                    }),
+                    opt_config: OptimizerConfig::default(),
+                },
+                soft_update_interval: 10000,
+                n_updates_per_opt: 1,
+                min_transitions_warmup: 2500,
+                batch_size: 32,
+                discount_factor: 0.99,
+                tau: 1.0,
+                train: false,
+                explorer: DqnExplorer::EpsilonGreedy(EpsilonGreedy {
+                    n_opts: 0,
+                    eps_start: 1.0,
+                    eps_final: 0.02,
+                    final_step: 1000000,
+                }),
+                clip_reward: Some(1.0),
+                double_dqn: false,
+                clip_td_err: None,
+                device: None,
+                // phantom: PhantomData,
+            }
+        }
+    }
+
+    fn default_model_config() -> DqnModelConfig<CnnConfig> {
+        DqnAtariAgentConfig::default().model_config
+    }
+
+    fn default_soft_update_interval() -> usize {
+        DqnAtariAgentConfig::default().soft_update_interval
+    }
+
+    fn default_n_updates_per_opt() -> usize {
+        DqnAtariAgentConfig::default().n_updates_per_opt
+    }
+
+    fn default_min_transitions_warmup() -> usize {
+        DqnAtariAgentConfig::default().min_transitions_warmup
+    }
+
+    fn default_batch_size() -> usize {
+        DqnAtariAgentConfig::default().batch_size
+    }
+
+    fn default_discount_factor() -> f64 {
+        DqnAtariAgentConfig::default().discount_factor
+    }
+
+    fn default_tau() -> f64 {
+        DqnAtariAgentConfig::default().tau
+    }
+
+    fn default_train() -> bool {
+        DqnAtariAgentConfig::default().train
+    }
+
+    fn default_explorer() -> DqnExplorer {
+        DqnAtariAgentConfig::default().explorer
+    }
+
+    fn default_clip_reward() -> Option<f64> {
+        DqnAtariAgentConfig::default().clip_reward
+    }
+
+    fn default_double_dqn() -> bool {
+        DqnAtariAgentConfig::default().double_dqn
+    }
+
+    fn default_clip_td_err() -> Option<(f64, f64)> {
+        DqnAtariAgentConfig::default().clip_td_err
+    }
+
+    fn default_device() -> Option<Device> {
+        DqnAtariAgentConfig::default().device
+    }
+
+    fn is_default_model_config(config: &DqnModelConfig<CnnConfig>) -> bool {
+        config == &default_model_config()
+    }
+
+    fn is_default_soft_update_interval(soft_update_interval: &usize) -> bool {
+        soft_update_interval == &default_soft_update_interval()
+    }
+
+    fn is_default_n_updates_per_opt(n_updates_per_opt: &usize) -> bool {
+        n_updates_per_opt == &default_n_updates_per_opt()
+    }
+
+    fn is_default_min_transitions_warmup(min_transitions_warmup: &usize) -> bool {
+        min_transitions_warmup == &default_min_transitions_warmup()
+    }
+
+    fn is_default_batch_size(batch_size: &usize) -> bool {
+        batch_size == &default_batch_size()
+    }
+
+    fn is_default_discount_factor(discount_factor: &f64) -> bool {
+        discount_factor == &default_discount_factor()
+    }
+
+    fn is_default_tau(tau: &f64) -> bool {
+        tau == &default_tau()
+    }
+
+    fn is_default_train(train: &bool) -> bool {
+        train == &default_train()
+    }
+
+    fn is_default_explorer(explorer: &DqnExplorer) -> bool {
+        explorer == &default_explorer()
+    }
+
+    fn is_default_clip_reward(clip_reward: &Option<f64>) -> bool {
+        clip_reward == &default_clip_reward()
+    }
+
+    fn is_default_double_dqn(double_dqn: &bool) -> bool {
+        double_dqn == &default_double_dqn()
+    }
+
+    fn is_default_clip_td_err(clip_td_err: &Option<(f64, f64)>) -> bool {
+        clip_td_err == &default_clip_td_err()
+    }
+
+    fn is_default_device(device: &Option<Device>) -> bool {
+        device == &default_device()
+    }
+
+    impl Into<DqnConfig<Cnn>> for DqnAtariAgentConfig {
+        fn into(self) -> DqnConfig<Cnn> {
+            DqnConfig {
+                model_config: self.model_config,
+                soft_update_interval: self.soft_update_interval,
+                n_updates_per_opt: self.n_updates_per_opt,
+                min_transitions_warmup: self.min_transitions_warmup,
+                batch_size: self.batch_size,
+                discount_factor: self.discount_factor,
+                tau: self.tau,
+                train: self.train,
+                explorer: self.explorer,
+                clip_reward: self.clip_reward,
+                double_dqn: self.double_dqn,
+                clip_td_err: self.clip_td_err,
+                device: self.device,
+                phantom: PhantomData,
+            }
+        }
+    }
+}
+
+pub use candle_dqn_config::DqnAtariAgentConfig;
 pub use replay_buffer_config::DqnAtariReplayBufferConfig;
 pub use trainer_config::DqnAtariTrainerConfig;
 

@@ -67,7 +67,9 @@ mod obs_act_types {
 use obs_act_types::*;
 
 mod config {
-    use self::util_dqn_atari::DqnAtariTrainerConfig;
+    use self::util_dqn_atari::{
+        DqnAtariAgentConfig, DqnAtariReplayBufferConfig, DqnAtariTrainerConfig,
+    };
     use std::io::Write;
 
     use super::*;
@@ -89,15 +91,20 @@ mod config {
 
     pub fn load_dqn_config<'a>(model_dir: impl Into<&'a str>) -> Result<DqnConfig<Cnn>> {
         let config_path = format!("{}/agent.yaml", model_dir.into());
-        DqnConfig::<Cnn>::load(config_path)
+        let file = std::fs::File::open(config_path.clone())?;
+        let rdr = std::io::BufReader::new(file);
+        let config: DqnAtariAgentConfig = serde_yaml::from_reader(rdr)?;
+        println!("Load agent config: {}", config_path);
+        Ok(config.into())
     }
 
     pub fn load_trainer_config<'a>(model_dir: impl Into<&'a str>) -> Result<TrainerConfig> {
-        let path = format!("{}/trainer.yaml", model_dir.into());
-        let file = std::fs::File::open(path)?;
+        let config_path = format!("{}/trainer.yaml", model_dir.into());
+        let file = std::fs::File::open(config_path.clone())?;
         let rdr = std::io::BufReader::new(file);
-        let b: DqnAtariTrainerConfig = serde_yaml::from_reader(rdr)?;
-        Ok(b.into())
+        let config: DqnAtariTrainerConfig = serde_yaml::from_reader(rdr)?;
+        println!("Load trainer config: {}", config_path);
+        Ok(config.into())
         // TrainerConfig::load(config_path)
     }
 
@@ -105,15 +112,20 @@ mod config {
         model_dir: impl Into<&'a str>,
     ) -> Result<SimpleReplayBufferConfig> {
         let config_path = format!("{}/replay_buffer.yaml", model_dir.into());
-        SimpleReplayBufferConfig::load(config_path)
+        let file = std::fs::File::open(config_path.clone())?;
+        let rdr = std::io::BufReader::new(file);
+        let config: DqnAtariReplayBufferConfig = serde_yaml::from_reader(rdr)?;
+        println!("Load replay buffer config: {}", config_path);
+        Ok(config.into())
     }
 
     pub fn create_trainer_config(matches: &ArgMatches) -> Result<()> {
         let model_dir = utils::model_dir(matches);
         let config = util_dqn_atari::DqnAtariTrainerConfig::default();
         let path = model_dir + "/trainer.yaml";
-        let mut file = std::fs::File::create(path)?;
+        let mut file = std::fs::File::create(path.clone())?;
         file.write_all(serde_yaml::to_string(&config)?.as_bytes())?;
+        println!("Create trainer config file: {}", path);
         Ok(())
     }
 
@@ -121,8 +133,19 @@ mod config {
         let model_dir = utils::model_dir(matches);
         let config = util_dqn_atari::DqnAtariReplayBufferConfig::default();
         let path = model_dir + "/replay_buffer.yaml";
-        let mut file = std::fs::File::create(path)?;
+        let mut file = std::fs::File::create(path.clone())?;
         file.write_all(serde_yaml::to_string(&config)?.as_bytes())?;
+        println!("Create replay buffer config file: {}", path);
+        Ok(())
+    }
+
+    pub fn create_agent_config(matches: &ArgMatches) -> Result<()> {
+        let model_dir = utils::model_dir(matches);
+        let config = util_dqn_atari::DqnAtariAgentConfig::default();
+        let path = model_dir + "/agent.yaml";
+        let mut file = std::fs::File::create(path.clone())?;
+        file.write_all(serde_yaml::to_string(&config)?.as_bytes())?;
+        println!("Create agent config file: {}", path);
         Ok(())
     }
 }
@@ -315,6 +338,7 @@ fn play(matches: ArgMatches) -> Result<()> {
 fn create_config(matches: ArgMatches) -> Result<()> {
     config::create_trainer_config(&matches)?;
     config::create_replay_buffer_config(&matches)?;
+    config::create_agent_config(&matches)?;
     Ok(())
 }
 
@@ -323,7 +347,7 @@ fn main() -> Result<()> {
 
     if matches.is_present("play") || matches.is_present("play-gdrive") {
         play(matches)?;
-    } else if matches.is_present("create-config"){
+    } else if matches.is_present("create-config") {
         create_config(matches)?;
     } else {
         train(matches)?;

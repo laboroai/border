@@ -13,9 +13,8 @@ pub struct TrainerConfig {
     /// The maximum number of optimization steps.
     pub max_opts: usize,
 
-    // /// 
+    // ///
     // pub eval_threshold: Option<f32>,
-
     /// Directory where model parameters will be saved.
     pub model_dir: Option<String>,
 
@@ -59,8 +58,8 @@ impl TrainerConfig {
         self
     }
 
-    /// Sets the evaluation threshold.
-    pub fn eval_threshold(mut self, v: f32) -> Self {
+    /// (Deprecated) Sets the evaluation threshold.
+    pub fn eval_threshold(/*mut */ self, _v: f32) -> Self {
         unimplemented!();
         // self.eval_threshold = Some(v);
         // self
