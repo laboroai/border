@@ -8,6 +8,7 @@ pub mod opt;
 pub mod sac;
 mod tensor_batch;
 pub mod util;
+use candle_core::{backend::BackendDevice, DeviceLocation};
 use serde::{Deserialize, Serialize};
 pub use tensor_batch::{TensorSubBatch, ZeroTensor};
 
@@ -27,10 +28,12 @@ impl From<candle_core::Device> for Device {
     fn from(device: candle_core::Device) -> Self {
         match device {
             candle_core::Device::Cpu => Self::Cpu,
-            candle_core::Device::Cuda(_cuda_device) => {
-                unimplemented!();
-                // let n = cuda_device.
-                // Self::Cuda(n)
+            candle_core::Device::Cuda(cuda_device) => {
+                let loc = cuda_device.location();
+                match loc {
+                    DeviceLocation::Cuda { gpu_id } => Self::Cuda(gpu_id),
+                    _ => panic!(),
+                }
             }
             _ => unimplemented!(),
         }

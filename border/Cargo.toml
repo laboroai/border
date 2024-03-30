@@ -137,6 +137,7 @@ features = ["doc-only"]
 # default = [ "adam_eps" ]
 doc-only = ["tch/doc-only"]
 adam_eps = []
+cuda = ["candle-core/cuda"]
 
 #[target.'cfg(feature="adam_eps")'.patch.crates-io]
 #tch = { git = "https://github.com/taku-y/tch-rs", branch = "adam_eps" }
