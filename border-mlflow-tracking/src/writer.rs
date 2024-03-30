@@ -29,6 +29,13 @@ struct UpdateRunParams<'a> {
     run_name: &'a String,
 }
 
+#[derive(Debug, Serialize)]
+struct SetTagParams<'a> {
+    run_id: &'a String,
+    key: &'a String,
+    value: &'a String,
+}
+
 #[allow(dead_code)]
 /// Record metrics to the MLflow tracking server during training.
 ///
@@ -89,11 +96,30 @@ impl MlflowTrackingRecorder {
             let _resp = self
                 .client
                 .post(&url)
+                .basic_auth(&self.user_name, Some(&self.password))
                 .json(&params) // auto serialize
                 .send()
                 .unwrap();
             // TODO: error handling caused by API call
         }
+
+        Ok(())
+    }
+
+    pub fn set_tag(&self, key: impl AsRef<str>, value: impl AsRef<str>) -> Result<()> {
+        let url = format!("{}/api/2.0/mlflow/runs/set-tag", self.base_url);
+        let params = SetTagParams {
+            run_id: &self.run_id,
+            key: &key.as_ref().to_string(),
+            value: &value.as_ref().to_string(),
+        };
+        let _resp = self
+            .client
+            .post(&url)
+            .basic_auth(&self.user_name, Some(&self.password))
+            .json(&params)
+            .send()
+            .unwrap();
 
         Ok(())
     }
