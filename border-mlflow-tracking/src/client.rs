@@ -3,7 +3,6 @@ use crate::{system_time_as_millis, Experiment, MlflowTrackingRecorder, Run};
 use anyhow::Result;
 use log::info;
 use reqwest::blocking::Client;
-use reqwest::Request;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt::Display;
