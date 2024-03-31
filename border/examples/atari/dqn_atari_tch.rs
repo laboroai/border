@@ -63,10 +63,12 @@ mod obs_act_types {
     pub type Evaluator = DefaultEvaluator<Env, Dqn>;
 }
 
+use config::DqnAtariConfig;
 use obs_act_types::*;
 
 mod config {
     use super::*;
+    use serde::Serialize;
 
     pub fn env_config(name: impl Into<String>) -> EnvConfig {
         BorderAtariEnvConfig::default().name(name.into())
@@ -98,6 +100,13 @@ mod config {
     ) -> Result<SimpleReplayBufferConfig> {
         let config_path = format!("{}/replay_buffer.yaml", model_dir.into());
         SimpleReplayBufferConfig::load(config_path)
+    }
+
+    #[derive(Serialize)]
+    pub struct DqnAtariConfig {
+        pub trainer: TrainerConfig,
+        pub replay_buffer: SimpleReplayBufferConfig,
+        pub agent: DqnConfig<Cnn>,
     }
 }
 
@@ -137,16 +146,20 @@ mod utils {
     }
 
     pub fn create_recorder(
+        matches: &ArgMatches,
         model_dir: &str,
-        mlflow: bool,
-        config: &TrainerConfig,
+        config: &DqnAtariConfig,
     ) -> Result<Box<dyn Recorder>> {
-        match mlflow {
+        match matches.is_present("mlflow") {
             true => {
+                let name = matches.value_of("name").unwrap();
                 let client = MlflowTrackingClient::new("http://localhost:8080")
-                    .set_experiment_id("Default")?;
+                    .set_experiment_id("Atari")?;
                 let recorder_run = client.create_recorder("")?;
                 recorder_run.log_params(&config)?;
+                recorder_run.set_tag("env", name)?;
+                recorder_run.set_tag("algo", "dqn")?;
+                recorder_run.set_tag("backend", "tch")?;
                 Ok(Box::new(recorder_run))
             }
             false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
@@ -212,6 +225,11 @@ mod utils {
                     .takes_value(false)
                     .help("Showing configuration loaded from files"),
             )
+            .arg(
+                Arg::with_name("mlflow")
+                    .long("mlflow")
+                    .help("Logging with mlflow"),
+            )
             .get_matches();
 
         matches
@@ -220,7 +238,6 @@ mod utils {
 
 fn train(matches: ArgMatches) -> Result<()> {
     // Configurations
-    let mlflow = matches.is_present("mlflow");
     let name = matches.value_of("name").unwrap();
     let model_dir = utils::model_dir(&matches);
     let env_config_train = config::env_config(name);
@@ -240,8 +257,13 @@ fn train(matches: ArgMatches) -> Result<()> {
     if matches.is_present("show-config") {
         config::show_config(&env_config_train, &agent_config, &trainer_config);
     } else {
+        let config = DqnAtariConfig {
+            trainer: trainer_config.clone(),
+            replay_buffer: replay_buffer_config.clone(),
+            agent: agent_config.clone(),
+        };
         let mut agent = Dqn::build(agent_config);
-        let mut recorder = utils::create_recorder(&model_dir, mlflow, &trainer_config)?;
+        let mut recorder = utils::create_recorder(&matches, &model_dir, &config)?;
         let mut evaluator = Evaluator::new(&env_config_eval, 0, 1)?;
         let mut trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
             trainer_config,
