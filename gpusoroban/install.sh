@@ -36,7 +36,9 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 cd /home/user && python3 -m venv venv
 source /home/user/venv/bin/activate && pip3 install --upgrade pip
 source /home/user/venv/bin/activate && pip3 install pyyaml typing-extensions
-source /home/user/venv/bin/activate && pip3 install torch==1.12.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116 --no-cache-dir
+# source /home/user/venv/bin/activate && pip3 install torch==1.12.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116 --no-cache-dir
+source /home/user/venv/bin/activate && pip3 install torch==1.13.1+cu117 --extra-index-url https://download.pytorch.org/whl/cu117 --no-cache-dir
+# source /home/user/venv/bin/activate && pip3 install torch==2.0.1
 source /home/user/venv/bin/activate && pip3 install ipython jupyterlab
 source /home/user/venv/bin/activate && pip3 install numpy==1.21.3
 source /home/user/venv/bin/activate && pip3 install mujoco==2.3.7
@@ -48,9 +50,9 @@ source /home/user/venv/bin/activate && pip3 install tabulate==0.9.0
 source /home/user/venv/bin/activate && pip3 install mlflow-export-import==1.2.0
 
 echo 'export LIBTORCH=$HOME/venv/lib/python3.10/site-packages/torch' >> ~/.bashrc
-echo 'export LD_LIBRARY_PATH=$LIBTORCH/lib' >> ~/.bashrc
+echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIBTORCH/lib' >> ~/.bashrc
 echo 'export LIBTORCH_CXX11_ABI=0' >> ~/.bashrc
-echo 'export PATH=$HOME/.local/bin:$PATH' >> ~/.bashrc
+echo 'export PATH=$PATH:$HOME/.local/bin:$PATH' >> ~/.bashrc
 echo 'export PYTHONPATH=$HOME/border/border-py-gym-env/examples:$PYTHONPATH' >> ~/.bashrc
 echo 'source "$HOME/.cargo/env"' >> ~/.bashrc
 echo 'source $HOME/venv/bin/activate' >> ~/.bashrc

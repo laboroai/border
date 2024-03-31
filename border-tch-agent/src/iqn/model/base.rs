@@ -397,7 +397,9 @@ where
     M::Config: DeserializeOwned + Serialize + OutDim,
 {
     let tau = mode.sample(batch_size).to(device);
-    let averaged_action_value = iqn.forward(obs, &tau).mean_dim(&[1], false, Float);
+    let averaged_action_value = iqn
+        .forward(obs, &tau)
+        .mean_dim(Some([1].as_slice()), false, Float);
     let batch_size = averaged_action_value.size()[0];
     let n_action = iqn.out_dim;
     debug_assert_eq!(
