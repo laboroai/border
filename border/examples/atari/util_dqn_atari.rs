@@ -258,7 +258,13 @@ mod candle_dqn_config {
                         out_dim: 0,
                         skip_linear: false,
                     }),
-                    opt_config: OptimizerConfig::default(),
+                    opt_config: OptimizerConfig::AdamW {
+                        lr: 0.0001,
+                        beta1: 0.9,
+                        beta2: 0.999,
+                        eps: 1e-8,
+                        weight_decay: 0.01,
+                    },
                 },
                 soft_update_interval: 10000,
                 n_updates_per_opt: 1,
@@ -408,10 +414,10 @@ mod candle_dqn_config {
     }
 }
 
-pub use replay_buffer_config::DqnAtariReplayBufferConfig;
-pub use trainer_config::DqnAtariTrainerConfig;
 #[cfg(feature = "candle-core")]
 pub use candle_dqn_config::DqnAtariAgentConfig;
+pub use replay_buffer_config::DqnAtariReplayBufferConfig;
+pub use trainer_config::DqnAtariTrainerConfig;
 
 #[derive(Clone)]
 pub struct Params<'a> {

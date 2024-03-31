@@ -249,7 +249,8 @@ fn train(matches: ArgMatches) -> Result<()> {
             .device(tch::Device::cuda_if_available());
         agent_config
     };
-    let trainer_config = config::load_trainer_config(model_dir.as_str())?;
+    let trainer_config = config::load_trainer_config(model_dir.as_str())?
+        .model_dir(model_dir.clone());
     let replay_buffer_config = config::load_replay_buffer_config(model_dir.as_str())?;
     let step_proc_config = SimpleStepProcessorConfig {};
 
