@@ -42,10 +42,10 @@ source /home/user/venv/bin/activate && pip3 install numpy==1.21.3
 source /home/user/venv/bin/activate && pip3 install mujoco==2.3.7
 source /home/user/venv/bin/activate && pip3 install gymnasium[box2d]==0.29.0
 source /home/user/venv/bin/activate && pip3 install gymnasium-robotics==1.2.2
-source /root/user/venv/bin/activate && pip3 install tensorboard==2.16.2
-source /root/user/venv/bin/activate && pip3 install mlflow==2.11.1
-source /root/user/venv/bin/activate && pip3 install tabulate==0.9.0
-source /root/user/venv/bin/activate && pip3 install mlflow-export-import==1.2.0
+source /home/user/venv/bin/activate && pip3 install tensorboard==2.16.2
+source /home/user/venv/bin/activate && pip3 install mlflow==2.11.1
+source /home/user/venv/bin/activate && pip3 install tabulate==0.9.0
+source /home/user/venv/bin/activate && pip3 install mlflow-export-import==1.2.0
 
 echo 'export LIBTORCH=$HOME/venv/lib/python3.10/site-packages/torch' >> ~/.bashrc
 echo 'export LD_LIBRARY_PATH=$LIBTORCH/lib' >> ~/.bashrc
