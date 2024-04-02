@@ -16,6 +16,7 @@ use border_mlflow_tracking::MlflowTrackingClient;
 use border_tch_agent::{
     cnn::Cnn,
     dqn::{Dqn as Dqn_, DqnConfig},
+    opt::OptimizerConfig,
     TensorSubBatch,
 };
 use border_tensorboard::TensorboardRecorder;
@@ -246,11 +247,19 @@ fn train(matches: ArgMatches) -> Result<()> {
     let agent_config = {
         let agent_config = config::load_dqn_config(model_dir.as_str())?
             .out_dim(n_actions as _)
+            // .opt_config(OptimizerConfig::AdamW {
+            //     lr: 0.0001,
+            //     beta1: 0.9,
+            //     beta2: 0.999,
+            //     wd: 0.01,
+            //     eps: 1e-8,
+            //     amsgrad: false,
+            // })
             .device(tch::Device::cuda_if_available());
         agent_config
     };
-    let trainer_config = config::load_trainer_config(model_dir.as_str())?
-        .model_dir(model_dir.clone());
+    let trainer_config =
+        config::load_trainer_config(model_dir.as_str())?.model_dir(model_dir.clone());
     let replay_buffer_config = config::load_replay_buffer_config(model_dir.as_str())?;
     let step_proc_config = SimpleStepProcessorConfig {};
 
