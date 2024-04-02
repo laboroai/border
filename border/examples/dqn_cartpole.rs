@@ -22,8 +22,6 @@ use border_tensorboard::TensorboardRecorder;
 use candle_core::{Device, Tensor};
 use clap::{App, Arg, ArgMatches};
 use ndarray::{ArrayD, IxDyn};
-// use serde::{de::DeserializeOwned, Serialize};
-// use std::convert::TryFrom;
 
 const DIM_OBS: i64 = 4;
 const DIM_ACT: i64 = 2;
@@ -193,35 +191,64 @@ type Evaluator = DefaultEvaluator<Env, Dqn<Env, Mlp, ReplayBuffer>>;
 //     }
 // }
 
-fn create_env_config() -> EnvConfig {
-    EnvConfig::default()
-        .name("CartPole-v0".to_string())
-        .obs_filter_config(ObsFilter::default_config())
-        .act_filter_config(ActFilter::default_config())
+mod config {
+    use super::*;
+    use border_candle_agent::dqn::DqnConfig;
+    use serde::Serialize;
+
+    #[derive(Serialize)]
+    pub struct DqnCartpoleConfig {
+        pub env_config: EnvConfig,
+        pub agent_config: DqnConfig<Mlp>,
+        pub trainer_config: TrainerConfig,
+    }
+
+    impl DqnCartpoleConfig {
+        pub fn new(in_dim: i64, out_dim: i64, max_opts: usize, model_dir: &str) -> Self {
+            let env_config = create_env_config();
+            let agent_config = create_agent_config(in_dim, out_dim);
+            let trainer_config = TrainerConfig::default()
+                .max_opts(max_opts)
+                .opt_interval(OPT_INTERVAL)
+                .eval_interval(EVAL_INTERVAL)
+                .record_interval(EVAL_INTERVAL)
+                .save_interval(EVAL_INTERVAL)
+                .model_dir(model_dir);
+            Self {
+                env_config,
+                agent_config,
+                trainer_config,
+            }
+        }
+    }
+
+    pub fn create_env_config() -> EnvConfig {
+        EnvConfig::default()
+            .name("CartPole-v0".to_string())
+            .obs_filter_config(ObsFilter::default_config())
+            .act_filter_config(ActFilter::default_config())
+    }
+
+    pub fn create_agent_config(in_dim: i64, out_dim: i64) -> DqnConfig<Mlp> {
+        let device = Device::cuda_if_available(0).unwrap();
+        let opt_config = OptimizerConfig::default().learning_rate(LR_CRITIC);
+        let mlp_config = MlpConfig::new(in_dim, vec![256, 256], out_dim, false);
+        let model_config = DqnModelConfig::default()
+            .q_config(mlp_config)
+            .out_dim(out_dim)
+            .opt_config(opt_config);
+        DqnConfig::default()
+            .n_updates_per_opt(N_UPDATES_PER_OPT)
+            .min_transitions_warmup(N_TRANSITIONS_WARMUP)
+            .batch_size(BATCH_SIZE)
+            .discount_factor(DISCOUNT_FACTOR)
+            .tau(TAU)
+            .model_config(model_config)
+            .device(device)
+    }
 }
 
-fn create_agent_config(in_dim: i64, out_dim: i64) -> DqnConfig<Mlp> {
-    let device = Device::cuda_if_available(0).unwrap();
-    let opt_config = OptimizerConfig::default().learning_rate(LR_CRITIC);
-    let mlp_config = MlpConfig::new(in_dim, vec![256, 256], out_dim, false);
-    let model_config = DqnModelConfig::default()
-        .q_config(mlp_config)
-        .out_dim(out_dim)
-        .opt_config(opt_config);
-    DqnConfig::default()
-        .n_updates_per_opt(N_UPDATES_PER_OPT)
-        .min_transitions_warmup(N_TRANSITIONS_WARMUP)
-        .batch_size(BATCH_SIZE)
-        .discount_factor(DISCOUNT_FACTOR)
-        .tau(TAU)
-        .model_config(model_config)
-        .device(device)
-}
-
-fn create_agent(in_dim: i64, out_dim: i64) -> Dqn<Env, Mlp, ReplayBuffer> {
-    let config = create_agent_config(in_dim, out_dim);
-    Dqn::build(config)
-}
+use config::{create_agent_config, create_env_config, DqnCartpoleConfig};
 
 fn create_evaluator(env_config: &EnvConfig) -> Result<Evaluator> {
     Evaluator::new(env_config, 0, N_EPISODES_PER_EVAL)
@@ -230,7 +257,7 @@ fn create_evaluator(env_config: &EnvConfig) -> Result<Evaluator> {
 fn create_recorder(
     matches: &ArgMatches,
     model_dir: &str,
-    config: &TrainerConfig,
+    config: &DqnCartpoleConfig,
 ) -> Result<Box<dyn Recorder>> {
     match matches.is_present("mlflow") {
         true => {
@@ -248,29 +275,22 @@ fn create_recorder(
 }
 
 fn train(matches: &ArgMatches, max_opts: usize, model_dir: &str) -> Result<()> {
-    let (mut trainer, config) = {
-        let env_config = create_env_config();
+    let config = DqnCartpoleConfig::new(DIM_OBS, DIM_ACT, max_opts, model_dir);
+    let mut recorder = create_recorder(&matches, model_dir, &config)?;
+    let mut trainer = {
         let step_proc_config = SimpleStepProcessorConfig {};
         let replay_buffer_config =
             SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
-        let config = TrainerConfig::default()
-            .max_opts(max_opts)
-            .opt_interval(OPT_INTERVAL)
-            .eval_interval(EVAL_INTERVAL)
-            .record_interval(EVAL_INTERVAL)
-            .save_interval(EVAL_INTERVAL)
-            .model_dir(model_dir);
-        let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
-            config.clone(),
-            env_config,
+
+        Trainer::<Env, StepProc, ReplayBuffer>::build(
+            config.trainer_config.clone(),
+            config.env_config.clone(),
             step_proc_config,
             replay_buffer_config,
-        );
-
-        (trainer, config)
+        )
     };
-    let mut agent = create_agent(DIM_OBS, DIM_ACT);
-    let mut recorder = create_recorder(&matches, model_dir, &config)?;
+
+    let mut agent = Dqn::build(config.agent_config);
     let mut evaluator = create_evaluator(&create_env_config())?;
 
     trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
@@ -289,7 +309,7 @@ fn eval(model_dir: &str, render: bool) -> Result<()> {
         env_config
     };
     let mut agent = {
-        let mut agent = create_agent(DIM_OBS, DIM_ACT);
+        let mut agent = Dqn::build(create_agent_config(DIM_OBS, DIM_ACT));
         agent.load(model_dir)?;
         agent.eval();
         agent
