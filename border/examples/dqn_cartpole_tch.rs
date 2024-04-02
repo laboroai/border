@@ -12,9 +12,7 @@ use border_py_gym_env::{
     GymObsFilter,
 };
 use border_tch_agent::{
-    dqn::{Dqn, DqnConfig, DqnModelConfig},
-    mlp::{Mlp, MlpConfig},
-    TensorSubBatch,
+    dqn::{Dqn, DqnConfig, DqnModelConfig}, mlp::{Mlp, MlpConfig}, util::CriticLoss, TensorSubBatch
 };
 use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg, ArgMatches};
@@ -38,6 +36,7 @@ const MAX_OPTS: usize = 100000;
 const EVAL_INTERVAL: usize = 100;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
+const CRITIC_LOSS: CriticLoss = CriticLoss::Mse;
 const MODEL_DIR: &str = "./border/examples/model/dqn_cartpole_tch";
 
 type PyObsDtype = f32;
@@ -244,6 +243,7 @@ mod config {
             .tau(TAU)
             .model_config(model_config)
             .device(device)
+            .critic_loss(CRITIC_LOSS)
     }
 }
 
@@ -312,7 +312,6 @@ fn eval(model_dir: &str, render: bool) -> Result<()> {
         agent.eval();
         agent
     };
-    // let mut recorder = BufferedRecorder::new();
 
     let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut agent);
 

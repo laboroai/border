@@ -3,7 +3,11 @@ use super::{
     explorer::{DqnExplorer, Softmax},
     DqnModelConfig,
 };
-use crate::{model::SubModel, util::OutDim, Device};
+use crate::{
+    model::SubModel,
+    util::{CriticLoss, OutDim},
+    Device,
+};
 use anyhow::Result;
 use log::info;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -16,7 +20,7 @@ use std::{
 };
 use tch::Tensor;
 
-/// Configuration of [Dqn](super::Dqn) agent.
+/// Configuration of [`Dqn`](super::Dqn) agent.
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct DqnConfig<Q>
 where
@@ -38,6 +42,7 @@ where
     pub double_dqn: bool,
     pub clip_td_err: Option<(f64, f64)>,
     pub device: Option<Device>,
+    pub critic_loss: CriticLoss,
     phantom: PhantomData<Q>,
 }
 
@@ -61,6 +66,7 @@ where
             double_dqn: self.double_dqn,
             clip_td_err: self.clip_td_err,
             device: self.device.clone(),
+            critic_loss: self.critic_loss.clone(),
             phantom: PhantomData,
         }
     }
@@ -89,6 +95,7 @@ where
             double_dqn: false,
             clip_td_err: None,
             device: None,
+            critic_loss: CriticLoss::Mse,
             phantom: PhantomData,
         }
     }
@@ -178,7 +185,13 @@ where
         self
     }
 
-    /// Loads [DqnConfig] from YAML file.
+    /// Sets critic loss.
+    pub fn critic_loss(mut self, v: CriticLoss) -> Self {
+        self.critic_loss = v;
+        self
+    }
+
+    /// Loads [`DqnConfig`] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let path_ = path.as_ref().to_owned();
         let file = File::open(path)?;
@@ -188,7 +201,7 @@ where
         Ok(b)
     }
 
-    /// Saves [DqnConfig].
+    /// Saves [`DqnConfig`].
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let path_ = path.as_ref().to_owned();
         let mut file = File::create(path)?;

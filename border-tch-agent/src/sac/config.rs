@@ -101,7 +101,7 @@ where
             min_transitions_warmup: 1,
             batch_size: 1,
             train: false,
-            critic_loss: CriticLoss::MSE,
+            critic_loss: CriticLoss::Mse,
             reward_scale: 1.0,
             replay_burffer_capacity: 100,
             n_critics: 1,
