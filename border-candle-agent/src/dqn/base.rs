@@ -2,7 +2,7 @@
 use super::{config::DqnConfig, explorer::DqnExplorer, model::DqnModel};
 use crate::{
     model::SubModel1,
-    util::{track, OutDim},
+    util::{smooth_l1_loss, track, CriticLoss, OutDim},
 };
 use anyhow::Result;
 use border_core::{
@@ -47,6 +47,7 @@ where
     pub(in crate::dqn) double_dqn: bool,
     pub(in crate::dqn) _clip_reward: Option<f64>,
     pub(in crate::dqn) clip_td_err: Option<(f64, f64)>,
+    pub(in crate::dqn) critic_loss: CriticLoss,
     rng: SmallRng,
 }
 
@@ -99,7 +100,8 @@ where
 
             reward + is_not_done * self.discount_factor * q.squeeze(D::Minus1).unwrap()
         }
-        .unwrap().detach();
+        .unwrap()
+        .detach();
 
         let loss = if let Some(_ws) = weight {
             // Prioritized weighting loss, will be implemented later
@@ -120,7 +122,10 @@ where
             // buffer.update_priority(&ixs, &Some(td_errs));
             // loss
         } else {
-            mse(&pred, &tgt).unwrap()
+            match self.critic_loss {
+                CriticLoss::MSE => mse(&pred, &tgt).unwrap(),
+                CriticLoss::SmoothL1 => smooth_l1_loss(&pred, &tgt).unwrap(),
+            }
         };
 
         // Backprop
@@ -191,6 +196,7 @@ where
             _clip_reward: config.clip_reward,
             double_dqn: config.double_dqn,
             clip_td_err: config.clip_td_err,
+            critic_loss: config.critic_loss,
             phantom: PhantomData,
             rng: SmallRng::seed_from_u64(42),
         }

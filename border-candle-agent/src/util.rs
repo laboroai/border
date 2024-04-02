@@ -1,13 +1,15 @@
 //! Utilities.
 // use crate::model::ModelBase;
 use anyhow::Result;
+use candle_core::{Tensor, DType};
 use candle_nn::VarMap;
 use log::trace;
 use serde::{Deserialize, Serialize};
 mod named_tensors;
 mod quantile_loss;
-pub use quantile_loss::quantile_huber_loss;
 pub use named_tensors::NamedTensors;
+pub use quantile_loss::quantile_huber_loss;
+use std::convert::TryFrom;
 
 /// Critic loss type.
 #[allow(clippy::upper_case_acronyms)]
@@ -125,4 +127,12 @@ fn test_track() -> Result<()> {
     assert!((t - t_)?.abs()?.sum(0)?.to_scalar::<f32>()? < 1e-32);
 
     Ok(())
+}
+
+/// See https://pytorch.org/docs/stable/generated/torch.nn.SmoothL1Loss.html
+pub fn smooth_l1_loss(x: &Tensor, y: &Tensor) -> Result<Tensor, candle_core::Error> {
+    let d = (x - y)?.abs()?;
+    let m1 = d.lt(1.0)?.to_dtype(DType::F32)?;
+    let m2 = Tensor::try_from(1f32)?.broadcast_sub(&m1)?;
+    (((0.5 * m1)? * d.powf(2.0))? + m2 * (d - 0.5))?.mean_all()
 }

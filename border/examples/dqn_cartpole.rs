@@ -3,6 +3,7 @@ use border_candle_agent::{
     dqn::{Dqn, DqnConfig, DqnModelConfig},
     mlp::{Mlp, MlpConfig},
     opt::OptimizerConfig,
+    util::CriticLoss,
     TensorSubBatch,
 };
 use border_core::{
@@ -36,6 +37,7 @@ const MAX_OPTS: usize = 100000;
 const EVAL_INTERVAL: usize = 100;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
+const CRITIC_LOSS: CriticLoss = CriticLoss::SmoothL1;
 const MODEL_DIR: &str = "./border/examples/model/dqn_cartpole";
 
 type PyObsDtype = f32;
@@ -244,6 +246,7 @@ mod config {
             .discount_factor(DISCOUNT_FACTOR)
             .tau(TAU)
             .model_config(model_config)
+            .critic_loss(CRITIC_LOSS)
             .device(device)
     }
 }
