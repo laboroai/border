@@ -184,6 +184,7 @@ mod candle_dqn_config {
         cnn::{Cnn, CnnConfig},
         dqn::{DqnConfig, DqnExplorer, DqnModelConfig, EpsilonGreedy},
         opt::OptimizerConfig,
+        util::CriticLoss,
         Device,
     };
     use serde::{Deserialize, Serialize};
@@ -195,55 +196,73 @@ mod candle_dqn_config {
             skip_serializing_if = "is_default_model_config"
         )]
         pub model_config: DqnModelConfig<CnnConfig>,
+
         #[serde(
             default = "default_soft_update_interval",
             skip_serializing_if = "is_default_soft_update_interval"
         )]
         pub soft_update_interval: usize,
+
         #[serde(
             default = "default_n_updates_per_opt",
             skip_serializing_if = "is_default_n_updates_per_opt"
         )]
         pub n_updates_per_opt: usize,
+
         #[serde(
             default = "default_min_transitions_warmup",
             skip_serializing_if = "is_default_min_transitions_warmup"
         )]
         pub min_transitions_warmup: usize,
+
         #[serde(
             default = "default_batch_size",
             skip_serializing_if = "is_default_batch_size"
         )]
         pub batch_size: usize,
+
         #[serde(
             default = "default_discount_factor",
             skip_serializing_if = "is_default_discount_factor"
         )]
         pub discount_factor: f64,
+
         #[serde(default = "default_tau", skip_serializing_if = "is_default_tau")]
         pub tau: f64,
+
         #[serde(default = "default_train", skip_serializing_if = "is_default_train")]
         pub train: bool,
+
         #[serde(
             default = "default_explorer",
             skip_serializing_if = "is_default_explorer"
         )]
         pub explorer: DqnExplorer,
+
         #[serde(
             default = "default_clip_reward",
             skip_serializing_if = "is_default_clip_reward"
         )]
         pub clip_reward: Option<f64>,
+
         #[serde(
             default = "default_double_dqn",
             skip_serializing_if = "is_default_double_dqn"
         )]
         pub double_dqn: bool,
+
         #[serde(
             default = "default_clip_td_err",
             skip_serializing_if = "is_default_clip_td_err"
         )]
         pub clip_td_err: Option<(f64, f64)>,
+
+        #[serde(
+            default = "default_critic_loss",
+            skip_serializing_if = "is_default_critic_loss"
+        )]
+        pub critic_loss: CriticLoss,
+
         #[serde(default = "default_device", skip_serializing_if = "is_default_device")]
         pub device: Option<Device>,
         // phantom: PhantomData<CnnConfig>,
@@ -282,6 +301,7 @@ mod candle_dqn_config {
                 clip_reward: Some(1.0),
                 double_dqn: false,
                 clip_td_err: None,
+                critic_loss: CriticLoss::SmoothL1,
                 device: None,
                 // phantom: PhantomData,
             }
@@ -336,6 +356,10 @@ mod candle_dqn_config {
         DqnAtariAgentConfig::default().clip_td_err
     }
 
+    fn default_critic_loss() -> CriticLoss {
+        DqnAtariAgentConfig::default().critic_loss
+    }
+
     fn default_device() -> Option<Device> {
         DqnAtariAgentConfig::default().device
     }
@@ -388,6 +412,10 @@ mod candle_dqn_config {
         clip_td_err == &default_clip_td_err()
     }
 
+    fn is_default_critic_loss(critic_loss: &CriticLoss) -> bool {
+        critic_loss == &default_critic_loss()
+    }
+
     fn is_default_device(device: &Option<Device>) -> bool {
         device == &default_device()
     }
@@ -408,6 +436,7 @@ mod candle_dqn_config {
                 double_dqn: self.double_dqn,
                 clip_td_err: self.clip_td_err,
                 device: self.device,
+                critic_loss: self.critic_loss,
                 phantom: PhantomData,
             }
         }

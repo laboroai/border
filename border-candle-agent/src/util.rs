@@ -1,7 +1,7 @@
 //! Utilities.
 // use crate::model::ModelBase;
 use anyhow::Result;
-use candle_core::{Tensor, DType};
+use candle_core::{DType, Tensor};
 use candle_nn::VarMap;
 use log::trace;
 use serde::{Deserialize, Serialize};
@@ -131,8 +131,11 @@ fn test_track() -> Result<()> {
 
 /// See https://pytorch.org/docs/stable/generated/torch.nn.SmoothL1Loss.html
 pub fn smooth_l1_loss(x: &Tensor, y: &Tensor) -> Result<Tensor, candle_core::Error> {
+    let device = x.device();
     let d = (x - y)?.abs()?;
-    let m1 = d.lt(1.0)?.to_dtype(DType::F32)?;
-    let m2 = Tensor::try_from(1f32)?.broadcast_sub(&m1)?;
+    let m1 = d.lt(1.0)?.to_dtype(DType::F32)?.to_device(&device)?;
+    let m2 = Tensor::try_from(1f32)?
+        .to_device(&device)?
+        .broadcast_sub(&m1)?;
     (((0.5 * m1)? * d.powf(2.0))? + m2 * (d - 0.5))?.mean_all()
 }
