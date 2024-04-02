@@ -4,9 +4,7 @@ use super::{
     DqnModelConfig,
 };
 use crate::{
-    model::SubModel,
-    util::{CriticLoss, OutDim},
-    Device,
+    model::SubModel, opt::OptimizerConfig, util::{CriticLoss, OutDim}, Device
 };
 use anyhow::Result;
 use log::info;
@@ -151,6 +149,12 @@ where
     /// Sets the configuration of the model.
     pub fn model_config(mut self, model_config: DqnModelConfig<Q::Config>) -> Self {
         self.model_config = model_config;
+        self
+    }
+
+    /// Sets the configration of the optimizer.
+    pub fn opt_config(mut self, opt_config: OptimizerConfig) -> Self {
+        self.model_config = self.model_config.opt_config(opt_config);
         self
     }
 

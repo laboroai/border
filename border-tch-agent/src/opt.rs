@@ -4,23 +4,11 @@ use core::f64;
 use serde::{Deserialize, Serialize};
 use tch::{
     // nn,
-    nn::{Adam, Optimizer as Optimizer_, OptimizerConfig as OptimizerConfig_, VarStore},
+    nn::{Adam, AdamW, Optimizer as Optimizer_, OptimizerConfig as OptimizerConfig_, VarStore},
     Tensor,
 };
 
 /// Configures an optimizer for training neural networks in an RL agent.
-#[cfg(not(feature = "adam_eps"))]
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-pub enum OptimizerConfig {
-    /// Adam optimizer.
-    Adam {
-        /// Learning rate.
-        lr: f64,
-    },
-}
-
-/// Configures an optimizer for training neural networks in an RL agent.
-#[cfg(feature = "adam_eps")]
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub enum OptimizerConfig {
     /// Adam optimizer.
@@ -29,16 +17,16 @@ pub enum OptimizerConfig {
         lr: f64,
     },
 
-    /// Adam optimizer with the epsilon parameter.
-    AdamEps {
-        /// Learning rate.
+    AdamW {
         lr: f64,
-        /// Epsilon parameter.
+        beta1: f64,
+        beta2: f64,
+        wd: f64,
         eps: f64,
+        amsgrad: bool,
     },
 }
 
-#[cfg(not(feature = "adam_eps"))]
 impl OptimizerConfig {
     /// Constructs an optimizer.
     pub fn build(&self, vs: &VarStore) -> Result<Optimizer> {
@@ -47,24 +35,22 @@ impl OptimizerConfig {
                 let opt = Adam::default().build(vs, *lr)?;
                 Ok(Optimizer::Adam(opt))
             }
-        }
-    }
-}
-
-#[cfg(feature = "adam_eps")]
-impl OptimizerConfig {
-    /// Constructs an optimizer.
-    pub fn build(&self, vs: &VarStore) -> Result<Optimizer> {
-        match &self {
-            OptimizerConfig::Adam { lr } => {
-                let opt = Adam::default().build(vs, *lr)?;
-                Ok(Optimizer::Adam(opt))
-            }
-            OptimizerConfig::AdamEps { lr, eps } => {
-                let mut opt = Adam::default();
-                opt.eps = *eps;
-                let opt = opt.build(vs, *lr)?;
-                Ok(Optimizer::Adam(opt))
+            OptimizerConfig::AdamW {
+                lr,
+                beta1,
+                beta2,
+                wd,
+                eps,
+                amsgrad,
+            } => {
+                let opt = AdamW {
+                    beta1: *beta1,
+                    beta2: *beta2,
+                    wd: *wd,
+                    eps: *eps,
+                    amsgrad: *amsgrad,
+                }.build(vs, *lr)?;
+                Ok(Optimizer::AdamW(opt))
             }
         }
     }
@@ -76,6 +62,8 @@ impl OptimizerConfig {
 pub enum Optimizer {
     /// Adam optimizer.
     Adam(Optimizer_),
+
+    AdamW(Optimizer_),
 }
 
 impl Optimizer {
@@ -83,6 +71,9 @@ impl Optimizer {
     pub fn backward_step(&mut self, loss: &Tensor) {
         match self {
             Self::Adam(opt) => {
+                opt.backward_step(loss);
+            }
+            Self::AdamW(opt) => {
                 opt.backward_step(loss);
             }
         }
