@@ -1,6 +1,6 @@
 use crate::{system_time_as_millis, Run};
 use anyhow::Result;
-use border_core::record::{RecordValue, Recorder};
+use border_core::record::{AggregateRecorder, RecordStorage, RecordValue, Recorder};
 use reqwest::blocking::Client;
 use serde::Serialize;
 use serde_json::Value;
@@ -61,6 +61,7 @@ pub struct MlflowTrackingRecorder {
     run_id: String,
     run_name: String,
     user_name: String,
+    storage: RecordStorage,
     password: String,
 }
 
@@ -75,6 +76,7 @@ impl MlflowTrackingRecorder {
             run_name: run.info.run_name.clone(),
             user_name: "".to_string(),
             password: "".to_string(),
+            storage: RecordStorage::new(),
         })
     }
 
@@ -177,5 +179,16 @@ impl Drop for MlflowTrackingRecorder {
             .send()
             .unwrap();
         // TODO: error handling caused by API call
+    }
+}
+
+impl AggregateRecorder for MlflowTrackingRecorder {
+    fn flush(&mut self) {
+        let record = self.storage.aggregate();
+        self.write(record);
+    }
+
+    fn store(&mut self, record: border_core::record::Record) {
+        self.storage.store(record);
     }
 }
