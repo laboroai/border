@@ -18,8 +18,8 @@ version = "0.0.6"
 edition = "2018"
 rust-version = "1.70"
 description = "Reinforcement learning library"
-repository = "https://github.com/taku-y/border"
-keywords = ["rl"]
+repository = "https://github.com/laboroai/border"
+keywords = ["Reinforcement learning"]
 categories = ["science"]
 license = "MIT OR Apache-2.0"
 
@@ -27,7 +27,7 @@ license = "MIT OR Apache-2.0"
 clap = "2.33.3"
 csv = "1.1.5"
 fastrand = "1.4.0"
-tch = "0.8.0"
+tch = "0.10.0"
 anyhow = "1.0.38"
 crossbeam-channel = "0.5.1"
 serde_yaml = "0.8.7"
@@ -42,11 +42,14 @@ env_logger = "0.8.2"
 tempdir = "0.3.7"
 num-traits = "0.2.14"
 tensorboard-rs = "0.2.4"
-pyo3 = { version = "=0.14.5", default-features=false }
+pyo3 = { version = "=0.14.5", default-features = false }
 ndarray = "0.15.1"
 chrono = "0.4"
 segment-tree = "2.0.0"
 image = "0.23.14"
-candle-core = "0.2.2"
-candle-nn = "0.2.2"
+candle-core = { version = "=0.4.1", feature = ["cuda"] }
+candle-nn = "0.4.1"
+rand = "0.8.5"
+itertools = "0.12.1"
+ordered-float = "4.2.0"
 reqwest = { version = "0.11.26", features = ["json", "blocking"] }

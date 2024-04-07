@@ -1,21 +1,21 @@
 mod config;
 mod window;
 use super::BorderAtariAct;
-use anyhow::Result;
+use super::{BorderAtariActFilter, BorderAtariObsFilter};
 use crate::atari_env::{AtariAction, AtariEnv, EmulatorConfig};
-use border_core::{record::Record, Env, Info, Obs, Act, Step};
+use anyhow::Result;
+use border_core::{record::Record, Act, Env, Info, Obs, Step};
 pub use config::BorderAtariEnvConfig;
 use image::{
     imageops::{/*grayscale,*/ resize, FilterType::Triangle},
     ImageBuffer, /*Luma,*/ Rgb,
 };
-use std::{default::Default, marker::PhantomData};
+use itertools::izip;
 use std::ptr::copy;
+use std::{default::Default, marker::PhantomData};
 use window::AtariWindow;
 #[cfg(feature = "atari-env-sys")]
 use winit::{event_loop::ControlFlow, platform::run_return::EventLoopExtRunReturn};
-use super::{BorderAtariObsFilter, BorderAtariActFilter};
-use itertools::izip;
 
 /// Empty struct.
 pub struct NullInfo;
@@ -74,7 +74,7 @@ where
     phantom: PhantomData<(O, A)>,
 }
 
-impl<O, A, OF, AF> BorderAtariEnv <O, A, OF, AF>
+impl<O, A, OF, AF> BorderAtariEnv<O, A, OF, AF>
 where
     O: Obs,
     A: Act,
@@ -169,9 +169,11 @@ where
             let i1 = buf.iter().step_by(3);
             let i2 = buf.iter().skip(1).step_by(3);
             let i3 = buf.iter().skip(2).step_by(3);
-            izip![i1, i2, i3].map(|(&b, &g, &r)|
-                ((0.299 * r as f32) + (0.587 * g as f32) + (0.114 * b as f32)) as u8
-            ).collect::<Vec<_>>()
+            izip![i1, i2, i3]
+                .map(|(&b, &g, &r)| {
+                    ((0.299 * r as f32) + (0.587 * g as f32) + (0.114 * b as f32)) as u8
+                })
+                .collect::<Vec<_>>()
         };
         // let buf = {
         //     let img: ImageBuffer<Luma<u8>, _> = grayscale(&img);
@@ -339,14 +341,7 @@ where
             let reward = self.clip_reward(reward); // in training
             self.stack_frame(obs);
             let (obs, _record) = self.obs_filter.filt(self.frames.clone().into());
-            let step = Step::new(
-                obs,
-                act_org,
-                reward,
-                is_done,
-                NullInfo,
-                Self::Obs::dummy(1),
-            );
+            let step = Step::new(obs, act_org, reward, is_done, NullInfo, Self::Obs::dummy(1));
             let record = Record::empty();
 
             if let Some(window) = self.window.as_mut() {

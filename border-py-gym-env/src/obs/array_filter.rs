@@ -1,4 +1,4 @@
-use crate::{GymObsFilter, util::pyobj_to_arrayd};
+use crate::{util::pyobj_to_arrayd, GymObsFilter};
 use border_core::{
     record::{Record, RecordValue},
     Obs,

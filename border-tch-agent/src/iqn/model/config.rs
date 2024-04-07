@@ -1,10 +1,7 @@
 //! IQN model.
-use crate::{
-    opt::OptimizerConfig,
-    util::OutDim,
-};
+use crate::{opt::OptimizerConfig, util::OutDim};
 use anyhow::Result;
-use serde::{Deserialize, de::DeserializeOwned, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
     default::Default,
     fs::File,
@@ -12,7 +9,6 @@ use std::{
     path::Path,
 };
 
-#[cfg(not(feature = "adam_eps"))]
 impl<F, M> IqnModelConfig<F, M>
 where
     F: DeserializeOwned + Serialize,
@@ -22,26 +18,11 @@ where
     pub fn learning_rate(mut self, v: f64) -> Self {
         match &self.opt_config {
             OptimizerConfig::Adam { lr: _ } => self.opt_config = OptimizerConfig::Adam { lr: v },
+            _ => unimplemented!(),
         };
         self
     }
 }
-
-// #[cfg(feature = "adam_eps")]
-// impl<F: SubModel, M: SubModel> IqnModelConfig<F, M>
-// where
-//     F::Config: DeserializeOwned + Serialize,
-//     M::Config: DeserializeOwned + Serialize,
-// {
-//     /// Sets the learning rate.
-//     pub fn learning_rate(mut self, v: f64) -> Self {
-//         match &self.opt_config {
-//             OptimizerConfig::Adam { lr: _ } => self.opt_config = OptimizerConfig::Adam { lr: v },
-//             _ => unimplemented!(),
-//         };
-//         self
-//     }
-// }
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 /// Configuration of [IqnModel](super::IqnModel).

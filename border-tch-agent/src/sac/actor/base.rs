@@ -7,9 +7,7 @@ use crate::{
 use anyhow::{Context, Result};
 use log::{info, trace};
 use serde::{de::DeserializeOwned, Serialize};
-use std::{
-    path::Path,
-};
+use std::path::Path;
 use tch::{nn, Device, Tensor};
 
 #[allow(clippy::upper_case_acronyms)]

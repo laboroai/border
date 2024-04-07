@@ -152,12 +152,10 @@ where
 
             // Stop sampling loop
             if *self.stop.lock().unwrap() {
-                *self.stats.lock().unwrap() = Some(
-                    ActorStat {
-                        env_steps,
-                        duration: time.elapsed().unwrap(),
-                    }
-                );
+                *self.stats.lock().unwrap() = Some(ActorStat {
+                    env_steps,
+                    duration: time.elapsed().unwrap(),
+                });
                 break;
             }
         }

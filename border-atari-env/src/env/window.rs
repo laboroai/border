@@ -1,5 +1,5 @@
-use anyhow::Result;
 use crate::atari_env::AtariEnv;
+use anyhow::Result;
 #[cfg(feature = "atari-env-sys")]
 use {
     pixels::{Pixels, SurfaceTexture},
@@ -7,7 +7,7 @@ use {
         event_loop::EventLoop,
         // platform::run_return::EventLoopExtRunReturn,
         window::{Window, WindowBuilder},
-    }
+    },
 };
 
 pub(super) struct AtariWindow {
@@ -29,12 +29,8 @@ impl AtariWindow {
                 .with_inner_size(winit::dpi::LogicalSize::new(128.0, 128.0))
                 .build(&event_loop)?;
             let surface_texture = SurfaceTexture::new(128, 128, &window);
-            let pixels = Pixels::new(
-                env.width() as u32,
-                env.height() as u32,
-                surface_texture,
-            )
-            .unwrap();
+            let pixels =
+                Pixels::new(env.width() as u32, env.height() as u32, surface_texture).unwrap();
             // event_loop.run_return(move |_event, _, _control_flow| {});
 
             Ok(Self {

@@ -2,7 +2,7 @@
 use super::{config::DqnConfig, explorer::DqnExplorer, model::DqnModel};
 use crate::{
     model::{ModelBase, SubModel},
-    util::{track, OutDim},
+    util::{track, CriticLoss, OutDim},
 };
 use anyhow::Result;
 use border_core::{
@@ -44,6 +44,7 @@ where
     pub(in crate::dqn) double_dqn: bool,
     pub(in crate::dqn) _clip_reward: Option<f64>,
     pub(in crate::dqn) clip_td_err: Option<(f64, f64)>,
+    pub(in crate::dqn) critic_loss: CriticLoss,
 }
 
 impl<E, Q, R> Dqn<E, Q, R>
@@ -95,17 +96,26 @@ where
                 Some((min, max)) => (&pred - &tgt).abs().clip(min, max),
             };
             let loss = Tensor::of_slice(&ws[..]).to(self.device) * &td_errs;
-            let loss = loss.smooth_l1_loss(
-                &Tensor::zeros(&[n], tch::kind::FLOAT_CPU).to(self.device),
-                tch::Reduction::Mean,
-                1.0,
-            );
+            let loss = match self.critic_loss {
+                CriticLoss::SmoothL1 => loss.smooth_l1_loss(
+                    &Tensor::zeros(&[n], tch::kind::FLOAT_CPU).to(self.device),
+                    tch::Reduction::Mean,
+                    1.0,
+                ),
+                CriticLoss::Mse => loss.mse_loss(
+                    &Tensor::zeros(&[n], tch::kind::FLOAT_CPU).to(self.device),
+                    tch::Reduction::Mean,
+                ),
+            };
             self.qnet.backward_step(&loss);
             let td_errs = Vec::<f32>::from(td_errs);
             buffer.update_priority(&ixs, &Some(td_errs));
             loss
         } else {
-            let loss = pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0);
+            let loss = match self.critic_loss {
+                CriticLoss::SmoothL1 => pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0),
+                CriticLoss::Mse => pred.mse_loss(&tgt, tch::Reduction::Mean),
+            };
             self.qnet.backward_step(&loss);
             loss
         };
@@ -114,11 +124,10 @@ where
     }
 
     fn opt_(&mut self, buffer: &mut R) -> Record {
-        let mut loss_critic = 0f32;
+        let mut loss = 0f32;
 
         for _ in 0..self.n_updates_per_opt {
-            let loss = self.update_critic(buffer);
-            loss_critic += loss;
+            loss += self.update_critic(buffer);
         }
 
         self.soft_update_counter += 1;
@@ -127,11 +136,11 @@ where
             track(&mut self.qnet_tgt, &mut self.qnet, self.tau);
         }
 
-        loss_critic /= self.n_updates_per_opt as f32;
+        loss /= self.n_updates_per_opt as f32;
 
         self.n_opts += 1;
 
-        Record::from_slice(&[("loss_critic", RecordValue::Scalar(loss_critic))])
+        Record::from_slice(&[("loss", RecordValue::Scalar(loss))])
     }
 }
 
@@ -175,6 +184,7 @@ where
             _clip_reward: config.clip_reward,
             double_dqn: config.double_dqn,
             clip_td_err: config.clip_td_err,
+            critic_loss: config.critic_loss,
             phantom: PhantomData,
         }
     }
@@ -236,16 +246,18 @@ where
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<()> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
-        self.qnet.save(&path.as_ref().join("qnet.pt").as_path())?;
+        self.qnet
+            .save(&path.as_ref().join("qnet.pt.tch").as_path())?;
         self.qnet_tgt
-            .save(&path.as_ref().join("qnet_tgt.pt").as_path())?;
+            .save(&path.as_ref().join("qnet_tgt.pt.tch").as_path())?;
         Ok(())
     }
 
     fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
-        self.qnet.load(&path.as_ref().join("qnet.pt").as_path())?;
+        self.qnet
+            .load(&path.as_ref().join("qnet.pt.tch").as_path())?;
         self.qnet_tgt
-            .load(&path.as_ref().join("qnet_tgt.pt").as_path())?;
+            .load(&path.as_ref().join("qnet_tgt.pt.tch").as_path())?;
         Ok(())
     }
 }

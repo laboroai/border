@@ -17,6 +17,7 @@ dirs = { workspace = true }
 border-core = { version = "0.0.6", path = "../border-core" }
 image = { workspace = true }
 tch = { workspace = true, optional = true }
+candle-core = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 itertools = "0.10.1"
 fastrand = { workspace = true }
@@ -42,7 +43,7 @@ default = [
     "winit_input_helper",
     "minifb",
     "pixels",
-    "tch",
+    # "tch",
 ]
 sdl = ["atari-env-sys/sdl"]
 

@@ -51,5 +51,6 @@ Crates                | License
 `border-py-gym-env`   | MIT OR Apache-2.0
 `border-atari-env`    | GPL-2.0-or-later
 `border-tch-agent`    | MIT OR Apache-2.0
+`border-candle-agent` | MIT OR Apache-2.0
 `border-async-trainer`| MIT OR Apache-2.0
 `border`              | GPL-2.0-or-later

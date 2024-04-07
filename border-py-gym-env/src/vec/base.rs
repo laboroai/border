@@ -1,8 +1,8 @@
 //! Vectorized environment using multiprocess module in Python.
 #![allow(unused_variables, unreachable_code)]
-use crate::AtariWrapper;
 use super::PyVecGymEnvConfig;
-use crate::{GymActFilter, GymObsFilter, GymInfo};
+use crate::AtariWrapper;
+use crate::{GymActFilter, GymInfo, GymObsFilter};
 use anyhow::Result;
 use border_core::{record::Record, Act, Env, Obs, Step};
 use log::trace;
@@ -81,10 +81,12 @@ where
                     AtariWrapper::Eval => false,
                 };
                 // gym.call("make", (name, true, mode, config.n_procs), None)?
-                gym.getattr("make")?.call((name, true, mode, config.n_procs), None)?
+                gym.getattr("make")?
+                    .call((name, true, mode, config.n_procs), None)?
             } else {
                 // gym.call("make", (name, false, false, config.n_procs), None)?
-                gym.getattr("make")?.call((name, false, false, config.n_procs), None)?
+                gym.getattr("make")?
+                    .call((name, false, false, config.n_procs), None)?
             };
 
             Ok(PyVecGymEnv {
@@ -149,14 +151,7 @@ where
             let is_done: Vec<i8> = is_done.into_iter().map(|x| x as i8).collect();
             let n = obs.len();
 
-            let step = Step::<Self>::new(
-                obs,
-                a.clone(),
-                reward,
-                is_done,
-                GymInfo {},
-                O::dummy(n),
-            );
+            let step = Step::<Self>::new(obs, a.clone(), reward, is_done, GymInfo {}, O::dummy(n));
             let record = record_o.merge(record_a);
 
             (step, record)

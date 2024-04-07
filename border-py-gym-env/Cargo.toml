@@ -22,14 +22,15 @@ ndarray = { workspace = true, features = ["serde"] }
 anyhow = { workspace = true }
 tch = { workspace = true, optional = true }
 image = { workspace = true }
+candle-core = { workspace = true, optional = true }
 
 [dev-dependencies]
 fastrand = { workspace = true }
 env_logger = { workspace = true }
 csv = { workspace = true }
 
-[features]
-default = ["tch"]
+# [features]
+# default = ["tch"]
 
 [[example]]
 name = "random_cartpole"

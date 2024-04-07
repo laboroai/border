@@ -2,17 +2,17 @@
 use crate::model::ModelBase;
 use log::trace;
 use serde::{Deserialize, Serialize};
-mod quantile_loss;
 mod named_tensors;
-pub use quantile_loss::quantile_huber_loss;
+mod quantile_loss;
 pub use named_tensors::NamedTensors;
+pub use quantile_loss::quantile_huber_loss;
 
 /// Critic loss type.
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub enum CriticLoss {
     /// Mean squared error.
-    MSE,
+    Mse,
 
     /// Smooth L1 loss.
     SmoothL1,

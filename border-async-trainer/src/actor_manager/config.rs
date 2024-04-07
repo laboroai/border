@@ -10,9 +10,7 @@ pub struct ActorManagerConfig {
 }
 
 impl Default for ActorManagerConfig {
-    fn default()  -> Self {
-        Self {
-            n_buffer: 100,
-        }
+    fn default() -> Self {
+        Self { n_buffer: 100 }
     }
 }

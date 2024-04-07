@@ -7,3 +7,4 @@ events*
 *.zip
 *.gz
 backup
+dqn_cartpole_tch/**

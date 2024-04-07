@@ -12,6 +12,7 @@ readme = "README.md"
 [dependencies]
 aquamarine = { workspace = true }
 tch = { workspace = true, optional = true }
+candle-core = { workspace = true, optional = true }
 border-async-trainer = { version = "0.0.6", path = "../border-async-trainer", optional = true }
 anyhow = { workspace = true }
 log = { workspace = true }
@@ -22,6 +23,11 @@ border-core = { version = "0.0.6", path = "../border-core" }
 
 [[example]]
 name = "dqn_cartpole"
+required-features = ["candle-core"]
+test = false
+
+[[example]]
+name = "dqn_cartpole_tch"
 required-features = ["tch"]
 test = true
 
@@ -31,8 +37,13 @@ required-features = ["tch"]
 test = true
 
 [[example]]
-name = "sac_pendulum"
+name = "sac_pendulum_tch"
 required-features = ["tch"]
+test = true
+
+[[example]]
+name = "sac_pendulum"
+required-features = ["candle-core"]
 test = true
 
 [[example]]
@@ -48,6 +59,12 @@ test = false
 [[example]]
 name = "dqn_atari"
 path = "examples/atari/dqn_atari.rs"
+required-features = ["candle-core"]
+test = false
+
+[[example]]
+name = "dqn_atari_tch"
+path = "examples/atari/dqn_atari_tch.rs"
 required-features = ["tch"]
 test = false
 
@@ -98,6 +115,8 @@ border-tensorboard = { version = "0.0.6", path = "../border-tensorboard" }
 border-tch-agent = { version = "0.0.6", path = "../border-tch-agent" }
 border-py-gym-env = { version = "0.0.6", path = "../border-py-gym-env" }
 border-atari-env = { version = "0.0.6", path = "../border-atari-env" }
+border-candle-agent = { version = "0.0.6", path = "../border-candle-agent" }
+border-mlflow-tracking = { version = "0.0.6", path = "../border-mlflow-tracking" }
 serde = { workspace = true, features = ["derive"] }
 crossbeam-channel = { workspace = true }
 env_logger = { workspace = true }
@@ -118,6 +137,7 @@ features = ["doc-only"]
 # default = [ "adam_eps" ]
 doc-only = ["tch/doc-only"]
 adam_eps = []
+cuda = ["candle-core/cuda"]
 
 #[target.'cfg(feature="adam_eps")'.patch.crates-io]
 #tch = { git = "https://github.com/taku-y/tch-rs", branch = "adam_eps" }

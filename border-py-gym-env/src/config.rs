@@ -39,7 +39,7 @@ where
     pub act_filter_config: Option<AF::Config>,
 
     /// Wait time at every interaction steps.
-    pub wait: Duration
+    pub wait: Duration,
 }
 
 impl<O, A, OF, AF> Clone for GymEnvConfig<O, A, OF, AF>

@@ -1,4 +1,5 @@
 //! Configuration of [SimpleReplayBuffer](super::SimpleReplayBuffer).
+use super::{WeightNormalizer, WeightNormalizer::All};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -7,20 +8,20 @@ use std::{
     io::{BufReader, Write},
     path::Path,
 };
-use super::{WeightNormalizer, WeightNormalizer::All};
 
 /// Configuration for prioritized experience replay.
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct PerConfig {
-    pub(super) alpha: f32,
+    /// Exponent for prioritization.
+    pub alpha: f32,
     /// Initial value of $\beta$.
-    pub(super) beta_0: f32,
+    pub beta_0: f32,
     /// Final value of $\beta$.
-    pub(super) beta_final: f32,
+    pub beta_final: f32,
     /// Optimization step when beta reaches its final value.
-    pub(super) n_opts_final: usize,
+    pub n_opts_final: usize,
     /// How to normalize the weights.
-    pub(super) normalize: WeightNormalizer,
+    pub normalize: WeightNormalizer,
 }
 
 impl Default for PerConfig {
@@ -70,9 +71,14 @@ impl PerConfig {
 /// Configuration of [SimpleReplayBuffer](super::SimpleReplayBuffer).
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct SimpleReplayBufferConfig {
-    pub(super) capacity: usize,
-    pub(super) seed: u64,
-    pub(super) per_config: Option<PerConfig>,
+    /// Capacity of the buffer.
+    pub capacity: usize,
+
+    /// Random seed for sampling.
+    pub seed: u64,
+
+    /// Config for prioritized sampling.
+    pub per_config: Option<PerConfig>,
 }
 
 impl Default for SimpleReplayBufferConfig {

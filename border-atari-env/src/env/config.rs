@@ -2,10 +2,10 @@
 //!
 //! If environment variable `ATARI_ROM_DIR` exists, it is used as the directory
 //! from which ROM images of the Atari games is loaded.
-use std::{env, default::Default};
-use border_core::{Obs, Act};
-use super::{BorderAtariObsFilter, BorderAtariActFilter};
+use super::{BorderAtariActFilter, BorderAtariObsFilter};
+use border_core::{Act, Obs};
 use serde::{Deserialize, Serialize};
+use std::{default::Default, env};
 
 #[derive(Serialize, Deserialize, Debug)]
 /// Configurations of [`BorderAtariEnv`](super::BorderAtariEnv).
@@ -16,12 +16,12 @@ where
     OF: BorderAtariObsFilter<O>,
     AF: BorderAtariActFilter<A>,
 {
-    pub(super) rom_dir: String,
-    pub(super) name: String,
-    pub(super) obs_filter_config: OF::Config,
-    pub(super) act_filter_config: AF::Config,
-    pub(super) train: bool,
-    pub(super) render: bool,
+    pub rom_dir: String,
+    pub name: String,
+    pub obs_filter_config: OF::Config,
+    pub act_filter_config: AF::Config,
+    pub train: bool,
+    pub render: bool,
 }
 
 impl<O, A, OF, AF> Clone for BorderAtariEnvConfig<O, A, OF, AF>
@@ -42,7 +42,6 @@ where
         }
     }
 }
-
 
 impl<O, A, OF, AF> Default for BorderAtariEnvConfig<O, A, OF, AF>
 where

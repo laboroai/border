@@ -2,7 +2,7 @@
 use anyhow::Result;
 use log::{info, trace};
 use serde::{Deserialize, Serialize};
-use std::{borrow::Borrow, path::Path};
+use std::{/*borrow::Borrow,*/ path::Path};
 use tch::{nn, nn::OptimizerConfig, Tensor};
 
 /// Mode of the entropy coefficient of SAC.
@@ -30,12 +30,14 @@ impl EntCoef {
         let (log_alpha, target_entropy, opt) = match mode {
             EntCoefMode::Fix(alpha) => {
                 let init = nn::Init::Const(alpha.ln());
-                let log_alpha = path.borrow().var("log_alpha", &[1], init);
+                // let log_alpha = path.borrow().var("log_alpha", &[1], init);
+                let log_alpha = path.var("log_alpha", &[1], init);
                 (log_alpha, None, None)
             }
             EntCoefMode::Auto(target_entropy, learning_rate) => {
                 let init = nn::Init::Const(0.0);
-                let log_alpha = path.borrow().var("log_alpha", &[1], init);
+                // let log_alpha = path.borrow().var("log_alpha", &[1], init);
+                let log_alpha = path.var("log_alpha", &[1], init);
                 let opt = nn::Adam::default()
                     .build(&var_store, learning_rate)
                     .unwrap();

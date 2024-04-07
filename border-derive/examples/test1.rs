@@ -1,8 +1,8 @@
-use border_derive::{SubBatch, Act};
+use border_derive::{Act, SubBatch};
 use border_py_gym_env::GymDiscreteAct;
-use std::convert::TryFrom;
 use border_tch_agent::TensorSubBatch;
 use ndarray::ArrayD;
+use std::convert::TryFrom;
 use tch::Tensor;
 
 #[derive(Debug, Clone)]

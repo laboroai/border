@@ -1,5 +1,5 @@
 //! Samples transitions and pushes them into a replay buffer.
-use crate::{Env, Agent, ReplayBufferBase, StepProcessorBase, record::Record};
+use crate::{record::Record, Agent, Env, ReplayBufferBase, StepProcessorBase};
 use anyhow::Result;
 
 /// Gets an [`Agent`] interacts with an [`Env`] and takes samples.
@@ -44,7 +44,7 @@ where
         R_: ReplayBufferBase<PushedItem = R::PushedItem>,
     {
         let now = std::time::SystemTime::now();
- 
+
         // Reset environment(s) if required
         if self.prev_obs.is_none() {
             // For a vectorized environments, reset all environments in `env`

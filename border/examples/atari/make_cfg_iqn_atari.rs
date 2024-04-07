@@ -6,9 +6,9 @@ use border_core::{
     TrainerConfig,
 };
 use border_tch_agent::{
-    cnn::{CnnConfig, Cnn},
-    mlp::{MlpConfig, Mlp},
+    cnn::{Cnn, CnnConfig},
     iqn::{IqnConfig, IqnModelConfig}, //, EpsilonGreedy, DQNExplorer},
+    mlp::{Mlp, MlpConfig},
 };
 use std::{default::Default, path::Path};
 use util_iqn_atari::{model_dir, /*model_dir_async,*/ Params};
@@ -16,17 +16,16 @@ use util_iqn_atari::{model_dir, /*model_dir_async,*/ Params};
 fn make_iqn_config(params: &Params) -> IqnConfig<Cnn, Mlp> {
     let n_stack = 4;
     let out_dim = 0; // Set before training/evaluation
-    // let lr = if params.per {
-    //     params.lr / 4.0
-    // } else {
-    //     params.lr
-    // };
-    // let clip_td_err = if params.per { Some((-1.0, 1.0)) } else { None };
+                     // let lr = if params.per {
+                     //     params.lr / 4.0
+                     // } else {
+                     //     params.lr
+                     // };
+                     // let clip_td_err = if params.per { Some((-1.0, 1.0)) } else { None };
 
     let feature_dim = params.feature_dim;
     let hidden_dim = params.hidden_dim;
-    let f_config = CnnConfig::new(n_stack, feature_dim)
-        .skip_linear(true);
+    let f_config = CnnConfig::new(n_stack, feature_dim).skip_linear(true);
     let m_config = MlpConfig::new(feature_dim, vec![hidden_dim], out_dim, false);
     let model_config = IqnModelConfig::default()
         .feature_dim(feature_dim)

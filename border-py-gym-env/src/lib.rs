@@ -48,6 +48,7 @@ pub use base::{GymActFilter, GymEnv, GymInfo, GymObsFilter};
 pub use config::GymEnvConfig;
 #[allow(deprecated)]
 pub use obs::{
-    ArrayDictObsFilter, ArrayDictObsFilterConfig, ArrayObsFilter, FrameStackFilter, GymObs,
+    ArrayDictObsFilter, ArrayDictObsFilterConfig, ArrayObsFilter, ArrayObsFilterConfig,
+    FrameStackFilter, FrameStackFilterConfig, GymObs,
 };
 // pub use vec::{PyVecGymEnv, PyVecGymEnvConfig};

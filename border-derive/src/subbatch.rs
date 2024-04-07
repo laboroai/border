@@ -50,13 +50,28 @@ fn tensor_sub_batch(ident: proc_macro2::Ident, field_type: syn::Type) -> proc_ma
     };
 
     #[cfg(feature = "tch")]
-    output.extend(quote! {
-        impl From<#ident> for tch::Tensor {
-            fn from(b: #ident) -> Self {
-                b.0.into()
+    output.extend(
+        quote! {
+            impl From<#ident> for tch::Tensor {
+                fn from(b: #ident) -> Self {
+                    b.0.into()
+                }
             }
         }
-    }.into_iter());
+        .into_iter(),
+    );
+
+    #[cfg(feature = "candle-core")]
+    output.extend(
+        quote! {
+            impl From<#ident> for candle_core::Tensor {
+                fn from(b: #ident) -> Self {
+                    b.0.into()
+                }
+            }
+        }
+        .into_iter(),
+    );
 
     output
 }

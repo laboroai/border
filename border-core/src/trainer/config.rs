@@ -10,13 +10,25 @@ use std::{
 /// Configuration of [`Trainer`](super::Trainer).
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct TrainerConfig {
-    pub(super) max_opts: usize,
-    pub(super) eval_threshold: Option<f32>,
-    pub(super) model_dir: Option<String>,
-    pub(super) opt_interval: usize,
-    pub(super) eval_interval: usize,
-    pub(super) record_interval: usize,
-    pub(super) save_interval: usize,
+    /// The maximum number of optimization steps.
+    pub max_opts: usize,
+
+    // ///
+    // pub eval_threshold: Option<f32>,
+    /// Directory where model parameters will be saved.
+    pub model_dir: Option<String>,
+
+    /// The interval in interaction steps between optimization steps.
+    pub opt_interval: usize,
+
+    /// The interval of evaluation in optimization steps.
+    pub eval_interval: usize,
+
+    /// The interval of recording in optimization steps.
+    pub record_interval: usize,
+
+    /// The intercal of saving model parameters in optimization steps.
+    pub save_interval: usize,
 }
 
 impl Default for TrainerConfig {
@@ -24,7 +36,7 @@ impl Default for TrainerConfig {
         Self {
             max_opts: 0,
             eval_interval: 0,
-            eval_threshold: None,
+            // eval_threshold: None,
             model_dir: None,
             opt_interval: 1,
             record_interval: usize::MAX,
@@ -46,10 +58,11 @@ impl TrainerConfig {
         self
     }
 
-    /// Sets the evaluation threshold.
-    pub fn eval_threshold(mut self, v: f32) -> Self {
-        self.eval_threshold = Some(v);
-        self
+    /// (Deprecated) Sets the evaluation threshold.
+    pub fn eval_threshold(/*mut */ self, _v: f32) -> Self {
+        unimplemented!();
+        // self.eval_threshold = Some(v);
+        // self
     }
 
     /// Sets the directory the trained model being saved.

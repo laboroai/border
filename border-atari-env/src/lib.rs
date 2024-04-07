@@ -12,7 +12,7 @@
 //! You need to place Atari Rom directories under the directory specified by environment variable
 //! `ATARI_ROM_DIR`. An easy way to do this is to use [AutoROM](https://pypi.org/project/AutoROM/)
 //! Python package.
-//! 
+//!
 //! ```bash
 //! pip install autorom
 //! mkdir $HOME/atari_rom
@@ -21,7 +21,7 @@
 //! ```
 //!
 //! Here is an example of running Pong environment with a random policy.
-//! 
+//!
 //! ```no_run
 //! use anyhow::Result;
 //! use border_atari_env::{
@@ -87,10 +87,10 @@
 //! ```
 //! [`atari_env::AtariEnv::lives()`]: atari_env::AtariEnv::lives
 mod act;
-mod obs;
-mod env;
-pub mod util;
 pub mod atari_env;
+mod env;
+mod obs;
+pub mod util;
 pub use act::{BorderAtariAct, BorderAtariActFilter, BorderAtariActRawFilter};
-pub use obs::{BorderAtariObs, BorderAtariObsFilter, BorderAtariObsRawFilter};
 pub use env::{BorderAtariEnv, BorderAtariEnvConfig};
+pub use obs::{BorderAtariObs, BorderAtariObsFilter, BorderAtariObsRawFilter};

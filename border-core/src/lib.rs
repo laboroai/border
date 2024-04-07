@@ -92,5 +92,5 @@ pub use base::{
 };
 
 mod trainer;
-pub use evaluator::{Evaluator, DefaultEvaluator};
+pub use evaluator::{DefaultEvaluator, Evaluator};
 pub use trainer::{SyncSampler, Trainer, TrainerConfig};

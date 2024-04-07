@@ -11,8 +11,8 @@ use std::{
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 /// Configuration of [Actor](super::Actor).
 pub struct ActorConfig<P: OutDim> {
-    pub(super) pi_config: Option<P>,
-    pub(super) opt_config: OptimizerConfig,
+    pub pi_config: Option<P>,
+    pub opt_config: OptimizerConfig,
 }
 
 impl<P: OutDim> Default for ActorConfig<P> {

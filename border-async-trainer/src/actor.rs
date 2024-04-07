@@ -2,4 +2,4 @@
 mod base;
 mod stat;
 pub use base::Actor;
-pub use stat::{ActorStat, actor_stats_fmt};
+pub use stat::{actor_stats_fmt, ActorStat};

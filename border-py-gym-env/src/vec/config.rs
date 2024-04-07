@@ -14,13 +14,13 @@ where
     AF: GymActFilter<A>,
 {
     // Name of the environment
-    pub(super) name: String,
-    pub(super) max_steps: Option<usize>,
-    pub(super) atari_wrapper: Option<AtariWrapper>,
+    pub name: String,
+    pub max_steps: Option<usize>,
+    pub atari_wrapper: Option<AtariWrapper>,
     // The number of processes
-    pub(super) n_procs: usize,
-    pub(super) obs_filter_config: Option<OF::Config>,
-    pub(super) act_filter_config: Option<AF::Config>,
+    pub n_procs: usize,
+    pub obs_filter_config: Option<OF::Config>,
+    pub act_filter_config: Option<AF::Config>,
     phantom: PhantomData<(O, A, OF, AF)>,
 }
 

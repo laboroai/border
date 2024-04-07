@@ -4,9 +4,9 @@
 //!
 //! These macros will implements some conversion traits for combining
 //! interfaces of an environment and an agent.
+mod act;
 mod obs;
 mod subbatch;
-mod act;
 use proc_macro::{self, TokenStream};
 
 /// Implements `border_core::Obs` for the newtype that wraps

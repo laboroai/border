@@ -20,11 +20,10 @@ type ActStd = Tensor;
 fn normal_logp(x: &Tensor) -> Tensor {
     let tmp: Tensor = Tensor::from(-0.5 * (2.0 * std::f32::consts::PI).ln() as f32)
         - 0.5 * x.pow_tensor_scalar(2);
-    tmp.sum_dim_intlist(&[-1], false, tch::Kind::Float)
+    tmp.sum_dim_intlist(Some([-1].as_slice()), false, tch::Kind::Float)
 }
 
 /// Soft actor critic (SAC) agent.
-#[allow(clippy::upper_case_acronyms)]
 pub struct Sac<E, Q, P, R>
 where
     E: Env,
@@ -83,7 +82,7 @@ where
         let log_p = normal_logp(&z)
             - (Tensor::from(1f32) - a.pow_tensor_scalar(2.0) + Tensor::from(self.epsilon))
                 .log()
-                .sum_dim_intlist(&[-1], false, tch::Kind::Float);
+                .sum_dim_intlist(Some([-1].as_slice()), false, tch::Kind::Float);
 
         debug_assert_eq!(a.size().as_slice()[0], self.batch_size as i64);
         debug_assert_eq!(log_p.size().as_slice(), [self.batch_size as i64]);
@@ -128,7 +127,7 @@ where
             debug_assert_eq!(tgt.size().as_slice(), [self.batch_size as i64]);
 
             let losses: Vec<_> = match self.critic_loss {
-                CriticLoss::MSE => preds
+                CriticLoss::Mse => preds
                     .iter()
                     .map(|pred| pred.mse_loss(&tgt, tch::Reduction::Mean))
                     .collect(),
@@ -308,23 +307,23 @@ where
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
         for (i, (qnet, qnet_tgt)) in self.qnets.iter().zip(&self.qnets_tgt).enumerate() {
-            qnet.save(&path.as_ref().join(format!("qnet_{}.pt", i)).as_path())?;
-            qnet_tgt.save(&path.as_ref().join(format!("qnet_tgt_{}.pt", i)).as_path())?;
+            qnet.save(&path.as_ref().join(format!("qnet_{}.pt.tch", i)).as_path())?;
+            qnet_tgt.save(&path.as_ref().join(format!("qnet_tgt_{}.pt.tch", i)).as_path())?;
         }
-        self.pi.save(&path.as_ref().join("pi.pt").as_path())?;
+        self.pi.save(&path.as_ref().join("pi.pt.tch").as_path())?;
         self.ent_coef
-            .save(&path.as_ref().join("ent_coef.pt").as_path())?;
+            .save(&path.as_ref().join("ent_coef.pt.tch").as_path())?;
         Ok(())
     }
 
     fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
         for (i, (qnet, qnet_tgt)) in self.qnets.iter_mut().zip(&mut self.qnets_tgt).enumerate() {
-            qnet.load(&path.as_ref().join(format!("qnet_{}.pt", i)).as_path())?;
-            qnet_tgt.load(&path.as_ref().join(format!("qnet_tgt_{}.pt", i)).as_path())?;
+            qnet.load(&path.as_ref().join(format!("qnet_{}.pt.tch", i)).as_path())?;
+            qnet_tgt.load(&path.as_ref().join(format!("qnet_tgt_{}.pt.tch", i)).as_path())?;
         }
-        self.pi.load(&path.as_ref().join("pi.pt").as_path())?;
+        self.pi.load(&path.as_ref().join("pi.pt.tch").as_path())?;
         self.ent_coef
-            .load(&path.as_ref().join("ent_coef.pt").as_path())?;
+            .load(&path.as_ref().join("ent_coef.pt.tch").as_path())?;
         Ok(())
     }
 }

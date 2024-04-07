@@ -29,6 +29,7 @@ impl From<tch::Device> for Device {
         match device {
             tch::Device::Cpu => Self::Cpu,
             tch::Device::Cuda(n) => Self::Cuda(n),
+            tch::Device::Mps => unimplemented!(),
         }
     }
 }
