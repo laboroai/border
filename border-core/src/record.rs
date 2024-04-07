@@ -1,6 +1,6 @@
 //! Types for recording various values obtained during training and evaluation.
 //!
-//! [Record] is a [HashMap], where its key and values represents various values obtained during training and
+//! [`Record`] is a [`HashMap`], where its key and values represents various values obtained during training and
 //! evaluation. A record may contains multiple types of values.
 //!
 //! ```no_run
@@ -21,12 +21,15 @@
 //! [Trainer::train](crate::Trainer::train), which executes a training loop, writes a record
 //! in a [`Recorder`] given as an input argument.
 //!
+//! [`HashMap`]: std::collections::HashMap
 mod base;
 mod buffered_recorder;
 mod null_recorder;
 mod recorder;
+mod storage;
 
 pub use base::{Record, RecordValue};
 pub use buffered_recorder::BufferedRecorder;
 pub use null_recorder::NullRecorder;
 pub use recorder::Recorder;
+pub use storage::RecordStorage;
