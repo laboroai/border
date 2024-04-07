@@ -16,7 +16,7 @@ use std::convert::TryFrom;
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub enum CriticLoss {
     /// Mean squared error.
-    MSE,
+    Mse,
 
     /// Smooth L1 loss.
     SmoothL1,

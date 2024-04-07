@@ -2,7 +2,10 @@
 #![allow(clippy::float_cmp)]
 use crate::{AtariWrapper, GymEnvConfig};
 use anyhow::Result;
-use border_core::{record::Record, Act, Env, Info, Obs, Step};
+use border_core::{
+    record::{Record, RecordValue::Scalar},
+    Act, Env, Info, Obs, Step,
+};
 use log::{info, trace};
 // use pyo3::IntoPy;
 use pyo3::types::{IntoPyDict, PyTuple};
@@ -266,7 +269,7 @@ where
     /// It returns [`Step`] and [`Record`] objects.
     /// The [`Record`] is composed of [`Record`]s constructed in [`GymObsFilter`] and
     /// [`GymActFilter`].
-    fn step(&mut self, a: &A) -> (Step<Self>, Record) {
+    fn step(&mut self, act: &A) -> (Step<Self>, Record) {
         fn is_done(step: &PyTuple) -> i8 {
             // terminated or truncated
             let terminated: bool = step.get_item(2).extract().unwrap();
@@ -296,26 +299,41 @@ where
                 std::thread::sleep(self.wait);
             }
 
-            let (a_py, record_a) = self.act_filter.filt(a.clone());
-            let ret = self.env.call_method(py, "step", (a_py,), None).unwrap();
-            let step: &PyTuple = ret.extract(py).unwrap();
-            let obs = step.get_item(0).to_owned();
-            let (obs, record_o) = self.obs_filter.filt(obs.to_object(py));
-            let reward: Vec<f32> = vec![step.get_item(1).extract().unwrap()];
-            let mut is_done: Vec<i8> = vec![is_done(step)];
+            // State transition
+            let (act, next_obs, reward, mut is_done, mut record, info, init_obs) = {
+                let (a_py, record_a) = self.act_filter.filt(act.clone());
+                let ret = self.env.call_method(py, "step", (a_py,), None).unwrap();
+                let step: &PyTuple = ret.extract(py).unwrap();
+                let next_obs = step.get_item(0).to_owned();
+                let (next_obs, record_o) = self.obs_filter.filt(next_obs.to_object(py));
+                let reward: Vec<f32> = vec![step.get_item(1).extract().unwrap()];
+                let is_done: Vec<i8> = vec![is_done(step)];
+                let record = record_o.merge(record_a);
+                let info = GymInfo {};
+                let init_obs = O::dummy(1);
+                let act = act.clone();
 
-            // let c = *self.count_steps.borrow();
+                (act, next_obs, reward, is_done, record, info, init_obs)
+            };
+
             self.count_steps += 1; //.replace(c + 1);
+
+            // Terminated or truncated
+            // TODO: distinguish these two conditions
             if let Some(max_steps) = self.max_steps {
                 if self.count_steps >= max_steps {
                     is_done[0] = 1;
-                    self.count_steps = 0;
                 }
             };
 
+            if is_done[0] == 1 {
+                record.insert("episode_length", Scalar(self.count_steps as _));
+                self.count_steps = 0;
+            }
+
             (
-                Step::<Self>::new(obs, a.clone(), reward, is_done, GymInfo {}, O::dummy(1)),
-                record_o.merge(record_a),
+                Step::new(next_obs, act, reward, is_done, info, init_obs),
+                record,
             )
         })
     }

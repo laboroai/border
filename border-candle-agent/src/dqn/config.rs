@@ -95,7 +95,7 @@ where
             double_dqn: false,
             clip_td_err: None,
             device: None,
-            critic_loss: CriticLoss::MSE,
+            critic_loss: CriticLoss::Mse,
             phantom: PhantomData,
         }
     }

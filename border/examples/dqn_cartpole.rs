@@ -1,6 +1,6 @@
 use anyhow::Result;
 use border_candle_agent::{
-    dqn::{Dqn, DqnConfig, DqnModelConfig},
+    dqn::{Dqn, DqnModelConfig},
     mlp::{Mlp, MlpConfig},
     opt::OptimizerConfig,
     util::CriticLoss,
@@ -37,7 +37,7 @@ const MAX_OPTS: usize = 100000;
 const EVAL_INTERVAL: usize = 100;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
-const CRITIC_LOSS: CriticLoss = CriticLoss::SmoothL1;
+const CRITIC_LOSS: CriticLoss = CriticLoss::Mse;
 const MODEL_DIR: &str = "./border/examples/model/dqn_cartpole";
 
 type PyObsDtype = f32;

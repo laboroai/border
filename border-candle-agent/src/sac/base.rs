@@ -136,7 +136,7 @@ where
             debug_assert_eq!(tgt.dims(), [self.batch_size]);
 
             let losses: Vec<_> = match self.critic_loss {
-                CriticLoss::MSE => preds
+                CriticLoss::Mse => preds
                     .iter()
                     .map(|pred| mse(&pred.squeeze(D::Minus1).unwrap(), &tgt).unwrap())
                     .collect(),

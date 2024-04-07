@@ -159,42 +159,6 @@ where
         Self::save_model(agent, model_dir);
     }
 
-    // /// Run episodes with the given agent and returns the average of cumulative reward.
-    // fn evaluate<A>(&mut self, agent: &mut A) -> Result<f32>
-    // where
-    //     A: Agent<E, R>,
-    // {
-    //     agent.eval();
-
-    //     let env_config = if self.env_config_eval.is_none() {
-    //         &self.env_config_train
-    //     } else {
-    //         &self.env_config_eval.as_ref().unwrap()
-    //     };
-
-    //     let mut env = E::build(env_config, 0)?; // TODO use eval_env_config
-    //     let mut r_total = 0f32;
-
-    //     for ix in 0..self.eval_episodes {
-    //         let mut prev_obs = env.reset_with_index(ix)?;
-    //         assert_eq!(prev_obs.len(), 1); // env must be non-vectorized
-
-    //         loop {
-    //             let act = agent.sample(&prev_obs);
-    //             let (step, _) = env.step(&act);
-    //             r_total += step.reward[0];
-    //             if step.is_done[0] == 1 {
-    //                 break;
-    //             }
-    //             prev_obs = step.obs;
-    //         }
-    //     }
-
-    //     agent.train();
-
-    //     Ok(r_total / self.eval_episodes as f32)
-    // }
-
     /// Performs a training step.
     pub fn train_step<A: Agent<E, R>>(
         &self,

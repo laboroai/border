@@ -123,7 +123,7 @@ where
             // loss
         } else {
             match self.critic_loss {
-                CriticLoss::MSE => mse(&pred, &tgt).unwrap(),
+                CriticLoss::Mse => mse(&pred, &tgt).unwrap(),
                 CriticLoss::SmoothL1 => smooth_l1_loss(&pred, &tgt).unwrap(),
             }
         };
