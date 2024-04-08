@@ -13,5 +13,5 @@ impl Recorder for NullRecorder {
 impl AggregateRecorder for NullRecorder {
     fn store(&mut self, _record: Record) {}
 
-    fn flush(&mut self) {}
+    fn flush(&mut self, _step: i64) {}
 }

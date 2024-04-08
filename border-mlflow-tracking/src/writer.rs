@@ -183,8 +183,9 @@ impl Drop for MlflowTrackingRecorder {
 }
 
 impl AggregateRecorder for MlflowTrackingRecorder {
-    fn flush(&mut self) {
-        let record = self.storage.aggregate();
+    fn flush(&mut self, step: i64) {
+        let mut record = self.storage.aggregate();
+        record.insert("opt_steps", RecordValue::Scalar(step as _));
         self.write(record);
     }
 

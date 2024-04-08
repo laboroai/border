@@ -1,16 +1,16 @@
 use super::Record;
 
-/// Process records provided with [`Recorder::write`]
+/// Writes a record to an output destination with [`Recorder::write`].
 pub trait Recorder {
     /// Write a record to the [`Recorder`].
     fn write(&mut self, record: Record);
 }
 
-/// Aggregates stored values, then writes.
+/// Stores records, then aggregates them and writes to an output destination.
 pub trait AggregateRecorder {
     /// Store the record.
     fn store(&mut self, record: Record);
 
     /// Writes values aggregated from the stored records.
-    fn flush(&mut self);
+    fn flush(&mut self, step: i64);
 }
