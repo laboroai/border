@@ -1,33 +1,39 @@
 //! Samples transitions and pushes them into a replay buffer.
-use crate::{record::Record, Agent, Env, ReplayBufferBase, StepProcessorBase};
+use crate::{record::Record, Agent, Env, ReplayBufferBase, StepProcessor};
 use anyhow::Result;
 
-/// Gets an [`Agent`] interacts with an [`Env`] and takes samples.
+/// Encapsulates sampling steps. Specifically it does the followint steps:
 ///
-/// TODO: Rename to `Sampler`.
-pub struct SyncSampler<E, P>
+/// 1. Gets an [`Agent`] interacts with an [`Env`] and takes [`Step`].
+/// 2. Convert [`Step`] into a transition (typically a batch) with [`StepProcessor`].
+/// 3. Pushes the trainsition to [`ReplayBufferBase`].
+/// 4. Count episode length and pushes to [`Record`].
+///
+/// [`Step`]: crate::Step
+/// [`StepProcessor`]: crate::StepProcessor
+pub struct Sampler<E, P>
 where
     E: Env,
-    P: StepProcessorBase<E>,
+    P: StepProcessor<E>,
 {
     env: E,
     prev_obs: Option<E::Obs>,
-    producer: P,
+    step_processor: P,
     n_frames: usize,
     time: f32,
 }
 
-impl<E, P> SyncSampler<E, P>
+impl<E, P> Sampler<E, P>
 where
     E: Env,
-    P: StepProcessorBase<E>,
+    P: StepProcessor<E>,
 {
     /// Creates a sampler.
-    pub fn new(env: E, producer: P) -> Self {
+    pub fn new(env: E, step_processor: P) -> Self {
         Self {
             env,
             prev_obs: None,
-            producer,
+            step_processor,
             n_frames: 0,
             time: 0f32,
         }
@@ -50,7 +56,7 @@ where
             // For a vectorized environments, reset all environments in `env`
             // by giving `None` to reset() method
             self.prev_obs = Some(self.env.reset(None)?);
-            self.producer.reset(self.prev_obs.as_ref().unwrap().clone());
+            self.step_processor.reset(self.prev_obs.as_ref().unwrap().clone());
         }
 
         // Sample action(s) and apply it to environment(s)
@@ -66,12 +72,12 @@ where
         };
 
         // Create and push transition(s)
-        let transition = self.producer.process(step);
+        let transition = self.step_processor.process(step);
         buffer.push(transition)?;
 
-        // Reset producer
+        // Reset step processor
         if terminate_episode {
-            self.producer.reset(self.prev_obs.as_ref().unwrap().clone());
+            self.step_processor.reset(self.prev_obs.as_ref().unwrap().clone());
         }
 
         // For counting FPS

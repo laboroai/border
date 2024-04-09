@@ -3,12 +3,12 @@ mod config;
 mod sampler;
 use crate::{
     record::{Record, Recorder},
-    Agent, Env, Evaluator, ReplayBufferBase, StepProcessorBase,
+    Agent, Env, Evaluator, ReplayBufferBase, StepProcessor,
 };
 use anyhow::Result;
 pub use config::TrainerConfig;
 use log::info;
-pub use sampler::SyncSampler;
+pub use sampler::Sampler;
 
 #[cfg_attr(doc, aquamarine::aquamarine)]
 /// Manages training loop and related objects.
@@ -19,7 +19,7 @@ pub use sampler::SyncSampler;
 ///
 /// 0. Given an agent implementing [`Agent`]  and a recorder implementing [`Recorder`].
 /// 1. Initialize the objects used in the training loop, involving instances of [`Env`],
-///    [`StepProcessorBase`], [`SyncSampler`].
+///    [`StepProcessor`], [`Sampler`].
 ///    * Reset a counter of the environment steps: `env_steps = 0`
 ///    * Reset a counter of the optimization steps: `opt_steps = 0`
 ///    * Reset objects for computing optimization steps per sec (OSPS):
@@ -69,10 +69,10 @@ pub use sampler::SyncSampler;
 ///   referred to as an *environment step*.
 /// * Next, [`Step<E: Env>`] will be created with the next observation `o_t+1`,
 ///   reward `r_t`, and `a_t`.
-/// * The [`Step<E: Env>`] object will be processed by [`StepProcessorBase`] and
+/// * The [`Step<E: Env>`] object will be processed by [`StepProcessor`] and
 ///   creates [`ReplayBufferBase::PushedItem`], typically representing a transition
 ///   `(o_t, a_t, o_t+1, r_t)`, where `o_t` is kept in the
-///   [`StepProcessorBase`], while other items in the given [`Step<E: Env>`].
+///   [`StepProcessor`], while other items in the given [`Step<E: Env>`].
 /// * Finally, the transitions pushed to the [`ReplayBufferBase`] will be used to create
 ///   batches, each of which implementing [`BatchBase`]. These batches will be used in
 ///   *optimization step*s, where the agent updates its parameters using sampled
@@ -85,7 +85,7 @@ pub use sampler::SyncSampler;
 pub struct Trainer<E, P, R>
 where
     E: Env,
-    P: StepProcessorBase<E>,
+    P: StepProcessor<E>,
     R: ReplayBufferBase<PushedItem = P::Output>,
 {
     /// Configuration of the environment for training.
@@ -119,7 +119,7 @@ where
 impl<E, P, R> Trainer<E, P, R>
 where
     E: Env,
-    P: StepProcessorBase<E>,
+    P: StepProcessor<E>,
     R: ReplayBufferBase<PushedItem = P::Output>,
 {
     /// Constructs a trainer.
@@ -160,11 +160,16 @@ where
     }
 
     /// Performs a training step.
+    ///
+    /// First, it performes an environment step once and pushes a transition
+    /// into the given buffer. Next, if the number of environment steps reaches
+    /// the optimization interval `opt_interval`, performes an optimization
+    /// step.
     pub fn train_step<A: Agent<E, R>>(
         &self,
         agent: &mut A,
         buffer: &mut R,
-        sampler: &mut SyncSampler<E, P>,
+        sampler: &mut Sampler<E, P>,
         env_steps: &mut usize,
     ) -> Result<Option<Record>>
     where
@@ -198,7 +203,7 @@ where
         let env = E::build(&self.env_config_train, 0)?;
         let producer = P::build(&self.step_proc_config);
         let mut buffer = R::build(&self.replay_buffer_config);
-        let mut sampler = SyncSampler::new(env, producer);
+        let mut sampler = Sampler::new(env, producer);
         let mut max_eval_reward = f32::MIN;
         let mut env_steps: usize = 0;
         let mut opt_steps: usize = 0;

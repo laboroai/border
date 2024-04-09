@@ -12,6 +12,7 @@
 * Take `self` in the signature of `push()` method of replay buffer (`border-core`)
 * Fix a bug in `MlpConfig` (`border-tch-agent`)
 * Bump the version of tch to 0.10.0 (`border-tch-agent`)
+* Change the name of trait `StepProcessorBase` to `StepProcessor` (`border-core`)
 
 ## v0.0.6 (2023-09-19)
 

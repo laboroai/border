@@ -61,9 +61,9 @@ impl<E: Env> Step<E> {
 /// [`ExperienceBufferBase`](crate::ExperienceBufferBase).
 /// The type [`Self::Output`] should be the same with [`ExperienceBufferBase::PushedItem`].
 ///
-/// [`Self::Output`]: StepProcessorBase::Output
+/// [`Self::Output`]: StepProcessor::Output
 /// [`ExperienceBufferBase::PushedItem`]: crate::ExperienceBufferBase::PushedItem
-pub trait StepProcessorBase<E: Env> {
+pub trait StepProcessor<E: Env> {
     /// Configuration.
     type Config: Clone;
 

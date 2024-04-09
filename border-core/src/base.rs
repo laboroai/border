@@ -11,7 +11,7 @@ pub use env::Env;
 pub use policy::Policy;
 pub use replay_buffer::{ExperienceBufferBase, ReplayBufferBase};
 use std::fmt::Debug;
-pub use step::{Info, Step, StepProcessorBase};
+pub use step::{Info, Step, StepProcessor};
 
 /// A set of observations of an environment.
 ///

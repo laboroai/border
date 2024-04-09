@@ -95,11 +95,11 @@
 //! }
 //! ```
 //! In the above code, [`SimpleStepProcessorConfig`] is configurations of
-//! [`SimpleStepProcessor`], which implements [`StepProcessorBase`] trait.
-//! [`StepProcessorBase`] abstracts the way how [`Step`] object is processed before pushed to
-//! a replay buffer. Users can customize implementation of [`StepProcessorBase`] for their
+//! [`SimpleStepProcessor`], which implements [`StepProcessor`] trait.
+//! [`StepProcessor`] abstracts the way how [`Step`] object is processed before pushed to
+//! a replay buffer. Users can customize implementation of [`StepProcessor`] for their
 //! purpose. For example, n-step TD samples or samples having Monte Carlo returns after the end
-//! of episode can be computed with a statefull implementation of [`StepProcessorBase`].
+//! of episode can be computed with a statefull implementation of [`StepProcessor`].
 //!
 //! It should be noted that a replay buffer is not a part of [`Agent`], but owned by
 //! [`Trainer`]. In the above code, the configuration of a replay buffer is given to
@@ -116,7 +116,7 @@
 //! [`eval_with_recorder`]: border_core::util::eval_with_recorder
 //! [`border_py_gym_env/examples/random_cartpols.rs`]: (https://github.com/taku-y/border/blob/982ef2d25a0ade93fb71cab3bb85e5062b6f769c/border-py-gym-env/examples/random_cartpole.rs)
 //! [`Agent`]: border_core::Agent
-//! [`StepProcessorBase`]: border_core::ReplayBufferBase
+//! [`StepProcessor`]: border_core::StepProcessor
 //! [`SimpleStepProcessor`]: border_core::replay_buffer::SimpleStepProcessor
 //! [`SimpleStepProcessorConfig`]: border_core::replay_buffer::SimpleStepProcessorConfig
 //! [`Step<E: Env>`]: border_core::Step
