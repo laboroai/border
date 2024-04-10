@@ -162,8 +162,8 @@ where
     /// Performs a training step.
     ///
     /// First, it performes an environment step once and pushes a transition
-    /// into the given buffer. Next, if the number of environment steps reaches
-    /// the optimization interval `opt_interval`, performes an optimization
+    /// into the given buffer with [`Sampler`]. Then, if the number of environment steps
+    /// reaches the optimization interval `opt_interval`, performes an optimization
     /// step.
     pub fn train_step<A: Agent<E, R>>(
         &self,
@@ -209,7 +209,7 @@ where
         let mut opt_steps: usize = 0;
         let mut opt_steps_ops: usize = 0; // optimizations per second
         let mut timer = std::time::SystemTime::now();
-        sampler.reset();
+        sampler.reset_fps_counter();
         agent.train();
 
         loop {
@@ -241,7 +241,7 @@ where
                 if do_rec {
                     record.insert("env_steps", Scalar(env_steps as f32));
                     record.insert("fps", Scalar(sampler.fps()));
-                    sampler.reset();
+                    sampler.reset_fps_counter();
                     let time = timer.elapsed()?.as_secs_f32();
                     let osps = opt_steps_ops as f32 / time;
                     record.insert("opt_steps_per_sec", Scalar(osps));

@@ -4,7 +4,7 @@ use anyhow::Result;
 
 /// Encapsulates sampling steps. Specifically it does the followint steps:
 ///
-/// 1. Gets an [`Agent`] interacts with an [`Env`] and takes [`Step`].
+/// 1. Samples an action from the [`Agent`], apply to the [`Env`] and takes [`Step`].
 /// 2. Convert [`Step`] into a transition (typically a batch) with [`StepProcessor`].
 /// 3. Pushes the trainsition to [`ReplayBufferBase`].
 /// 4. Count episode length and pushes to [`Record`].
@@ -19,8 +19,14 @@ where
     env: E,
     prev_obs: Option<E::Obs>,
     step_processor: P,
+    /// Number of frames for counting frames per second.
     n_frames: usize,
+
+    /// Total time of takes n_frames.
     time: f32,
+
+    /// Number of frames in an episode
+    n_frames_in_episode: usize,
 }
 
 impl<E, P> Sampler<E, P>
@@ -36,6 +42,7 @@ where
             step_processor,
             n_frames: 0,
             time: 0f32,
+            n_frames_in_episode: 0,
         }
     }
 
@@ -56,16 +63,18 @@ where
             // For a vectorized environments, reset all environments in `env`
             // by giving `None` to reset() method
             self.prev_obs = Some(self.env.reset(None)?);
-            self.step_processor.reset(self.prev_obs.as_ref().unwrap().clone());
+            self.step_processor
+                .reset(self.prev_obs.as_ref().unwrap().clone());
         }
 
         // Sample action(s) and apply it to environment(s)
         let act = agent.sample(self.prev_obs.as_ref().unwrap());
-        let (step, record) = self.env.step_with_reset(&act);
-        let terminate_episode = step.is_done[0] == 1; // not support vectorized env
+        let (step, mut record) = self.env.step_with_reset(&act);
+        let is_done = step.is_done[0] == 1; // not support vectorized env
+        self.n_frames_in_episode += 1;
 
         // Update previouos observation
-        self.prev_obs = if terminate_episode {
+        self.prev_obs = if is_done {
             Some(step.init_obs.clone())
         } else {
             Some(step.obs.clone())
@@ -76,8 +85,14 @@ where
         buffer.push(transition)?;
 
         // Reset step processor
-        if terminate_episode {
-            self.step_processor.reset(self.prev_obs.as_ref().unwrap().clone());
+        if is_done {
+            self.step_processor
+                .reset(self.prev_obs.as_ref().unwrap().clone());
+            record.insert(
+                "episode_length",
+                crate::record::RecordValue::Scalar(self.n_frames_in_episode as _),
+            );
+            self.n_frames_in_episode = 0;
         }
 
         // For counting FPS
@@ -96,7 +111,7 @@ where
     }
 
     /// Reset stats for computing FPS.
-    pub fn reset(&mut self) {
+    pub fn reset_fps_counter(&mut self) {
         self.n_frames = 0;
         self.time = 0f32;
     }
