@@ -1,12 +1,12 @@
 use anyhow::Result;
 use border::util::get_model_from_url;
 use border_core::{
+    record::Recorder,
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
     Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
-    record::Recorder,
 };
 use border_derive::SubBatch;
 use border_mlflow_tracking::MlflowTrackingClient;

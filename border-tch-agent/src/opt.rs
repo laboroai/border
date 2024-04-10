@@ -49,7 +49,8 @@ impl OptimizerConfig {
                     wd: *wd,
                     eps: *eps,
                     amsgrad: *amsgrad,
-                }.build(vs, *lr)?;
+                }
+                .build(vs, *lr)?;
                 Ok(Optimizer::AdamW(opt))
             }
         }

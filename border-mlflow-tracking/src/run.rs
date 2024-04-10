@@ -18,7 +18,7 @@ pub struct RunInfo {
     start_time: i64,
     end_time: Option<i64>,
     artifact_uri: Option<String>,
-    lifecycle_stage: Option<String,>
+    lifecycle_stage: Option<String>,
 }
 
 #[allow(dead_code)]

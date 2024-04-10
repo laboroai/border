@@ -64,7 +64,9 @@ impl SubModel1 for Cnn {
     type Output = Tensor;
 
     fn forward(&self, x: &Self::Input) -> Tensor {
-        self.seq.forward(&x.to_device(&self.device).unwrap()).unwrap()
+        self.seq
+            .forward(&x.to_device(&self.device).unwrap())
+            .unwrap()
     }
 
     fn build(vb: VarBuilder, config: Self::Config) -> Self {
@@ -76,7 +78,8 @@ impl SubModel1 for Cnn {
             Self::create_net_wo_linear(&vb, n_stack)
         } else {
             Self::create_net(&vb, n_stack, out_dim)
-        }.unwrap();
+        }
+        .unwrap();
 
         Self {
             n_stack,

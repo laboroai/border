@@ -1,5 +1,5 @@
 use crate::{ActorStat, PushedItemMessage, ReplayBufferProxy, ReplayBufferProxyConfig, SyncModel};
-use border_core::{Agent, Env, ReplayBufferBase, StepProcessor, Sampler};
+use border_core::{Agent, Env, ReplayBufferBase, Sampler, StepProcessor};
 use crossbeam_channel::Sender;
 use log::info;
 use std::{

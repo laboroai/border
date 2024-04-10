@@ -4,7 +4,10 @@ use super::{
     DqnModelConfig,
 };
 use crate::{
-    model::SubModel, opt::OptimizerConfig, util::{CriticLoss, OutDim}, Device
+    model::SubModel,
+    opt::OptimizerConfig,
+    util::{CriticLoss, OutDim},
+    Device,
 };
 use anyhow::Result;
 use log::info;

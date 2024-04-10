@@ -12,7 +12,10 @@ use border_py_gym_env::{
     GymObsFilter,
 };
 use border_tch_agent::{
-    dqn::{Dqn, DqnConfig, DqnModelConfig}, mlp::{Mlp, MlpConfig}, util::CriticLoss, TensorSubBatch
+    dqn::{Dqn, DqnConfig, DqnModelConfig},
+    mlp::{Mlp, MlpConfig},
+    util::CriticLoss,
+    TensorSubBatch,
 };
 use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg, ArgMatches};

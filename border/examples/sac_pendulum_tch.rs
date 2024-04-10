@@ -329,7 +329,7 @@ fn main() -> Result<()> {
             MAX_OPTS,
             "./border/examples/model/sac_pendulum_tch",
             EVAL_INTERVAL,
-            mlflow
+            mlflow,
         )?;
     }
     if do_eval {

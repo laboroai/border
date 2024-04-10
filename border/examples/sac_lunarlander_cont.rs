@@ -259,27 +259,27 @@ fn eval(model_dir: &str, render: bool) -> Result<()> {
 
 fn create_matches<'a>() -> ArgMatches<'a> {
     App::new("sac_lunarlander_cont")
-    .version("0.1.0")
-    .author("Taku Yoshioka <yoshioka@laboro.ai>")
-    .arg(
-        Arg::with_name("train")
-            .long("train")
-            .takes_value(false)
-            .help("Do training only"),
-    )
-    .arg(
-        Arg::with_name("eval")
-            .long("eval")
-            .takes_value(false)
-            .help("Do evaluation only"),
-    )
-    .arg(
-        Arg::with_name("mlflow")
-            .long("mlflow")
-            .takes_value(false)
-            .help("User mlflow tracking"),
-    )
-    .get_matches()
+        .version("0.1.0")
+        .author("Taku Yoshioka <yoshioka@laboro.ai>")
+        .arg(
+            Arg::with_name("train")
+                .long("train")
+                .takes_value(false)
+                .help("Do training only"),
+        )
+        .arg(
+            Arg::with_name("eval")
+                .long("eval")
+                .takes_value(false)
+                .help("Do evaluation only"),
+        )
+        .arg(
+            Arg::with_name("mlflow")
+                .long("mlflow")
+                .takes_value(false)
+                .help("User mlflow tracking"),
+        )
+        .get_matches()
 }
 
 fn main() -> Result<()> {

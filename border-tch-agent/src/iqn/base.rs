@@ -130,7 +130,9 @@ where
                 );
 
                 // argmax_a z(s,a), where z are averaged over tau
-                let y = z.copy().mean_dim(Some([1].as_slice()), false, tch::Kind::Float);
+                let y = z
+                    .copy()
+                    .mean_dim(Some([1].as_slice()), false, tch::Kind::Float);
                 let a = y.argmax(-1, false).unsqueeze(-1).unsqueeze(-1).repeat(&[
                     1,
                     n_percent_points,
