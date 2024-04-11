@@ -20,6 +20,7 @@ explorer:
     eps_final: 0.02
     final_step: 1000000
 clip_reward: 1.0
+critic_loss: Mse
 double_dqn: false
 clip_td_err: ~
 device: ~
