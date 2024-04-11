@@ -16,6 +16,12 @@ pub trait Agent<E: Env, R: ReplayBufferBase>: Policy<E> {
     fn is_train(&self) -> bool;
 
     /// Do an optimization step.
+    ///
+    /// `buffer` is a replay buffer from which transitions will be taken
+    /// for updating model parameters.
+    ///
+    /// This method returns `None` if it does not do any optimization step
+    /// for some reason, typically warmup period of the replay buffer.
     fn opt(&mut self, buffer: &mut R) -> Option<Record>;
 
     /// Save the agent in the given directory.

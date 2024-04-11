@@ -7,7 +7,7 @@ use border_candle_agent::{
     TensorSubBatch,
 };
 use border_core::{
-    record::Recorder,
+    record::AggregateRecorder,
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig, SubBatch,
@@ -33,8 +33,8 @@ const N_TRANSITIONS_WARMUP: usize = 100;
 const N_UPDATES_PER_OPT: usize = 1;
 const TAU: f64 = 0.01;
 const OPT_INTERVAL: usize = 1; // 50
-const MAX_OPTS: usize = 100000;
-const EVAL_INTERVAL: usize = 100;
+const MAX_OPTS: usize = 30000;
+const EVAL_INTERVAL: usize = 1000;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const CRITIC_LOSS: CriticLoss = CriticLoss::Mse;
@@ -213,7 +213,8 @@ mod config {
                 .max_opts(max_opts)
                 .opt_interval(OPT_INTERVAL)
                 .eval_interval(EVAL_INTERVAL)
-                .record_interval(EVAL_INTERVAL)
+                .record_agent_info_interval(EVAL_INTERVAL)
+                .flush_record_interval(EVAL_INTERVAL)
                 .save_interval(EVAL_INTERVAL)
                 .model_dir(model_dir);
             Self {
@@ -261,7 +262,7 @@ fn create_recorder(
     matches: &ArgMatches,
     model_dir: &str,
     config: &DqnCartpoleConfig,
-) -> Result<Box<dyn Recorder>> {
+) -> Result<Box<dyn AggregateRecorder>> {
     match matches.is_present("mlflow") {
         true => {
             let client =

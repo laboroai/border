@@ -8,11 +8,11 @@ pub struct RecordStorage {
 }
 
 fn min(vs: &Vec<f32>) -> RecordValue {
-    RecordValue::Scalar(*vs.iter().min_by(|x, y| y.total_cmp(x)).unwrap())
+    RecordValue::Scalar(*vs.iter().min_by(|x, y| x.total_cmp(y)).unwrap())
 }
 
 fn max(vs: &Vec<f32>) -> RecordValue {
-    RecordValue::Scalar(*vs.iter().min_by(|x, y| x.total_cmp(y)).unwrap())
+    RecordValue::Scalar(*vs.iter().min_by(|x, y| y.total_cmp(x)).unwrap())
 }
 
 fn mean(vs: &Vec<f32>) -> RecordValue {
@@ -135,10 +135,10 @@ impl RecordStorage {
             .collect();
 
         Record::from_slice(&[
-            (format!("{} (min)", key), min(&vs)),
-            (format!("{} (max)", key), max(&vs)),
-            (format!("{} (mean)", key), mean(&vs)),
-            (format!("{} (median)", key), median(vs)),
+            (format!("{}_min", key), min(&vs)),
+            (format!("{}_max", key), max(&vs)),
+            (format!("{}_mean", key), mean(&vs)),
+            (format!("{}_median", key), median(vs)),
         ])
     }
 
@@ -166,6 +166,7 @@ impl RecordStorage {
                 RecordValue::String(..) => self.string(key),
                 RecordValue::Scalar(..) => self.scalar(key),
             };
+            // record = record.merge(r);
             record = record.merge(r);
         }
 

@@ -101,7 +101,7 @@ mod trainer_config {
                 max_opts: self.max_opts,
                 opt_interval: self.opt_interval,
                 eval_interval: self.eval_interval,
-                record_interval: self.record_interval,
+                flush_record_interval: self.record_interval,
                 save_interval: self.save_interval,
             }
         }

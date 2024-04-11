@@ -1,4 +1,4 @@
-use border_core::record::{Record, RecordValue, Recorder};
+use border_core::record::{Record, RecordValue, Recorder, AggregateRecorder};
 use std::path::Path;
 use tensorboard_rs::summary_writer::SummaryWriter;
 
@@ -6,6 +6,7 @@ use tensorboard_rs::summary_writer::SummaryWriter;
 pub struct TensorboardRecorder {
     writer: SummaryWriter,
     step_key: String,
+    latest_record: Option<Record>,
     ignore_unsupported_value: bool,
 }
 
@@ -18,6 +19,7 @@ impl TensorboardRecorder {
             writer: SummaryWriter::new(logdir),
             step_key: "opt_steps".to_string(),
             ignore_unsupported_value: true,
+            latest_record: None,
         }
     }
 
@@ -29,6 +31,7 @@ impl TensorboardRecorder {
             writer: SummaryWriter::new(logdir),
             step_key: "opt_steps".to_string(),
             ignore_unsupported_value: false,
+            latest_record: None,
         }
     }
 }
@@ -72,6 +75,20 @@ impl Recorder for TensorboardRecorder {
                     }
                 };
             }
+        }
+    }
+}
+
+impl AggregateRecorder for TensorboardRecorder {
+    fn store(&mut self, record: Record) {
+        self.latest_record = Some(record);
+    }
+
+    fn flush(&mut self, step: i64) {
+        if self.latest_record.is_some() {
+            let mut record = self.latest_record.take().unwrap();
+            record.insert("opt_steps", RecordValue::Scalar(step as _));
+            self.write(record);
         }
     }
 }

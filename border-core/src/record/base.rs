@@ -141,4 +141,9 @@ impl Record {
             Err(LrrError::RecordKeyError(k.to_string()))
         }
     }
+
+    /// Returns true if the record is empty.
+    pub fn is_empty(&self) -> bool {
+        self.0.len() == 0
+    }
 }
