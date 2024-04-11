@@ -1,4 +1,4 @@
-use border_core::record::{Record, RecordValue, Recorder, AggregateRecorder};
+use border_core::record::{AggregateRecorder, Record, RecordValue, Recorder};
 use std::path::Path;
 use tensorboard_rs::summary_writer::SummaryWriter;
 

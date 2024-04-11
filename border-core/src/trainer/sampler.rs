@@ -128,8 +128,8 @@ where
         Ok(record)
     }
 
-    /// Returns frames (environment steps) per second. 
-    /// 
+    /// Returns frames (environment steps) per second.
+    ///
     /// A frame involves taking action, applying it to the environment,
     /// producing transition, and pushing it into the replay buffer.
     pub fn fps(&self) -> f32 {

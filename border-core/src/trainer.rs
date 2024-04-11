@@ -228,8 +228,13 @@ where
         agent.train();
 
         loop {
-            let (mut record, is_opt) =
-                self.train_step(agent, &mut buffer, &mut sampler, &mut env_steps, &mut opt_steps)?;
+            let (mut record, is_opt) = self.train_step(
+                agent,
+                &mut buffer,
+                &mut sampler,
+                &mut env_steps,
+                &mut opt_steps,
+            )?;
 
             // Postprocessing after each training step
             if is_opt {
