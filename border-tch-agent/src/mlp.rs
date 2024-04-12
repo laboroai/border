@@ -10,11 +10,11 @@ use tch::nn;
 fn mlp(prefix: &str, var_store: &nn::VarStore, config: &MlpConfig) -> nn::Sequential {
     let mut seq = nn::seq();
     let mut in_dim = config.in_dim;
-    let p = &var_store.root();
+    let p = &(var_store.root() / "mlp");
 
     for (i, &n) in config.units.iter().enumerate() {
         seq = seq.add(nn::linear(
-            p / format!("{}{}", prefix, i + 1),
+            p / format!("{}{}", prefix, i),
             in_dim,
             n,
             Default::default(),

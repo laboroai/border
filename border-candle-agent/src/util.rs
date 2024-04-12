@@ -7,6 +7,7 @@ use log::trace;
 use serde::{Deserialize, Serialize};
 mod named_tensors;
 mod quantile_loss;
+use border_core::record::{Record, RecordValue};
 pub use named_tensors::NamedTensors;
 pub use quantile_loss::quantile_huber_loss;
 use std::convert::TryFrom;
@@ -138,4 +139,32 @@ pub fn smooth_l1_loss(x: &Tensor, y: &Tensor) -> Result<Tensor, candle_core::Err
         .to_device(&device)?
         .broadcast_sub(&m1)?;
     (((0.5 * m1)? * d.powf(2.0))? + m2 * (d - 0.5))?.mean_all()
+}
+
+pub fn param_stats(varmap: &VarMap) -> Record {
+    let mut record = Record::empty();
+
+    for (k, v) in varmap.data().lock().unwrap().iter() {
+        let m: f32 = v.mean_all().unwrap().to_vec0().unwrap();
+        let k_mean = format!("{}_mean", &k);
+        record.insert(k_mean, RecordValue::Scalar(m));
+
+        let m: f32 = {
+            let t = v.as_tensor();
+            t.broadcast_sub(&t.mean_all().unwrap())
+                .unwrap()
+                .powf(2f64)
+                .unwrap()
+                .mean_all()
+                .unwrap()
+                .sqrt()
+                .unwrap()
+                .to_vec0()
+                .unwrap()
+        };
+        let k_std = format!("{}_std", &k);
+        record.insert(k_std, RecordValue::Scalar(m));
+    }
+
+    record
 }

@@ -4,8 +4,10 @@ use log::trace;
 use serde::{Deserialize, Serialize};
 mod named_tensors;
 mod quantile_loss;
+use border_core::record::{Record, RecordValue};
 pub use named_tensors::NamedTensors;
 pub use quantile_loss::quantile_huber_loss;
+use tch::nn::VarStore;
 
 /// Critic loss type.
 #[allow(clippy::upper_case_acronyms)]
@@ -51,4 +53,20 @@ pub trait OutDim {
 
     /// Sets the  output dimension.
     fn set_out_dim(&mut self, v: i64);
+}
+
+pub fn param_stats(var_store: &VarStore) -> Record {
+    let mut record = Record::empty();
+
+    for (k, v) in var_store.variables() {
+        let m: f32 = v.mean(tch::Kind::Float).into();
+        let k_mean = format!("{}_mean", &k);
+        record.insert(k_mean, RecordValue::Scalar(m));
+
+        let m: f32 = v.std(false).into();
+        let k_std = format!("{}_std", k);
+        record.insert(k_std, RecordValue::Scalar(m));
+    }
+
+    record
 }

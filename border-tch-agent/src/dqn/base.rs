@@ -233,8 +233,14 @@ where
         self.train
     }
 
+    fn opt(&mut self, buffer: &mut R) {
+        self.opt_(buffer);
+    }
+
     fn opt_with_record(&mut self, buffer: &mut R) -> Record {
-        self.opt_(buffer)
+        let record = self.opt_(buffer);
+        let record_weights = self.qnet.param_stats();
+        record.merge(record_weights)
     }
 
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<()> {
