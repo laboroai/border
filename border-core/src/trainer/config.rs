@@ -28,7 +28,13 @@ pub struct TrainerConfig {
     pub flush_record_interval: usize,
 
     /// Interval of recording agent information in optimization steps.
+    pub record_compute_cost_interval: usize,
+
+    /// Interval of recording agent information in optimization steps.
     pub record_agent_info_interval: usize,
+
+    /// Warmup period, for filling replay buffer, in environment steps
+    pub warmup_period: usize,
 
     /// Intercal of saving model parameters in optimization steps.
     pub save_interval: usize,
@@ -43,7 +49,9 @@ impl Default for TrainerConfig {
             model_dir: None,
             opt_interval: 1,
             flush_record_interval: usize::MAX,
+            record_compute_cost_interval: usize::MAX,
             record_agent_info_interval: usize::MAX,
+            warmup_period: 0,
             save_interval: usize::MAX,
         }
     }
@@ -87,9 +95,21 @@ impl TrainerConfig {
         self
     }
 
-    /// Sets the interval of recording agent information in optimization steps..
+    /// Sets the interval of computation cost in optimization steps.
+    pub fn record_compute_cost_interval(mut self, record_compute_cost_interval: usize) -> Self {
+        self.record_compute_cost_interval = record_compute_cost_interval;
+        self
+    }
+
+    /// Sets the interval of recording agent information in optimization steps.
     pub fn record_agent_info_interval(mut self, record_agent_info_interval: usize) -> Self {
         self.record_agent_info_interval = record_agent_info_interval;
+        self
+    }
+
+    /// Sets warmup period in environment steps.
+    pub fn warmup_period(mut self, warmup_period: usize) -> Self {
+        self.warmup_period = warmup_period;
         self
     }
 

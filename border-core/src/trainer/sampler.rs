@@ -128,12 +128,14 @@ where
         Ok(record)
     }
 
-    /// Returns frames (environment steps) per second.
+    /// Returns frames (environment steps) per second, then resets the internal counter.
     ///
     /// A frame involves taking action, applying it to the environment,
     /// producing transition, and pushing it into the replay buffer.
-    pub fn fps(&self) -> f32 {
-        self.n_env_steps_for_fps as f32 / self.time * 1000f32
+    pub fn fps(&mut self) -> f32 {
+        let fps = self.n_env_steps_for_fps as f32 / self.time * 1000f32;
+        self.reset_fps_counter();
+        fps
     }
 
     /// Reset stats for computing FPS.

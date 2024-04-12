@@ -271,9 +271,10 @@ where
                     .for_each(|pushed_item| buffer.push(pushed_item).unwrap())
             });
 
-            let record = agent.opt(&mut buffer);
+            // TODO: introduce the logic of training loop in border_core::Trainer.
+            let mut record = agent.opt_with_record(&mut buffer);
 
-            if let Some(mut record) = record {
+            if true {
                 opt_steps += 1;
                 opt_steps_ += 1;
 

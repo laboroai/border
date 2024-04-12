@@ -1,6 +1,8 @@
 //! Train [`Agent`](crate::Agent).
 mod config;
 mod sampler;
+use std::time::{Duration, SystemTime};
+
 use crate::{
     record::{AggregateRecorder, Record, RecordValue::Scalar},
     Agent, Env, Evaluator, ReplayBufferBase, StepProcessor,
@@ -103,6 +105,9 @@ where
     /// Interval of optimization in environment steps.
     opt_interval: usize,
 
+    /// Interval of recording computational cost in optimization steps.
+    record_compute_cost_interval: usize,
+
     /// Interval of recording agent information in optimization steps.
     record_agent_info_interval: usize,
 
@@ -117,6 +122,15 @@ where
 
     /// The maximal number of optimization steps.
     max_opts: usize,
+
+    /// Optimization steps for computing optimization steps per second.
+    opt_steps_for_ops: usize,
+
+    /// Timer for computing for optimization steps per second.
+    timer_for_ops: Duration,
+
+    /// Warmup period, for filling replay buffer, in environment steps
+    warmup_period: usize,
 }
 
 impl<E, P, R> Trainer<E, P, R>
@@ -138,11 +152,15 @@ where
             replay_buffer_config,
             model_dir: config.model_dir,
             opt_interval: config.opt_interval,
+            record_compute_cost_interval: config.record_compute_cost_interval,
             record_agent_info_interval: config.record_agent_info_interval,
             flush_records_interval: config.flush_record_interval,
             eval_interval: config.eval_interval,
             save_interval: config.save_interval,
             max_opts: config.max_opts,
+            warmup_period: config.warmup_period,
+            opt_steps_for_ops: 0,
+            timer_for_ops: Duration::new(0, 0),
         }
     }
 
@@ -163,6 +181,14 @@ where
         Self::save_model(agent, model_dir);
     }
 
+    /// Returns optimization steps per second, then reset the internal counter.
+    fn opt_steps_per_sec(&mut self) -> f32 {
+        let osps = self.opt_steps_for_ops as f32 / (self.timer_for_ops.as_secs() as f32);
+        self.opt_steps_for_ops = 0;
+        self.timer_for_ops = Duration::new(0, 0);
+        osps
+    }
+
     /// Performs a training step.
     ///
     /// First, it performes an environment step once and pushes a transition
@@ -172,7 +198,7 @@ where
     ///
     /// The second return value in the tuple is if an optimization step is done (`true`).
     pub fn train_step<A: Agent<E, R>>(
-        &self,
+        &mut self,
         agent: &mut A,
         buffer: &mut R,
         sampler: &mut Sampler<E, P>,
@@ -182,25 +208,33 @@ where
     where
         A: Agent<E, R>,
     {
-        // Sample transition(s) and push it into the replay buffer
+        // Sample transition and push it into the replay buffer
         let mut record = sampler.sample_and_push(agent, buffer)?;
-
-        // Do optimization step
         *env_steps += 1;
-        if *env_steps % self.opt_interval != 0 {
+
+        // Optimization step
+        if *env_steps < self.warmup_period {
+            Ok((record, false))
+        } else if *env_steps % self.opt_interval != 0 {
             // skip optimization step
             Ok((record, false))
-        } else if let Some(record_agent) = agent.opt(buffer) {
-            // do optimization step
+        } else if (*opt_steps + 1) % self.record_agent_info_interval == 0 {
+            // Do optimization step with record
+            let timer = SystemTime::now();
+            let record_agent = agent.opt_with_record(buffer);
             *opt_steps += 1;
-            if *opt_steps % self.record_agent_info_interval == 0 {
-                // Record agent information
-                record = record.merge(record_agent);
-            }
+            self.timer_for_ops += timer.elapsed()?;
+            self.opt_steps_for_ops += 1;
+            record = record.merge(record_agent);
             Ok((record, true))
         } else {
-            // skip optimization step
-            Ok((record, false))
+            // Do optimization step without record
+            let timer = SystemTime::now();
+            agent.opt(buffer);
+            *opt_steps += 1;
+            self.timer_for_ops += timer.elapsed()?;
+            self.opt_steps_for_ops += 1;
+            Ok((record, true))
         }
     }
 
@@ -222,8 +256,6 @@ where
         let mut max_eval_reward = f32::MIN;
         let mut env_steps: usize = 0;
         let mut opt_steps: usize = 0;
-        let mut opt_steps_ops: usize = 0; // optimizations per second
-        let mut timer = std::time::SystemTime::now();
         sampler.reset_fps_counter();
         agent.train();
 
@@ -238,11 +270,14 @@ where
 
             // Postprocessing after each training step
             if is_opt {
-                opt_steps_ops += 1;
-                let do_eval = opt_steps % self.eval_interval == 0;
+                // Add stats wrt computation cost
+                if opt_steps % self.record_compute_cost_interval == 0 {
+                    record.insert("fps", Scalar(sampler.fps()));
+                    record.insert("opt_steps_per_sec", Scalar(self.opt_steps_per_sec()));
+                }
 
                 // Do evaluation
-                if do_eval {
+                if opt_steps % self.eval_interval == 0 {
                     let eval_reward = evaluator.evaluate(agent)?;
                     record.insert("eval_reward", Scalar(eval_reward));
 
@@ -258,18 +293,6 @@ where
                 if (self.save_interval > 0) && (opt_steps % self.save_interval == 0) {
                     let model_dir = self.model_dir.as_ref().unwrap().clone();
                     Self::save_model_with_steps(agent, model_dir, opt_steps);
-                }
-
-                // Add stats wrt computation speed
-                let do_rec = opt_steps % self.record_agent_info_interval == 0;
-                if do_rec {
-                    record.insert("fps", Scalar(sampler.fps()));
-                    sampler.reset_fps_counter();
-                    let time = timer.elapsed()?.as_secs_f32();
-                    let osps = opt_steps_ops as f32 / time;
-                    record.insert("opt_steps_per_sec", Scalar(osps));
-                    opt_steps_ops = 0;
-                    timer = std::time::SystemTime::now();
                 }
 
                 // End loop
