@@ -29,10 +29,10 @@ const DIM_ACT: i64 = 2;
 const LR_CRITIC: f64 = 0.001;
 const DISCOUNT_FACTOR: f64 = 0.99;
 const BATCH_SIZE: usize = 64;
-const N_TRANSITIONS_WARMUP: usize = 100;
+const WARMUP_PERIOD: usize = 100;
 const N_UPDATES_PER_OPT: usize = 1;
 const TAU: f64 = 0.01;
-const OPT_INTERVAL: usize = 1; // 50
+const OPT_INTERVAL: usize = 1;
 const MAX_OPTS: usize = 30000;
 const EVAL_INTERVAL: usize = 1000;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
@@ -214,8 +214,10 @@ mod config {
                 .opt_interval(OPT_INTERVAL)
                 .eval_interval(EVAL_INTERVAL)
                 .record_agent_info_interval(EVAL_INTERVAL)
+                .record_compute_cost_interval(EVAL_INTERVAL)
                 .flush_record_interval(EVAL_INTERVAL)
                 .save_interval(EVAL_INTERVAL)
+                .warmup_period(WARMUP_PERIOD)
                 .model_dir(model_dir);
             Self {
                 env_config,
@@ -242,13 +244,12 @@ mod config {
             .opt_config(opt_config);
         DqnConfig::default()
             .n_updates_per_opt(N_UPDATES_PER_OPT)
-            .min_transitions_warmup(N_TRANSITIONS_WARMUP)
             .batch_size(BATCH_SIZE)
             .discount_factor(DISCOUNT_FACTOR)
             .tau(TAU)
             .model_config(model_config)
-            .critic_loss(CRITIC_LOSS)
             .device(device)
+            .critic_loss(CRITIC_LOSS)
     }
 }
 
@@ -318,7 +319,6 @@ fn eval(model_dir: &str, render: bool) -> Result<()> {
         agent.eval();
         agent
     };
-    // let mut recorder = BufferedRecorder::new();
 
     let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut agent);
 

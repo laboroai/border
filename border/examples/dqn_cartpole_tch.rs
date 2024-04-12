@@ -1,6 +1,6 @@
 use anyhow::Result;
 use border_core::{
-    record::{Record, Recorder},
+    record::{AggregateRecorder, Record},
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig, SubBatch,
@@ -23,7 +23,7 @@ use clap::{App, Arg, ArgMatches};
 use border_mlflow_tracking::MlflowTrackingClient;
 use ndarray::{ArrayD, IxDyn};
 use serde::Serialize;
-use std::convert::TryFrom; //, fs::File};
+use std::convert::TryFrom;
 use tch::Tensor;
 
 const DIM_OBS: i64 = 4;
@@ -31,12 +31,12 @@ const DIM_ACT: i64 = 2;
 const LR_CRITIC: f64 = 0.001;
 const DISCOUNT_FACTOR: f64 = 0.99;
 const BATCH_SIZE: usize = 64;
-const N_TRANSITIONS_WARMUP: usize = 100;
+const WARMUP_PERIOD: usize = 100;
 const N_UPDATES_PER_OPT: usize = 1;
 const TAU: f64 = 0.01;
 const OPT_INTERVAL: usize = 1;
-const MAX_OPTS: usize = 100000;
-const EVAL_INTERVAL: usize = 100;
+const MAX_OPTS: usize = 30000;
+const EVAL_INTERVAL: usize = 1000;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const CRITIC_LOSS: CriticLoss = CriticLoss::Mse;
@@ -212,8 +212,11 @@ mod config {
                 .max_opts(max_opts)
                 .opt_interval(OPT_INTERVAL)
                 .eval_interval(EVAL_INTERVAL)
-                .record_interval(EVAL_INTERVAL)
+                .record_agent_info_interval(EVAL_INTERVAL)
+                .record_compute_cost_interval(EVAL_INTERVAL)
+                .flush_record_interval(EVAL_INTERVAL)
                 .save_interval(EVAL_INTERVAL)
+                .warmup_period(WARMUP_PERIOD)
                 .model_dir(model_dir);
             Self {
                 env_config,
@@ -240,7 +243,6 @@ mod config {
             .opt_config(opt_config);
         DqnConfig::default()
             .n_updates_per_opt(N_UPDATES_PER_OPT)
-            .min_transitions_warmup(N_TRANSITIONS_WARMUP)
             .batch_size(BATCH_SIZE)
             .discount_factor(DISCOUNT_FACTOR)
             .tau(TAU)
@@ -260,7 +262,7 @@ fn create_recorder(
     matches: &ArgMatches,
     model_dir: &str,
     config: &DqnCartpoleConfig,
-) -> Result<Box<dyn Recorder>> {
+) -> Result<Box<dyn AggregateRecorder>> {
     match matches.is_present("mlflow") {
         true => {
             let client =
@@ -291,6 +293,7 @@ fn train(matches: &ArgMatches, max_opts: usize, model_dir: &str) -> Result<()> {
             replay_buffer_config,
         )
     };
+
     let mut agent = Dqn::build(config.agent_config);
     let mut evaluator = create_evaluator(&create_env_config())?;
 
@@ -351,7 +354,6 @@ fn main() -> Result<()> {
     tch::manual_seed(42);
 
     let matches = create_matches();
-
     let do_train = (matches.is_present("train") && !matches.is_present("eval"))
         || (!matches.is_present("train") && !matches.is_present("eval"));
     let do_eval = (!matches.is_present("train") && matches.is_present("eval"))
