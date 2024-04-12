@@ -28,7 +28,6 @@ where
     pub model_config: IqnModelConfig<F::Config, M::Config>,
     pub soft_update_interval: usize,
     pub n_updates_per_opt: usize,
-    pub min_transitions_warmup: usize,
     pub batch_size: usize,
     pub discount_factor: f64,
     pub tau: f64,
@@ -53,7 +52,6 @@ where
             model_config: Default::default(),
             soft_update_interval: 1,
             n_updates_per_opt: 1,
-            min_transitions_warmup: 1,
             batch_size: 1,
             discount_factor: 0.99,
             tau: 0.005,
@@ -90,12 +88,6 @@ where
     /// Set numper of parameter update steps per optimization step.
     pub fn n_updates_per_opt(mut self, v: usize) -> Self {
         self.n_updates_per_opt = v;
-        self
-    }
-
-    /// Interval before starting optimization.
-    pub fn min_transitions_warmup(mut self, v: usize) -> Self {
-        self.min_transitions_warmup = v;
         self
     }
 
@@ -226,7 +218,6 @@ where
             model_config: self.model_config.clone(),
             soft_update_interval: self.soft_update_interval,
             n_updates_per_opt: self.n_updates_per_opt,
-            min_transitions_warmup: self.min_transitions_warmup,
             batch_size: self.batch_size,
             discount_factor: self.discount_factor,
             tau: self.tau,

@@ -33,7 +33,6 @@ where
     pub(in crate::dqn) soft_update_interval: usize,
     pub(in crate::dqn) soft_update_counter: usize,
     pub(in crate::dqn) n_updates_per_opt: usize,
-    pub(in crate::dqn) min_transitions_warmup: usize,
     pub(in crate::dqn) batch_size: usize,
     pub(in crate::dqn) qnet: DqnModel<Q>,
     pub(in crate::dqn) qnet_tgt: DqnModel<Q>,
@@ -185,7 +184,6 @@ where
             soft_update_interval: config.soft_update_interval,
             soft_update_counter: 0,
             n_updates_per_opt: config.n_updates_per_opt,
-            min_transitions_warmup: config.min_transitions_warmup,
             batch_size: config.batch_size,
             discount_factor: config.discount_factor,
             tau: config.tau,
@@ -247,12 +245,8 @@ where
         self.train
     }
 
-    fn opt(&mut self, buffer: &mut R) -> Option<Record> {
-        if buffer.len() >= self.min_transitions_warmup {
-            Some(self.opt_(buffer))
-        } else {
-            None
-        }
+    fn opt_with_record(&mut self, buffer: &mut R) -> Record {
+        self.opt_(buffer)
     }
 
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<()> {
