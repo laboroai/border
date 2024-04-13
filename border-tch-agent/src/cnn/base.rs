@@ -68,6 +68,16 @@ impl SubModel for Cnn {
             Self::create_net(var_store, n_stack, out_dim)
         };
 
+        // // Debug: check weight scale
+        // for (k, v) in var_store.variables() {
+        //     if k.starts_with("c") {
+        //         let m: f32 = v.mean(tch::Kind::Float).into();
+        //         let s: f32 = v.std(false).into();
+        //         println!("{}: mean={}, std={}", k, m, s);
+        //     }
+        // }
+        // panic!();
+
         Self {
             n_stack,
             out_dim,

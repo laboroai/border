@@ -115,6 +115,16 @@ where
             Q::build(vb, q_config.clone())
         };
 
+        // // Debug: check weight scale
+        // for (k, v) in varmap.data().lock().unwrap().iter() {
+        //     if k.starts_with("c") {
+        //         let m: f32 = v.mean_all().unwrap().to_vec0().unwrap();
+        //         let s: f32 = crate::util::std(v.as_tensor());
+        //         println!("{}: mean={}, std={}", k, m, s);
+        //     }
+        // }
+        // panic!();
+
         Ok(Self::_build(
             device,
             out_dim as _,

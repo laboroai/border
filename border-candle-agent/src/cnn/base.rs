@@ -3,8 +3,8 @@ use crate::model::SubModel1;
 use anyhow::Result;
 use candle_core::{DType::F32, Device, Tensor};
 use candle_nn::{
-    conv::{conv2d, Conv2dConfig},
-    linear,
+    conv::Conv2dConfig,
+    conv2d_no_bias, linear,
     sequential::{seq, Sequential},
     Module, VarBuilder,
 };
@@ -31,11 +31,17 @@ impl Cnn {
     fn create_net(vb: &VarBuilder, n_stack: i64, out_dim: i64) -> Result<Sequential> {
         let seq = seq()
             .add_fn(|xs| xs.squeeze(2)?.to_dtype(F32)? / 255.0)
-            .add(conv2d(n_stack as _, 32, 8, Self::stride(4), vb.pp("c1"))?)
+            .add(conv2d_no_bias(
+                n_stack as _,
+                32,
+                8,
+                Self::stride(4),
+                vb.pp("c1"),
+            )?)
             .add_fn(|xs| xs.relu())
-            .add(conv2d(32, 64, 4, Self::stride(2), vb.pp("c2"))?)
+            .add(conv2d_no_bias(32, 64, 4, Self::stride(2), vb.pp("c2"))?)
             .add_fn(|xs| xs.relu())
-            .add(conv2d(64, 64, 3, Self::stride(1), vb.pp("c3"))?)
+            .add(conv2d_no_bias(64, 64, 3, Self::stride(1), vb.pp("c3"))?)
             .add_fn(|xs| xs.relu()?.flatten_from(1))
             .add(linear(3136, 512, vb.pp("l1"))?)
             .add_fn(|xs| xs.relu())
@@ -47,11 +53,17 @@ impl Cnn {
     fn create_net_wo_linear(vb: &VarBuilder, n_stack: i64) -> Result<Sequential> {
         let seq = seq()
             .add_fn(|xs| xs.squeeze(2)?.to_dtype(F32)? / 255.0)
-            .add(conv2d(n_stack as _, 32, 8, Self::stride(4), vb.pp("c1"))?)
+            .add(conv2d_no_bias(
+                n_stack as _,
+                32,
+                8,
+                Self::stride(4),
+                vb.pp("c1"),
+            )?)
             .add_fn(|xs| xs.relu())
-            .add(conv2d(32, 64, 4, Self::stride(2), vb.pp("c2"))?)
+            .add(conv2d_no_bias(32, 64, 4, Self::stride(2), vb.pp("c2"))?)
             .add_fn(|xs| xs.relu())
-            .add(conv2d(64, 64, 3, Self::stride(1), vb.pp("c3"))?)
+            .add(conv2d_no_bias(64, 64, 3, Self::stride(1), vb.pp("c3"))?)
             .add_fn(|xs| xs.relu()?.flatten_from(1));
 
         Ok(seq)

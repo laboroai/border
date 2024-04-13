@@ -141,6 +141,19 @@ pub fn smooth_l1_loss(x: &Tensor, y: &Tensor) -> Result<Tensor, candle_core::Err
     (((0.5 * m1)? * d.powf(2.0))? + m2 * (d - 0.5))?.mean_all()
 }
 
+pub fn std(t: &Tensor) -> f32 {
+    t.broadcast_sub(&t.mean_all().unwrap())
+        .unwrap()
+        .powf(2f64)
+        .unwrap()
+        .mean_all()
+        .unwrap()
+        .sqrt()
+        .unwrap()
+        .to_vec0::<f32>()
+        .unwrap()
+}
+
 pub fn param_stats(varmap: &VarMap) -> Record {
     let mut record = Record::empty();
 
@@ -149,19 +162,7 @@ pub fn param_stats(varmap: &VarMap) -> Record {
         let k_mean = format!("{}_mean", &k);
         record.insert(k_mean, RecordValue::Scalar(m));
 
-        let m: f32 = {
-            let t = v.as_tensor();
-            t.broadcast_sub(&t.mean_all().unwrap())
-                .unwrap()
-                .powf(2f64)
-                .unwrap()
-                .mean_all()
-                .unwrap()
-                .sqrt()
-                .unwrap()
-                .to_vec0()
-                .unwrap()
-        };
+        let m: f32 = std(v.as_tensor());
         let k_std = format!("{}_std", &k);
         record.insert(k_std, RecordValue::Scalar(m));
     }
