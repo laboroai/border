@@ -29,10 +29,28 @@ mod trainer_config {
         pub eval_interval: usize,
 
         #[serde(
-            default = "default_record_interval",
-            skip_serializing_if = "is_default_record_interval"
+            default = "default_flush_record_interval",
+            skip_serializing_if = "is_default_flush_record_interval"
         )]
-        pub record_interval: usize,
+        pub flush_record_interval: usize,
+
+        #[serde(
+            default = "default_record_agent_info_interval",
+            skip_serializing_if = "is_default_record_agent_info_interval"
+        )]
+        pub record_agent_info_interval: usize,
+
+        #[serde(
+            default = "default_record_compute_cost_interval",
+            skip_serializing_if = "is_default_record_compute_cost_interval"
+        )]
+        pub record_compute_cost_interval: usize,
+
+        #[serde(
+            default = "default_warmup_period",
+            skip_serializing_if = "is_default_warmup_period"
+        )]
+        pub warmup_period: usize,
 
         #[serde(
             default = "default_save_interval",
@@ -41,24 +59,62 @@ mod trainer_config {
         pub save_interval: usize,
     }
 
+    impl Default for DqnAtariTrainerConfig {
+        fn default() -> Self {
+            Self {
+                model_dir: "".to_string(),
+                max_opts: 3000000,
+                opt_interval: 1,
+                eval_interval: 50000,
+                record_agent_info_interval: 50000,
+                record_compute_cost_interval: 50000,
+                flush_record_interval: 50000,
+                warmup_period: 2500,
+                save_interval: 50000,
+                // // For debug
+                // model_dir: "".to_string(),
+                // max_opts: 3000000,
+                // opt_interval: 1,
+                // eval_interval: 10,
+                // record_agent_info_interval: 10,
+                // record_compute_cost_interval: 10,
+                // flush_record_interval: 10,
+                // warmup_period: 32,
+                // save_interval: 100,
+            }
+        }
+    }
+
     fn default_max_opts() -> usize {
-        3000000
+        DqnAtariTrainerConfig::default().max_opts
     }
 
     fn default_opt_interval() -> usize {
-        1
+        DqnAtariTrainerConfig::default().opt_interval
     }
 
     fn default_eval_interval() -> usize {
-        50000
+        DqnAtariTrainerConfig::default().eval_interval
     }
 
-    fn default_record_interval() -> usize {
-        50000
+    fn default_flush_record_interval() -> usize {
+        DqnAtariTrainerConfig::default().flush_record_interval
+    }
+
+    fn default_record_agent_info_interval() -> usize {
+        DqnAtariTrainerConfig::default().record_agent_info_interval
+    }
+
+    fn default_record_compute_cost_interval() -> usize {
+        DqnAtariTrainerConfig::default().record_compute_cost_interval
+    }
+
+    fn default_warmup_period() -> usize {
+        DqnAtariTrainerConfig::default().warmup_period
     }
 
     fn default_save_interval() -> usize {
-        500000
+        DqnAtariTrainerConfig::default().save_interval
     }
 
     fn is_default_max_opts(v: &usize) -> bool {
@@ -73,25 +129,24 @@ mod trainer_config {
         *v == default_eval_interval()
     }
 
-    fn is_default_record_interval(v: &usize) -> bool {
-        *v == default_record_interval()
+    fn is_default_flush_record_interval(v: &usize) -> bool {
+        *v == default_flush_record_interval()
+    }
+
+    fn is_default_record_agent_info_interval(v: &usize) -> bool {
+        *v == default_record_agent_info_interval()
+    }
+
+    fn is_default_record_compute_cost_interval(v: &usize) -> bool {
+        *v == default_record_compute_cost_interval()
+    }
+
+    fn is_default_warmup_period(v: &usize) -> bool {
+        *v == default_warmup_period()
     }
 
     fn is_default_save_interval(v: &usize) -> bool {
         *v == default_save_interval()
-    }
-
-    impl Default for DqnAtariTrainerConfig {
-        fn default() -> Self {
-            Self {
-                model_dir: "".to_string(),
-                max_opts: default_max_opts(),
-                opt_interval: default_opt_interval(),
-                eval_interval: default_eval_interval(),
-                record_interval: default_record_interval(),
-                save_interval: default_save_interval(),
-            }
-        }
     }
 
     impl Into<TrainerConfig> for DqnAtariTrainerConfig {
@@ -101,7 +156,10 @@ mod trainer_config {
                 max_opts: self.max_opts,
                 opt_interval: self.opt_interval,
                 eval_interval: self.eval_interval,
-                flush_record_interval: self.record_interval,
+                flush_record_interval: self.flush_record_interval,
+                record_agent_info_interval: self.record_agent_info_interval,
+                record_compute_cost_interval: self.record_compute_cost_interval,
+                warmup_period: self.warmup_period,
                 save_interval: self.save_interval,
             }
         }
@@ -210,12 +268,6 @@ mod candle_dqn_config {
         pub n_updates_per_opt: usize,
 
         #[serde(
-            default = "default_min_transitions_warmup",
-            skip_serializing_if = "is_default_min_transitions_warmup"
-        )]
-        pub min_transitions_warmup: usize,
-
-        #[serde(
             default = "default_batch_size",
             skip_serializing_if = "is_default_batch_size"
         )]
@@ -287,7 +339,6 @@ mod candle_dqn_config {
                 },
                 soft_update_interval: 10000,
                 n_updates_per_opt: 1,
-                min_transitions_warmup: 2500,
                 batch_size: 32,
                 discount_factor: 0.99,
                 tau: 1.0,
@@ -301,7 +352,7 @@ mod candle_dqn_config {
                 clip_reward: Some(1.0),
                 double_dqn: false,
                 clip_td_err: None,
-                critic_loss: CriticLoss::SmoothL1,
+                critic_loss: CriticLoss::Mse,
                 device: None,
                 // phantom: PhantomData,
             }
@@ -318,10 +369,6 @@ mod candle_dqn_config {
 
     fn default_n_updates_per_opt() -> usize {
         DqnAtariAgentConfig::default().n_updates_per_opt
-    }
-
-    fn default_min_transitions_warmup() -> usize {
-        DqnAtariAgentConfig::default().min_transitions_warmup
     }
 
     fn default_batch_size() -> usize {
@@ -376,10 +423,6 @@ mod candle_dqn_config {
         n_updates_per_opt == &default_n_updates_per_opt()
     }
 
-    fn is_default_min_transitions_warmup(min_transitions_warmup: &usize) -> bool {
-        min_transitions_warmup == &default_min_transitions_warmup()
-    }
-
     fn is_default_batch_size(batch_size: &usize) -> bool {
         batch_size == &default_batch_size()
     }
@@ -426,7 +469,6 @@ mod candle_dqn_config {
                 model_config: self.model_config,
                 soft_update_interval: self.soft_update_interval,
                 n_updates_per_opt: self.n_updates_per_opt,
-                min_transitions_warmup: self.min_transitions_warmup,
                 batch_size: self.batch_size,
                 discount_factor: self.discount_factor,
                 tau: self.tau,

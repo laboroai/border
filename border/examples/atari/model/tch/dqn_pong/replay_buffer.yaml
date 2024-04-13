@@ -1,4 +1,5 @@
 ---
 capacity: 262144
+# capacity: 4096 # For Debug, OOM
 seed: 42
 per_config: ~

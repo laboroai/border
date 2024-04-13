@@ -5,10 +5,7 @@ use crate::{
     util::OutDim,
 };
 use anyhow::Result;
-use border_core::record::{
-    Record,
-    RecordValue::{self, Scalar},
-};
+use border_core::record::Record;
 use log::{info, trace};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{marker::PhantomData, path::Path};

@@ -4,7 +4,18 @@ eval_episodes: 1
 eval_threshold: ~
 model_dir: "./border/examples/atari/model/dqn_pong"
 opt_interval: 1
+
 eval_interval: 50000
 record_agent_info_interval: 10000
+record_compute_cost_interval: 10000
 flush_record_interval: 50000
+warmup_period: 2500
 save_interval: 500000
+
+# # For debug
+# eval_interval: 10
+# record_agent_info_interval: 10
+# record_compute_cost_interval: 10
+# flush_record_interval: 10
+# warmup_period: 32
+# save_interval: 10000

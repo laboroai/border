@@ -10,7 +10,7 @@ use border_candle_agent::{
     TensorSubBatch,
 };
 use border_core::{
-    record::Recorder,
+    record::AggregateRecorder,
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
@@ -199,7 +199,7 @@ mod utils {
         matches: &ArgMatches,
         model_dir: &str,
         config: &DqnAtariConfig,
-    ) -> Result<Box<dyn Recorder>> {
+    ) -> Result<Box<dyn AggregateRecorder>> {
         match matches.is_present("mlflow") {
             true => {
                 let name = matches.value_of("name").unwrap();

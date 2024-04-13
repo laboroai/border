@@ -4,7 +4,7 @@ use crate::{
     util::OutDim,
 };
 use anyhow::{Context, Result};
-use border_core::record::{Record, RecordValue};
+use border_core::record::Record;
 use candle_core::{DType, Device, Tensor};
 use candle_nn::{VarBuilder, VarMap};
 use log::info;

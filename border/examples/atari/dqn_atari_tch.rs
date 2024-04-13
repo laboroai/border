@@ -16,7 +16,6 @@ use border_mlflow_tracking::MlflowTrackingClient;
 use border_tch_agent::{
     cnn::Cnn,
     dqn::{Dqn as Dqn_, DqnConfig},
-    opt::OptimizerConfig,
     TensorSubBatch,
 };
 use border_tensorboard::TensorboardRecorder;
