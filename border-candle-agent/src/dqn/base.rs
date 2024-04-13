@@ -202,7 +202,7 @@ where
 
     /// In evaluation mode, take a random action with probability 0.01.
     fn sample(&mut self, obs: &E::Obs) -> E::Act {
-        let a = self.qnet.forward(&obs.clone().into());
+        let a = self.qnet.forward(&obs.clone().into()).detach();
         let a = if self.train {
             match &mut self.explorer {
                 DqnExplorer::Softmax(softmax) => softmax.action(&a, &mut self.rng),
