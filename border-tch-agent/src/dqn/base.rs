@@ -58,7 +58,8 @@ where
     <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
     <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
-    fn update_critic(&mut self, buffer: &mut R) -> f32 {
+    fn update_critic(&mut self, buffer: &mut R) -> Record {
+        let mut record = Record::empty();
         let batch = buffer.batch(self.batch_size).unwrap();
         let (obs, act, next_obs, reward, is_done, ixs, weight) = batch.unpack();
         let obs = obs.into();
@@ -71,8 +72,12 @@ where
             let x = self.qnet.forward(&obs);
             x.gather(-1, &act, false).squeeze()
         };
+        record.insert(
+            "pred_mean",
+            RecordValue::Scalar(f32::from(pred.mean(tch::Kind::Float))),
+        );
 
-        let tgt = no_grad(|| {
+        let tgt: Tensor = no_grad(|| {
             let q = if self.double_dqn {
                 let x = self.qnet.forward(&next_obs);
                 let y = x.argmax(-1, false).unsqueeze(-1);
@@ -87,6 +92,10 @@ where
             };
             reward + (1 - is_done) * self.discount_factor * q
         });
+        record.insert(
+            "tgt_mean",
+            RecordValue::Scalar(f32::from(tgt.mean(tch::Kind::Float))),
+        );
 
         let loss = if let Some(ws) = weight {
             let n = ws.len() as i64;
@@ -119,14 +128,37 @@ where
             loss
         };
 
-        f32::from(loss)
+        record.insert("loss", RecordValue::Scalar(f32::from(loss)));
+
+        record
     }
 
+    // fn opt_(&mut self, buffer: &mut R) -> Record {
+    //     let mut loss = 0f32;
+
+    //     for _ in 0..self.n_updates_per_opt {
+    //         loss += self.update_critic(buffer);
+    //     }
+
+    //     self.soft_update_counter += 1;
+    //     if self.soft_update_counter == self.soft_update_interval {
+    //         self.soft_update_counter = 0;
+    //         track(&mut self.qnet_tgt, &mut self.qnet, self.tau);
+    //     }
+
+    //     loss /= self.n_updates_per_opt as f32;
+
+    //     self.n_opts += 1;
+
+    //     Record::from_slice(&[("loss", RecordValue::Scalar(loss))])
+    // }
+
     fn opt_(&mut self, buffer: &mut R) -> Record {
-        let mut loss = 0f32;
+        let mut record_ = Record::empty();
 
         for _ in 0..self.n_updates_per_opt {
-            loss += self.update_critic(buffer);
+            let record = self.update_critic(buffer);
+            record_ = record_.merge(record);
         }
 
         self.soft_update_counter += 1;
@@ -135,11 +167,10 @@ where
             track(&mut self.qnet_tgt, &mut self.qnet, self.tau);
         }
 
-        loss /= self.n_updates_per_opt as f32;
-
         self.n_opts += 1;
 
-        Record::from_slice(&[("loss", RecordValue::Scalar(loss))])
+        record_
+        // Record::from_slice(&[("loss", RecordValue::Scalar(loss_critic))])
     }
 }
 

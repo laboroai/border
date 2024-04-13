@@ -62,7 +62,8 @@ where
     <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
     <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
-    fn update_critic(&mut self, buffer: &mut R) -> f32 {
+    fn update_critic(&mut self, buffer: &mut R) -> Record {
+        let mut record = Record::empty();
         let batch = buffer.batch(self.batch_size).unwrap();
         let (obs, act, next_obs, reward, is_done, _ixs, weight) = batch.unpack();
         let obs = obs.into();
@@ -83,6 +84,10 @@ where
                 .squeeze(D::Minus1)
                 .unwrap()
         };
+        record.insert(
+            "pred_mean",
+            RecordValue::Scalar(pred.mean_all().unwrap().to_vec0::<f32>().unwrap()),
+        );
 
         let tgt = {
             let q = if self.double_dqn {
@@ -101,6 +106,10 @@ where
         }
         .unwrap()
         .detach();
+        record.insert(
+            "tgt_mean",
+            RecordValue::Scalar(tgt.mean_all().unwrap().to_vec0::<f32>().unwrap()),
+        );
 
         let loss = if let Some(_ws) = weight {
             // Prioritized weighting loss, will be implemented later
@@ -130,15 +139,21 @@ where
         // Backprop
         self.qnet.backward_step(&loss).unwrap();
 
-        f32::from(loss.to_scalar::<f32>().unwrap())
+        record.insert(
+            "loss",
+            RecordValue::Scalar(loss.to_scalar::<f32>().unwrap()),
+        );
+
+        record
+        // f32::from(loss.to_scalar::<f32>().unwrap())
     }
 
     fn opt_(&mut self, buffer: &mut R) -> Record {
-        let mut loss_critic = 0f32;
+        let mut record_ = Record::empty();
 
         for _ in 0..self.n_updates_per_opt {
-            let loss = self.update_critic(buffer);
-            loss_critic += loss;
+            let record = self.update_critic(buffer);
+            record_ = record_.merge(record);
         }
 
         self.soft_update_counter += 1;
@@ -147,11 +162,10 @@ where
             let _ = track(self.qnet_tgt.get_varmap(), self.qnet.get_varmap(), self.tau);
         }
 
-        loss_critic /= self.n_updates_per_opt as f32;
-
         self.n_opts += 1;
 
-        Record::from_slice(&[("loss_critic", RecordValue::Scalar(loss_critic))])
+        record_
+        // Record::from_slice(&[("loss", RecordValue::Scalar(loss_critic))])
     }
 }
 
