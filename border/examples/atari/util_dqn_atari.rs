@@ -70,7 +70,7 @@ mod trainer_config {
                 record_compute_cost_interval: 10000,
                 flush_record_interval: 50000,
                 warmup_period: 2500,
-                save_interval: 50000,
+                save_interval: 500000,
                 // // For debug
                 // model_dir: "".to_string(),
                 // max_opts: 3000000,
