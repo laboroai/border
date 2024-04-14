@@ -27,6 +27,7 @@ segment-tree = { workspace = true }
 rand = { workspace = true }
 itertools = { workspace = true }
 ordered-float = { workspace = true }
+candle-optimisers = { workspace = true }
 
 [dev-dependencies]
 tempdir = { workspace = true }

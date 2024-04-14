@@ -2,6 +2,7 @@
 use anyhow::Result;
 use candle_core::{Tensor, Var};
 use candle_nn::{AdamW, Optimizer as _, ParamsAdamW};
+use candle_optimisers::adam::{Adam, ParamsAdam};
 use serde::{Deserialize, Serialize};
 
 /// Configuration of optimizer for training neural networks in an RL agent.
@@ -19,6 +20,12 @@ pub enum OptimizerConfig {
         #[serde(default = "default_weight_decay")]
         weight_decay: f64,
     },
+
+    /// Adam optimizer.
+    Adam {
+        /// Learning rate.
+        lr: f64,
+    }
 }
 
 fn default_beta1() -> f64 {
@@ -58,6 +65,14 @@ impl OptimizerConfig {
                 let opt = AdamW::new(vars, params)?;
                 Ok(Optimizer::AdamW(opt))
             }
+            OptimizerConfig::Adam { lr } => {
+                let params = ParamsAdam {
+                    lr: *lr,
+                    ..ParamsAdam::default()
+                };
+                let opt = Adam::new(vars, params)?;
+                Ok(Optimizer::Adam(opt))
+            }
         }
     }
 
@@ -77,6 +92,11 @@ impl OptimizerConfig {
                 eps,
                 weight_decay,
             },
+            Self::Adam {
+                lr: _
+            } => Self::Adam {
+                lr
+            }
         }
     }
 }
@@ -100,6 +120,8 @@ impl Default for OptimizerConfig {
 pub enum Optimizer {
     /// Adam optimizer.
     AdamW(AdamW),
+
+    Adam(Adam)
 }
 
 impl Optimizer {
@@ -107,12 +129,14 @@ impl Optimizer {
     pub fn backward_step(&mut self, loss: &Tensor) -> Result<()> {
         match self {
             Self::AdamW(opt) => Ok(opt.backward_step(loss)?),
+            Self::Adam(opt) => Ok(opt.backward_step(loss)?),
         }
     }
 
     pub fn step(&mut self, grads: &candle_core::backprop::GradStore) -> Result<()> {
         match self {
             Self::AdamW(opt) => Ok(opt.step(grads)?),
+            Self::Adam(opt) => Ok(opt.step(grads)?),
         }
     }
 }

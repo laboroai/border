@@ -329,12 +329,8 @@ mod candle_dqn_config {
                         out_dim: 0,
                         skip_linear: false,
                     }),
-                    opt_config: OptimizerConfig::AdamW {
+                    opt_config: OptimizerConfig::Adam {
                         lr: 0.0001,
-                        beta1: 0.9,
-                        beta2: 0.999,
-                        eps: 1e-8,
-                        weight_decay: 0.01,
                     },
                 },
                 soft_update_interval: 10000,
