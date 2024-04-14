@@ -85,10 +85,10 @@ impl EpsilonGreedy {
 
         if is_random {
             let n_samples = a.dims()[0];
-            let n_actions = a.dims()[1] as i64;
+            let n_actions = a.dims()[1] as u64;
             Tensor::from_slice(
                 (0..n_samples)
-                    .map(|_| rng.gen::<i64>() % n_actions)
+                    .map(|_| (rng.gen::<u64>() % n_actions) as i64)
                     .collect::<Vec<_>>()
                     .as_slice(),
                 &[n_samples],
