@@ -190,7 +190,8 @@ where
             .expect("No device is given for DQN agent")
             .into();
         let qnet = DqnModel::build(config.model_config.clone(), device.clone()).unwrap();
-        let qnet_tgt = qnet.clone();
+        let qnet_tgt = DqnModel::build(config.model_config.clone(), device.clone()).unwrap();
+        let _ = track(qnet_tgt.get_varmap(), qnet.get_varmap(), 1.0);
 
         Dqn {
             qnet,
