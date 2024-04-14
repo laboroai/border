@@ -1,11 +1,7 @@
 //! Exploration strategies of DQN.
-use candle_core::Tensor;
+use candle_core::{shape::D, DType, Tensor};
 use candle_nn::ops::softmax;
-use ordered_float::OrderedFloat;
-use rand::{
-    distributions::{Uniform, WeightedIndex},
-    Rng,
-};
+use rand::{distributions::WeightedIndex, Rng};
 use serde::{Deserialize, Serialize};
 
 /// Explorers for DQN.
@@ -81,29 +77,27 @@ impl EpsilonGreedy {
     ///
     /// * `a` - action values.
     pub fn action(&mut self, a: &Tensor, rng: &mut impl Rng) -> Tensor {
-        self.n_opts += 1;
-        let device = a.device();
         let d = (self.eps_start - self.eps_final) / (self.final_step as f64);
-        let eps =
-            (10000.0 * (self.eps_start - d * self.n_opts as f64).max(self.eps_final)) as usize;
-        let n_samples = a.dims()[0];
-        let n_actions = a.dims()[1];
-        let data = a
-            .to_vec2::<f32>()
+        let eps = (self.eps_start - d * self.n_opts as f64).max(self.eps_final);
+        let r = rng.gen::<f32>();
+        let is_random = r < eps as f32;
+        self.n_opts += 1;
+
+        if is_random {
+            let n_samples = a.dims()[0];
+            let n_actions = a.dims()[1] as i64;
+            Tensor::from_slice(
+                (0..n_samples)
+                    .map(|_| rng.gen::<i64>() % n_actions)
+                    .collect::<Vec<_>>()
+                    .as_slice(),
+                &[n_samples],
+                a.device(),
+            )
             .unwrap()
-            .into_iter()
-            .map(|a| {
-                let r = rng.sample(Uniform::new(0, 10000));
-                match r < eps {
-                    true => rng.sample(Uniform::new(0, n_actions)) as i64,
-                    false => {
-                        let a = a.into_iter().map(|v| OrderedFloat(v)).collect::<Vec<_>>();
-                        (0..n_actions).max_by_key(|&i| &a[i]).unwrap() as i64
-                    }
-                }
-            })
-            .collect::<Vec<_>>();
-        Tensor::from_vec(data, &[n_samples], device).unwrap()
+        } else {
+            a.argmax(D::Minus1).unwrap().to_dtype(DType::I64).unwrap()
+        }
     }
 
     /// Set the epsilon value at the final step.
