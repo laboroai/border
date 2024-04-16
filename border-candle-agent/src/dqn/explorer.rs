@@ -76,17 +76,19 @@ impl EpsilonGreedy {
     /// Takes an action based on action values, returns i64 tensor.
     ///
     /// * `a` - action values.
-    pub fn action(&mut self, a: &Tensor, rng: &mut impl Rng) -> Tensor {
+    pub fn action(&mut self, a: &Tensor, rng: &mut impl Rng) -> (Tensor, bool) {
         let d = (self.eps_start - self.eps_final) / (self.final_step as f64);
         let eps = (self.eps_start - d * self.n_opts as f64).max(self.eps_final);
         let r = rng.gen::<f32>();
         let is_random = r < eps as f32;
         self.n_opts += 1;
 
+        let best = a.argmax(D::Minus1).unwrap().to_dtype(DType::I64).unwrap();
+
         if is_random {
             let n_samples = a.dims()[0];
             let n_actions = a.dims()[1] as u64;
-            Tensor::from_slice(
+            let act = Tensor::from_slice(
                 (0..n_samples)
                     .map(|_| (rng.gen::<u64>() % n_actions) as i64)
                     .collect::<Vec<_>>()
@@ -94,9 +96,12 @@ impl EpsilonGreedy {
                 &[n_samples],
                 a.device(),
             )
-            .unwrap()
+            .unwrap();
+            let act_: Vec<i64> = act.to_vec1().unwrap();
+            let best_: Vec<i64> = best.to_vec1().unwrap();
+            (act, act_ == best_)
         } else {
-            a.argmax(D::Minus1).unwrap().to_dtype(DType::I64).unwrap()
+            (best, true)
         }
     }
 

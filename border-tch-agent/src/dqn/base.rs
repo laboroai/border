@@ -44,6 +44,8 @@ where
     pub(in crate::dqn) _clip_reward: Option<f64>,
     pub(in crate::dqn) clip_td_err: Option<(f64, f64)>,
     pub(in crate::dqn) critic_loss: CriticLoss,
+    n_samples_act: usize,
+    n_samples_best_act: usize,
 }
 
 impl<E, Q, R> Dqn<E, Q, R>
@@ -223,6 +225,8 @@ where
             double_dqn: config.double_dqn,
             clip_td_err: config.clip_td_err,
             critic_loss: config.critic_loss,
+            n_samples_act: 0,
+            n_samples_best_act: 0,
             phantom: PhantomData,
         }
     }
@@ -231,9 +235,16 @@ where
         no_grad(|| {
             let a = self.qnet.forward(&obs.clone().into());
             let a = if self.train {
+                self.n_samples_act += 1;
                 match &mut self.explorer {
                     DqnExplorer::Softmax(softmax) => softmax.action(&a),
-                    DqnExplorer::EpsilonGreedy(egreedy) => egreedy.action(&a),
+                    DqnExplorer::EpsilonGreedy(egreedy) => {
+                        let (act, best) = egreedy.action(&a);
+                        if best {
+                            self.n_samples_best_act += 1;
+                        }
+                        act
+                    }
                 }
             } else {
                 if fastrand::f32() < 0.01 {
@@ -279,8 +290,21 @@ where
 
     fn opt_with_record(&mut self, buffer: &mut R) -> Record {
         let record = self.opt_(buffer);
+
+        // Parameters
         let record_weights = self.qnet.param_stats();
-        record.merge(record_weights)
+        let mut record = record.merge(record_weights);
+
+        // Best action ratio for epsilon greedy
+        let ratio = match self.n_samples_act == 0 {
+            true => 0f32,
+            false => self.n_samples_best_act as f32 / self.n_samples_act as f32,
+        };
+        record.insert("ratio_best_act", RecordValue::Scalar(ratio));
+        self.n_samples_act = 0;
+        self.n_samples_best_act = 0;
+
+        record
     }
 
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<()> {
