@@ -25,7 +25,7 @@ pub enum OptimizerConfig {
     Adam {
         /// Learning rate.
         lr: f64,
-    }
+    },
 }
 
 fn default_beta1() -> f64 {
@@ -92,11 +92,7 @@ impl OptimizerConfig {
                 eps,
                 weight_decay,
             },
-            Self::Adam {
-                lr: _
-            } => Self::Adam {
-                lr
-            }
+            Self::Adam { lr: _ } => Self::Adam { lr },
         }
     }
 }
@@ -121,7 +117,7 @@ pub enum Optimizer {
     /// Adam optimizer.
     AdamW(AdamW),
 
-    Adam(Adam)
+    Adam(Adam),
 }
 
 impl Optimizer {

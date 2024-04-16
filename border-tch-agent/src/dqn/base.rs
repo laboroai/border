@@ -10,7 +10,7 @@ use border_core::{
     Agent, Env, Policy, ReplayBufferBase, StdBatchBase,
 };
 use serde::{de::DeserializeOwned, Serialize};
-use std::{fs, marker::PhantomData, path::Path};
+use std::{convert::TryInto, fs, marker::PhantomData, path::Path};
 use tch::{no_grad, Device, Tensor};
 
 #[allow(clippy::upper_case_acronyms)]
@@ -77,6 +77,9 @@ where
             RecordValue::Scalar(f32::from(pred.mean(tch::Kind::Float))),
         );
 
+        let reward_mean: f32 = reward.mean(tch::Kind::Float).try_into().unwrap();
+        record.insert("reward_mean", RecordValue::Scalar(reward_mean));
+
         let tgt: Tensor = no_grad(|| {
             let q = if self.double_dqn {
                 let x = self.qnet.forward(&next_obs);
@@ -95,6 +98,12 @@ where
         record.insert(
             "tgt_mean",
             RecordValue::Scalar(f32::from(tgt.mean(tch::Kind::Float))),
+        );
+
+        let tgt_minus_pred_mean: f32 = (&tgt - &pred).mean(tch::Kind::Float).try_into().unwrap();
+        record.insert(
+            "tgt_minus_pred_mean",
+            RecordValue::Scalar(tgt_minus_pred_mean),
         );
 
         let loss = if let Some(ws) = weight {

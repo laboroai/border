@@ -89,6 +89,9 @@ where
             RecordValue::Scalar(pred.mean_all().unwrap().to_vec0::<f32>().unwrap()),
         );
 
+        let reward_mean: f32 = reward.mean_all().unwrap().to_vec0().unwrap();
+        record.insert("reward_mean", RecordValue::Scalar(reward_mean));
+
         let tgt = {
             let q = if self.double_dqn {
                 let x = self.qnet.forward(&next_obs);
@@ -109,6 +112,17 @@ where
         record.insert(
             "tgt_mean",
             RecordValue::Scalar(tgt.mean_all().unwrap().to_vec0::<f32>().unwrap()),
+        );
+
+        let tgt_minus_pred_mean: f32 = (&tgt - &pred)
+            .unwrap()
+            .mean_all()
+            .unwrap()
+            .to_vec0()
+            .unwrap();
+        record.insert(
+            "tgt_minus_pred_mean",
+            RecordValue::Scalar(tgt_minus_pred_mean),
         );
 
         let loss = if let Some(_ws) = weight {
