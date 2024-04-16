@@ -83,7 +83,7 @@ impl EpsilonGreedy {
                     .collect::<Vec<_>>()
                     .as_slice(),
             );
-            let diff: i64 = (&act - &best)
+            let diff: i64 = (&act - &best.to(tch::Device::Cpu))
                 .abs()
                 .sum(tch::Kind::Int64)
                 .try_into()

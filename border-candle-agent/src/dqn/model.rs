@@ -115,24 +115,6 @@ where
             Q::build(vb, q_config.clone())
         };
 
-        // Debug: set bias weight to zero
-        for (k, v) in varmap.data().lock().unwrap().iter() {
-            if k == "c1.bias" || k == "c2.bias" || k == "c3.bias" {
-                let b0 = Tensor::zeros_like(v.as_tensor()).unwrap();
-                v.set(&b0).unwrap();
-            }
-        }
-
-        // // Debug: check weight scale
-        // for (k, v) in varmap.data().lock().unwrap().iter() {
-        //     if k.starts_with("c") {
-        //         let m: f32 = v.mean_all().unwrap().to_vec0().unwrap();
-        //         let s: f32 = crate::util::std(v.as_tensor());
-        //         println!("{}: mean={}, std={}", k, m, s);
-        //     }
-        // }
-        // panic!();
-
         Ok(Self::_build(
             device,
             out_dim as _,
