@@ -6,7 +6,7 @@ use border_candle_agent::{
     TensorSubBatch,
 };
 use border_core::{
-    record::{Record, RecordValue, Recorder},
+    record::{AggregateRecorder, Record, RecordValue},
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
@@ -33,7 +33,7 @@ const DIM_ACT: i64 = 1;
 const LR_ACTOR: f64 = 3e-4;
 const LR_CRITIC: f64 = 3e-4;
 const BATCH_SIZE: usize = 128;
-const N_TRANSITIONS_WARMUP: usize = 1000;
+const WARMUP_PERIOD: usize = 1000;
 const OPT_INTERVAL: usize = 1;
 const MAX_OPTS: usize = 40_000;
 const EVAL_INTERVAL: usize = 2_000;
@@ -194,7 +194,6 @@ fn create_agent(in_dim: i64, out_dim: i64) -> Result<Sac<Env, Mlp, Mlp2, ReplayB
         .q_config(MlpConfig::new(in_dim + out_dim, vec![64, 64], 1, false));
     let sac_config = SacConfig::default()
         .batch_size(BATCH_SIZE)
-        .min_transitions_warmup(N_TRANSITIONS_WARMUP)
         .actor_config(actor_config)
         .critic_config(critic_config)
         .device(device);
@@ -212,7 +211,7 @@ fn create_recorder(
     model_dir: &str,
     mlflow: bool,
     config: &TrainerConfig,
-) -> Result<Box<dyn Recorder>> {
+) -> Result<Box<dyn AggregateRecorder>> {
     match mlflow {
         true => {
             let client = MlflowTrackingClient::new("http://localhost:8080")
@@ -235,9 +234,12 @@ fn train(max_opts: usize, model_dir: &str, eval_interval: usize, mlflow: bool) -
         let config = TrainerConfig::default()
             .max_opts(max_opts)
             .opt_interval(OPT_INTERVAL)
-            .eval_interval(eval_interval)
-            .record_interval(eval_interval)
-            .save_interval(eval_interval)
+            .eval_interval(EVAL_INTERVAL)
+            .record_agent_info_interval(EVAL_INTERVAL)
+            .record_compute_cost_interval(EVAL_INTERVAL)
+            .flush_record_interval(EVAL_INTERVAL)
+            .save_interval(EVAL_INTERVAL)
+            .warmup_period(WARMUP_PERIOD)
             .model_dir(model_dir);
         let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
             config.clone(),

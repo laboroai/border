@@ -1,7 +1,7 @@
 use super::{Actor, Critic, EntCoef, SacConfig};
 use crate::{
     model::{SubModel1, SubModel2},
-    util::{track, CriticLoss, OutDim},
+    util::{smooth_l1_loss, track, CriticLoss, OutDim},
 };
 use anyhow::Result;
 use border_core::{
@@ -140,13 +140,10 @@ where
                     .iter()
                     .map(|pred| mse(&pred.squeeze(D::Minus1).unwrap(), &tgt).unwrap())
                     .collect(),
-                CriticLoss::SmoothL1 => {
-                    panic!();
-                    // preds
-                    // .iter()
-                    // .map(|pred| pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0))
-                    // .collect(),
-                }
+                CriticLoss::SmoothL1 => preds
+                    .iter()
+                    .map(|pred| smooth_l1_loss(&pred, &tgt).unwrap())
+                    .collect(),
             };
             losses
         };

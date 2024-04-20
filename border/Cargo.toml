@@ -86,6 +86,12 @@ test = false
 # test = false
 
 [[example]]
+name = "sac_ant"
+path = "examples/ant/sac_ant.rs"
+required-features = ["candle-core"]
+test = false
+
+[[example]]
 name = "sac_ant_tch"
 path = "examples/ant/sac_ant_tch.rs"
 required-features = ["tch"]

@@ -49,6 +49,7 @@ where
     pub(in crate::dqn) critic_loss: CriticLoss,
     n_samples_act: usize,
     n_samples_best_act: usize,
+    record_verbose_level: usize,
     rng: SmallRng,
 }
 
@@ -86,13 +87,18 @@ where
                 .squeeze(D::Minus1)
                 .unwrap()
         };
-        record.insert(
-            "pred_mean",
-            RecordValue::Scalar(pred.mean_all().unwrap().to_vec0::<f32>().unwrap()),
-        );
 
-        let reward_mean: f32 = reward.mean_all().unwrap().to_vec0().unwrap();
-        record.insert("reward_mean", RecordValue::Scalar(reward_mean));
+        if self.record_verbose_level >= 2 {
+            record.insert(
+                "pred_mean",
+                RecordValue::Scalar(pred.mean_all().unwrap().to_vec0::<f32>().unwrap()),
+            );
+        }
+
+        if self.record_verbose_level >= 2 {
+            let reward_mean: f32 = reward.mean_all().unwrap().to_vec0().unwrap();
+            record.insert("reward_mean", RecordValue::Scalar(reward_mean));
+        }
 
         let tgt = {
             let q = if self.double_dqn {
@@ -111,21 +117,23 @@ where
         }
         .unwrap()
         .detach();
-        record.insert(
-            "tgt_mean",
-            RecordValue::Scalar(tgt.mean_all().unwrap().to_vec0::<f32>().unwrap()),
-        );
 
-        let tgt_minus_pred_mean: f32 = (&tgt - &pred)
-            .unwrap()
-            .mean_all()
-            .unwrap()
-            .to_vec0()
-            .unwrap();
-        record.insert(
-            "tgt_minus_pred_mean",
-            RecordValue::Scalar(tgt_minus_pred_mean),
-        );
+        if self.record_verbose_level >= 2 {
+            record.insert(
+                "tgt_mean",
+                RecordValue::Scalar(tgt.mean_all().unwrap().to_vec0::<f32>().unwrap()),
+            );
+            let tgt_minus_pred_mean: f32 = (&tgt - &pred)
+                .unwrap()
+                .mean_all()
+                .unwrap()
+                .to_vec0()
+                .unwrap();
+            record.insert(
+                "tgt_minus_pred_mean",
+                RecordValue::Scalar(tgt_minus_pred_mean),
+            );
+        }
 
         let loss = if let Some(_ws) = weight {
             // Prioritized weighting loss, will be implemented later
@@ -229,6 +237,7 @@ where
             phantom: PhantomData,
             n_samples_act: 0,
             n_samples_best_act: 0,
+            record_verbose_level: config.record_verbose_level,
             rng: SmallRng::seed_from_u64(42),
         }
     }
@@ -241,11 +250,15 @@ where
             match &mut self.explorer {
                 DqnExplorer::Softmax(softmax) => softmax.action(&a, &mut self.rng),
                 DqnExplorer::EpsilonGreedy(egreedy) => {
-                    let (act, best) = egreedy.action(&a, &mut self.rng);
-                    if best {
-                        self.n_samples_best_act += 1;
+                    if self.record_verbose_level >= 2 {
+                        let (act, best) = egreedy.action_with_best(&a, &mut self.rng);
+                        if best {
+                            self.n_samples_best_act += 1;
+                        }
+                        act
+                    } else {
+                        egreedy.action(&a, &mut self.rng)
                     }
-                    act
                 }
             }
         } else {
@@ -290,11 +303,18 @@ where
     }
 
     fn opt_with_record(&mut self, buffer: &mut R) -> Record {
-        let record = self.opt_(buffer);
+        let mut record = {
+            let record = self.opt_(buffer);
 
-        // Parameters
-        let record_weights = self.qnet.param_stats();
-        let mut record = record.merge(record_weights);
+            match self.record_verbose_level >= 2 {
+                true => {
+                    let record_weights = self.qnet.param_stats();
+                    let record = record.merge(record_weights);
+                    record
+                }
+                false => record,
+            }
+        };
 
         // Best action ratio for epsilon greedy
         let ratio = match self.n_samples_act == 0 {

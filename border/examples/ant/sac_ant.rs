@@ -1,5 +1,12 @@
 use anyhow::Result;
 use border::util::get_model_from_url;
+use border_candle_agent::{
+    mlp::{Mlp, Mlp2, MlpConfig},
+    opt::OptimizerConfig,
+    sac::{ActorConfig, CriticConfig, EntCoefMode, Sac, SacConfig},
+    util::CriticLoss,
+    TensorSubBatch,
+};
 use border_core::{
     record::AggregateRecorder,
     replay_buffer::{
@@ -14,19 +21,11 @@ use border_py_gym_env::{
     util::{arrayd_to_tensor, tensor_to_arrayd},
     ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
-use border_tch_agent::{
-    mlp::{Mlp, Mlp2, MlpConfig},
-    opt::OptimizerConfig,
-    sac::{ActorConfig, CriticConfig, EntCoefMode, Sac, SacConfig},
-    util::CriticLoss,
-    TensorSubBatch,
-};
 use border_tensorboard::TensorboardRecorder;
+use candle_core::Tensor;
 use clap::{App, Arg, ArgMatches};
 use log::info;
 use ndarray::{ArrayD, IxDyn};
-use std::convert::TryFrom;
-use tch::Tensor;
 
 const DIM_OBS: i64 = 27;
 const DIM_ACT: i64 = 8;
@@ -44,10 +43,10 @@ const TAU: f64 = 0.02;
 const TARGET_ENTROPY: f64 = -(DIM_ACT as f64);
 const LR_ENT_COEF: f64 = 3e-4;
 const CRITIC_LOSS: CriticLoss = CriticLoss::SmoothL1;
-const MODEL_DIR: &str = "./border/examples/ant/model/tch";
+const MODEL_DIR: &str = "./border/examples/ant/model/candle";
 
-fn cuda_if_available() -> tch::Device {
-    tch::Device::cuda_if_available()
+fn cuda_if_available() -> candle_core::Device {
+    candle_core::Device::cuda_if_available(0).unwrap()
 }
 
 mod obs_act_types {
@@ -77,7 +76,7 @@ mod obs_act_types {
 
     impl From<Obs> for Tensor {
         fn from(obs: Obs) -> Tensor {
-            Tensor::try_from(&obs.0).unwrap()
+            arrayd_to_tensor::<_, f32>(obs.0, false).unwrap()
         }
     }
 
@@ -101,14 +100,14 @@ mod obs_act_types {
 
     impl From<Tensor> for Act {
         fn from(t: Tensor) -> Self {
-            Self(tensor_to_arrayd(t, true))
+            Self(tensor_to_arrayd(t, true).unwrap())
         }
     }
 
     // Required by Sac
     impl From<Act> for Tensor {
         fn from(value: Act) -> Self {
-            arrayd_to_tensor::<_, f32>(value.0, true)
+            arrayd_to_tensor::<_, f32>(value.0, true).unwrap()
         }
     }
 
@@ -203,7 +202,7 @@ mod utils {
                 recorder_run.log_params(&config)?;
                 recorder_run.set_tag("env", "ant")?;
                 recorder_run.set_tag("algo", "dqn")?;
-                recorder_run.set_tag("backend", "tch")?;
+                recorder_run.set_tag("backend", "candle")?;
                 Ok(Box::new(recorder_run))
             }
             false => Ok(Box::new(TensorboardRecorder::new(MODEL_DIR))),
@@ -322,7 +321,6 @@ fn eval2(matches: ArgMatches) -> Result<()> {
 
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-    tch::manual_seed(42);
     fastrand::seed(42);
 
     let matches = utils::create_matches();

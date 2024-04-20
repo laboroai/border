@@ -109,13 +109,13 @@ where
                 "tgt_mean",
                 RecordValue::Scalar(f32::from(tgt.mean(tch::Kind::Float))),
             );
+            let tgt_minus_pred_mean: f32 =
+                (&tgt - &pred).mean(tch::Kind::Float).try_into().unwrap();
+            record.insert(
+                "tgt_minus_pred_mean",
+                RecordValue::Scalar(tgt_minus_pred_mean),
+            );
         }
-
-        let tgt_minus_pred_mean: f32 = (&tgt - &pred).mean(tch::Kind::Float).try_into().unwrap();
-        record.insert(
-            "tgt_minus_pred_mean",
-            RecordValue::Scalar(tgt_minus_pred_mean),
-        );
 
         let loss = if let Some(ws) = weight {
             let n = ws.len() as i64;
