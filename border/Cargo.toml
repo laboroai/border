@@ -86,12 +86,14 @@ test = false
 # test = false
 
 [[example]]
-name = "sac_ant"
+name = "sac_ant_tch"
+path = "examples/ant/sac_ant_tch.rs"
 required-features = ["tch"]
 test = false
 
 [[example]]
 name = "sac_ant_async"
+path = "examples/ant/sac_ant_async.rs"
 required-features = ["tch", "border-async-trainer"]
 test = false
 
