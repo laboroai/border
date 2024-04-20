@@ -34,10 +34,10 @@ impl Softmax {
 /// Epsilon-greedy explorer for DQN.
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct EpsilonGreedy {
-    n_opts: usize,
-    eps_start: f64,
-    eps_final: f64,
-    final_step: usize,
+    pub n_opts: usize,
+    pub eps_start: f64,
+    pub eps_final: f64,
+    pub final_step: usize,
 }
 
 #[allow(clippy::new_without_default)]

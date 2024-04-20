@@ -43,7 +43,7 @@ where
     pub clip_td_err: Option<(f64, f64)>,
     pub device: Option<Device>,
     pub critic_loss: CriticLoss,
-    phantom: PhantomData<Q>,
+    pub phantom: PhantomData<Q>,
 }
 
 impl<Q> Clone for DqnConfig<Q>

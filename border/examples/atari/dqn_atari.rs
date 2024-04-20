@@ -67,12 +67,15 @@ mod obs_act_types {
 use config::DqnAtariConfig;
 use obs_act_types::*;
 
-mod config {
-    use serde::Serialize;
+fn cuda_if_available() -> candle_core::Device {
+    candle_core::Device::cuda_if_available(0).unwrap()
+}
 
+mod config {
     use self::util_dqn_atari::{
         DqnAtariAgentConfig, DqnAtariReplayBufferConfig, DqnAtariTrainerConfig,
     };
+    use serde::Serialize;
     use std::io::Write;
 
     use super::*;
@@ -86,7 +89,7 @@ mod config {
         agent_config: &DqnConfig<Cnn>,
         trainer_config: &TrainerConfig,
     ) {
-        println!("Device: {:?}", candle_core::Device::cuda_if_available(0));
+        println!("Device: {:?}", cuda_if_available());
         println!("{}", serde_yaml::to_string(&env_config).unwrap());
         println!("{}", serde_yaml::to_string(&agent_config).unwrap());
         println!("{}", serde_yaml::to_string(&trainer_config).unwrap());
@@ -108,7 +111,6 @@ mod config {
         let config: DqnAtariTrainerConfig = serde_yaml::from_reader(rdr)?;
         println!("Load trainer config: {}", config_path);
         Ok(config.into())
-        // TrainerConfig::load(config_path)
     }
 
     pub fn load_replay_buffer_config<'a>(
@@ -300,7 +302,7 @@ fn train(matches: ArgMatches) -> Result<()> {
     let agent_config = {
         let agent_config = config::load_dqn_config(model_dir.as_str())?
             .out_dim(n_actions as _)
-            .device(candle_core::Device::cuda_if_available(0)?);
+            .device(cuda_if_available());
         agent_config
     };
     let trainer_config =
@@ -343,7 +345,7 @@ fn play(matches: ArgMatches) -> Result<()> {
         (env_config, n_actions)
     };
     let mut agent = {
-        let device = candle_core::Device::cuda_if_available(0)?;
+        let device = cuda_if_available();
         let agent_config = config::load_dqn_config(model_dir.as_str())?
             .out_dim(n_actions as _)
             .device(device);

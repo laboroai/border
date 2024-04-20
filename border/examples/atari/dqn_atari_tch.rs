@@ -1,3 +1,4 @@
+mod util_dqn_atari;
 use anyhow::Result;
 use border_atari_env::{
     BorderAtariAct, BorderAtariActRawFilter, BorderAtariEnv, BorderAtariEnvConfig, BorderAtariObs,
@@ -66,9 +67,18 @@ mod obs_act_types {
 use config::DqnAtariConfig;
 use obs_act_types::*;
 
+fn cuda_if_available() -> tch::Device {
+    tch::Device::cuda_if_available()
+}
+
 mod config {
-    use super::*;
+    use self::util_dqn_atari::{
+        DqnAtariAgentConfig, DqnAtariReplayBufferConfig, DqnAtariTrainerConfig,
+    };
     use serde::Serialize;
+    use std::io::Write;
+
+    use super::*;
 
     pub fn env_config(name: impl Into<String>) -> EnvConfig {
         BorderAtariEnvConfig::default().name(name.into())
@@ -79,7 +89,7 @@ mod config {
         agent_config: &DqnConfig<Cnn>,
         trainer_config: &TrainerConfig,
     ) {
-        println!("Device: {:?}", tch::Device::cuda_if_available());
+        println!("Device: {:?}", cuda_if_available());
         println!("{}", serde_yaml::to_string(&env_config).unwrap());
         println!("{}", serde_yaml::to_string(&agent_config).unwrap());
         println!("{}", serde_yaml::to_string(&trainer_config).unwrap());
@@ -87,19 +97,61 @@ mod config {
 
     pub fn load_dqn_config<'a>(model_dir: impl Into<&'a str>) -> Result<DqnConfig<Cnn>> {
         let config_path = format!("{}/agent.yaml", model_dir.into());
-        DqnConfig::<Cnn>::load(config_path)
+        let file = std::fs::File::open(config_path.clone())?;
+        let rdr = std::io::BufReader::new(file);
+        let config: DqnAtariAgentConfig = serde_yaml::from_reader(rdr)?;
+        println!("Load agent config: {}", config_path);
+        Ok(config.into())
     }
 
     pub fn load_trainer_config<'a>(model_dir: impl Into<&'a str>) -> Result<TrainerConfig> {
         let config_path = format!("{}/trainer.yaml", model_dir.into());
-        TrainerConfig::load(config_path)
+        let file = std::fs::File::open(config_path.clone())?;
+        let rdr = std::io::BufReader::new(file);
+        let config: DqnAtariTrainerConfig = serde_yaml::from_reader(rdr)?;
+        println!("Load trainer config: {}", config_path);
+        Ok(config.into())
     }
 
     pub fn load_replay_buffer_config<'a>(
         model_dir: impl Into<&'a str>,
     ) -> Result<SimpleReplayBufferConfig> {
         let config_path = format!("{}/replay_buffer.yaml", model_dir.into());
-        SimpleReplayBufferConfig::load(config_path)
+        let file = std::fs::File::open(config_path.clone())?;
+        let rdr = std::io::BufReader::new(file);
+        let config: DqnAtariReplayBufferConfig = serde_yaml::from_reader(rdr)?;
+        println!("Load replay buffer config: {}", config_path);
+        Ok(config.into())
+    }
+
+    pub fn create_trainer_config(matches: &ArgMatches) -> Result<()> {
+        let model_dir = utils::model_dir(matches);
+        let config = util_dqn_atari::DqnAtariTrainerConfig::default();
+        let path = model_dir + "/trainer.yaml";
+        let mut file = std::fs::File::create(path.clone())?;
+        file.write_all(serde_yaml::to_string(&config)?.as_bytes())?;
+        println!("Create trainer config file: {}", path);
+        Ok(())
+    }
+
+    pub fn create_replay_buffer_config(matches: &ArgMatches) -> Result<()> {
+        let model_dir = utils::model_dir(matches);
+        let config = util_dqn_atari::DqnAtariReplayBufferConfig::default();
+        let path = model_dir + "/replay_buffer.yaml";
+        let mut file = std::fs::File::create(path.clone())?;
+        file.write_all(serde_yaml::to_string(&config)?.as_bytes())?;
+        println!("Create replay buffer config file: {}", path);
+        Ok(())
+    }
+
+    pub fn create_agent_config(matches: &ArgMatches) -> Result<()> {
+        let model_dir = utils::model_dir(matches);
+        let config = util_dqn_atari::DqnAtariAgentConfig::default();
+        let path = model_dir + "/agent.yaml";
+        let mut file = std::fs::File::create(path.clone())?;
+        file.write_all(serde_yaml::to_string(&config)?.as_bytes())?;
+        println!("Create agent config file: {}", path);
+        Ok(())
     }
 
     #[derive(Serialize)]
@@ -193,6 +245,11 @@ mod utils {
                     .takes_value(false)
                     .help("Play with the trained model downloaded from google drive"),
             )
+            .arg(
+                Arg::with_name("create-config")
+                    .long("create-config")
+                    .help("Create config files"),
+            )
             // not supported yet
             // .arg(
             //     Arg::with_name("per")
@@ -246,15 +303,7 @@ fn train(matches: ArgMatches) -> Result<()> {
     let agent_config = {
         let agent_config = config::load_dqn_config(model_dir.as_str())?
             .out_dim(n_actions as _)
-            // .opt_config(OptimizerConfig::AdamW {
-            //     lr: 0.0001,
-            //     beta1: 0.9,
-            //     beta2: 0.999,
-            //     wd: 0.01,
-            //     eps: 1e-8,
-            //     amsgrad: false,
-            // })
-            .device(tch::Device::cuda_if_available());
+            .device(cuda_if_available());
         agent_config
     };
     let trainer_config =
@@ -297,7 +346,7 @@ fn play(matches: ArgMatches) -> Result<()> {
         (env_config, n_actions)
     };
     let mut agent = {
-        let device = tch::Device::cuda_if_available();
+        let device = cuda_if_available();
         let agent_config = config::load_dqn_config(model_dir.as_str())?
             .out_dim(n_actions as _)
             .device(device);
@@ -313,11 +362,20 @@ fn play(matches: ArgMatches) -> Result<()> {
     Ok(())
 }
 
+fn create_config(matches: ArgMatches) -> Result<()> {
+    config::create_trainer_config(&matches)?;
+    config::create_replay_buffer_config(&matches)?;
+    config::create_agent_config(&matches)?;
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let matches = utils::create_matches();
 
     if matches.is_present("play") || matches.is_present("play-gdrive") {
         play(matches)?;
+    } else if matches.is_present("create-config") {
+        create_config(matches)?;
     } else {
         train(matches)?;
     }
