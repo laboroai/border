@@ -43,6 +43,7 @@ where
     pub clip_td_err: Option<(f64, f64)>,
     pub device: Option<Device>,
     pub critic_loss: CriticLoss,
+    pub record_verbose_level: usize,
     pub phantom: PhantomData<Q>,
 }
 
@@ -66,6 +67,7 @@ where
             clip_td_err: self.clip_td_err,
             device: self.device.clone(),
             critic_loss: self.critic_loss.clone(),
+            record_verbose_level: self.record_verbose_level,
             phantom: PhantomData,
         }
     }
@@ -94,6 +96,7 @@ where
             clip_td_err: None,
             device: None,
             critic_loss: CriticLoss::Mse,
+            record_verbose_level: 0,
             phantom: PhantomData,
         }
     }
@@ -186,6 +189,12 @@ where
     /// Sets critic loss.
     pub fn critic_loss(mut self, v: CriticLoss) -> Self {
         self.critic_loss = v;
+        self
+    }
+
+    /// Sets verbose level.
+    pub fn record_verbose_level(mut self, v: usize) -> Self {
+        self.record_verbose_level = v;
         self
     }
 

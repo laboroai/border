@@ -65,7 +65,32 @@ impl EpsilonGreedy {
     }
 
     /// Takes an action based on the observation and the critic.
-    pub fn action(&mut self, a: &Tensor) -> (Tensor, bool) {
+    pub fn action(&mut self, a: &Tensor) -> Tensor {
+        let d = (self.eps_start - self.eps_final) / (self.final_step as f64);
+        let eps = (self.eps_start - d * self.n_opts as f64).max(self.eps_final);
+        let r = fastrand::f64();
+        let is_random = r < eps;
+        self.n_opts += 1;
+
+        let best = a.argmax(-1, true);
+
+        if is_random {
+            let n_procs = a.size()[0] as u32;
+            let n_actions = a.size()[1] as u32;
+            let act = Tensor::of_slice(
+                (0..n_procs)
+                    .map(|_| fastrand::u32(..n_actions) as i32)
+                    .collect::<Vec<_>>()
+                    .as_slice(),
+            );
+            act
+        } else {
+            best
+        }
+    }
+
+    /// Takes an action based on the observation and the critic.
+    pub fn action_with_best(&mut self, a: &Tensor) -> (Tensor, bool) {
         let d = (self.eps_start - self.eps_final) / (self.final_step as f64);
         let eps = (self.eps_start - d * self.n_opts as f64).max(self.eps_final);
         let r = fastrand::f64();

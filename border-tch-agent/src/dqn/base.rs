@@ -46,6 +46,7 @@ where
     pub(in crate::dqn) critic_loss: CriticLoss,
     n_samples_act: usize,
     n_samples_best_act: usize,
+    record_verbose_level: usize,
 }
 
 impl<E, Q, R> Dqn<E, Q, R>
@@ -74,13 +75,18 @@ where
             let x = self.qnet.forward(&obs);
             x.gather(-1, &act, false).squeeze()
         };
-        record.insert(
-            "pred_mean",
-            RecordValue::Scalar(f32::from(pred.mean(tch::Kind::Float))),
-        );
 
-        let reward_mean: f32 = reward.mean(tch::Kind::Float).try_into().unwrap();
-        record.insert("reward_mean", RecordValue::Scalar(reward_mean));
+        if self.record_verbose_level >= 2 {
+            record.insert(
+                "pred_mean",
+                RecordValue::Scalar(f32::from(pred.mean(tch::Kind::Float))),
+            );
+        }
+
+        if self.record_verbose_level >= 2 {
+            let reward_mean: f32 = reward.mean(tch::Kind::Float).try_into().unwrap();
+            record.insert("reward_mean", RecordValue::Scalar(reward_mean));
+        }
 
         let tgt: Tensor = no_grad(|| {
             let q = if self.double_dqn {
@@ -97,10 +103,13 @@ where
             };
             reward + (1 - is_done) * self.discount_factor * q
         });
-        record.insert(
-            "tgt_mean",
-            RecordValue::Scalar(f32::from(tgt.mean(tch::Kind::Float))),
-        );
+
+        if self.record_verbose_level >= 2 {
+            record.insert(
+                "tgt_mean",
+                RecordValue::Scalar(f32::from(tgt.mean(tch::Kind::Float))),
+            );
+        }
 
         let tgt_minus_pred_mean: f32 = (&tgt - &pred).mean(tch::Kind::Float).try_into().unwrap();
         record.insert(
@@ -227,6 +236,7 @@ where
             critic_loss: config.critic_loss,
             n_samples_act: 0,
             n_samples_best_act: 0,
+            record_verbose_level: config.record_verbose_level,
             phantom: PhantomData,
         }
     }
@@ -239,11 +249,15 @@ where
                 match &mut self.explorer {
                     DqnExplorer::Softmax(softmax) => softmax.action(&a),
                     DqnExplorer::EpsilonGreedy(egreedy) => {
-                        let (act, best) = egreedy.action(&a);
-                        if best {
-                            self.n_samples_best_act += 1;
+                        if self.record_verbose_level >= 2 {
+                            let (act, best) = egreedy.action_with_best(&a);
+                            if best {
+                                self.n_samples_best_act += 1;
+                            }
+                            act
+                        } else {
+                            egreedy.action(&a)
                         }
-                        act
                     }
                 }
             } else {
@@ -289,20 +303,29 @@ where
     }
 
     fn opt_with_record(&mut self, buffer: &mut R) -> Record {
-        let record = self.opt_(buffer);
+        let mut record = {
+            let record = self.opt_(buffer);
 
-        // Parameters
-        let record_weights = self.qnet.param_stats();
-        let mut record = record.merge(record_weights);
+            match self.record_verbose_level >= 2 {
+                true => {
+                    let record_weights = self.qnet.param_stats();
+                    let record = record.merge(record_weights);
+                    record
+                }
+                false => record,
+            }
+        };
 
         // Best action ratio for epsilon greedy
-        let ratio = match self.n_samples_act == 0 {
-            true => 0f32,
-            false => self.n_samples_best_act as f32 / self.n_samples_act as f32,
-        };
-        record.insert("ratio_best_act", RecordValue::Scalar(ratio));
-        self.n_samples_act = 0;
-        self.n_samples_best_act = 0;
+        if self.record_verbose_level >= 2 {
+            let ratio = match self.n_samples_act == 0 {
+                true => 0f32,
+                false => self.n_samples_best_act as f32 / self.n_samples_act as f32,
+            };
+            record.insert("ratio_best_act", RecordValue::Scalar(ratio));
+            self.n_samples_act = 0;
+            self.n_samples_best_act = 0;
+        }
 
         record
     }

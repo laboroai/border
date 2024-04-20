@@ -185,16 +185,26 @@ mod replay_buffer_config {
         pub per_config: Option<PerConfig>,
     }
 
+    impl Default for DqnAtariReplayBufferConfig {
+        fn default() -> Self {
+            Self {
+                capacity: 262144,
+                seed: 42,
+                per_config: None,
+            }
+        }
+    }
+
     fn default_capacity() -> usize {
-        262144
+        DqnAtariReplayBufferConfig::default().capacity
     }
 
     fn default_seed() -> u64 {
-        42
+        DqnAtariReplayBufferConfig::default().seed
     }
 
     fn default_per_config() -> Option<PerConfig> {
-        None
+        DqnAtariReplayBufferConfig::default().per_config
     }
 
     fn is_default_capacity(v: &usize) -> bool {
@@ -207,16 +217,6 @@ mod replay_buffer_config {
 
     fn is_default_per_config(v: &Option<PerConfig>) -> bool {
         *v == default_per_config()
-    }
-
-    impl Default for DqnAtariReplayBufferConfig {
-        fn default() -> Self {
-            Self {
-                capacity: default_capacity(),
-                seed: default_seed(),
-                per_config: default_per_config(),
-            }
-        }
     }
 
     impl Into<SimpleReplayBufferConfig> for DqnAtariReplayBufferConfig {
@@ -311,6 +311,12 @@ mod tch_dqn_config {
         )]
         pub critic_loss: CriticLoss,
 
+        #[serde(
+            default = "default_record_verbose_level",
+            skip_serializing_if = "is_default_record_verbose_level"
+        )]
+        pub record_verbose_level: usize,
+
         #[serde(default = "default_device", skip_serializing_if = "is_default_device")]
         pub device: Option<Device>,
         // phantom: PhantomData<CnnConfig>,
@@ -343,6 +349,7 @@ mod tch_dqn_config {
                 double_dqn: false,
                 clip_td_err: None,
                 critic_loss: CriticLoss::Mse,
+                record_verbose_level: 0,
                 device: None,
                 // phantom: PhantomData,
             }
@@ -397,6 +404,10 @@ mod tch_dqn_config {
         DqnAtariAgentConfig::default().critic_loss
     }
 
+    fn default_record_verbose_level() -> usize {
+        DqnAtariAgentConfig::default().record_verbose_level
+    }
+
     fn default_device() -> Option<Device> {
         DqnAtariAgentConfig::default().device
     }
@@ -449,6 +460,10 @@ mod tch_dqn_config {
         critic_loss == &default_critic_loss()
     }
 
+    fn is_default_record_verbose_level(record_verbose_level: &usize) -> bool {
+        record_verbose_level == &default_record_verbose_level()
+    }
+
     fn is_default_device(device: &Option<Device>) -> bool {
         device == &default_device()
     }
@@ -469,6 +484,7 @@ mod tch_dqn_config {
                 clip_td_err: self.clip_td_err,
                 device: self.device,
                 critic_loss: self.critic_loss,
+                record_verbose_level: self.record_verbose_level,
                 phantom: PhantomData,
             }
         }
@@ -556,6 +572,12 @@ mod candle_dqn_config {
         )]
         pub critic_loss: CriticLoss,
 
+        #[serde(
+            default = "default_record_verbose_level",
+            skip_serializing_if = "is_default_record_verbose_level"
+        )]
+        pub record_verbose_level: usize,
+
         #[serde(default = "default_device", skip_serializing_if = "is_default_device")]
         pub device: Option<Device>,
         // phantom: PhantomData<CnnConfig>,
@@ -588,6 +610,7 @@ mod candle_dqn_config {
                 double_dqn: false,
                 clip_td_err: None,
                 critic_loss: CriticLoss::Mse,
+                record_verbose_level: 0,
                 device: None,
                 // phantom: PhantomData,
             }
@@ -642,6 +665,10 @@ mod candle_dqn_config {
         DqnAtariAgentConfig::default().critic_loss
     }
 
+    fn default_record_verbose_level() -> usize {
+        DqnAtariAgentConfig::default().record_verbose_level
+    }
+
     fn default_device() -> Option<Device> {
         DqnAtariAgentConfig::default().device
     }
@@ -694,6 +721,10 @@ mod candle_dqn_config {
         critic_loss == &default_critic_loss()
     }
 
+    fn is_default_record_verbose_level(record_verbose_level: &usize) -> bool {
+        record_verbose_level == &default_record_verbose_level()
+    }
+
     fn is_default_device(device: &Option<Device>) -> bool {
         device == &default_device()
     }
@@ -714,6 +745,7 @@ mod candle_dqn_config {
                 clip_td_err: self.clip_td_err,
                 device: self.device,
                 critic_loss: self.critic_loss,
+                record_verbose_level: self.record_verbose_level,
                 phantom: PhantomData,
             }
         }
