@@ -70,7 +70,8 @@ impl EntCoef {
     /// Update the parameter given an action probability vector.
     pub fn update(&mut self, logp: &Tensor) -> Result<()> {
         if let Some(target_entropy) = &self.target_entropy {
-            let target_entropy = Tensor::try_from(*target_entropy as f32)?;
+            let target_entropy =
+                Tensor::try_from(*target_entropy as f32)?.to_device(logp.device())?;
             let loss = {
                 // let tmp = ((&self.log_alpha * (logp + target_entropy)?.detach())? * -1f64)?;
                 let tmp = (&self.log_alpha * -1f64)?
