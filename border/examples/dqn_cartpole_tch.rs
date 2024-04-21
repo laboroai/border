@@ -205,13 +205,23 @@ mod config {
     }
 
     impl DqnCartpoleConfig {
-        pub fn new(in_dim: i64, out_dim: i64, max_opts: usize, model_dir: &str) -> Self {
+        pub fn new(
+            in_dim: i64,
+            out_dim: i64,
+            max_opts: usize,
+            model_dir: &str,
+            eval_interval: Option<usize>,
+        ) -> Self {
+            let eval_interval = match eval_interval {
+                Some(eval_interval) => eval_interval,
+                None => EVAL_INTERVAL,
+            };
             let env_config = create_env_config();
             let agent_config = create_agent_config(in_dim, out_dim);
             let trainer_config = TrainerConfig::default()
                 .max_opts(max_opts)
                 .opt_interval(OPT_INTERVAL)
-                .eval_interval(EVAL_INTERVAL)
+                .eval_interval(eval_interval)
                 .record_agent_info_interval(EVAL_INTERVAL)
                 .record_compute_cost_interval(EVAL_INTERVAL)
                 .flush_record_interval(EVAL_INTERVAL)
@@ -278,8 +288,13 @@ fn create_recorder(
     }
 }
 
-fn train(matches: &ArgMatches, max_opts: usize, model_dir: &str) -> Result<()> {
-    let config = DqnCartpoleConfig::new(DIM_OBS, DIM_ACT, max_opts, model_dir);
+fn train(
+    matches: &ArgMatches,
+    max_opts: usize,
+    model_dir: &str,
+    eval_interval: Option<usize>,
+) -> Result<()> {
+    let config = DqnCartpoleConfig::new(DIM_OBS, DIM_ACT, max_opts, model_dir, eval_interval);
     let mut recorder = create_recorder(&matches, model_dir, &config)?;
     let mut trainer = {
         let step_proc_config = SimpleStepProcessorConfig {};
@@ -360,7 +375,7 @@ fn main() -> Result<()> {
         || (!matches.is_present("train") && !matches.is_present("eval"));
 
     if do_train {
-        train(&matches, MAX_OPTS, MODEL_DIR)?;
+        train(&matches, MAX_OPTS, MODEL_DIR, None)?;
     }
     if do_eval {
         eval(&(MODEL_DIR.to_owned() + "/best"), true)?;
@@ -384,7 +399,7 @@ mod tests {
             Some(s) => s,
             None => panic!("Failed to get string of temporary directory"),
         };
-        train(&create_matches(), 100, model_dir)?;
+        train(&create_matches(), 100, model_dir, Some(100))?;
         eval(&(model_dir.to_owned() + "/best"), false)?;
         Ok(())
     }

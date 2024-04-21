@@ -233,7 +233,7 @@ fn train(max_opts: usize, model_dir: &str, eval_interval: usize, mlflow: bool) -
         let config = TrainerConfig::default()
             .max_opts(max_opts)
             .opt_interval(OPT_INTERVAL)
-            .eval_interval(EVAL_INTERVAL)
+            .eval_interval(eval_interval)
             .record_agent_info_interval(EVAL_INTERVAL)
             .record_compute_cost_interval(EVAL_INTERVAL)
             .flush_record_interval(EVAL_INTERVAL)

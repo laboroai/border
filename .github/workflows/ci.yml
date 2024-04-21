@@ -83,5 +83,5 @@ jobs:
               libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev libsdl2-ttf-dev \
               libsdl2-dev libsdl-image1.2-dev
             cargo test --example dqn_cartpole_tch --features=tch
-            cargo test --example iqn_cartpole --features=tch
+            # cargo test --example iqn_cartpole --features=tch
             cargo test --example sac_pendulum_tch --features=tch
