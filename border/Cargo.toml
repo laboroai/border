@@ -38,11 +38,13 @@ test = true
 
 [[example]]
 name = "sac_pendulum_tch"
+path = "examples/gym/sac_pendulum_tch.rs"
 required-features = ["tch"]
 test = true
 
 [[example]]
 name = "sac_pendulum"
+path = "examples/gym/sac_pendulum.rs"
 required-features = ["candle-core"]
 test = true
 

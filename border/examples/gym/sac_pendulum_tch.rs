@@ -1,10 +1,4 @@
 use anyhow::Result;
-use border_candle_agent::{
-    mlp::{Mlp, Mlp2, MlpConfig},
-    opt::OptimizerConfig,
-    sac::{ActorConfig, CriticConfig, Sac, SacConfig},
-    TensorSubBatch,
-};
 use border_core::{
     record::{AggregateRecorder, Record, RecordValue},
     replay_buffer::{
@@ -18,15 +12,21 @@ use border_py_gym_env::{
     util::{arrayd_to_pyobj, arrayd_to_tensor, tensor_to_arrayd},
     ArrayObsFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
+use border_tch_agent::{
+    mlp::{Mlp, Mlp2, MlpConfig},
+    opt::OptimizerConfig,
+    sac::{ActorConfig, CriticConfig, Sac, SacConfig},
+    TensorSubBatch,
+};
 use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg, ArgMatches};
 // use csv::WriterBuilder;
 use border_mlflow_tracking::MlflowTrackingClient;
-use candle_core::{Device, Tensor};
 use ndarray::{ArrayD, IxDyn};
 use pyo3::PyObject;
 use serde::Serialize;
 use std::convert::TryFrom;
+use tch::Tensor;
 
 const DIM_OBS: i64 = 3;
 const DIM_ACT: i64 = 1;
@@ -69,7 +69,7 @@ mod obs {
 
     impl From<Obs> for Tensor {
         fn from(obs: Obs) -> Tensor {
-            arrayd_to_tensor::<_, f32>(obs.0, false).unwrap()
+            Tensor::try_from(&obs.0).unwrap()
         }
     }
 
@@ -97,14 +97,14 @@ mod act {
 
     impl From<Tensor> for Act {
         fn from(t: Tensor) -> Self {
-            Self(tensor_to_arrayd(t, true).unwrap())
+            Self(tensor_to_arrayd(t, true))
         }
     }
 
     // Required by Sac
     impl From<Act> for Tensor {
         fn from(value: Act) -> Self {
-            arrayd_to_tensor::<_, f32>(value.0, true).unwrap()
+            arrayd_to_tensor::<_, f32>(value.0, true)
         }
     }
 
@@ -183,21 +183,21 @@ impl TryFrom<&Record> for PendulumRecord {
     }
 }
 
-fn create_agent(in_dim: i64, out_dim: i64) -> Result<Sac<Env, Mlp, Mlp2, ReplayBuffer>> {
-    let device = Device::cuda_if_available(0)?;
+fn create_agent(in_dim: i64, out_dim: i64) -> Sac<Env, Mlp, Mlp2, ReplayBuffer> {
+    let device = tch::Device::cuda_if_available();
     let actor_config = ActorConfig::default()
-        .opt_config(OptimizerConfig::default().learning_rate(LR_ACTOR))
+        .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
         .out_dim(out_dim)
         .pi_config(MlpConfig::new(in_dim, vec![64, 64], out_dim, false));
     let critic_config = CriticConfig::default()
-        .opt_config(OptimizerConfig::default().learning_rate(LR_CRITIC))
+        .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
         .q_config(MlpConfig::new(in_dim + out_dim, vec![64, 64], 1, false));
     let sac_config = SacConfig::default()
         .batch_size(BATCH_SIZE)
         .actor_config(actor_config)
         .critic_config(critic_config)
         .device(device);
-    Ok(Sac::build(sac_config))
+    Sac::build(sac_config)
 }
 
 fn env_config() -> GymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
@@ -214,11 +214,13 @@ fn create_recorder(
 ) -> Result<Box<dyn AggregateRecorder>> {
     match mlflow {
         true => {
-            let client = MlflowTrackingClient::new("http://localhost:8080")
-                //.basic_auth("user_name", "password") // when using basic authentication
-                .set_experiment_id("Default")?;
+            let client =
+                MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Gym")?;
             let recorder_run = client.create_recorder("")?;
             recorder_run.log_params(&config)?;
+            recorder_run.set_tag("env", "pendulum")?;
+            recorder_run.set_tag("algo", "sac")?;
+            recorder_run.set_tag("backend", "tch")?;
             Ok(Box::new(recorder_run))
         }
         false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
@@ -250,7 +252,7 @@ fn train(max_opts: usize, model_dir: &str, eval_interval: usize, mlflow: bool) -
 
         (trainer, config)
     };
-    let mut agent = create_agent(DIM_OBS, DIM_ACT)?;
+    let mut agent = create_agent(DIM_OBS, DIM_ACT);
     let mut recorder = create_recorder(model_dir, mlflow, &config)?;
     let mut evaluator = Evaluator::new(&env_config(), 0, N_EPISODES_PER_EVAL)?;
 
@@ -270,7 +272,7 @@ fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
         env_config
     };
     let mut agent = {
-        let mut agent = create_agent(DIM_OBS, DIM_ACT)?;
+        let mut agent = create_agent(DIM_OBS, DIM_ACT);
         agent.load(model_dir)?;
         agent.eval();
         agent
@@ -291,7 +293,7 @@ fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
 }
 
 fn create_matches<'a>() -> ArgMatches<'a> {
-    App::new("sac_pendulum")
+    App::new("sac_pendulum_tch")
         .version("0.1.0")
         .author("Taku Yoshioka <yoshioka@laboro.ai>")
         .arg(
@@ -317,6 +319,7 @@ fn create_matches<'a>() -> ArgMatches<'a> {
 
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    tch::manual_seed(42);
 
     let matches = create_matches();
     let mlflow = matches.is_present("mlflow");
@@ -329,13 +332,13 @@ fn main() -> Result<()> {
     if do_train {
         train(
             MAX_OPTS,
-            "./border/examples/model/sac_pendulum",
+            "./border/examples/gym/model/sac_pendulum_tch",
             EVAL_INTERVAL,
             mlflow,
         )?;
     }
     if do_eval {
-        eval(5, true, "./border/examples/model/sac_pendulum/best")?;
+        eval(5, true, "./border/examples/gym/model/sac_pendulum_tch/best")?;
     }
 
     Ok(())
@@ -348,7 +351,9 @@ mod test {
 
     #[test]
     fn test_sac_pendulum() -> Result<()> {
-        let model_dir = TempDir::new("sac_pendulum")?;
+        tch::manual_seed(42);
+
+        let model_dir = TempDir::new("sac_pendulum_tch")?;
         let model_dir = model_dir.path().to_str().unwrap();
         train(100, model_dir, 100, false)?;
         eval(1, false, (model_dir.to_string() + "/best").as_str())?;
