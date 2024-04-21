@@ -151,11 +151,12 @@ where
             let (a, log_p) = self.action_logp(&o.into());
 
             // Update the entropy coefficient
-            self.ent_coef.update(&log_p);
+            self.ent_coef.update(&log_p.detach());
 
             let o = batch.obs().clone();
-            let qval = self.qvals_min(&self.qnets, &o.into(), &a.into());
-            (self.ent_coef.alpha() * &log_p - &qval).mean(tch::Kind::Float)
+            let qval = self.qvals_min(&self.qnets, &o.into(), &a.into()).detach();
+            let alpha = self.ent_coef.alpha().detach();
+            (alpha * &log_p - &qval).mean(tch::Kind::Float)
         };
 
         self.pi.backward_step(&loss);

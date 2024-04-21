@@ -165,11 +165,12 @@ where
             let (a, log_p) = self.action_logp(&o.into())?;
 
             // Update the entropy coefficient
-            self.ent_coef.update(&log_p)?;
+            self.ent_coef.update(&log_p.detach())?;
 
             let o = batch.obs().clone();
-            let qval = self.qvals_min(&self.qnets, &o.into(), &a.into())?;
-            ((self.ent_coef.alpha()?.broadcast_mul(&log_p))? - &qval)?.mean_all()?
+            let qval = self.qvals_min(&self.qnets, &o.into(), &a.into())?.detach();
+            let alpha = self.ent_coef.alpha()?.detach();
+            ((alpha.broadcast_mul(&log_p))? - &qval)?.mean_all()?
         };
 
         self.pi.backward_step(&loss)?;
@@ -237,7 +238,7 @@ where
 {
     type Config = SacConfig<Q, P>;
 
-    /// Constructs [Sac] agent.
+    /// Constructs [`Sac`] agent.
     fn build(config: Self::Config) -> Self {
         let device = config.device.expect("No device is given for SAC agent");
         let n_critics = config.n_critics;
