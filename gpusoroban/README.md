@@ -13,7 +13,7 @@ cd $HOME/border
 RUST_LOG=info PYTHONPATH=./border-py-gym-env/examples cargo run --example random_cartpole
 ```
 
-## Copy trained model parameter file in remote to local
+## Copy trained model parameter file from remote to local
 
 ```bash
 sh scp_results.sh
