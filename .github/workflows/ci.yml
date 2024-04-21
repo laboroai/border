@@ -85,3 +85,5 @@ jobs:
             cargo test --example dqn_cartpole_tch --features=tch
             # cargo test --example iqn_cartpole --features=tch
             cargo test --example sac_pendulum_tch --features=tch
+            cargo test --example dqn_cartpole --features=candle-core
+            cargo test --example sac_pendulum --features=candle-core

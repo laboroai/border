@@ -206,13 +206,19 @@ mod config {
     }
 
     impl DqnCartpoleConfig {
-        pub fn new(in_dim: i64, out_dim: i64, max_opts: usize, model_dir: &str) -> Self {
+        pub fn new(
+            in_dim: i64,
+            out_dim: i64,
+            max_opts: usize,
+            model_dir: &str,
+            eval_interval: usize,
+        ) -> Self {
             let env_config = create_env_config();
             let agent_config = create_agent_config(in_dim, out_dim);
             let trainer_config = TrainerConfig::default()
                 .max_opts(max_opts)
                 .opt_interval(OPT_INTERVAL)
-                .eval_interval(EVAL_INTERVAL)
+                .eval_interval(eval_interval)
                 .record_agent_info_interval(EVAL_INTERVAL)
                 .record_compute_cost_interval(EVAL_INTERVAL)
                 .flush_record_interval(EVAL_INTERVAL)
@@ -279,8 +285,13 @@ fn create_recorder(
     }
 }
 
-fn train(matches: &ArgMatches, max_opts: usize, model_dir: &str) -> Result<()> {
-    let config = DqnCartpoleConfig::new(DIM_OBS, DIM_ACT, max_opts, model_dir);
+fn train(
+    matches: &ArgMatches,
+    max_opts: usize,
+    model_dir: &str,
+    eval_interval: usize,
+) -> Result<()> {
+    let config = DqnCartpoleConfig::new(DIM_OBS, DIM_ACT, max_opts, model_dir, eval_interval);
     let mut recorder = create_recorder(&matches, model_dir, &config)?;
     let mut trainer = {
         let step_proc_config = SimpleStepProcessorConfig {};
@@ -363,7 +374,7 @@ fn main() -> Result<()> {
         || (!matches.is_present("train") && !matches.is_present("eval"));
 
     if do_train {
-        train(&matches, MAX_OPTS, MODEL_DIR)?;
+        train(&matches, MAX_OPTS, MODEL_DIR, EVAL_INTERVAL)?;
     }
     if do_eval {
         eval(&(MODEL_DIR.to_owned() + "/best"), true)?;
@@ -372,21 +383,23 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::{eval, train};
-//     use anyhow::Result;
-//     use tempdir::TempDir;
+#[cfg(test)]
+mod tests {
+    use crate::create_matches;
 
-//     #[test]
-//     fn test_dqn_cartpole() -> Result<()> {
-//         let tmp_dir = TempDir::new("dqn_cartpole")?;
-//         let model_dir = match tmp_dir.as_ref().to_str() {
-//             Some(s) => s,
-//             None => panic!("Failed to get string of temporary directory"),
-//         };
-//         train(100, model_dir)?;
-//         eval(&(model_dir.to_owned() + "/best"), false)?;
-//         Ok(())
-//     }
-// }
+    use super::{eval, train};
+    use anyhow::Result;
+    use tempdir::TempDir;
+
+    #[test]
+    fn test_dqn_cartpole() -> Result<()> {
+        let tmp_dir = TempDir::new("dqn_cartpole")?;
+        let model_dir = match tmp_dir.as_ref().to_str() {
+            Some(s) => s,
+            None => panic!("Failed to get string of temporary directory"),
+        };
+        train(&create_matches(), 100, model_dir, 100)?;
+        eval(&(model_dir.to_owned() + "/best"), false)?;
+        Ok(())
+    }
+}
