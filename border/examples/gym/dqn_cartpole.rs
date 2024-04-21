@@ -38,7 +38,7 @@ const EVAL_INTERVAL: usize = 1000;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const CRITIC_LOSS: CriticLoss = CriticLoss::Mse;
-const MODEL_DIR: &str = "./border/examples/model/dqn_cartpole";
+const MODEL_DIR: &str = "./border/examples/gym/model/candle/dqn_cartpole";
 
 type PyObsDtype = f32;
 
@@ -273,7 +273,7 @@ fn create_recorder(
     match matches.is_present("mlflow") {
         true => {
             let client =
-                MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Default")?;
+                MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Gym")?;
             let recorder_run = client.create_recorder("")?;
             recorder_run.log_params(&config)?;
             recorder_run.set_tag("env", "cartpole")?;

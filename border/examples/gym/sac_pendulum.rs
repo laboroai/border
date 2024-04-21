@@ -332,13 +332,13 @@ fn main() -> Result<()> {
     if do_train {
         train(
             MAX_OPTS,
-            "./border/examples/gym/model/sac_pendulum",
+            "./border/examples/gym/model/candle/sac_pendulum",
             EVAL_INTERVAL,
             mlflow,
         )?;
     }
     if do_eval {
-        eval(5, true, "./border/examples/gym/model/sac_pendulum/best")?;
+        eval(5, true, "./border/examples/gym/model/candle/sac_pendulum/best")?;
     }
 
     Ok(())

@@ -23,16 +23,19 @@ border-core = { version = "0.0.6", path = "../border-core" }
 
 [[example]]
 name = "dqn_cartpole"
+path = "examples/gym/dqn_cartpole.rs"
 required-features = ["candle-core"]
 test = false
 
 [[example]]
 name = "dqn_cartpole_tch"
+path = "examples/gym/dqn_cartpole_tch.rs"
 required-features = ["tch"]
 test = true
 
 [[example]]
 name = "iqn_cartpole"
+path = "examples/gym/iqn_cartpole.rs"
 required-features = ["tch"]
 test = true
 
@@ -50,6 +53,7 @@ test = true
 
 [[example]]
 name = "sac_lunarlander_cont"
+path = "examples/gym/sac_lunarlander_cont.rs"
 required-features = ["tch"]
 test = false
 

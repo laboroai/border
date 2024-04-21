@@ -1,7 +1,6 @@
 use anyhow::Result;
 use border_core::{
-    record::Record,
-    record::Recorder,
+    record::{AggregateRecorder, Record},
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
@@ -33,13 +32,13 @@ const DIM_ACT: i64 = 2;
 const LR_ACTOR: f64 = 3e-4;
 const LR_CRITIC: f64 = 3e-4;
 const BATCH_SIZE: usize = 128;
-const N_TRANSITIONS_WARMUP: usize = 1000;
+const WARMUP_PERIOD: usize = 1000;
 const OPT_INTERVAL: usize = 1;
 const MAX_OPTS: usize = 200_000;
 const EVAL_INTERVAL: usize = 10_000;
 const REPLAY_BUFFER_CAPACITY: usize = 100_000;
 const N_EPISODES_PER_EVAL: usize = 5;
-const MODEL_DIR: &str = "./border/examples/model/sac_lunarlander_cont";
+const MODEL_DIR: &str = "./border/examples/gym/model/tch/sac_lunarlander_cont";
 
 type PyObsDtype = f32;
 
@@ -164,7 +163,6 @@ fn create_agent(in_dim: i64, out_dim: i64) -> Sac<Env, Mlp, Mlp2, ReplayBuffer> 
         .q_config(MlpConfig::new(in_dim + out_dim, vec![64, 64], 1, false));
     let sac_config = SacConfig::default()
         .batch_size(BATCH_SIZE)
-        .min_transitions_warmup(N_TRANSITIONS_WARMUP)
         .actor_config(actor_config)
         .critic_config(critic_config)
         .device(device);
@@ -182,13 +180,16 @@ fn create_recorder(
     model_dir: &str,
     mlflow: bool,
     config: &TrainerConfig,
-) -> Result<Box<dyn Recorder>> {
+) -> Result<Box<dyn AggregateRecorder>> {
     match mlflow {
         true => {
             let client =
-                MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Default")?;
+                MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Gym")?;
             let recorder_run = client.create_recorder("")?;
             recorder_run.log_params(&config)?;
+            recorder_run.set_tag("env", "lunarlander")?;
+            recorder_run.set_tag("algo", "sac")?;
+            recorder_run.set_tag("backend", "tch")?;
             Ok(Box::new(recorder_run))
         }
         false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
@@ -205,9 +206,12 @@ fn train(max_opts: usize, model_dir: &str, mlflow: bool) -> Result<()> {
             .max_opts(max_opts)
             .opt_interval(OPT_INTERVAL)
             .eval_interval(EVAL_INTERVAL)
-            .record_interval(EVAL_INTERVAL)
+            .record_agent_info_interval(EVAL_INTERVAL)
+            .record_compute_cost_interval(EVAL_INTERVAL)
+            .flush_record_interval(EVAL_INTERVAL)
             .save_interval(EVAL_INTERVAL)
-            .model_dir(model_dir);
+            .warmup_period(WARMUP_PERIOD)
+        .model_dir(model_dir);
         let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
             config.clone(),
             env_config,
