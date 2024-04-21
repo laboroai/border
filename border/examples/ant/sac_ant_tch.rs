@@ -202,7 +202,7 @@ mod utils {
                 let recorder_run = client.create_recorder("")?;
                 recorder_run.log_params(&config)?;
                 recorder_run.set_tag("env", "ant")?;
-                recorder_run.set_tag("algo", "dqn")?;
+                recorder_run.set_tag("algo", "sac")?;
                 recorder_run.set_tag("backend", "tch")?;
                 Ok(Box::new(recorder_run))
             }
