@@ -41,7 +41,6 @@ where
     pub train: bool,
     pub critic_loss: CriticLoss,
     pub reward_scale: f32,
-    pub replay_burffer_capacity: usize,
     pub n_critics: usize,
     pub seed: Option<i64>,
     pub device: Option<Device>,
@@ -69,7 +68,6 @@ where
             train: self.train.clone(),
             critic_loss: self.critic_loss.clone(),
             reward_scale: self.reward_scale.clone(),
-            replay_burffer_capacity: self.replay_burffer_capacity.clone(),
             n_critics: self.n_critics.clone(),
             seed: self.seed.clone(),
             device: self.device.clone(),
@@ -99,7 +97,6 @@ where
             train: false,
             critic_loss: CriticLoss::Mse,
             reward_scale: 1.0,
-            replay_burffer_capacity: 100,
             n_critics: 1,
             seed: None,
             device: None,
@@ -141,12 +138,6 @@ where
     /// SAC-alpha.
     pub fn ent_coef_mode(mut self, v: EntCoefMode) -> Self {
         self.ent_coef_mode = v;
-        self
-    }
-
-    /// Replay buffer capacity.
-    pub fn replay_burffer_capacity(mut self, v: usize) -> Self {
-        self.replay_burffer_capacity = v;
         self
     }
 
