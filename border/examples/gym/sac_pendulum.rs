@@ -338,7 +338,11 @@ fn main() -> Result<()> {
         )?;
     }
     if do_eval {
-        eval(5, true, "./border/examples/gym/model/candle/sac_pendulum/best")?;
+        eval(
+            5,
+            true,
+            "./border/examples/gym/model/candle/sac_pendulum/best",
+        )?;
     }
 
     Ok(())

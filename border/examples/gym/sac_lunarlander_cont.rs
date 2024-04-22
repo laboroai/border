@@ -40,10 +40,10 @@ const REPLAY_BUFFER_CAPACITY: usize = 100_000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const MODEL_DIR: &str = "./border/examples/gym/model/tch/sac_lunarlander_cont";
 
-type PyObsDtype = f32;
-
-mod obs {
+mod obs_act_types {
     use super::*;
+
+    type PyObsDtype = f32;
 
     #[derive(Clone, Debug)]
     pub struct Obs(ArrayD<f32>);
@@ -79,10 +79,6 @@ mod obs {
             Self(TensorSubBatch::from_tensor(tensor))
         }
     }
-}
-
-mod act {
-    use super::*;
 
     #[derive(Clone, Debug)]
     pub struct Act(ArrayD<f32>);
@@ -117,17 +113,66 @@ mod act {
             Self(TensorSubBatch::from_tensor(tensor))
         }
     }
+
+    pub type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
+    pub type ActFilter = ContinuousActFilter<Act>;
+    pub type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
+    pub type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
+    pub type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
+    pub type Evaluator = DefaultEvaluator<Env, Sac<Env, Mlp, Mlp2, ReplayBuffer>>;
 }
 
-use act::{Act, ActBatch};
-use obs::{Obs, ObsBatch};
+use obs_act_types::*;
 
-type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
-type ActFilter = ContinuousActFilter<Act>;
-type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
-type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
-type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
-type Evaluator = DefaultEvaluator<Env, Sac<Env, Mlp, Mlp2, ReplayBuffer>>;
+mod config {
+    use serde::Serialize;
+
+    use super::*;
+
+    #[derive(Serialize)]
+    pub struct SacLunarLanderConfig {
+        pub trainer_config: TrainerConfig,
+        pub replay_buffer_config: SimpleReplayBufferConfig,
+        pub agent_config: SacConfig<Mlp, Mlp2>,
+    }
+
+    pub fn env_config() -> GymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
+        GymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
+            .name("LunarLanderContinuous-v2".to_string())
+            .obs_filter_config(ObsFilter::default_config())
+            .act_filter_config(ActFilter::default_config())
+    }
+
+    pub fn trainer_config(max_opts: usize, eval_interval: usize) -> TrainerConfig {
+        TrainerConfig::default()
+            .max_opts(max_opts)
+            .opt_interval(OPT_INTERVAL)
+            .eval_interval(eval_interval)
+            .record_agent_info_interval(EVAL_INTERVAL)
+            .record_compute_cost_interval(EVAL_INTERVAL)
+            .flush_record_interval(EVAL_INTERVAL)
+            .save_interval(EVAL_INTERVAL)
+            .warmup_period(WARMUP_PERIOD)
+            .model_dir(MODEL_DIR)
+    }
+
+    pub fn agent_config(in_dim: i64, out_dim: i64) -> SacConfig<Mlp, Mlp2> {
+        let device = tch::Device::cuda_if_available();
+        let actor_config = ActorConfig::default()
+            .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
+            .out_dim(out_dim)
+            .pi_config(MlpConfig::new(in_dim, vec![64, 64], out_dim, false));
+        let critic_config = CriticConfig::default()
+            .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
+            .q_config(MlpConfig::new(in_dim + out_dim, vec![64, 64], 1, false));
+
+        SacConfig::default()
+            .batch_size(BATCH_SIZE)
+            .actor_config(actor_config)
+            .critic_config(critic_config)
+            .device(device)
+    }
+}
 
 #[derive(Debug, Serialize)]
 struct LunarlanderRecord {
@@ -152,87 +197,93 @@ impl TryFrom<&Record> for LunarlanderRecord {
     }
 }
 
-fn create_agent(in_dim: i64, out_dim: i64) -> Sac<Env, Mlp, Mlp2, ReplayBuffer> {
-    let device = tch::Device::cuda_if_available();
-    let actor_config = ActorConfig::default()
-        .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
-        .out_dim(out_dim)
-        .pi_config(MlpConfig::new(in_dim, vec![64, 64], out_dim, false));
-    let critic_config = CriticConfig::default()
-        .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
-        .q_config(MlpConfig::new(in_dim + out_dim, vec![64, 64], 1, false));
-    let sac_config = SacConfig::default()
-        .batch_size(BATCH_SIZE)
-        .actor_config(actor_config)
-        .critic_config(critic_config)
-        .device(device);
-    Sac::build(sac_config)
-}
+mod utils {
+    use super::*;
 
-fn env_config() -> GymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
-    GymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
-        .name("LunarLanderContinuous-v2".to_string())
-        .obs_filter_config(ObsFilter::default_config())
-        .act_filter_config(ActFilter::default_config())
-}
-
-fn create_recorder(
-    model_dir: &str,
-    mlflow: bool,
-    config: &TrainerConfig,
-) -> Result<Box<dyn AggregateRecorder>> {
-    match mlflow {
-        true => {
-            let client =
-                MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Gym")?;
-            let recorder_run = client.create_recorder("")?;
-            recorder_run.log_params(&config)?;
-            recorder_run.set_tag("env", "lunarlander")?;
-            recorder_run.set_tag("algo", "sac")?;
-            recorder_run.set_tag("backend", "tch")?;
-            Ok(Box::new(recorder_run))
+    pub fn create_recorder(
+        matches: &ArgMatches,
+        config: &config::SacLunarLanderConfig,
+    ) -> Result<Box<dyn AggregateRecorder>> {
+        match matches.is_present("mlflow") {
+            true => {
+                let client =
+                    MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Gym")?;
+                let recorder_run = client.create_recorder("")?;
+                recorder_run.log_params(&config)?;
+                recorder_run.set_tag("env", "lunarlander")?;
+                recorder_run.set_tag("algo", "sac")?;
+                recorder_run.set_tag("backend", "tch")?;
+                Ok(Box::new(recorder_run))
+            }
+            false => Ok(Box::new(TensorboardRecorder::new(MODEL_DIR))),
         }
-        false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
+    }
+
+    pub fn create_matches<'a>() -> ArgMatches<'a> {
+        App::new("sac_lunarlander_cont")
+            .version("0.1.0")
+            .author("Taku Yoshioka <yoshioka@laboro.ai>")
+            .arg(
+                Arg::with_name("train")
+                    .long("train")
+                    .takes_value(false)
+                    .help("Do training only"),
+            )
+            .arg(
+                Arg::with_name("eval")
+                    .long("eval")
+                    .takes_value(false)
+                    .help("Do evaluation only"),
+            )
+            .arg(
+                Arg::with_name("mlflow")
+                    .long("mlflow")
+                    .takes_value(false)
+                    .help("User mlflow tracking"),
+            )
+            .get_matches()
     }
 }
 
-fn train(max_opts: usize, model_dir: &str, mlflow: bool) -> Result<()> {
+fn train(matches: ArgMatches, max_opts: usize) -> Result<()> {
     let (mut trainer, config) = {
-        let env_config = env_config();
+        // Configs
+        let env_config = config::env_config();
         let step_proc_config = SimpleStepProcessorConfig {};
         let replay_buffer_config =
             SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
-        let config = TrainerConfig::default()
-            .max_opts(max_opts)
-            .opt_interval(OPT_INTERVAL)
-            .eval_interval(EVAL_INTERVAL)
-            .record_agent_info_interval(EVAL_INTERVAL)
-            .record_compute_cost_interval(EVAL_INTERVAL)
-            .flush_record_interval(EVAL_INTERVAL)
-            .save_interval(EVAL_INTERVAL)
-            .warmup_period(WARMUP_PERIOD)
-        .model_dir(model_dir);
+        let trainer_config = config::trainer_config(max_opts, EVAL_INTERVAL);
+        let agent_config = config::agent_config(DIM_OBS, DIM_ACT);
+
         let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
-            config.clone(),
+            trainer_config.clone(),
             env_config,
             step_proc_config,
-            replay_buffer_config,
+            replay_buffer_config.clone(),
         );
+
+        // For logging
+        let config = config::SacLunarLanderConfig {
+            agent_config,
+            replay_buffer_config,
+            trainer_config,
+        };
 
         (trainer, config)
     };
-    let mut agent = create_agent(DIM_OBS, DIM_ACT);
-    let mut recorder = create_recorder(model_dir, mlflow, &config)?;
-    let mut evaluator = Evaluator::new(&env_config(), 0, N_EPISODES_PER_EVAL)?;
+    let mut recorder = utils::create_recorder(&matches, &config)?;
+    let mut agent = Sac::build(config.agent_config);
+    let mut evaluator = Evaluator::new(&config::env_config(), 0, N_EPISODES_PER_EVAL)?;
 
     trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
 
     Ok(())
 }
 
-fn eval(model_dir: &str, render: bool) -> Result<()> {
+fn eval(render: bool) -> Result<()> {
+    let model_dir = MODEL_DIR.to_owned() + "/best";
     let env_config = {
-        let mut env_config = env_config();
+        let mut env_config = config::env_config();
         if render {
             env_config = env_config
                 .render_mode(Some("human".to_string()))
@@ -241,68 +292,27 @@ fn eval(model_dir: &str, render: bool) -> Result<()> {
         env_config
     };
     let mut agent = {
-        let mut agent = create_agent(DIM_OBS, DIM_ACT);
+        let mut agent = Sac::build(config::agent_config(DIM_OBS, DIM_ACT));
         agent.load(model_dir)?;
         agent.eval();
         agent
     };
-    // let mut recorder = BufferedRecorder::new();
 
     let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut agent);
 
-    // // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
-    // let mut wtr = WriterBuilder::new()
-    //     .has_headers(false)
-    //     .from_writer(File::create(model_dir.to_string() + "/eval.csv")?);
-    // for record in recorder.iter() {
-    //     wtr.serialize(LunarlanderRecord::try_from(record)?)?;
-    // }
-
     Ok(())
-}
-
-fn create_matches<'a>() -> ArgMatches<'a> {
-    App::new("sac_lunarlander_cont")
-        .version("0.1.0")
-        .author("Taku Yoshioka <yoshioka@laboro.ai>")
-        .arg(
-            Arg::with_name("train")
-                .long("train")
-                .takes_value(false)
-                .help("Do training only"),
-        )
-        .arg(
-            Arg::with_name("eval")
-                .long("eval")
-                .takes_value(false)
-                .help("Do evaluation only"),
-        )
-        .arg(
-            Arg::with_name("mlflow")
-                .long("mlflow")
-                .takes_value(false)
-                .help("User mlflow tracking"),
-        )
-        .get_matches()
 }
 
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
 
-    let matches = create_matches();
-    let mlflow = matches.is_present("mlflow");
+    let matches = utils::create_matches();
 
-    let do_train = (matches.is_present("train") && !matches.is_present("eval"))
-        || (!matches.is_present("train") && !matches.is_present("eval"));
-    let do_eval = (!matches.is_present("train") && matches.is_present("eval"))
-        || (!matches.is_present("train") && !matches.is_present("eval"));
-
-    if do_train {
-        train(MAX_OPTS, MODEL_DIR, mlflow)?;
-    }
-    if do_eval {
-        eval(&(MODEL_DIR.to_owned() + "/best"), true)?;
+    if matches.is_present("eval") {
+        eval(true)?;
+    } else {
+        train(matches, MAX_OPTS)?;
     }
 
     Ok(())
