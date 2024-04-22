@@ -315,8 +315,11 @@ fn main() -> Result<()> {
 
     if matches.is_present("eval") {
         eval(true)?;
+    } else if matches.is_present("train") {
+        train(matches, MAX_OPTS)?;
     } else {
         train(matches, MAX_OPTS)?;
+        eval(true)?;
     }
 
     Ok(())

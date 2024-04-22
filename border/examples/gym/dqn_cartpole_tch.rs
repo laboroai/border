@@ -1,6 +1,6 @@
 use anyhow::Result;
 use border_core::{
-    record::{AggregateRecorder, Record},
+    record::AggregateRecorder,
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig, SubBatch,
@@ -42,9 +42,7 @@ const N_EPISODES_PER_EVAL: usize = 5;
 const CRITIC_LOSS: CriticLoss = CriticLoss::Mse;
 const MODEL_DIR: &str = "./border/examples/gym/model/tch/dqn_cartpole";
 
-type PyObsDtype = f32;
-
-mod obs {
+mod obs_act_types {
     use super::*;
 
     #[derive(Clone, Debug)]
@@ -101,10 +99,6 @@ mod obs {
             b.0.into()
         }
     }
-}
-
-mod act {
-    use super::*;
 
     #[derive(Clone, Debug)]
     pub struct Act(Vec<i32>);
@@ -156,43 +150,18 @@ mod act {
             act.0.into()
         }
     }
+
+    type PyObsDtype = f32;
+    pub type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
+    pub type ActFilter = DiscreteActFilter<Act>;
+    pub type EnvConfig = GymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
+    pub type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
+    pub type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
+    pub type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
+    pub type Evaluator = DefaultEvaluator<Env, Dqn<Env, Mlp, ReplayBuffer>>;
 }
 
-use act::{Act, ActBatch};
-use obs::{Obs, ObsBatch};
-
-type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
-type ActFilter = DiscreteActFilter<Act>;
-type EnvConfig = GymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
-type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
-type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
-type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
-type Evaluator = DefaultEvaluator<Env, Dqn<Env, Mlp, ReplayBuffer>>;
-
-#[derive(Debug, Serialize)]
-struct CartpoleRecord {
-    episode: usize,
-    step: usize,
-    reward: f32,
-    obs: Vec<f64>,
-}
-
-impl TryFrom<&Record> for CartpoleRecord {
-    type Error = anyhow::Error;
-
-    fn try_from(record: &Record) -> Result<Self> {
-        Ok(Self {
-            episode: record.get_scalar("episode")? as _,
-            step: record.get_scalar("step")? as _,
-            reward: record.get_scalar("reward")?,
-            obs: record
-                .get_array1("obs")?
-                .iter()
-                .map(|v| *v as f64)
-                .collect(),
-        })
-    }
-}
+use obs_act_types::*;
 
 mod config {
     use super::*;
@@ -210,12 +179,8 @@ mod config {
             out_dim: i64,
             max_opts: usize,
             model_dir: &str,
-            eval_interval: Option<usize>,
+            eval_interval: usize,
         ) -> Self {
-            let eval_interval = match eval_interval {
-                Some(eval_interval) => eval_interval,
-                None => EVAL_INTERVAL,
-            };
             let env_config = create_env_config();
             let agent_config = create_agent_config(in_dim, out_dim);
             let trainer_config = TrainerConfig::default()
@@ -264,27 +229,52 @@ mod config {
 
 use config::{create_agent_config, create_env_config, DqnCartpoleConfig};
 
-fn create_evaluator(env_config: &EnvConfig) -> Result<Evaluator> {
-    Evaluator::new(env_config, 0, N_EPISODES_PER_EVAL)
-}
+mod utils {
+    use super::*;
 
-fn create_recorder(
-    matches: &ArgMatches,
-    model_dir: &str,
-    config: &DqnCartpoleConfig,
-) -> Result<Box<dyn AggregateRecorder>> {
-    match matches.is_present("mlflow") {
-        true => {
-            let client =
-                MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Gym")?;
-            let recorder_run = client.create_recorder("")?;
-            recorder_run.log_params(&config)?;
-            recorder_run.set_tag("env", "cartpole")?;
-            recorder_run.set_tag("algo", "dqn")?;
-            recorder_run.set_tag("backend", "tch")?;
-            Ok(Box::new(recorder_run))
+    pub fn create_recorder(
+        matches: &ArgMatches,
+        model_dir: &str,
+        config: &DqnCartpoleConfig,
+    ) -> Result<Box<dyn AggregateRecorder>> {
+        match matches.is_present("mlflow") {
+            true => {
+                let client =
+                    MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Gym")?;
+                let recorder_run = client.create_recorder("")?;
+                recorder_run.log_params(&config)?;
+                recorder_run.set_tag("env", "cartpole")?;
+                recorder_run.set_tag("algo", "dqn")?;
+                recorder_run.set_tag("backend", "tch")?;
+                Ok(Box::new(recorder_run))
+            }
+            false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
         }
-        false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
+    }
+
+    pub fn create_matches<'a>() -> ArgMatches<'a> {
+        App::new("dqn_cartpole_tch")
+            .version("0.1.0")
+            .author("Taku Yoshioka <yoshioka@laboro.ai>")
+            .arg(
+                Arg::with_name("train")
+                    .long("train")
+                    .takes_value(false)
+                    .help("Do training only"),
+            )
+            .arg(
+                Arg::with_name("eval")
+                    .long("eval")
+                    .takes_value(false)
+                    .help("Do evaluation only"),
+            )
+            .arg(
+                Arg::with_name("mlflow")
+                    .long("mlflow")
+                    .takes_value(false)
+                    .help("User mlflow tracking"),
+            )
+            .get_matches()
     }
 }
 
@@ -292,10 +282,10 @@ fn train(
     matches: &ArgMatches,
     max_opts: usize,
     model_dir: &str,
-    eval_interval: Option<usize>,
+    eval_interval: usize,
 ) -> Result<()> {
     let config = DqnCartpoleConfig::new(DIM_OBS, DIM_ACT, max_opts, model_dir, eval_interval);
-    let mut recorder = create_recorder(&matches, model_dir, &config)?;
+    let mut recorder = utils::create_recorder(&matches, model_dir, &config)?;
     let mut trainer = {
         let step_proc_config = SimpleStepProcessorConfig {};
         let replay_buffer_config =
@@ -310,7 +300,7 @@ fn train(
     };
 
     let mut agent = Dqn::build(config.agent_config);
-    let mut evaluator = create_evaluator(&create_env_config())?;
+    let mut evaluator = Evaluator::new(&config.env_config, 0, N_EPISODES_PER_EVAL)?;
 
     trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
 
@@ -339,45 +329,18 @@ fn eval(model_dir: &str, render: bool) -> Result<()> {
     Ok(())
 }
 
-fn create_matches<'a>() -> ArgMatches<'a> {
-    App::new("dqn_cartpole_tch")
-        .version("0.1.0")
-        .author("Taku Yoshioka <yoshioka@laboro.ai>")
-        .arg(
-            Arg::with_name("train")
-                .long("train")
-                .takes_value(false)
-                .help("Do training only"),
-        )
-        .arg(
-            Arg::with_name("eval")
-                .long("eval")
-                .takes_value(false)
-                .help("Do evaluation only"),
-        )
-        .arg(
-            Arg::with_name("mlflow")
-                .long("mlflow")
-                .takes_value(false)
-                .help("User mlflow tracking"),
-        )
-        .get_matches()
-}
-
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
 
-    let matches = create_matches();
-    let do_train = (matches.is_present("train") && !matches.is_present("eval"))
-        || (!matches.is_present("train") && !matches.is_present("eval"));
-    let do_eval = (!matches.is_present("train") && matches.is_present("eval"))
-        || (!matches.is_present("train") && !matches.is_present("eval"));
+    let matches = utils::create_matches();
 
-    if do_train {
-        train(&matches, MAX_OPTS, MODEL_DIR, None)?;
-    }
-    if do_eval {
+    if matches.is_present("train") {
+        train(&matches, MAX_OPTS, MODEL_DIR, EVAL_INTERVAL)?;
+    } else if matches.is_present("eval") {
+        eval(&(MODEL_DIR.to_owned() + "/best"), true)?;
+    } else {
+        train(&matches, MAX_OPTS, MODEL_DIR, EVAL_INTERVAL)?;
         eval(&(MODEL_DIR.to_owned() + "/best"), true)?;
     }
 
@@ -386,7 +349,7 @@ fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use crate::create_matches;
+    use crate::utils::create_matches;
 
     use super::{eval, train};
     use anyhow::Result;
@@ -399,7 +362,7 @@ mod tests {
             Some(s) => s,
             None => panic!("Failed to get string of temporary directory"),
         };
-        train(&create_matches(), 100, model_dir, Some(100))?;
+        train(&create_matches(), 100, model_dir, 100)?;
         eval(&(model_dir.to_owned() + "/best"), false)?;
         Ok(())
     }
