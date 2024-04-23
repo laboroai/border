@@ -1,12 +1,13 @@
 use anyhow::Result;
 use border_core::{
-    record::{Record, Recorder},
+    record::AggregateRecorder,
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig, SubBatch,
     },
     Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
 };
+use border_mlflow_tracking::MlflowTrackingClient;
 use border_py_gym_env::{
     util::vec_to_tensor, ArrayObsFilter, DiscreteActFilter, GymActFilter, GymEnv, GymEnvConfig,
     GymObsFilter,
@@ -18,8 +19,6 @@ use border_tch_agent::{
 };
 use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg, ArgMatches};
-// use csv::WriterBuilder;
-use border_mlflow_tracking::MlflowTrackingClient;
 use ndarray::{ArrayD, IxDyn};
 use serde::Serialize;
 use std::convert::TryFrom;
@@ -32,23 +31,21 @@ const DIM_FEATURE: i64 = 256;
 const DIM_EMBED: i64 = 64;
 const DISCOUNT_FACTOR: f64 = 0.99;
 const BATCH_SIZE: usize = 64;
-const N_TRANSITIONS_WARMUP: usize = 100;
+const WARMUP_PERIOD: usize = 100;
 const N_UPDATES_PER_OPT: usize = 1;
-const TAU: f64 = 0.1; //0.005;
-const SOFT_UPDATE_INTERVAL: usize = 100;
-const OPT_INTERVAL: usize = 50;
-const MAX_OPTS: usize = 10000;
-const EVAL_INTERVAL: usize = 500;
+const TAU: f64 = 0.01;
+const SOFT_UPDATE_INTERVAL: usize = 1;
+const OPT_INTERVAL: usize = 1;
+const MAX_OPTS: usize = 30000;
+const EVAL_INTERVAL: usize = 1000;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const EPS_START: f64 = 1.0;
 const EPS_FINAL: f64 = 0.1;
 const FINAL_STEP: usize = MAX_OPTS;
-const MODEL_DIR: &str = "border/examples/model/iqn_cartpole";
+const MODEL_DIR: &str = "border/examples/gym/model/tch/iqn_cartpole";
 
-type PyObsDtype = f32;
-
-mod obs {
+mod obs_act_types {
     use super::*;
 
     #[derive(Clone, Debug)]
@@ -105,10 +102,6 @@ mod obs {
             b.0.into()
         }
     }
-}
-
-mod act {
-    use super::*;
 
     #[derive(Clone, Debug)]
     pub struct Act(Vec<i32>);
@@ -160,59 +153,67 @@ mod act {
             act.0.into()
         }
     }
+
+    type PyObsDtype = f32;
+    pub type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
+    pub type ActFilter = DiscreteActFilter<Act>;
+    pub type EnvConfig = GymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
+    pub type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
+    pub type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
+    pub type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
+    pub type Iqn = Iqn_<Env, Mlp, Mlp, ReplayBuffer>;
+    pub type Evaluator = DefaultEvaluator<Env, Iqn>;
 }
 
-use act::{Act, ActBatch};
-use obs::{Obs, ObsBatch};
+use obs_act_types::*;
 
-type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
-type ActFilter = DiscreteActFilter<Act>;
-type EnvConfig = GymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
-type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
-type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
-type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
-type Iqn = Iqn_<Env, Mlp, Mlp, ReplayBuffer>;
-type Evaluator = DefaultEvaluator<Env, Iqn>;
+mod config {
+    use super::*;
 
-#[derive(Debug, Serialize)]
-struct CartpoleRecord {
-    episode: usize,
-    step: usize,
-    reward: f32,
-    obs: Vec<f64>,
-}
-
-impl TryFrom<&Record> for CartpoleRecord {
-    type Error = anyhow::Error;
-
-    fn try_from(record: &Record) -> Result<Self> {
-        Ok(Self {
-            episode: record.get_scalar("episode")? as _,
-            step: record.get_scalar("step")? as _,
-            reward: record.get_scalar("reward")?,
-            obs: record
-                .get_array1("obs")?
-                .iter()
-                .map(|v| *v as f64)
-                .collect(),
-        })
+    #[derive(Serialize)]
+    pub struct IqnCartpoleConfig {
+        pub env_config: EnvConfig,
+        pub agent_config: IqnConfig<Mlp, Mlp>,
+        pub trainer_config: TrainerConfig,
     }
-}
 
-fn env_config() -> EnvConfig {
-    GymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
-        .name("CartPole-v0".to_string())
-        .obs_filter_config(ObsFilter::default_config())
-        .act_filter_config(ActFilter::default_config())
-}
+    impl IqnCartpoleConfig {
+        pub fn new(
+            in_dim: i64,
+            out_dim: i64,
+            max_opts: usize,
+            model_dir: &str,
+            eval_interval: usize,
+        ) -> Self {
+            let env_config = env_config();
+            let agent_config = agent_config(in_dim, out_dim);
+            let trainer_config = TrainerConfig::default()
+                .max_opts(max_opts)
+                .opt_interval(OPT_INTERVAL)
+                .eval_interval(eval_interval)
+                .record_agent_info_interval(EVAL_INTERVAL)
+                .record_compute_cost_interval(EVAL_INTERVAL)
+                .flush_record_interval(EVAL_INTERVAL)
+                .save_interval(EVAL_INTERVAL)
+                .warmup_period(WARMUP_PERIOD)
+                .model_dir(model_dir);
+            Self {
+                env_config,
+                agent_config,
+                trainer_config,
+            }
+        }
+    }
 
-fn create_evaluator(env_config: &EnvConfig) -> Result<Evaluator> {
-    Evaluator::new(env_config, 0, N_EPISODES_PER_EVAL)
-}
+    pub fn env_config() -> EnvConfig {
+        GymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
+            .name("CartPole-v0".to_string())
+            .obs_filter_config(ObsFilter::default_config())
+            .act_filter_config(ActFilter::default_config())
+    }
 
-fn create_agent(in_dim: i64, out_dim: i64) -> Iqn {
-    let device = tch::Device::cuda_if_available();
-    let config = {
+    pub fn agent_config(in_dim: i64, out_dim: i64) -> IqnConfig<Mlp, Mlp> {
+        let device = tch::Device::cuda_if_available();
         let opt_config = border_tch_agent::opt::OptimizerConfig::Adam { lr: LR_CRITIC };
         let f_config = MlpConfig::new(in_dim, vec![], DIM_FEATURE, false);
         let m_config = MlpConfig::new(DIM_FEATURE, vec![], out_dim, false);
@@ -225,7 +226,6 @@ fn create_agent(in_dim: i64, out_dim: i64) -> Iqn {
 
         IqnConfig::default()
             .n_updates_per_opt(N_UPDATES_PER_OPT)
-            .min_transitions_warmup(N_TRANSITIONS_WARMUP)
             .batch_size(BATCH_SIZE)
             .discount_factor(DISCOUNT_FACTOR)
             .tau(TAU)
@@ -233,53 +233,82 @@ fn create_agent(in_dim: i64, out_dim: i64) -> Iqn {
             .explorer(EpsilonGreedy::with_params(EPS_START, EPS_FINAL, FINAL_STEP))
             .soft_update_interval(SOFT_UPDATE_INTERVAL)
             .device(device)
-    };
-
-    Iqn::build(config)
-}
-
-fn create_recorder(
-    model_dir: &str,
-    mlflow: bool,
-    config: &TrainerConfig,
-) -> Result<Box<dyn Recorder>> {
-    match mlflow {
-        true => {
-            let client =
-                MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Default")?;
-            let recorder_run = client.create_recorder("")?;
-            recorder_run.log_params(&config)?;
-            Ok(Box::new(recorder_run))
-        }
-        false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
     }
 }
 
-fn train(max_opts: usize, model_dir: &str, eval_interval: usize, mlflow: bool) -> Result<()> {
-    let (mut trainer, config) = {
-        let env_config = env_config();
+mod utils {
+    use super::*;
+
+    pub fn create_recorder(
+        matches: &ArgMatches,
+        model_dir: &str,
+        config: &config::IqnCartpoleConfig,
+    ) -> Result<Box<dyn AggregateRecorder>> {
+        match matches.is_present("mlflow") {
+            true => {
+                let client =
+                    MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Gym")?;
+                let recorder_run = client.create_recorder("")?;
+                recorder_run.log_params(&config)?;
+                recorder_run.set_tag("env", "cartpole")?;
+                recorder_run.set_tag("algo", "iqn")?;
+                recorder_run.set_tag("backend", "tch")?;
+                Ok(Box::new(recorder_run))
+            }
+            false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
+        }
+    }
+
+    pub fn create_matches<'a>() -> ArgMatches<'a> {
+        App::new("iqn_cartpole")
+            .version("0.1.0")
+            .author("Taku Yoshioka <yoshioka@laboro.ai>")
+            .arg(
+                Arg::with_name("train")
+                    .long("train")
+                    .takes_value(false)
+                    .help("Do training only"),
+            )
+            .arg(
+                Arg::with_name("eval")
+                    .long("eval")
+                    .takes_value(false)
+                    .help("Do evaluation only"),
+            )
+            .arg(
+                Arg::with_name("mlflow")
+                    .long("mlflow")
+                    .takes_value(false)
+                    .help("User mlflow tracking"),
+            )
+            .get_matches()
+    }
+}
+
+fn train(
+    matches: &ArgMatches,
+    max_opts: usize,
+    model_dir: &str,
+    eval_interval: usize,
+) -> Result<()> {
+    let config =
+        config::IqnCartpoleConfig::new(DIM_OBS, DIM_ACT, max_opts, model_dir, eval_interval);
+    let mut recorder = utils::create_recorder(&matches, model_dir, &config)?;
+    let mut trainer = {
         let step_proc_config = SimpleStepProcessorConfig {};
         let replay_buffer_config =
             SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
-        let config = TrainerConfig::default()
-            .max_opts(max_opts)
-            .opt_interval(OPT_INTERVAL)
-            .eval_interval(eval_interval)
-            .record_interval(eval_interval)
-            .save_interval(eval_interval)
-            .model_dir(model_dir);
-        let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
-            config.clone(),
-            env_config,
+
+        Trainer::<Env, StepProc, ReplayBuffer>::build(
+            config.trainer_config.clone(),
+            config.env_config.clone(),
             step_proc_config,
             replay_buffer_config,
-        );
-
-        (trainer, config)
+        )
     };
-    let mut agent = create_agent(DIM_OBS, DIM_ACT);
-    let mut recorder = create_recorder(model_dir, mlflow, &config)?;
-    let mut evaluator = create_evaluator(&env_config())?;
+
+    let mut agent = Iqn::build(config.agent_config);
+    let mut evaluator = Evaluator::new(&config.env_config, 0, N_EPISODES_PER_EVAL)?;
 
     trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
 
@@ -288,7 +317,7 @@ fn train(max_opts: usize, model_dir: &str, eval_interval: usize, mlflow: bool) -
 
 fn eval(model_dir: &str, render: bool) -> Result<()> {
     let env_config = {
-        let mut env_config = env_config();
+        let mut env_config = config::env_config();
         if render {
             env_config = env_config
                 .render_mode(Some("human".to_string()))
@@ -297,7 +326,7 @@ fn eval(model_dir: &str, render: bool) -> Result<()> {
         env_config
     };
     let mut agent = {
-        let mut agent = create_agent(DIM_OBS, DIM_ACT);
+        let mut agent = Iqn::build(config::agent_config(DIM_OBS, DIM_ACT));
         agent.load(model_dir)?;
         agent.eval();
         agent
@@ -309,55 +338,41 @@ fn eval(model_dir: &str, render: bool) -> Result<()> {
     Ok(())
 }
 
-fn create_matches<'a>() -> ArgMatches<'a> {
-    App::new("iqn_cartpole")
-        .version("0.1.0")
-        .author("Taku Yoshioka <yoshioka@laboro.ai>")
-        .arg(
-            Arg::with_name("skip training")
-                .long("skip-training")
-                .takes_value(false)
-                .help("Skip training"),
-        )
-        .arg(
-            Arg::with_name("mlflow")
-                .long("mlflow")
-                .takes_value(false)
-                .help("User mlflow tracking"),
-        )
-        .get_matches()
-}
-
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
 
-    let matches = create_matches();
-    let mlflow = matches.is_present("mlflow");
+    let matches = utils::create_matches();
 
-    if !matches.is_present("skip training") {
-        train(MAX_OPTS, MODEL_DIR, EVAL_INTERVAL, mlflow)?;
+    if matches.is_present("train") {
+        train(&matches, MAX_OPTS, MODEL_DIR, EVAL_INTERVAL)?;
+    } else if matches.is_present("eval") {
+        eval(&(MODEL_DIR.to_owned() + "/best"), true)?;
+    } else {
+        train(&matches, MAX_OPTS, MODEL_DIR, EVAL_INTERVAL)?;
+        eval(&(MODEL_DIR.to_owned() + "/best"), true)?;
     }
-
-    eval(&(MODEL_DIR.to_owned() + "/best"), true)?;
 
     Ok(())
 }
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use crate::utils::create_matches;
+
+    use super::{eval, train};
+    use anyhow::Result;
     use tempdir::TempDir;
 
     #[test]
-    fn test_iqn_cartpole() -> Result<()> {
-        tch::manual_seed(42);
-
-        let model_dir = TempDir::new("sac_pendulum")?;
-        let model_dir = model_dir.path().to_str().unwrap();
-        train(100, model_dir, 100, false)?;
-        eval((model_dir.to_string() + "/best").as_str(), false)?;
-
+    fn test_dqn_cartpole() -> Result<()> {
+        let tmp_dir = TempDir::new("iqn_cartpole")?;
+        let model_dir = match tmp_dir.as_ref().to_str() {
+            Some(s) => s,
+            None => panic!("Failed to get string of temporary directory"),
+        };
+        train(&create_matches(), 100, model_dir, 100)?;
+        eval(&(model_dir.to_owned() + "/best"), false)?;
         Ok(())
     }
 }
