@@ -14,8 +14,8 @@ jobs:
       strategy:
         matrix:
           os: [ubuntu-latest, windows-latest, macOS-latest]
-          rust: [1.70.0]
-          python-version: [3.8]
+          rust: [1.76.0]
+          python-version: ["3.11"]
       steps:
         - uses: actions/checkout@v2
 
@@ -40,15 +40,19 @@ jobs:
         - if: matrix.os == 'ubuntu-latest'
           name: Install gym (Ubuntu)
           run: |
+            pip install --upgrade pip
+            pip install swig==4.2.1
             pip install mujoco==2.3.7
-            pip install gymnasium[box2d]==0.29.0
+            pip install gymnasium==0.29.1
             pip install gymnasium-robotics==1.2.2
             pip install pybullet==3.2.5
 
         - if: matrix.os != 'ubuntu-latest'
           name: Install gym (Windows/Mac)
           run: |
-            pip install gymnasium[box2d]==0.29.0
+            pip install --upgrade pip
+            pip install swig==4.2.1
+            pip install gymnasium==0.29.1
             pip install pybullet==3.2.5
 
         - if: matrix.os == 'ubuntu-latest'
@@ -83,7 +87,7 @@ jobs:
               libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev libsdl2-ttf-dev \
               libsdl2-dev libsdl-image1.2-dev
             cargo test --example dqn_cartpole_tch --features=tch
-            # cargo test --example iqn_cartpole --features=tch
+            cargo test --example iqn_cartpole_tch --features=tch
             cargo test --example sac_pendulum_tch --features=tch
             cargo test --example dqn_cartpole --features=candle-core
             cargo test --example sac_pendulum --features=candle-core

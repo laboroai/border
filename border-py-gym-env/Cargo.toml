@@ -38,7 +38,7 @@ test = true
 
 [[example]]
 name = "random_lunarlander_cont"
-test = true
+test = false # due to box2d installation issue in github action
 
 [[example]]
 name = "random_fetch_reach"
