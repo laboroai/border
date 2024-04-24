@@ -1,7 +1,7 @@
 //! Configuration of IQN agent.
 use super::{IqnModelConfig, IqnSample};
 use crate::{
-    iqn::{EpsilonGreedy, IqnExplorer},
+    iqn::{EpsilonGreedy, IqnExplorer, Softmax},
     model::SubModel,
     util::OutDim,
     Device,
@@ -55,11 +55,12 @@ where
             batch_size: 1,
             discount_factor: 0.99,
             tau: 0.005,
-            sample_percents_pred: IqnSample::Uniform64,
-            sample_percents_tgt: IqnSample::Uniform64,
-            sample_percents_act: IqnSample::Uniform32, // Const10,
+            sample_percents_pred: IqnSample::Uniform8,
+            sample_percents_tgt: IqnSample::Uniform8,
+            sample_percents_act: IqnSample::Const32,
             train: false,
-            explorer: IqnExplorer::EpsilonGreedy(EpsilonGreedy::default()),
+            explorer: IqnExplorer::Softmax(Softmax::new()),
+            // explorer: IqnExplorer::EpsilonGreedy(EpsilonGreedy::default()),
             device: None,
             phantom: PhantomData,
         }

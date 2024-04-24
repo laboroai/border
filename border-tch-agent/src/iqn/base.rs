@@ -240,10 +240,9 @@ where
         let batch_size = 1;
 
         let a = no_grad(|| {
-            let obs = obs.clone().into();
             let action_value = average(
                 batch_size,
-                &obs,
+                &obs.clone().into(),
                 &self.iqn,
                 &self.sample_percents_act,
                 self.device,
@@ -251,6 +250,7 @@ where
 
             if self.train {
                 match &mut self.explorer {
+                    IqnExplorer::Softmax(softmax) => softmax.action(&action_value),
                     IqnExplorer::EpsilonGreedy(egreedy) => egreedy.action(action_value),
                 }
             } else {

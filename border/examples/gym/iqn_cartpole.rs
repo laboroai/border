@@ -41,8 +41,8 @@ const EVAL_INTERVAL: usize = 1000;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const EPS_START: f64 = 1.0;
-const EPS_FINAL: f64 = 0.1;
-const FINAL_STEP: usize = MAX_OPTS;
+const EPS_FINAL: f64 = 0.02;
+const FINAL_STEP: usize = MAX_OPTS / 3;
 const MODEL_DIR: &str = "border/examples/gym/model/tch/iqn_cartpole";
 
 mod obs_act_types {
@@ -215,8 +215,8 @@ mod config {
     pub fn agent_config(in_dim: i64, out_dim: i64) -> IqnConfig<Mlp, Mlp> {
         let device = tch::Device::cuda_if_available();
         let opt_config = border_tch_agent::opt::OptimizerConfig::Adam { lr: LR_CRITIC };
-        let f_config = MlpConfig::new(in_dim, vec![], DIM_FEATURE, false);
-        let m_config = MlpConfig::new(DIM_FEATURE, vec![], out_dim, false);
+        let f_config = MlpConfig::new(in_dim, vec![256], DIM_FEATURE, true);
+        let m_config = MlpConfig::new(DIM_FEATURE, vec![256], out_dim, false);
         let model_config = IqnModelConfig::default()
             .feature_dim(DIM_FEATURE)
             .embed_dim(DIM_EMBED)
