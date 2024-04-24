@@ -260,7 +260,7 @@ mod utils {
     }
 
     pub fn create_matches<'a>() -> ArgMatches<'a> {
-        App::new("iqn_cartpole")
+        App::new("iqn_cartpole_tch")
             .version("0.1.0")
             .author("Taku Yoshioka <yoshioka@laboro.ai>")
             .arg(

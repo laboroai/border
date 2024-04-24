@@ -34,8 +34,8 @@ required-features = ["tch"]
 test = true
 
 [[example]]
-name = "iqn_cartpole"
-path = "examples/gym/iqn_cartpole.rs"
+name = "iqn_cartpole_tch"
+path = "examples/gym/iqn_cartpole_tch.rs"
 required-features = ["tch"]
 test = true
 
