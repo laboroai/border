@@ -12,7 +12,7 @@ pub trait Policy_<E: Env> {
 }
 
 /// A configurable policy.
-pub trait Policy<E: Env>: Policy_<E> {
+pub trait Policy<E: Env> {
     /// Configuration of the policy.
     type Config: Clone;
 
