@@ -7,7 +7,7 @@ use crate::{
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, Env, Policy, Policy_, ReplayBufferBase, StdBatchBase,
+    Agent, Configurable, Env, Policy, ReplayBufferBase, StdBatchBase,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use std::{convert::TryInto, fs, marker::PhantomData, path::Path};
@@ -185,7 +185,7 @@ where
     }
 }
 
-impl<E, Q, R> Policy_<E> for Dqn<E, Q, R>
+impl<E, Q, R> Policy<E> for Dqn<E, Q, R>
 where
     E: Env,
     Q: SubModel<Output = Tensor>,
@@ -226,7 +226,7 @@ where
     }
 }
 
-impl<E, Q, R> Policy<E> for Dqn<E, Q, R>
+impl<E, Q, R> Configurable<E> for Dqn<E, Q, R>
 where
     E: Env,
     Q: SubModel<Output = Tensor>,

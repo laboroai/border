@@ -1,7 +1,7 @@
 use crate::{
     Actor, ActorManagerConfig, ActorStat, PushedItemMessage, ReplayBufferProxyConfig, SyncModel,
 };
-use border_core::{Agent, Env, Policy, ReplayBufferBase, StepProcessor};
+use border_core::{Agent, Configurable, Env, ReplayBufferBase, StepProcessor};
 use crossbeam_channel::{bounded, /*unbounded,*/ Receiver, Sender};
 use log::info;
 use std::{
@@ -18,7 +18,7 @@ use std::{
 /// * From the [`Actor`]s for pushing sample batch to the `LearnerManager`.
 pub struct ActorManager<A, E, R, P>
 where
-    A: Agent<E, R> + Policy<E> + SyncModel,
+    A: Agent<E, R> + Configurable<E> + SyncModel,
     E: Env,
     P: StepProcessor<E>,
     R: ReplayBufferBase<PushedItem = P::Output>,
@@ -65,7 +65,7 @@ where
 
 impl<A, E, R, P> ActorManager<A, E, R, P>
 where
-    A: Agent<E, R> + Policy<E> + SyncModel,
+    A: Agent<E, R> + Configurable<E> + SyncModel,
     E: Env,
     P: StepProcessor<E>,
     R: ReplayBufferBase<PushedItem = P::Output> + Send + 'static,

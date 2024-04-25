@@ -2,7 +2,7 @@
 //! Utilities for interaction of agents and environments.
 use crate::{
     record::{RecordValue, Recorder},
-    Env, Policy_,
+    Env, Policy,
 };
 use anyhow::Result;
 
@@ -18,7 +18,7 @@ pub fn eval_with_recorder<E, P, R>(
 ) -> Result<Vec<f32>>
 where
     E: Env,
-    P: Policy_<E>,
+    P: Policy<E>,
     R: Recorder,
 {
     let mut rs = Vec::new();
@@ -72,7 +72,7 @@ pub fn eval_with_recorder2<E, P, R>(
 ) -> Result<(f32, <E as Env>::Obs)>
 where
     E: Env,
-    P: Policy_<E>,
+    P: Policy<E>,
     R: Recorder,
 {
     let mut r_total = 0.0;

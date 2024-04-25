@@ -7,7 +7,7 @@ use anyhow::Result;
 use border_core::{
     record::Record,
     replay_buffer::{SimpleReplayBuffer, SubBatch},
-    Agent as Agent_, Policy, Policy_, ReplayBufferBase,
+    Agent as Agent_, Configurable, Policy, ReplayBufferBase,
 };
 use std::ptr::copy;
 
@@ -145,13 +145,13 @@ pub struct RandomAgent {
     train: bool,
 }
 
-impl Policy_<Env> for RandomAgent {
+impl Policy<Env> for RandomAgent {
     fn sample(&mut self, _: &Obs) -> Act {
         fastrand::u8(..self.n_acts as u8).into()
     }
 }
 
-impl Policy<Env> for RandomAgent {
+impl Configurable<Env> for RandomAgent {
     type Config = RandomAgentConfig;
 
     fn build(config: Self::Config) -> Self {

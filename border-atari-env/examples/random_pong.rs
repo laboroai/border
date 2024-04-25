@@ -3,7 +3,7 @@ use border_atari_env::{
     BorderAtariAct, BorderAtariActRawFilter, BorderAtariEnv, BorderAtariEnvConfig, BorderAtariObs,
     BorderAtariObsRawFilter,
 };
-use border_core::{DefaultEvaluator, Env as _, Evaluator, Policy, Policy_};
+use border_core::{Configurable, DefaultEvaluator, Env as _, Evaluator, Policy};
 
 type Obs = BorderAtariObs;
 type Act = BorderAtariAct;
@@ -21,13 +21,13 @@ struct RandomPolicy {
     n_acts: usize,
 }
 
-impl Policy_<Env> for RandomPolicy {
+impl Policy<Env> for RandomPolicy {
     fn sample(&mut self, _: &Obs) -> Act {
         fastrand::u8(..self.n_acts as u8).into()
     }
 }
 
-impl Policy<Env> for RandomPolicy {
+impl Configurable<Env> for RandomPolicy {
     type Config = RandomPolicyConfig;
 
     fn build(config: Self::Config) -> Self {
