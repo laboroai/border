@@ -4,6 +4,7 @@ use crate::{
     util::OutDim,
 };
 use anyhow::{Context, Result};
+use border_core::record::Record;
 use candle_core::{DType, Device, Tensor};
 use candle_nn::{VarBuilder, VarMap};
 use log::info;
@@ -185,6 +186,10 @@ where
         self.varmap.load(&path)?;
         info!("Load dqnmodel from {:?}", path.as_ref());
         Ok(())
+    }
+
+    pub fn param_stats(&self) -> Record {
+        crate::util::param_stats(&self.varmap)
     }
 }
 

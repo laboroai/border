@@ -1,7 +1,7 @@
 use crate::{
     Actor, ActorManagerConfig, ActorStat, PushedItemMessage, ReplayBufferProxyConfig, SyncModel,
 };
-use border_core::{Agent, Env, ReplayBufferBase, StepProcessorBase};
+use border_core::{Agent, Env, ReplayBufferBase, StepProcessor};
 use crossbeam_channel::{bounded, /*unbounded,*/ Receiver, Sender};
 use log::info;
 use std::{
@@ -20,7 +20,7 @@ pub struct ActorManager<A, E, R, P>
 where
     A: Agent<E, R> + SyncModel,
     E: Env,
-    P: StepProcessorBase<E>,
+    P: StepProcessor<E>,
     R: ReplayBufferBase<PushedItem = P::Output>,
 {
     /// Configurations of [Agent]s.
@@ -67,7 +67,7 @@ impl<A, E, R, P> ActorManager<A, E, R, P>
 where
     A: Agent<E, R> + SyncModel,
     E: Env,
-    P: StepProcessorBase<E>,
+    P: StepProcessor<E>,
     R: ReplayBufferBase<PushedItem = P::Output> + Send + 'static,
     A::Config: Send + 'static,
     E::Config: Send + 'static,

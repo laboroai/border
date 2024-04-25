@@ -11,13 +11,13 @@ pub struct Mlp {
 
 impl Mlp {
     fn create_net(var_store: &nn::VarStore, config: &MlpConfig) -> nn::Sequential {
-        let p = &var_store.root();
+        let p = &(var_store.root() / "mlp");
         let mut seq = nn::seq();
         let mut in_dim = config.in_dim;
 
         for (i, &out_dim) in config.units.iter().enumerate() {
             seq = seq.add(nn::linear(
-                p / format!("{}{}", "cl", i + 1),
+                p / format!("{}{}", "ln", i),
                 in_dim,
                 out_dim,
                 Default::default(),
@@ -27,7 +27,7 @@ impl Mlp {
         }
 
         seq = seq.add(nn::linear(
-            p / format!("{}{}", "cl", config.units.len() + 1),
+            p / format!("{}{}", "ln", config.units.len()),
             in_dim,
             config.out_dim,
             Default::default(),
@@ -91,9 +91,9 @@ impl SubModel2 for Mlp {
         let units = &config.units;
         let in_dim = *units.last().unwrap_or(&config.in_dim);
         let out_dim = config.out_dim;
-        let p = &var_store.root();
-        let seq = mlp("cl", var_store, &config).add(nn::linear(
-            p / format!("cl{}", units.len() + 1),
+        let p = &(var_store.root() / "mlp");
+        let seq = mlp("ln", var_store, &config).add(nn::linear(
+            p / format!("ln{}", units.len()),
             in_dim,
             out_dim,
             Default::default(),

@@ -5,6 +5,7 @@ use crate::{
     util::OutDim,
 };
 use anyhow::Result;
+use border_core::record::Record;
 use log::{info, trace};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{marker::PhantomData, path::Path};
@@ -79,6 +80,10 @@ where
         let a = self.q.forward(&x);
         debug_assert_eq!(a.size().as_slice()[1], self.out_dim);
         a
+    }
+
+    pub fn param_stats(&self) -> Record {
+        crate::util::param_stats(&self.var_store)
     }
 }
 

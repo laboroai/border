@@ -1,50 +1,44 @@
 use anyhow::Result;
-use border::util::get_model_from_url;
 use border_core::{
+    record::{AggregateRecorder, Record, RecordValue},
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
     Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
-    record::Recorder,
 };
 use border_derive::SubBatch;
-use border_mlflow_tracking::MlflowTrackingClient;
 use border_py_gym_env::{
-    util::{arrayd_to_tensor, tensor_to_arrayd},
-    ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
+    util::{arrayd_to_pyobj, arrayd_to_tensor, tensor_to_arrayd},
+    ArrayObsFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
 use border_tch_agent::{
     mlp::{Mlp, Mlp2, MlpConfig},
     opt::OptimizerConfig,
-    sac::{ActorConfig, CriticConfig, EntCoefMode, Sac, SacConfig},
-    util::CriticLoss,
+    sac::{ActorConfig, CriticConfig, Sac, SacConfig},
     TensorSubBatch,
 };
 use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg, ArgMatches};
-use log::info;
+// use csv::WriterBuilder;
+use border_mlflow_tracking::MlflowTrackingClient;
 use ndarray::{ArrayD, IxDyn};
+use pyo3::PyObject;
+use serde::Serialize;
 use std::convert::TryFrom;
 use tch::Tensor;
 
-const DIM_OBS: i64 = 27;
-const DIM_ACT: i64 = 8;
+const DIM_OBS: i64 = 3;
+const DIM_ACT: i64 = 1;
 const LR_ACTOR: f64 = 3e-4;
 const LR_CRITIC: f64 = 3e-4;
-const BATCH_SIZE: usize = 256;
-const N_TRANSITIONS_WARMUP: usize = 10_000;
+const BATCH_SIZE: usize = 128;
+const WARMUP_PERIOD: usize = 1000;
 const OPT_INTERVAL: usize = 1;
-const MAX_OPTS: usize = 3_000_000;
-const EVAL_INTERVAL: usize = 10_000;
-const REPLAY_BUFFER_CAPACITY: usize = 300_000;
+const MAX_OPTS: usize = 40_000;
+const EVAL_INTERVAL: usize = 2_000;
+const REPLAY_BUFFER_CAPACITY: usize = 100_000;
 const N_EPISODES_PER_EVAL: usize = 5;
-const N_CRITICS: usize = 2;
-const TAU: f64 = 0.02;
-const TARGET_ENTROPY: f64 = -(DIM_ACT as f64);
-const LR_ENT_COEF: f64 = 3e-4;
-const CRITIC_LOSS: CriticLoss = CriticLoss::SmoothL1;
-const MODEL_DIR: &str = "./border/examples/model/sac_ant";
 
 type PyObsDtype = f32;
 
@@ -123,43 +117,92 @@ mod act {
             Self(TensorSubBatch::from_tensor(tensor))
         }
     }
+
+    // Custom activation filter
+    #[derive(Clone, Debug)]
+    pub struct ActFilter {}
+
+    impl GymActFilter<Act> for ActFilter {
+        type Config = ();
+
+        fn build(_config: &Self::Config) -> Result<Self>
+        where
+            Self: Sized,
+        {
+            Ok(Self {})
+        }
+
+        fn filt(&mut self, act: Act) -> (PyObject, Record) {
+            let act_filt = 2f32 * &act.0;
+            let record = Record::from_slice(&[
+                (
+                    "act_org",
+                    RecordValue::Array1(act.0.iter().cloned().collect()),
+                ),
+                (
+                    "act_filt",
+                    RecordValue::Array1(act_filt.iter().cloned().collect()),
+                ),
+            ]);
+            (arrayd_to_pyobj(act_filt), record)
+        }
+    }
 }
 
-use act::{Act, ActBatch};
+use act::{Act, ActBatch, ActFilter};
 use obs::{Obs, ObsBatch};
 
 type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
-type ActFilter = ContinuousActFilter<Act>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
 type Evaluator = DefaultEvaluator<Env, Sac<Env, Mlp, Mlp2, ReplayBuffer>>;
+
+#[derive(Debug, Serialize)]
+struct PendulumRecord {
+    episode: usize,
+    step: usize,
+    reward: f32,
+    obs: Vec<f32>,
+    act_org: Vec<f32>,
+    act_filt: Vec<f32>,
+}
+
+impl TryFrom<&Record> for PendulumRecord {
+    type Error = anyhow::Error;
+
+    fn try_from(record: &Record) -> Result<Self> {
+        Ok(Self {
+            episode: record.get_scalar("episode")? as _,
+            step: record.get_scalar("step")? as _,
+            reward: record.get_scalar("reward")?,
+            obs: record.get_array1("obs")?.to_vec(),
+            act_org: record.get_array1("act_org")?.to_vec(),
+            act_filt: record.get_array1("act_filt")?.to_vec(),
+        })
+    }
+}
 
 fn create_agent(in_dim: i64, out_dim: i64) -> Sac<Env, Mlp, Mlp2, ReplayBuffer> {
     let device = tch::Device::cuda_if_available();
     let actor_config = ActorConfig::default()
         .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
         .out_dim(out_dim)
-        .pi_config(MlpConfig::new(in_dim, vec![400, 300], out_dim, false));
+        .pi_config(MlpConfig::new(in_dim, vec![64, 64], out_dim, false));
     let critic_config = CriticConfig::default()
         .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
-        .q_config(MlpConfig::new(in_dim + out_dim, vec![400, 300], 1, false));
+        .q_config(MlpConfig::new(in_dim + out_dim, vec![64, 64], 1, false));
     let sac_config = SacConfig::default()
         .batch_size(BATCH_SIZE)
-        .min_transitions_warmup(N_TRANSITIONS_WARMUP)
         .actor_config(actor_config)
         .critic_config(critic_config)
-        .tau(TAU)
-        .critic_loss(CRITIC_LOSS)
-        .n_critics(N_CRITICS)
-        .ent_coef_mode(EntCoefMode::Auto(TARGET_ENTROPY, LR_ENT_COEF))
         .device(device);
     Sac::build(sac_config)
 }
 
 fn env_config() -> GymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
     GymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
-        .name("Ant-v4".to_string())
+        .name("Pendulum-v1".to_string())
         .obs_filter_config(ObsFilter::default_config())
         .act_filter_config(ActFilter::default_config())
 }
@@ -168,20 +211,23 @@ fn create_recorder(
     model_dir: &str,
     mlflow: bool,
     config: &TrainerConfig,
-) -> Result<Box<dyn Recorder>> {
+) -> Result<Box<dyn AggregateRecorder>> {
     match mlflow {
         true => {
             let client =
-                MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Default")?;
+                MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Gym")?;
             let recorder_run = client.create_recorder("")?;
             recorder_run.log_params(&config)?;
+            recorder_run.set_tag("env", "pendulum")?;
+            recorder_run.set_tag("algo", "sac")?;
+            recorder_run.set_tag("backend", "tch")?;
             Ok(Box::new(recorder_run))
         }
         false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
     }
 }
 
-fn train(max_opts: usize, model_dir: &str, mlflow: bool) -> Result<()> {
+fn train(max_opts: usize, model_dir: &str, eval_interval: usize, mlflow: bool) -> Result<()> {
     let (mut trainer, config) = {
         let env_config = env_config();
         let step_proc_config = SimpleStepProcessorConfig {};
@@ -190,9 +236,12 @@ fn train(max_opts: usize, model_dir: &str, mlflow: bool) -> Result<()> {
         let config = TrainerConfig::default()
             .max_opts(max_opts)
             .opt_interval(OPT_INTERVAL)
-            .eval_interval(EVAL_INTERVAL)
-            .record_interval(EVAL_INTERVAL)
+            .eval_interval(eval_interval)
+            .record_agent_info_interval(EVAL_INTERVAL)
+            .record_compute_cost_interval(EVAL_INTERVAL)
+            .flush_record_interval(EVAL_INTERVAL)
             .save_interval(EVAL_INTERVAL)
+            .warmup_period(WARMUP_PERIOD)
             .model_dir(model_dir);
         let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
             config.clone(),
@@ -212,13 +261,13 @@ fn train(max_opts: usize, model_dir: &str, mlflow: bool) -> Result<()> {
     Ok(())
 }
 
-fn eval(model_dir: &str, render: bool, wait: u64) -> Result<()> {
+fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
     let env_config = {
         let mut env_config = env_config();
         if render {
             env_config = env_config
                 .render_mode(Some("human".to_string()))
-                .set_wait_in_millis(wait);
+                .set_wait_in_millis(10);
         };
         env_config
     };
@@ -230,33 +279,34 @@ fn eval(model_dir: &str, render: bool, wait: u64) -> Result<()> {
     };
     // let mut recorder = BufferedRecorder::new();
 
-    let _ = Evaluator::new(&env_config, 0, N_EPISODES_PER_EVAL)?.evaluate(&mut agent);
+    let _ = Evaluator::new(&env_config, 0, n_episodes)?.evaluate(&mut agent);
+
+    // // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
+    // let mut wtr = WriterBuilder::new()
+    //     .has_headers(false)
+    //     .from_writer(File::create(model_dir.to_string() + "/eval.csv")?);
+    // for record in recorder.iter() {
+    //     wtr.serialize(PendulumRecord::try_from(record)?)?;
+    // }
 
     Ok(())
 }
 
 fn create_matches<'a>() -> ArgMatches<'a> {
-    App::new("sac_ant")
+    App::new("sac_pendulum_tch")
         .version("0.1.0")
         .author("Taku Yoshioka <yoshioka@laboro.ai>")
         .arg(
-            Arg::with_name("play")
-                .long("play")
-                .takes_value(true)
-                .help("Play with the trained model of the given path"),
-        )
-        .arg(
-            Arg::with_name("play-gdrive")
-                .long("play-gdrive")
+            Arg::with_name("train")
+                .long("train")
                 .takes_value(false)
-                .help("Play with the trained model downloaded from google drive"),
+                .help("Do training only"),
         )
         .arg(
-            Arg::with_name("wait")
-                .long("wait")
-                .takes_value(true)
-                .default_value("25")
-                .help("Waiting time in milliseconds between frames when playing"),
+            Arg::with_name("eval")
+                .long("eval")
+                .takes_value(false)
+                .help("Do evaluation only"),
         )
         .arg(
             Arg::with_name("mlflow")
@@ -270,31 +320,44 @@ fn create_matches<'a>() -> ArgMatches<'a> {
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
-    fastrand::seed(42);
 
     let matches = create_matches();
     let mlflow = matches.is_present("mlflow");
 
-    if !(matches.is_present("play") || matches.is_present("play-gdrive")) {
-        train(MAX_OPTS, MODEL_DIR, mlflow)?;
-    } else {
-        let model_dir = if matches.is_present("play") {
-            let model_dir = matches
-                .value_of("play")
-                .expect("Failed to parse model directory");
-            format!("{}{}", model_dir, "/best").to_owned()
-        } else {
-            let file_base = "sac_ant_20210324_ec2_smoothl1";
-            let url =
-                "https://drive.google.com/uc?export=download&id=1XvFi2nJD5OhpTvs-Et3YREuoqy8c3Vkq";
-            let model_dir = get_model_from_url(url, file_base)?;
-            info!("Download the model in {:?}", model_dir.as_ref().to_str());
-            model_dir.as_ref().to_str().unwrap().to_string()
-        };
+    let do_train = (matches.is_present("train") && !matches.is_present("eval"))
+        || (!matches.is_present("train") && !matches.is_present("eval"));
+    let do_eval = (!matches.is_present("train") && matches.is_present("eval"))
+        || (!matches.is_present("train") && !matches.is_present("eval"));
 
-        let wait = matches.value_of("wait").unwrap().parse().unwrap();
-        eval(model_dir.as_str(), true, wait)?;
+    if do_train {
+        train(
+            MAX_OPTS,
+            "./border/examples/gym/model/tch/sac_pendulum",
+            EVAL_INTERVAL,
+            mlflow,
+        )?;
+    }
+    if do_eval {
+        eval(5, true, "./border/examples/gym/model/tch/sac_pendulum/best")?;
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use tempdir::TempDir;
+
+    #[test]
+    fn test_sac_pendulum() -> Result<()> {
+        tch::manual_seed(42);
+
+        let model_dir = TempDir::new("sac_pendulum_tch")?;
+        let model_dir = model_dir.path().to_str().unwrap();
+        train(100, model_dir, 100, false)?;
+        eval(1, false, (model_dir.to_string() + "/best").as_str())?;
+
+        Ok(())
+    }
 }

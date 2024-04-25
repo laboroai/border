@@ -18,7 +18,7 @@ use std::{
     path::Path,
 };
 
-/// Constructs [Sac](super::Sac).
+/// Constructs [`Sac`](super::Sac).
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct SacConfig<Q, P>
@@ -37,12 +37,10 @@ where
     pub min_lstd: f64,
     pub max_lstd: f64,
     pub n_updates_per_opt: usize,
-    pub min_transitions_warmup: usize,
     pub batch_size: usize,
     pub train: bool,
     pub critic_loss: CriticLoss,
     pub reward_scale: f32,
-    pub replay_burffer_capacity: usize,
     pub n_critics: usize,
     pub seed: Option<i64>,
     pub device: Option<Device>,
@@ -66,12 +64,10 @@ where
             min_lstd: self.min_lstd.clone(),
             max_lstd: self.max_lstd.clone(),
             n_updates_per_opt: self.n_updates_per_opt.clone(),
-            min_transitions_warmup: self.min_transitions_warmup.clone(),
             batch_size: self.batch_size.clone(),
             train: self.train.clone(),
             critic_loss: self.critic_loss.clone(),
             reward_scale: self.reward_scale.clone(),
-            replay_burffer_capacity: self.replay_burffer_capacity.clone(),
             n_critics: self.n_critics.clone(),
             seed: self.seed.clone(),
             device: self.device.clone(),
@@ -97,12 +93,10 @@ where
             min_lstd: -20.0,
             max_lstd: 2.0,
             n_updates_per_opt: 1,
-            min_transitions_warmup: 1,
             batch_size: 1,
             train: false,
             critic_loss: CriticLoss::Mse,
             reward_scale: 1.0,
-            replay_burffer_capacity: 100,
             n_critics: 1,
             seed: None,
             device: None,
@@ -120,12 +114,6 @@ where
     /// Sets the numper of parameter update steps per optimization step.
     pub fn n_updates_per_opt(mut self, v: usize) -> Self {
         self.n_updates_per_opt = v;
-        self
-    }
-
-    /// Interval before starting optimization.
-    pub fn min_transitions_warmup(mut self, v: usize) -> Self {
-        self.min_transitions_warmup = v;
         self
     }
 
@@ -150,12 +138,6 @@ where
     /// SAC-alpha.
     pub fn ent_coef_mode(mut self, v: EntCoefMode) -> Self {
         self.ent_coef_mode = v;
-        self
-    }
-
-    /// Replay buffer capacity.
-    pub fn replay_burffer_capacity(mut self, v: usize) -> Self {
-        self.replay_burffer_capacity = v;
         self
     }
 
@@ -203,7 +185,7 @@ where
         self
     }
 
-    /// Constructs [SacConfig] from YAML file.
+    /// Constructs [`SacConfig`] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let path_ = path.as_ref().to_owned();
         let file = File::open(path)?;
@@ -213,7 +195,7 @@ where
         Ok(b)
     }
 
-    /// Saves [SacConfig].
+    /// Saves [`SacConfig`].
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let path_ = path.as_ref().to_owned();
         let mut file = File::create(path)?;

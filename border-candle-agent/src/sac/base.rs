@@ -1,7 +1,7 @@
 use super::{Actor, Critic, EntCoef, SacConfig};
 use crate::{
     model::{SubModel1, SubModel2},
-    util::{track, CriticLoss, OutDim},
+    util::{smooth_l1_loss, track, CriticLoss, OutDim},
 };
 use anyhow::Result;
 use border_core::{
@@ -50,7 +50,6 @@ where
     pub(super) min_lstd: f64,
     pub(super) max_lstd: f64,
     pub(super) n_updates_per_opt: usize,
-    pub(super) min_transitions_warmup: usize,
     pub(super) batch_size: usize,
     pub(super) train: bool,
     pub(super) reward_scale: f32,
@@ -131,7 +130,8 @@ where
                     (next_q - self.ent_coef.alpha()?.broadcast_mul(&next_log_p))?
                 };
                 ((self.reward_scale as f64) * reward)? + (1f64 - &is_done)? * self.gamma * next_q
-            }?.detach();
+            }?
+            .detach();
 
             debug_assert_eq!(tgt.dims(), [self.batch_size]);
 
@@ -140,13 +140,10 @@ where
                     .iter()
                     .map(|pred| mse(&pred.squeeze(D::Minus1).unwrap(), &tgt).unwrap())
                     .collect(),
-                CriticLoss::SmoothL1 => {
-                    panic!();
-                    // preds
-                    // .iter()
-                    // .map(|pred| pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0))
-                    // .collect(),
-                }
+                CriticLoss::SmoothL1 => preds
+                    .iter()
+                    .map(|pred| smooth_l1_loss(&pred, &tgt).unwrap())
+                    .collect(),
             };
             losses
         };
@@ -168,11 +165,11 @@ where
             let (a, log_p) = self.action_logp(&o.into())?;
 
             // Update the entropy coefficient
-            self.ent_coef.update(&log_p)?;
+            self.ent_coef.update(&log_p.detach())?;
 
             let o = batch.obs().clone();
             let qval = self.qvals_min(&self.qnets, &o.into(), &a.into())?;
-            ((self.ent_coef.alpha()?.broadcast_mul(&log_p))? - &qval)?.mean_all()?
+            ((self.ent_coef.alpha()?.detach().broadcast_mul(&log_p))? - &qval)?.mean_all()?
         };
 
         self.pi.backward_step(&loss)?;
@@ -240,7 +237,7 @@ where
 {
     type Config = SacConfig<Q, P>;
 
-    /// Constructs [Sac] agent.
+    /// Constructs [`Sac`] agent.
     fn build(config: Self::Config) -> Self {
         let device = config.device.expect("No device is given for SAC agent");
         let n_critics = config.n_critics;
@@ -268,7 +265,6 @@ where
             min_lstd: config.min_lstd,
             max_lstd: config.max_lstd,
             n_updates_per_opt: config.n_updates_per_opt,
-            min_transitions_warmup: config.min_transitions_warmup,
             batch_size: config.batch_size,
             train: config.train,
             reward_scale: config.reward_scale,
@@ -323,12 +319,8 @@ where
         self.train
     }
 
-    fn opt(&mut self, buffer: &mut R) -> Option<Record> {
-        if buffer.len() >= self.min_transitions_warmup {
-            Some(self.opt_(buffer).expect("Failed in Sac::opt_()"))
-        } else {
-            None
-        }
+    fn opt_with_record(&mut self, buffer: &mut R) -> Record {
+        self.opt_(buffer).expect("Failed in Sac::opt_()")
     }
 
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<()> {

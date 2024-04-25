@@ -1,9 +1,9 @@
-//! A generic implementation of [StepProcessorBase](crate::StepProcessorBase).
+//! A generic implementation of [`StepProcessor`](crate::StepProcessor).
 use super::{StdBatch, SubBatch};
-use crate::{Env, Obs, StepProcessorBase};
+use crate::{Env, Obs, StepProcessor};
 use std::{default::Default, marker::PhantomData};
 
-/// Configuration of [SimpleStepProcessor].
+/// Configuration of [`SimpleStepProcessor`].
 #[derive(Clone, Debug)]
 pub struct SimpleStepProcessorConfig {}
 
@@ -13,7 +13,7 @@ impl Default for SimpleStepProcessorConfig {
     }
 }
 
-/// A generic implementation of [StepProcessorBase](crate::StepProcessorBase).
+/// A generic implementation of [`StepProcessor`](crate::StepProcessor).
 ///
 /// It supports 1-step TD backup for non-vectorized environment:
 /// `E::Obs.len()` must be 1.
@@ -22,7 +22,7 @@ pub struct SimpleStepProcessor<E, O, A> {
     phantom: PhantomData<(E, A)>,
 }
 
-impl<E, O, A> StepProcessorBase<E> for SimpleStepProcessor<E, O, A>
+impl<E, O, A> StepProcessor<E> for SimpleStepProcessor<E, O, A>
 where
     E: Env,
     O: SubBatch + From<E::Obs>,

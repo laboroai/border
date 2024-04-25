@@ -1,14 +1,16 @@
 //! Train [`Agent`](crate::Agent).
 mod config;
 mod sampler;
+use std::time::{Duration, SystemTime};
+
 use crate::{
-    record::{Record, Recorder},
-    Agent, Env, Evaluator, ReplayBufferBase, StepProcessorBase,
+    record::{AggregateRecorder, Record, RecordValue::Scalar},
+    Agent, Env, Evaluator, ReplayBufferBase, StepProcessor,
 };
 use anyhow::Result;
 pub use config::TrainerConfig;
 use log::info;
-pub use sampler::SyncSampler;
+pub use sampler::Sampler;
 
 #[cfg_attr(doc, aquamarine::aquamarine)]
 /// Manages training loop and related objects.
@@ -19,7 +21,7 @@ pub use sampler::SyncSampler;
 ///
 /// 0. Given an agent implementing [`Agent`]  and a recorder implementing [`Recorder`].
 /// 1. Initialize the objects used in the training loop, involving instances of [`Env`],
-///    [`StepProcessorBase`], [`SyncSampler`].
+///    [`StepProcessor`], [`Sampler`].
 ///    * Reset a counter of the environment steps: `env_steps = 0`
 ///    * Reset a counter of the optimization steps: `opt_steps = 0`
 ///    * Reset objects for computing optimization steps per sec (OSPS):
@@ -69,10 +71,10 @@ pub use sampler::SyncSampler;
 ///   referred to as an *environment step*.
 /// * Next, [`Step<E: Env>`] will be created with the next observation `o_t+1`,
 ///   reward `r_t`, and `a_t`.
-/// * The [`Step<E: Env>`] object will be processed by [`StepProcessorBase`] and
+/// * The [`Step<E: Env>`] object will be processed by [`StepProcessor`] and
 ///   creates [`ReplayBufferBase::PushedItem`], typically representing a transition
 ///   `(o_t, a_t, o_t+1, r_t)`, where `o_t` is kept in the
-///   [`StepProcessorBase`], while other items in the given [`Step<E: Env>`].
+///   [`StepProcessor`], while other items in the given [`Step<E: Env>`].
 /// * Finally, the transitions pushed to the [`ReplayBufferBase`] will be used to create
 ///   batches, each of which implementing [`BatchBase`]. These batches will be used in
 ///   *optimization step*s, where the agent updates its parameters using sampled
@@ -85,7 +87,7 @@ pub use sampler::SyncSampler;
 pub struct Trainer<E, P, R>
 where
     E: Env,
-    P: StepProcessorBase<E>,
+    P: StepProcessor<E>,
     R: ReplayBufferBase<PushedItem = P::Output>,
 {
     /// Configuration of the environment for training.
@@ -103,8 +105,14 @@ where
     /// Interval of optimization in environment steps.
     opt_interval: usize,
 
-    /// Interval of recording in optimization steps.
-    record_interval: usize,
+    /// Interval of recording computational cost in optimization steps.
+    record_compute_cost_interval: usize,
+
+    /// Interval of recording agent information in optimization steps.
+    record_agent_info_interval: usize,
+
+    /// Interval of flushing records in optimization steps.
+    flush_records_interval: usize,
 
     /// Interval of evaluation in optimization steps.
     eval_interval: usize,
@@ -114,12 +122,21 @@ where
 
     /// The maximal number of optimization steps.
     max_opts: usize,
+
+    /// Optimization steps for computing optimization steps per second.
+    opt_steps_for_ops: usize,
+
+    /// Timer for computing for optimization steps per second.
+    timer_for_ops: Duration,
+
+    /// Warmup period, for filling replay buffer, in environment steps
+    warmup_period: usize,
 }
 
 impl<E, P, R> Trainer<E, P, R>
 where
     E: Env,
-    P: StepProcessorBase<E>,
+    P: StepProcessor<E>,
     R: ReplayBufferBase<PushedItem = P::Output>,
 {
     /// Constructs a trainer.
@@ -135,10 +152,15 @@ where
             replay_buffer_config,
             model_dir: config.model_dir,
             opt_interval: config.opt_interval,
-            record_interval: config.record_interval,
+            record_compute_cost_interval: config.record_compute_cost_interval,
+            record_agent_info_interval: config.record_agent_info_interval,
+            flush_records_interval: config.flush_record_interval,
             eval_interval: config.eval_interval,
             save_interval: config.save_interval,
             max_opts: config.max_opts,
+            warmup_period: config.warmup_period,
+            opt_steps_for_ops: 0,
+            timer_for_ops: Duration::new(0, 0),
         }
     }
 
@@ -159,28 +181,60 @@ where
         Self::save_model(agent, model_dir);
     }
 
+    /// Returns optimization steps per second, then reset the internal counter.
+    fn opt_steps_per_sec(&mut self) -> f32 {
+        let osps = 1000. * self.opt_steps_for_ops as f32 / (self.timer_for_ops.as_millis() as f32);
+        self.opt_steps_for_ops = 0;
+        self.timer_for_ops = Duration::new(0, 0);
+        osps
+    }
+
     /// Performs a training step.
+    ///
+    /// First, it performes an environment step once and pushes a transition
+    /// into the given buffer with [`Sampler`]. Then, if the number of environment steps
+    /// reaches the optimization interval `opt_interval`, performes an optimization
+    /// step.
+    ///
+    /// The second return value in the tuple is if an optimization step is done (`true`).
     pub fn train_step<A: Agent<E, R>>(
-        &self,
+        &mut self,
         agent: &mut A,
         buffer: &mut R,
-        sampler: &mut SyncSampler<E, P>,
+        sampler: &mut Sampler<E, P>,
         env_steps: &mut usize,
-    ) -> Result<Option<Record>>
+        opt_steps: &mut usize,
+    ) -> Result<(Record, bool)>
     where
         A: Agent<E, R>,
     {
-        // Sample transition(s) and push it into the replay buffer
-        let record_ = sampler.sample_and_push(agent, buffer)?;
-
-        // Do optimization step
+        // Sample transition and push it into the replay buffer
+        let mut record = sampler.sample_and_push(agent, buffer)?;
         *env_steps += 1;
 
-        if *env_steps % self.opt_interval == 0 {
-            let record = agent.opt(buffer).map_or(None, |r| Some(record_.merge(r)));
-            Ok(record)
+        // Optimization step
+        if *env_steps < self.warmup_period {
+            Ok((record, false))
+        } else if *env_steps % self.opt_interval != 0 {
+            // skip optimization step
+            Ok((record, false))
+        } else if (*opt_steps + 1) % self.record_agent_info_interval == 0 {
+            // Do optimization step with record
+            let timer = SystemTime::now();
+            let record_agent = agent.opt_with_record(buffer);
+            *opt_steps += 1;
+            self.timer_for_ops += timer.elapsed()?;
+            self.opt_steps_for_ops += 1;
+            record = record.merge(record_agent);
+            Ok((record, true))
         } else {
-            Ok(None)
+            // Do optimization step without record
+            let timer = SystemTime::now();
+            agent.opt(buffer);
+            *opt_steps += 1;
+            self.timer_for_ops += timer.elapsed()?;
+            self.opt_steps_for_ops += 1;
+            Ok((record, true))
         }
     }
 
@@ -188,7 +242,7 @@ where
     pub fn train<A, D>(
         &mut self,
         agent: &mut A,
-        recorder: &mut Box<dyn Recorder>,
+        recorder: &mut Box<dyn AggregateRecorder>,
         evaluator: &mut D,
     ) -> Result<()>
     where
@@ -198,29 +252,32 @@ where
         let env = E::build(&self.env_config_train, 0)?;
         let producer = P::build(&self.step_proc_config);
         let mut buffer = R::build(&self.replay_buffer_config);
-        let mut sampler = SyncSampler::new(env, producer);
+        let mut sampler = Sampler::new(env, producer);
         let mut max_eval_reward = f32::MIN;
         let mut env_steps: usize = 0;
         let mut opt_steps: usize = 0;
-        let mut opt_steps_ops: usize = 0; // optimizations per second
-        let mut timer = std::time::SystemTime::now();
-        sampler.reset();
+        sampler.reset_fps_counter();
         agent.train();
 
         loop {
-            let record = self.train_step(agent, &mut buffer, &mut sampler, &mut env_steps)?;
+            let (mut record, is_opt) = self.train_step(
+                agent,
+                &mut buffer,
+                &mut sampler,
+                &mut env_steps,
+                &mut opt_steps,
+            )?;
 
             // Postprocessing after each training step
-            if let Some(mut record) = record {
-                use crate::record::RecordValue::Scalar;
-
-                opt_steps += 1;
-                opt_steps_ops += 1;
-                let do_eval = opt_steps % self.eval_interval == 0;
-                let do_rec = opt_steps % self.record_interval == 0;
+            if is_opt {
+                // Add stats wrt computation cost
+                if opt_steps % self.record_compute_cost_interval == 0 {
+                    record.insert("fps", Scalar(sampler.fps()));
+                    record.insert("opt_steps_per_sec", Scalar(self.opt_steps_per_sec()));
+                }
 
                 // Do evaluation
-                if do_eval {
+                if opt_steps % self.eval_interval == 0 {
                     let eval_reward = evaluator.evaluate(agent)?;
                     record.insert("eval_reward", Scalar(eval_reward));
 
@@ -232,24 +289,6 @@ where
                     }
                 };
 
-                // Record
-                if do_rec {
-                    record.insert("env_steps", Scalar(env_steps as f32));
-                    record.insert("fps", Scalar(sampler.fps()));
-                    sampler.reset();
-                    let time = timer.elapsed()?.as_secs_f32();
-                    let osps = opt_steps_ops as f32 / time;
-                    record.insert("opt_steps_per_sec", Scalar(osps));
-                    opt_steps_ops = 0;
-                    timer = std::time::SystemTime::now();
-                }
-
-                // Flush record to the recorder
-                if do_eval || do_rec {
-                    record.insert("opt_steps", Scalar(opt_steps as _));
-                    recorder.write(record);
-                }
-
                 // Save the current model
                 if (self.save_interval > 0) && (opt_steps % self.save_interval == 0) {
                     let model_dir = self.model_dir.as_ref().unwrap().clone();
@@ -260,6 +299,16 @@ where
                 if opt_steps == self.max_opts {
                     break;
                 }
+            }
+
+            // Store record to the recorder
+            if !record.is_empty() {
+                recorder.store(record);
+            }
+
+            // Flush records
+            if is_opt && ((opt_steps - 1) % self.flush_records_interval == 0) {
+                recorder.flush(opt_steps as _);
             }
         }
 

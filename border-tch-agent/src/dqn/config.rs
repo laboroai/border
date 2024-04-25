@@ -4,7 +4,10 @@ use super::{
     DqnModelConfig,
 };
 use crate::{
-    model::SubModel, opt::OptimizerConfig, util::{CriticLoss, OutDim}, Device
+    model::SubModel,
+    opt::OptimizerConfig,
+    util::{CriticLoss, OutDim},
+    Device,
 };
 use anyhow::Result;
 use log::info;
@@ -28,7 +31,6 @@ where
     pub model_config: DqnModelConfig<Q::Config>,
     pub soft_update_interval: usize,
     pub n_updates_per_opt: usize,
-    pub min_transitions_warmup: usize,
     pub batch_size: usize,
     pub discount_factor: f64,
     pub tau: f64,
@@ -41,7 +43,8 @@ where
     pub clip_td_err: Option<(f64, f64)>,
     pub device: Option<Device>,
     pub critic_loss: CriticLoss,
-    phantom: PhantomData<Q>,
+    pub record_verbose_level: usize,
+    pub phantom: PhantomData<Q>,
 }
 
 impl<Q> Clone for DqnConfig<Q>
@@ -54,7 +57,6 @@ where
             model_config: self.model_config.clone(),
             soft_update_interval: self.soft_update_interval,
             n_updates_per_opt: self.n_updates_per_opt,
-            min_transitions_warmup: self.min_transitions_warmup,
             batch_size: self.batch_size,
             discount_factor: self.discount_factor,
             tau: self.tau,
@@ -65,6 +67,7 @@ where
             clip_td_err: self.clip_td_err,
             device: self.device.clone(),
             critic_loss: self.critic_loss.clone(),
+            record_verbose_level: self.record_verbose_level,
             phantom: PhantomData,
         }
     }
@@ -81,7 +84,6 @@ where
             model_config: Default::default(),
             soft_update_interval: 1,
             n_updates_per_opt: 1,
-            min_transitions_warmup: 1,
             batch_size: 1,
             discount_factor: 0.99,
             tau: 0.005,
@@ -94,6 +96,7 @@ where
             clip_td_err: None,
             device: None,
             critic_loss: CriticLoss::Mse,
+            record_verbose_level: 0,
             phantom: PhantomData,
         }
     }
@@ -113,12 +116,6 @@ where
     /// Sets the numper of parameter update steps per optimization step.
     pub fn n_updates_per_opt(mut self, v: usize) -> Self {
         self.n_updates_per_opt = v;
-        self
-    }
-
-    /// Interval before starting optimization.
-    pub fn min_transitions_warmup(mut self, v: usize) -> Self {
-        self.min_transitions_warmup = v;
         self
     }
 
@@ -192,6 +189,12 @@ where
     /// Sets critic loss.
     pub fn critic_loss(mut self, v: CriticLoss) -> Self {
         self.critic_loss = v;
+        self
+    }
+
+    /// Sets verbose level.
+    pub fn record_verbose_level(mut self, v: usize) -> Self {
+        self.record_verbose_level = v;
         self
     }
 

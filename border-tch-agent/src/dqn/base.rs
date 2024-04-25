@@ -10,7 +10,7 @@ use border_core::{
     Agent, Env, Policy, ReplayBufferBase, StdBatchBase,
 };
 use serde::{de::DeserializeOwned, Serialize};
-use std::{fs, marker::PhantomData, path::Path};
+use std::{convert::TryInto, fs, marker::PhantomData, path::Path};
 use tch::{no_grad, Device, Tensor};
 
 #[allow(clippy::upper_case_acronyms)]
@@ -30,7 +30,6 @@ where
     pub(in crate::dqn) soft_update_interval: usize,
     pub(in crate::dqn) soft_update_counter: usize,
     pub(in crate::dqn) n_updates_per_opt: usize,
-    pub(in crate::dqn) min_transitions_warmup: usize,
     pub(in crate::dqn) batch_size: usize,
     pub(in crate::dqn) qnet: DqnModel<Q>,
     pub(in crate::dqn) qnet_tgt: DqnModel<Q>,
@@ -45,6 +44,9 @@ where
     pub(in crate::dqn) _clip_reward: Option<f64>,
     pub(in crate::dqn) clip_td_err: Option<(f64, f64)>,
     pub(in crate::dqn) critic_loss: CriticLoss,
+    n_samples_act: usize,
+    n_samples_best_act: usize,
+    record_verbose_level: usize,
 }
 
 impl<E, Q, R> Dqn<E, Q, R>
@@ -59,7 +61,8 @@ where
     <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
     <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
-    fn update_critic(&mut self, buffer: &mut R) -> f32 {
+    fn update_critic(&mut self, buffer: &mut R) -> Record {
+        let mut record = Record::empty();
         let batch = buffer.batch(self.batch_size).unwrap();
         let (obs, act, next_obs, reward, is_done, ixs, weight) = batch.unpack();
         let obs = obs.into();
@@ -73,7 +76,19 @@ where
             x.gather(-1, &act, false).squeeze()
         };
 
-        let tgt = no_grad(|| {
+        if self.record_verbose_level >= 2 {
+            record.insert(
+                "pred_mean",
+                RecordValue::Scalar(f32::from(pred.mean(tch::Kind::Float))),
+            );
+        }
+
+        if self.record_verbose_level >= 2 {
+            let reward_mean: f32 = reward.mean(tch::Kind::Float).try_into().unwrap();
+            record.insert("reward_mean", RecordValue::Scalar(reward_mean));
+        }
+
+        let tgt: Tensor = no_grad(|| {
             let q = if self.double_dqn {
                 let x = self.qnet.forward(&next_obs);
                 let y = x.argmax(-1, false).unsqueeze(-1);
@@ -88,6 +103,19 @@ where
             };
             reward + (1 - is_done) * self.discount_factor * q
         });
+
+        if self.record_verbose_level >= 2 {
+            record.insert(
+                "tgt_mean",
+                RecordValue::Scalar(f32::from(tgt.mean(tch::Kind::Float))),
+            );
+            let tgt_minus_pred_mean: f32 =
+                (&tgt - &pred).mean(tch::Kind::Float).try_into().unwrap();
+            record.insert(
+                "tgt_minus_pred_mean",
+                RecordValue::Scalar(tgt_minus_pred_mean),
+            );
+        }
 
         let loss = if let Some(ws) = weight {
             let n = ws.len() as i64;
@@ -120,14 +148,37 @@ where
             loss
         };
 
-        f32::from(loss)
+        record.insert("loss", RecordValue::Scalar(f32::from(loss)));
+
+        record
     }
 
+    // fn opt_(&mut self, buffer: &mut R) -> Record {
+    //     let mut loss = 0f32;
+
+    //     for _ in 0..self.n_updates_per_opt {
+    //         loss += self.update_critic(buffer);
+    //     }
+
+    //     self.soft_update_counter += 1;
+    //     if self.soft_update_counter == self.soft_update_interval {
+    //         self.soft_update_counter = 0;
+    //         track(&mut self.qnet_tgt, &mut self.qnet, self.tau);
+    //     }
+
+    //     loss /= self.n_updates_per_opt as f32;
+
+    //     self.n_opts += 1;
+
+    //     Record::from_slice(&[("loss", RecordValue::Scalar(loss))])
+    // }
+
     fn opt_(&mut self, buffer: &mut R) -> Record {
-        let mut loss = 0f32;
+        let mut record_ = Record::empty();
 
         for _ in 0..self.n_updates_per_opt {
-            loss += self.update_critic(buffer);
+            let record = self.update_critic(buffer);
+            record_ = record_.merge(record);
         }
 
         self.soft_update_counter += 1;
@@ -136,11 +187,10 @@ where
             track(&mut self.qnet_tgt, &mut self.qnet, self.tau);
         }
 
-        loss /= self.n_updates_per_opt as f32;
-
         self.n_opts += 1;
 
-        Record::from_slice(&[("loss", RecordValue::Scalar(loss))])
+        record_
+        // Record::from_slice(&[("loss", RecordValue::Scalar(loss_critic))])
     }
 }
 
@@ -173,7 +223,6 @@ where
             soft_update_interval: config.soft_update_interval,
             soft_update_counter: 0,
             n_updates_per_opt: config.n_updates_per_opt,
-            min_transitions_warmup: config.min_transitions_warmup,
             batch_size: config.batch_size,
             discount_factor: config.discount_factor,
             tau: config.tau,
@@ -185,6 +234,9 @@ where
             double_dqn: config.double_dqn,
             clip_td_err: config.clip_td_err,
             critic_loss: config.critic_loss,
+            n_samples_act: 0,
+            n_samples_best_act: 0,
+            record_verbose_level: config.record_verbose_level,
             phantom: PhantomData,
         }
     }
@@ -193,9 +245,20 @@ where
         no_grad(|| {
             let a = self.qnet.forward(&obs.clone().into());
             let a = if self.train {
+                self.n_samples_act += 1;
                 match &mut self.explorer {
                     DqnExplorer::Softmax(softmax) => softmax.action(&a),
-                    DqnExplorer::EpsilonGreedy(egreedy) => egreedy.action(&a),
+                    DqnExplorer::EpsilonGreedy(egreedy) => {
+                        if self.record_verbose_level >= 2 {
+                            let (act, best) = egreedy.action_with_best(&a);
+                            if best {
+                                self.n_samples_best_act += 1;
+                            }
+                            act
+                        } else {
+                            egreedy.action(&a)
+                        }
+                    }
                 }
             } else {
                 if fastrand::f32() < 0.01 {
@@ -235,12 +298,36 @@ where
         self.train
     }
 
-    fn opt(&mut self, buffer: &mut R) -> Option<Record> {
-        if buffer.len() >= self.min_transitions_warmup {
-            Some(self.opt_(buffer))
-        } else {
-            None
+    fn opt(&mut self, buffer: &mut R) {
+        self.opt_(buffer);
+    }
+
+    fn opt_with_record(&mut self, buffer: &mut R) -> Record {
+        let mut record = {
+            let record = self.opt_(buffer);
+
+            match self.record_verbose_level >= 2 {
+                true => {
+                    let record_weights = self.qnet.param_stats();
+                    let record = record.merge(record_weights);
+                    record
+                }
+                false => record,
+            }
+        };
+
+        // Best action ratio for epsilon greedy
+        if self.record_verbose_level >= 2 {
+            let ratio = match self.n_samples_act == 0 {
+                true => 0f32,
+                false => self.n_samples_best_act as f32 / self.n_samples_act as f32,
+            };
+            record.insert("ratio_best_act", RecordValue::Scalar(ratio));
+            self.n_samples_act = 0;
+            self.n_samples_best_act = 0;
         }
+
+        record
     }
 
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<()> {

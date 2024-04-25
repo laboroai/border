@@ -45,7 +45,7 @@
 //! [`ReplayBufferBase`] trait is an abstraction of replay buffers. For handling samples,
 //! there are two associated types: `PushedItem` and `Batch`. `PushedItem` is a type
 //! representing samples pushed to the buffer. These samples might be generated from
-//! [`Step<E: Env>`]. [`StepProcessorBase<E: Env>`] trait provides the interface
+//! [`Step<E: Env>`]. [`StepProcessor<E: Env>`] trait provides the interface
 //! for converting [`Step<E: Env>`] into `PushedItem`.
 //!
 //! `Batch` is a type of samples taken from the buffer for training [`Agent`]s.
@@ -69,7 +69,7 @@
 //! # Trainer
 //!
 //! [`Trainer`] manages training loop and related objects. The [`Trainer`] object is
-//! built with configurations of [`Env`], [`ReplayBufferBase`], [`StepProcessorBase`]
+//! built with configurations of [`Env`], [`ReplayBufferBase`], [`StepProcessor`]
 //! and some training parameters. Then, [`Trainer::train`] method starts training loop with
 //! given [`Agent`] and [`Recorder`](crate::record::Recorder).
 //!
@@ -88,9 +88,9 @@ pub mod util;
 mod base;
 pub use base::{
     Act, Agent, Env, ExperienceBufferBase, Info, Obs, Policy, ReplayBufferBase, StdBatchBase, Step,
-    StepProcessorBase,
+    StepProcessor,
 };
 
 mod trainer;
 pub use evaluator::{DefaultEvaluator, Evaluator};
-pub use trainer::{SyncSampler, Trainer, TrainerConfig};
+pub use trainer::{Sampler, Trainer, TrainerConfig};

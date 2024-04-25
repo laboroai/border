@@ -174,15 +174,10 @@ impl<R: ReplayBufferBase> Agent_<Env, R> for RandomAgent {
         self.train
     }
 
-    fn opt(&mut self, buffer: &mut R) -> Option<border_core::record::Record> {
-        // Check warmup period
-        if buffer.len() <= 100 {
-            None
-        } else {
-            // Do nothing
-            self.n_opts_steps += 1;
-            Some(Record::empty())
-        }
+    fn opt_with_record(&mut self, _buffer: &mut R) -> border_core::record::Record {
+        // Do nothing
+        self.n_opts_steps += 1;
+        Record::empty()
     }
 
     fn save<T: AsRef<std::path::Path>>(&self, _path: T) -> Result<()> {

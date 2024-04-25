@@ -23,31 +23,43 @@ border-core = { version = "0.0.6", path = "../border-core" }
 
 [[example]]
 name = "dqn_cartpole"
+path = "examples/gym/dqn_cartpole.rs"
 required-features = ["candle-core"]
 test = false
 
 [[example]]
 name = "dqn_cartpole_tch"
+path = "examples/gym/dqn_cartpole_tch.rs"
 required-features = ["tch"]
 test = true
 
 [[example]]
-name = "iqn_cartpole"
+name = "iqn_cartpole_tch"
+path = "examples/gym/iqn_cartpole_tch.rs"
 required-features = ["tch"]
 test = true
 
 [[example]]
 name = "sac_pendulum_tch"
+path = "examples/gym/sac_pendulum_tch.rs"
 required-features = ["tch"]
 test = true
 
 [[example]]
 name = "sac_pendulum"
+path = "examples/gym/sac_pendulum.rs"
 required-features = ["candle-core"]
 test = true
 
 [[example]]
 name = "sac_lunarlander_cont"
+path = "examples/gym/sac_lunarlander_cont.rs"
+required-features = ["candle-core"]
+test = false
+
+[[example]]
+name = "sac_lunarlander_cont_tch"
+path = "examples/gym/sac_lunarlander_cont_tch.rs"
 required-features = ["tch"]
 test = false
 
@@ -87,11 +99,19 @@ test = false
 
 [[example]]
 name = "sac_ant"
+path = "examples/ant/sac_ant.rs"
+required-features = ["candle-core"]
+test = false
+
+[[example]]
+name = "sac_ant_tch"
+path = "examples/ant/sac_ant_tch.rs"
 required-features = ["tch"]
 test = false
 
 [[example]]
 name = "sac_ant_async"
+path = "examples/ant/sac_ant_async.rs"
 required-features = ["tch", "border-async-trainer"]
 test = false
 
@@ -134,10 +154,6 @@ serde_yaml = { workspace = true }
 features = ["doc-only"]
 
 [features]
-# default = [ "adam_eps" ]
 doc-only = ["tch/doc-only"]
-adam_eps = []
 cuda = ["candle-core/cuda"]
-
-#[target.'cfg(feature="adam_eps")'.patch.crates-io]
-#tch = { git = "https://github.com/taku-y/tch-rs", branch = "adam_eps" }
+cudnn = ["candle-core/cudnn"]

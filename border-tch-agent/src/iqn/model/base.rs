@@ -330,6 +330,9 @@ pub enum IqnSample {
     /// The precent points are constants.
     Const10,
 
+    /// The precent points are constants.
+    Const32,
+
     /// 10 samples from uniform distribution.
     Uniform10,
 
@@ -355,6 +358,10 @@ impl IqnSample {
             ])
             .unsqueeze(0)
             .repeat(&[batch_size, 1]),
+            Self::Const32 => {
+                let t: Tensor = (1.0 / 32.0) * Tensor::range(0, 32, tch::kind::FLOAT_CPU);
+                t.unsqueeze(0).repeat(&[batch_size, 1])
+            }
             Self::Uniform10 => Tensor::rand(&[batch_size, 10], tch::kind::FLOAT_CPU),
             Self::Uniform8 => Tensor::rand(&[batch_size, 8], tch::kind::FLOAT_CPU),
             Self::Uniform32 => Tensor::rand(&[batch_size, 32], tch::kind::FLOAT_CPU),
@@ -369,6 +376,7 @@ impl IqnSample {
     pub fn n_percent_points(&self) -> i64 {
         match self {
             Self::Const10 => 10,
+            Self::Const32 => 32,
             Self::Uniform10 => 10,
             Self::Uniform8 => 8,
             Self::Uniform32 => 32,

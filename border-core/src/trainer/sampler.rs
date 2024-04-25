@@ -1,35 +1,60 @@
 //! Samples transitions and pushes them into a replay buffer.
-use crate::{record::Record, Agent, Env, ReplayBufferBase, StepProcessorBase};
+use crate::{record::Record, Agent, Env, ReplayBufferBase, StepProcessor};
 use anyhow::Result;
 
-/// Gets an [`Agent`] interacts with an [`Env`] and takes samples.
+/// Encapsulates sampling steps. Specifically it does the followint steps:
 ///
-/// TODO: Rename to `Sampler`.
-pub struct SyncSampler<E, P>
+/// 1. Samples an action from the [`Agent`], apply to the [`Env`] and takes [`Step`].
+/// 2. Convert [`Step`] into a transition (typically a batch) with [`StepProcessor`].
+/// 3. Pushes the trainsition to [`ReplayBufferBase`].
+/// 4. Count episode length and pushes to [`Record`].
+///
+/// TODO: being able to set `interval_env_record`
+///
+/// [`Step`]: crate::Step
+/// [`StepProcessor`]: crate::StepProcessor
+pub struct Sampler<E, P>
 where
     E: Env,
-    P: StepProcessorBase<E>,
+    P: StepProcessor<E>,
 {
     env: E,
     prev_obs: Option<E::Obs>,
-    producer: P,
-    n_frames: usize,
+    step_processor: P,
+    /// Number of environment steps for counting frames per second.
+    n_env_steps_for_fps: usize,
+
+    /// Total time of takes n_frames.
     time: f32,
+
+    /// Number of environment steps in an episode.
+    n_env_steps_in_episode: usize,
+
+    /// Total number of environment steps.
+    n_env_steps_total: usize,
+
+    /// Interval of recording from the environment in environment steps.
+    ///
+    /// Default to None (record from environment discarded)
+    interval_env_record: Option<usize>,
 }
 
-impl<E, P> SyncSampler<E, P>
+impl<E, P> Sampler<E, P>
 where
     E: Env,
-    P: StepProcessorBase<E>,
+    P: StepProcessor<E>,
 {
     /// Creates a sampler.
-    pub fn new(env: E, producer: P) -> Self {
+    pub fn new(env: E, step_processor: P) -> Self {
         Self {
             env,
             prev_obs: None,
-            producer,
-            n_frames: 0,
+            step_processor,
+            n_env_steps_for_fps: 0,
             time: 0f32,
+            n_env_steps_in_episode: 0,
+            n_env_steps_total: 0,
+            interval_env_record: None,
         }
     }
 
@@ -50,48 +75,72 @@ where
             // For a vectorized environments, reset all environments in `env`
             // by giving `None` to reset() method
             self.prev_obs = Some(self.env.reset(None)?);
-            self.producer.reset(self.prev_obs.as_ref().unwrap().clone());
+            self.step_processor
+                .reset(self.prev_obs.as_ref().unwrap().clone());
         }
 
-        // Sample action(s) and apply it to environment(s)
-        let act = agent.sample(self.prev_obs.as_ref().unwrap());
-        let (step, record) = self.env.step_with_reset(&act);
-        let terminate_episode = step.is_done[0] == 1; // not support vectorized env
-
-        // Update previouos observation
-        self.prev_obs = if terminate_episode {
-            Some(step.init_obs.clone())
-        } else {
-            Some(step.obs.clone())
+        // Sample an action and apply it to the environment
+        let (step, mut record, is_done) = {
+            let act = agent.sample(self.prev_obs.as_ref().unwrap());
+            let (step, mut record) = self.env.step_with_reset(&act);
+            self.n_env_steps_in_episode += 1;
+            self.n_env_steps_total += 1;
+            let is_done = step.is_done[0] == 1; // not support vectorized env
+            if let Some(interval) = &self.interval_env_record {
+                if self.n_env_steps_total % interval != 0 {
+                    record = Record::empty();
+                }
+            } else {
+                record = Record::empty();
+            }
+            (step, record, is_done)
         };
 
-        // Create and push transition(s)
-        let transition = self.producer.process(step);
+        // Update previouos observation
+        self.prev_obs = match is_done {
+            true => Some(step.init_obs.clone()),
+            false => Some(step.obs.clone()),
+        };
+
+        // Produce transition
+        let transition = self.step_processor.process(step);
+
+        // Push transition
         buffer.push(transition)?;
 
-        // Reset producer
-        if terminate_episode {
-            self.producer.reset(self.prev_obs.as_ref().unwrap().clone());
+        // Reset step processor
+        if is_done {
+            self.step_processor
+                .reset(self.prev_obs.as_ref().unwrap().clone());
+            record.insert(
+                "episode_length",
+                crate::record::RecordValue::Scalar(self.n_env_steps_in_episode as _),
+            );
+            self.n_env_steps_in_episode = 0;
         }
 
-        // For counting FPS
+        // Count environment steps
         if let Ok(time) = now.elapsed() {
-            self.n_frames += 1;
+            self.n_env_steps_for_fps += 1;
             self.time += time.as_millis() as f32;
         }
 
         Ok(record)
     }
 
-    /// Returns frames per second, including taking action, applying it to the environment,
+    /// Returns frames (environment steps) per second, then resets the internal counter.
+    ///
+    /// A frame involves taking action, applying it to the environment,
     /// producing transition, and pushing it into the replay buffer.
-    pub fn fps(&self) -> f32 {
-        self.n_frames as f32 / self.time * 1000f32
+    pub fn fps(&mut self) -> f32 {
+        let fps = self.n_env_steps_for_fps as f32 / self.time * 1000f32;
+        self.reset_fps_counter();
+        fps
     }
 
     /// Reset stats for computing FPS.
-    pub fn reset(&mut self) {
-        self.n_frames = 0;
+    pub fn reset_fps_counter(&mut self) {
+        self.n_env_steps_for_fps = 0;
         self.time = 0f32;
     }
 }

@@ -18,16 +18,25 @@ pub struct TrainerConfig {
     /// Directory where model parameters will be saved.
     pub model_dir: Option<String>,
 
-    /// The interval in interaction steps between optimization steps.
+    /// Interval of optimization steps in environment steps.
     pub opt_interval: usize,
 
-    /// The interval of evaluation in optimization steps.
+    /// Interval of evaluation in optimization steps.
     pub eval_interval: usize,
 
-    /// The interval of recording in optimization steps.
-    pub record_interval: usize,
+    /// Interval of flushing records in optimization steps.
+    pub flush_record_interval: usize,
 
-    /// The intercal of saving model parameters in optimization steps.
+    /// Interval of recording agent information in optimization steps.
+    pub record_compute_cost_interval: usize,
+
+    /// Interval of recording agent information in optimization steps.
+    pub record_agent_info_interval: usize,
+
+    /// Warmup period, for filling replay buffer, in environment steps
+    pub warmup_period: usize,
+
+    /// Intercal of saving model parameters in optimization steps.
     pub save_interval: usize,
 }
 
@@ -39,7 +48,10 @@ impl Default for TrainerConfig {
             // eval_threshold: None,
             model_dir: None,
             opt_interval: 1,
-            record_interval: usize::MAX,
+            flush_record_interval: usize::MAX,
+            record_compute_cost_interval: usize::MAX,
+            record_agent_info_interval: usize::MAX,
+            warmup_period: 0,
             save_interval: usize::MAX,
         }
     }
@@ -77,9 +89,27 @@ impl TrainerConfig {
         self
     }
 
-    /// Sets the interval of recording in optimization steps.
-    pub fn record_interval(mut self, record_interval: usize) -> Self {
-        self.record_interval = record_interval;
+    /// Sets the interval of flushing recordd in optimization steps.
+    pub fn flush_record_interval(mut self, flush_record_interval: usize) -> Self {
+        self.flush_record_interval = flush_record_interval;
+        self
+    }
+
+    /// Sets the interval of computation cost in optimization steps.
+    pub fn record_compute_cost_interval(mut self, record_compute_cost_interval: usize) -> Self {
+        self.record_compute_cost_interval = record_compute_cost_interval;
+        self
+    }
+
+    /// Sets the interval of recording agent information in optimization steps.
+    pub fn record_agent_info_interval(mut self, record_agent_info_interval: usize) -> Self {
+        self.record_agent_info_interval = record_agent_info_interval;
+        self
+    }
+
+    /// Sets warmup period in environment steps.
+    pub fn warmup_period(mut self, warmup_period: usize) -> Self {
+        self.warmup_period = warmup_period;
         self
     }
 
@@ -89,7 +119,7 @@ impl TrainerConfig {
         self
     }
 
-    /// Constructs [TrainerConfig] from YAML file.
+    /// Constructs [`TrainerConfig`] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let file = File::open(path)?;
         let rdr = BufReader::new(file);
@@ -97,7 +127,7 @@ impl TrainerConfig {
         Ok(b)
     }
 
-    /// Saves [TrainerConfig].
+    /// Saves [`TrainerConfig`].
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let mut file = File::create(path)?;
         file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;

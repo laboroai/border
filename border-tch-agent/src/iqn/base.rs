@@ -35,7 +35,6 @@ where
     pub(in crate::iqn) soft_update_interval: usize,
     pub(in crate::iqn) soft_update_counter: usize,
     pub(in crate::iqn) n_updates_per_opt: usize,
-    pub(in crate::iqn) min_transitions_warmup: usize,
     pub(in crate::iqn) batch_size: usize,
     pub(in crate::iqn) iqn: IqnModel<F, M>,
     pub(in crate::iqn) iqn_tgt: IqnModel<F, M>,
@@ -130,7 +129,9 @@ where
                 );
 
                 // argmax_a z(s,a), where z are averaged over tau
-                let y = z.copy().mean_dim(Some([1].as_slice()), false, tch::Kind::Float);
+                let y = z
+                    .copy()
+                    .mean_dim(Some([1].as_slice()), false, tch::Kind::Float);
                 let a = y.argmax(-1, false).unsqueeze(-1).unsqueeze(-1).repeat(&[
                     1,
                     n_percent_points,
@@ -220,7 +221,6 @@ where
             soft_update_interval: config.soft_update_interval,
             soft_update_counter: 0,
             n_updates_per_opt: config.n_updates_per_opt,
-            min_transitions_warmup: config.min_transitions_warmup,
             batch_size: config.batch_size,
             discount_factor: config.discount_factor,
             tau: config.tau,
@@ -240,10 +240,9 @@ where
         let batch_size = 1;
 
         let a = no_grad(|| {
-            let obs = obs.clone().into();
             let action_value = average(
                 batch_size,
-                &obs,
+                &obs.clone().into(),
                 &self.iqn,
                 &self.sample_percents_act,
                 self.device,
@@ -251,6 +250,7 @@ where
 
             if self.train {
                 match &mut self.explorer {
+                    IqnExplorer::Softmax(softmax) => softmax.action(&action_value),
                     IqnExplorer::EpsilonGreedy(egreedy) => egreedy.action(action_value),
                 }
             } else {
@@ -288,12 +288,8 @@ where
         self.train
     }
 
-    fn opt(&mut self, buffer: &mut R) -> Option<Record> {
-        if buffer.len() >= self.min_transitions_warmup {
-            Some(self.opt_(buffer))
-        } else {
-            None
-        }
+    fn opt_with_record(&mut self, buffer: &mut R) -> Record {
+        self.opt_(buffer)
     }
 
     // /// Update model parameters.

@@ -15,8 +15,16 @@ pub trait Agent<E: Env, R: ReplayBufferBase>: Policy<E> {
     /// Return if it is in training mode.
     fn is_train(&self) -> bool;
 
-    /// Do an optimization step.
-    fn opt(&mut self, buffer: &mut R) -> Option<Record>;
+    /// Performs an optimization step.
+    ///
+    /// `buffer` is a replay buffer from which transitions will be taken
+    /// for updating model parameters.
+    fn opt(&mut self, buffer: &mut R) {
+        let _ = self.opt_with_record(buffer);
+    }
+
+    /// Performs an optimization step and returns some information.
+    fn opt_with_record(&mut self, buffer: &mut R) -> Record;
 
     /// Save the agent in the given directory.
     /// This method commonly creates a number of files consisting the agent
