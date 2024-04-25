@@ -20,15 +20,8 @@ use std::{fs, marker::PhantomData, path::Path};
 /// DQN agent implemented with tch-rs.
 pub struct Dqn<E, Q, R>
 where
-    E: Env,
     Q: SubModel1<Output = Tensor>,
-    R: ReplayBufferBase,
-    E::Obs: Into<Q::Input>,
-    E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
     pub(in crate::dqn) soft_update_interval: usize,
     pub(in crate::dqn) soft_update_counter: usize,
@@ -58,8 +51,6 @@ where
     E: Env,
     Q: SubModel1<Output = Tensor>,
     R: ReplayBufferBase,
-    E::Obs: Into<Q::Input>,
-    E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
     R::Batch: StdBatchBase,
     <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
@@ -197,13 +188,9 @@ impl<E, Q, R> Policy_<E> for Dqn<E, Q, R>
 where
     E: Env,
     Q: SubModel1<Output = Tensor>,
-    R: ReplayBufferBase,
     E::Obs: Into<Q::Input>,
     E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
     /// In evaluation mode, take a random action with probability 0.01.
     fn sample(&mut self, obs: &E::Obs) -> E::Act {
@@ -241,13 +228,9 @@ impl<E, Q, R> Policy<E> for Dqn<E, Q, R>
 where
     E: Env,
     Q: SubModel1<Output = Tensor>,
-    R: ReplayBufferBase,
     E::Obs: Into<Q::Input>,
     E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
     type Config = DqnConfig<Q>;
 

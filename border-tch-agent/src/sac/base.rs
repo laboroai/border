@@ -26,18 +26,10 @@ fn normal_logp(x: &Tensor) -> Tensor {
 /// Soft actor critic (SAC) agent.
 pub struct Sac<E, Q, P, R>
 where
-    E: Env,
     Q: SubModel2<Output = ActionValue>,
     P: SubModel<Output = (ActMean, ActStd)>,
-    R: ReplayBufferBase,
-    E::Obs: Into<Q::Input1> + Into<P::Input>,
-    E::Act: Into<Q::Input2>,
-    Q::Input2: From<ActMean>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
     P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
     pub(super) qnets: Vec<Critic<Q>>,
     pub(super) qnets_tgt: Vec<Critic<Q>>,
@@ -200,15 +192,10 @@ where
     E: Env,
     Q: SubModel2<Output = ActionValue>,
     P: SubModel<Output = (ActMean, ActStd)>,
-    R: ReplayBufferBase,
     E::Obs: Into<Q::Input1> + Into<P::Input>,
     E::Act: Into<Q::Input2> + From<Tensor>,
-    Q::Input2: From<ActMean>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
     P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
     fn sample(&mut self, obs: &E::Obs) -> E::Act {
         let obs = obs.clone().into();
@@ -228,19 +215,14 @@ where
     E: Env,
     Q: SubModel2<Output = ActionValue>,
     P: SubModel<Output = (ActMean, ActStd)>,
-    R: ReplayBufferBase,
     E::Obs: Into<Q::Input1> + Into<P::Input>,
     E::Act: Into<Q::Input2> + From<Tensor>,
-    Q::Input2: From<ActMean>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
     P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
     type Config = SacConfig<Q, P>;
 
-    /// Constructs [Sac] agent.
+    /// Constructs [`Sac`] agent.
     fn build(config: Self::Config) -> Self {
         let device = config
             .device

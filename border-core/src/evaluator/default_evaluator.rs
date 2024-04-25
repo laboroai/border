@@ -1,12 +1,12 @@
 use super::Evaluator;
-use crate::{Env, Policy};
+use crate::{Env, Policy_};
 use anyhow::Result;
 use std::marker::PhantomData;
 
 /// A default [`Evaluator`].
 ///
 /// This struct runs episodes of the given number of times.
-pub struct DefaultEvaluator<E: Env, P: Policy<E>> {
+pub struct DefaultEvaluator<E: Env, P: Policy_<E>> {
     n_episodes: usize,
     env: E,
     phantom: PhantomData<P>,
@@ -15,7 +15,7 @@ pub struct DefaultEvaluator<E: Env, P: Policy<E>> {
 impl<E, P> Evaluator<E, P> for DefaultEvaluator<E, P>
 where
     E: Env,
-    P: Policy<E>,
+    P: Policy_<E>,
 {
     fn evaluate(&mut self, policy: &mut P) -> Result<f32> {
         let mut r_total = 0f32;
@@ -41,7 +41,7 @@ where
 impl<E, P> DefaultEvaluator<E, P>
 where
     E: Env,
-    P: Policy<E>,
+    P: Policy_<E>,
 {
     /// Constructs [`DefaultEvaluator`].
     ///

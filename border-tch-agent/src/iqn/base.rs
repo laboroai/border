@@ -20,17 +20,10 @@ use tch::{no_grad, Device, Tensor};
 /// `M::Input` and returns feature vectors.
 pub struct Iqn<E, F, M, R>
 where
-    E: Env,
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
-    R: ReplayBufferBase,
-    E::Obs: Into<F::Input>,
-    E::Act: From<Tensor>,
     F::Config: DeserializeOwned + Serialize,
     M::Config: DeserializeOwned + Serialize,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<F::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
     pub(in crate::iqn) soft_update_interval: usize,
     pub(in crate::iqn) soft_update_counter: usize,
@@ -56,8 +49,6 @@ where
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
     R: ReplayBufferBase,
-    E::Obs: Into<F::Input>,
-    E::Act: From<Tensor>,
     F::Config: DeserializeOwned + Serialize,
     M::Config: DeserializeOwned + Serialize + OutDim,
     R::Batch: StdBatchBase,
@@ -195,14 +186,10 @@ where
     E: Env,
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
-    R: ReplayBufferBase,
     E::Obs: Into<F::Input>,
     E::Act: From<Tensor>,
     F::Config: DeserializeOwned + Serialize + Clone,
     M::Config: DeserializeOwned + Serialize + Clone + OutDim,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<F::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
     fn sample(&mut self, obs: &E::Obs) -> E::Act {
         // Do not support vectorized env
@@ -236,18 +223,14 @@ where
     E: Env,
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
-    R: ReplayBufferBase,
     E::Obs: Into<F::Input>,
     E::Act: From<Tensor>,
     F::Config: DeserializeOwned + Serialize + Clone,
     M::Config: DeserializeOwned + Serialize + Clone + OutDim,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<F::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
     type Config = IqnConfig<F, M>;
 
-    /// Constructs [Iqn] agent.
+    /// Constructs [`Iqn`] agent.
     fn build(config: Self::Config) -> Self {
         let device = config
             .device

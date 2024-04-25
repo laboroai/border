@@ -1,7 +1,7 @@
 use crate::{AsyncTrainStat, AsyncTrainerConfig, PushedItemMessage, SyncModel};
 use border_core::{
     record::{Record, RecordValue::Scalar, Recorder},
-    Agent, Env, Evaluator, ReplayBufferBase,
+    Agent, Env, Evaluator, Policy, ReplayBufferBase,
 };
 use crossbeam_channel::{Receiver, Sender};
 use log::info;
@@ -54,7 +54,7 @@ use std::{
 /// [`SyncModel::ModelInfo`]: crate::SyncModel::ModelInfo
 pub struct AsyncTrainer<A, E, R>
 where
-    A: Agent<E, R> + SyncModel,
+    A: Agent<E, R> + Policy<E> + SyncModel,
     E: Env,
     // R: ReplayBufferBase + Sync + Send + 'static,
     R: ReplayBufferBase,
@@ -101,7 +101,7 @@ where
 
 impl<A, E, R> AsyncTrainer<A, E, R>
 where
-    A: Agent<E, R> + SyncModel,
+    A: Agent<E, R> + Policy<E> + SyncModel,
     E: Env,
     // R: ReplayBufferBase + Sync + Send + 'static,
     R: ReplayBufferBase,

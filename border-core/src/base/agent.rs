@@ -1,11 +1,11 @@
 //! Agent.
-use super::{Env, Policy, ReplayBufferBase};
+use super::{Env, Policy_, ReplayBufferBase};
 use crate::record::Record;
 use anyhow::Result;
 use std::path::Path;
 
 /// Represents a trainable policy on an environment.
-pub trait Agent<E: Env, R: ReplayBufferBase>: Policy<E> {
+pub trait Agent<E: Env, R: ReplayBufferBase>: Policy_<E> {
     /// Set the policy to training mode.
     fn train(&mut self);
 

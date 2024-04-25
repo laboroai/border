@@ -1,5 +1,5 @@
 use crate::{ActorStat, PushedItemMessage, ReplayBufferProxy, ReplayBufferProxyConfig, SyncModel};
-use border_core::{Agent, Env, ReplayBufferBase, Sampler, StepProcessor};
+use border_core::{Agent, Env, Policy, ReplayBufferBase, Sampler, StepProcessor};
 use crossbeam_channel::Sender;
 use log::info;
 use std::{
@@ -32,7 +32,7 @@ use std::{
 /// [`AsyncTrainer`]: crate::AsyncTrainer
 pub struct Actor<A, E, P, R>
 where
-    A: Agent<E, R> + SyncModel,
+    A: Agent<E, R> + Policy<E> + SyncModel,
     E: Env,
     P: StepProcessor<E>,
     R: ReplayBufferBase<PushedItem = P::Output>,
@@ -53,7 +53,7 @@ where
 
 impl<A, E, P, R> Actor<A, E, P, R>
 where
-    A: Agent<E, R> + SyncModel,
+    A: Agent<E, R> + Policy<E> + SyncModel,
     E: Env,
     P: StepProcessor<E>,
     R: ReplayBufferBase<PushedItem = P::Output>,

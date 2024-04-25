@@ -1,7 +1,7 @@
 //! Configuration of IQN agent.
 use super::{IqnModelConfig, IqnSample};
 use crate::{
-    iqn::{EpsilonGreedy, IqnExplorer, Softmax},
+    iqn::{IqnExplorer, Softmax},
     model::SubModel,
     util::OutDim,
     Device,
@@ -17,7 +17,7 @@ use std::{
 };
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
-/// Configuration of [Iqn](super::Iqn) agent.
+/// Configuration of [`Iqn`](super::Iqn) agent.
 pub struct IqnConfig<F, M>
 where
     F: SubModel,
@@ -147,7 +147,7 @@ where
         self
     }
 
-    /// Constructs [IqnConfig] from YAML file.
+    /// Constructs [`IqnConfig`] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let file = File::open(path)?;
         let rdr = BufReader::new(file);
@@ -155,7 +155,7 @@ where
         Ok(b)
     }
 
-    /// Saves [IqnConfig].
+    /// Saves [`IqnConfig`].
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let mut file = File::create(path)?;
         file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;
