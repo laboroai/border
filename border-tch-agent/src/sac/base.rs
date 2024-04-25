@@ -6,7 +6,7 @@ use crate::{
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, Env, Policy, ReplayBufferBase, StdBatchBase,
+    Agent, Env, Policy, Policy_, ReplayBufferBase, StdBatchBase,
 };
 use serde::{de::DeserializeOwned, Serialize};
 // use log::info;
@@ -195,6 +195,34 @@ where
     }
 }
 
+impl<E, Q, P, R> Policy_<E> for Sac<E, Q, P, R>
+where
+    E: Env,
+    Q: SubModel2<Output = ActionValue>,
+    P: SubModel<Output = (ActMean, ActStd)>,
+    R: ReplayBufferBase,
+    E::Obs: Into<Q::Input1> + Into<P::Input>,
+    E::Act: Into<Q::Input2> + From<Tensor>,
+    Q::Input2: From<ActMean>,
+    Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
+    P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
+{
+    fn sample(&mut self, obs: &E::Obs) -> E::Act {
+        let obs = obs.clone().into();
+        let (mean, lstd) = self.pi.forward(&obs);
+        let std = lstd.clip(self.min_lstd, self.max_lstd).exp();
+        let act = if self.train {
+            std * Tensor::randn(&mean.size(), tch::kind::FLOAT_CPU).to(self.device) + mean
+        } else {
+            mean
+        };
+        act.tanh().into()
+    }
+}
+
 impl<E, Q, P, R> Policy<E> for Sac<E, Q, P, R>
 where
     E: Env,
@@ -251,18 +279,6 @@ where
             device,
             phantom: PhantomData,
         }
-    }
-
-    fn sample(&mut self, obs: &E::Obs) -> E::Act {
-        let obs = obs.clone().into();
-        let (mean, lstd) = self.pi.forward(&obs);
-        let std = lstd.clip(self.min_lstd, self.max_lstd).exp();
-        let act = if self.train {
-            std * Tensor::randn(&mean.size(), tch::kind::FLOAT_CPU).to(self.device) + mean
-        } else {
-            mean
-        };
-        act.tanh().into()
     }
 }
 

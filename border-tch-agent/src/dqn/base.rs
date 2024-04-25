@@ -7,7 +7,7 @@ use crate::{
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, Env, Policy, ReplayBufferBase, StdBatchBase,
+    Agent, Env, Policy, Policy_, ReplayBufferBase, StdBatchBase,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use std::{convert::TryInto, fs, marker::PhantomData, path::Path};
@@ -194,6 +194,51 @@ where
     }
 }
 
+impl<E, Q, R> Policy_<E> for Dqn<E, Q, R>
+where
+    E: Env,
+    Q: SubModel<Output = Tensor>,
+    R: ReplayBufferBase,
+    E::Obs: Into<Q::Input>,
+    E::Act: From<Q::Output>,
+    Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
+{
+    fn sample(&mut self, obs: &E::Obs) -> E::Act {
+        no_grad(|| {
+            let a = self.qnet.forward(&obs.clone().into());
+            let a = if self.train {
+                self.n_samples_act += 1;
+                match &mut self.explorer {
+                    DqnExplorer::Softmax(softmax) => softmax.action(&a),
+                    DqnExplorer::EpsilonGreedy(egreedy) => {
+                        if self.record_verbose_level >= 2 {
+                            let (act, best) = egreedy.action_with_best(&a);
+                            if best {
+                                self.n_samples_best_act += 1;
+                            }
+                            act
+                        } else {
+                            egreedy.action(&a)
+                        }
+                    }
+                }
+            } else {
+                if fastrand::f32() < 0.01 {
+                    let n_actions = a.size()[1] as i32;
+                    let a = fastrand::i32(0..n_actions);
+                    Tensor::from(a)
+                } else {
+                    a.argmax(-1, true)
+                }
+            };
+            a.into()
+        })
+    }
+}
+
 impl<E, Q, R> Policy<E> for Dqn<E, Q, R>
 where
     E: Env,
@@ -239,38 +284,6 @@ where
             record_verbose_level: config.record_verbose_level,
             phantom: PhantomData,
         }
-    }
-
-    fn sample(&mut self, obs: &E::Obs) -> E::Act {
-        no_grad(|| {
-            let a = self.qnet.forward(&obs.clone().into());
-            let a = if self.train {
-                self.n_samples_act += 1;
-                match &mut self.explorer {
-                    DqnExplorer::Softmax(softmax) => softmax.action(&a),
-                    DqnExplorer::EpsilonGreedy(egreedy) => {
-                        if self.record_verbose_level >= 2 {
-                            let (act, best) = egreedy.action_with_best(&a);
-                            if best {
-                                self.n_samples_best_act += 1;
-                            }
-                            act
-                        } else {
-                            egreedy.action(&a)
-                        }
-                    }
-                }
-            } else {
-                if fastrand::f32() < 0.01 {
-                    let n_actions = a.size()[1] as i32;
-                    let a = fastrand::i32(0..n_actions);
-                    Tensor::from(a)
-                } else {
-                    a.argmax(-1, true)
-                }
-            };
-            a.into()
-        })
     }
 }
 

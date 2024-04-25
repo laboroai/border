@@ -7,7 +7,7 @@ use crate::{
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, Env, Policy, ReplayBufferBase, StdBatchBase,
+    Agent, Env, Policy, Policy_, ReplayBufferBase, StdBatchBase,
 };
 use log::trace;
 use serde::{de::DeserializeOwned, Serialize};
@@ -190,6 +190,47 @@ where
     }
 }
 
+impl<E, F, M, R> Policy_<E> for Iqn<E, F, M, R>
+where
+    E: Env,
+    F: SubModel<Output = Tensor>,
+    M: SubModel<Input = Tensor, Output = Tensor>,
+    R: ReplayBufferBase,
+    E::Obs: Into<F::Input>,
+    E::Act: From<Tensor>,
+    F::Config: DeserializeOwned + Serialize + Clone,
+    M::Config: DeserializeOwned + Serialize + Clone + OutDim,
+    R::Batch: StdBatchBase,
+    <R::Batch as StdBatchBase>::ObsBatch: Into<F::Input>,
+    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
+{
+    fn sample(&mut self, obs: &E::Obs) -> E::Act {
+        // Do not support vectorized env
+        let batch_size = 1;
+
+        let a = no_grad(|| {
+            let action_value = average(
+                batch_size,
+                &obs.clone().into(),
+                &self.iqn,
+                &self.sample_percents_act,
+                self.device,
+            );
+
+            if self.train {
+                match &mut self.explorer {
+                    IqnExplorer::Softmax(softmax) => softmax.action(&action_value),
+                    IqnExplorer::EpsilonGreedy(egreedy) => egreedy.action(action_value),
+                }
+            } else {
+                action_value.argmax(-1, true)
+            }
+        });
+
+        a.into()
+    }
+}
+
 impl<E, F, M, R> Policy<E> for Iqn<E, F, M, R>
 where
     E: Env,
@@ -233,32 +274,6 @@ where
             n_opts: 0,
             phantom: PhantomData,
         }
-    }
-
-    fn sample(&mut self, obs: &E::Obs) -> E::Act {
-        // Do not support vectorized env
-        let batch_size = 1;
-
-        let a = no_grad(|| {
-            let action_value = average(
-                batch_size,
-                &obs.clone().into(),
-                &self.iqn,
-                &self.sample_percents_act,
-                self.device,
-            );
-
-            if self.train {
-                match &mut self.explorer {
-                    IqnExplorer::Softmax(softmax) => softmax.action(&action_value),
-                    IqnExplorer::EpsilonGreedy(egreedy) => egreedy.action(action_value),
-                }
-            } else {
-                action_value.argmax(-1, true)
-            }
-        });
-
-        a.into()
     }
 }
 
