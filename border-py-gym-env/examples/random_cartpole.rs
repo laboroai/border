@@ -1,5 +1,5 @@
 use anyhow::Result;
-use border_core::{record::Record, DefaultEvaluator, Evaluator as _, Policy};
+use border_core::{record::Record, Configurable, DefaultEvaluator, Evaluator as _, Policy};
 use border_py_gym_env::{
     ArrayObsFilter, DiscreteActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
@@ -66,15 +66,17 @@ struct RandomPolicyConfig;
 struct RandomPolicy;
 
 impl Policy<Env> for RandomPolicy {
+    fn sample(&mut self, _: &Obs) -> Act {
+        let v = fastrand::u32(..=1);
+        Act::new(vec![v as i32])
+    }
+}
+
+impl Configurable<Env> for RandomPolicy {
     type Config = RandomPolicyConfig;
 
     fn build(_config: Self::Config) -> Self {
         Self
-    }
-
-    fn sample(&mut self, _: &Obs) -> Act {
-        let v = fastrand::u32(..=1);
-        Act::new(vec![v as i32])
     }
 }
 

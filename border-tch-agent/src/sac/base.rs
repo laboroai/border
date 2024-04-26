@@ -6,7 +6,7 @@ use crate::{
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, Env, Policy, ReplayBufferBase, StdBatchBase,
+    Agent, Configurable, Env, Policy, ReplayBufferBase, StdBatchBase,
 };
 use serde::{de::DeserializeOwned, Serialize};
 // use log::info;
@@ -26,18 +26,10 @@ fn normal_logp(x: &Tensor) -> Tensor {
 /// Soft actor critic (SAC) agent.
 pub struct Sac<E, Q, P, R>
 where
-    E: Env,
     Q: SubModel2<Output = ActionValue>,
     P: SubModel<Output = (ActMean, ActStd)>,
-    R: ReplayBufferBase,
-    E::Obs: Into<Q::Input1> + Into<P::Input>,
-    E::Act: Into<Q::Input2>,
-    Q::Input2: From<ActMean>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
     P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
     pub(super) qnets: Vec<Critic<Q>>,
     pub(super) qnets_tgt: Vec<Critic<Q>>,
@@ -200,19 +192,37 @@ where
     E: Env,
     Q: SubModel2<Output = ActionValue>,
     P: SubModel<Output = (ActMean, ActStd)>,
-    R: ReplayBufferBase,
     E::Obs: Into<Q::Input1> + Into<P::Input>,
     E::Act: Into<Q::Input2> + From<Tensor>,
-    Q::Input2: From<ActMean>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
     P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
+{
+    fn sample(&mut self, obs: &E::Obs) -> E::Act {
+        let obs = obs.clone().into();
+        let (mean, lstd) = self.pi.forward(&obs);
+        let std = lstd.clip(self.min_lstd, self.max_lstd).exp();
+        let act = if self.train {
+            std * Tensor::randn(&mean.size(), tch::kind::FLOAT_CPU).to(self.device) + mean
+        } else {
+            mean
+        };
+        act.tanh().into()
+    }
+}
+
+impl<E, Q, P, R> Configurable<E> for Sac<E, Q, P, R>
+where
+    E: Env,
+    Q: SubModel2<Output = ActionValue>,
+    P: SubModel<Output = (ActMean, ActStd)>,
+    E::Obs: Into<Q::Input1> + Into<P::Input>,
+    E::Act: Into<Q::Input2> + From<Tensor>,
+    Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
+    P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
 {
     type Config = SacConfig<Q, P>;
 
-    /// Constructs [Sac] agent.
+    /// Constructs [`Sac`] agent.
     fn build(config: Self::Config) -> Self {
         let device = config
             .device
@@ -251,18 +261,6 @@ where
             device,
             phantom: PhantomData,
         }
-    }
-
-    fn sample(&mut self, obs: &E::Obs) -> E::Act {
-        let obs = obs.clone().into();
-        let (mean, lstd) = self.pi.forward(&obs);
-        let std = lstd.clip(self.min_lstd, self.max_lstd).exp();
-        let act = if self.train {
-            std * Tensor::randn(&mean.size(), tch::kind::FLOAT_CPU).to(self.device) + mean
-        } else {
-            mean
-        };
-        act.tanh().into()
     }
 }
 

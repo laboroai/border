@@ -5,7 +5,7 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig, SubBatch,
     },
-    Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
+    Agent, Configurable, DefaultEvaluator, Evaluator as _, Trainer, TrainerConfig,
 };
 use border_mlflow_tracking::MlflowTrackingClient;
 use border_py_gym_env::{

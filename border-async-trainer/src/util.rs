@@ -2,7 +2,7 @@
 use crate::{
     actor_stats_fmt, ActorManager, ActorManagerConfig, AsyncTrainer, AsyncTrainerConfig, SyncModel,
 };
-use border_core::{Agent, DefaultEvaluator, Env, ReplayBufferBase, StepProcessor};
+use border_core::{Agent, Configurable, DefaultEvaluator, Env, ReplayBufferBase, StepProcessor};
 use border_tensorboard::TensorboardRecorder;
 use crossbeam_channel::unbounded;
 use log::info;
@@ -40,7 +40,7 @@ pub fn train_async<A, E, R, S, P>(
     actor_man_config: &ActorManagerConfig,
     async_trainer_config: &AsyncTrainerConfig,
 ) where
-    A: Agent<E, R> + SyncModel,
+    A: Agent<E, R> + Configurable<E> + SyncModel,
     E: Env,
     R: ReplayBufferBase<PushedItem = S::Output> + Send + 'static,
     S: StepProcessor<E>,

@@ -87,8 +87,8 @@ pub mod util;
 
 mod base;
 pub use base::{
-    Act, Agent, Env, ExperienceBufferBase, Info, Obs, Policy, ReplayBufferBase, StdBatchBase, Step,
-    StepProcessor,
+    Act, Agent, Configurable, Env, ExperienceBufferBase, Info, Obs, Policy, ReplayBufferBase,
+    StdBatchBase, Step, StepProcessor,
 };
 
 mod trainer;

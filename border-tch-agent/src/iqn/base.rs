@@ -7,7 +7,7 @@ use crate::{
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, Env, Policy, ReplayBufferBase, StdBatchBase,
+    Agent, Configurable, Env, Policy, ReplayBufferBase, StdBatchBase,
 };
 use log::trace;
 use serde::{de::DeserializeOwned, Serialize};
@@ -20,17 +20,10 @@ use tch::{no_grad, Device, Tensor};
 /// `M::Input` and returns feature vectors.
 pub struct Iqn<E, F, M, R>
 where
-    E: Env,
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
-    R: ReplayBufferBase,
-    E::Obs: Into<F::Input>,
-    E::Act: From<Tensor>,
     F::Config: DeserializeOwned + Serialize,
     M::Config: DeserializeOwned + Serialize,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<F::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
     pub(in crate::iqn) soft_update_interval: usize,
     pub(in crate::iqn) soft_update_counter: usize,
@@ -56,8 +49,6 @@ where
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
     R: ReplayBufferBase,
-    E::Obs: Into<F::Input>,
-    E::Act: From<Tensor>,
     F::Config: DeserializeOwned + Serialize,
     M::Config: DeserializeOwned + Serialize + OutDim,
     R::Batch: StdBatchBase,
@@ -195,18 +186,51 @@ where
     E: Env,
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
-    R: ReplayBufferBase,
     E::Obs: Into<F::Input>,
     E::Act: From<Tensor>,
     F::Config: DeserializeOwned + Serialize + Clone,
     M::Config: DeserializeOwned + Serialize + Clone + OutDim,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<F::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
+{
+    fn sample(&mut self, obs: &E::Obs) -> E::Act {
+        // Do not support vectorized env
+        let batch_size = 1;
+
+        let a = no_grad(|| {
+            let action_value = average(
+                batch_size,
+                &obs.clone().into(),
+                &self.iqn,
+                &self.sample_percents_act,
+                self.device,
+            );
+
+            if self.train {
+                match &mut self.explorer {
+                    IqnExplorer::Softmax(softmax) => softmax.action(&action_value),
+                    IqnExplorer::EpsilonGreedy(egreedy) => egreedy.action(action_value),
+                }
+            } else {
+                action_value.argmax(-1, true)
+            }
+        });
+
+        a.into()
+    }
+}
+
+impl<E, F, M, R> Configurable<E> for Iqn<E, F, M, R>
+where
+    E: Env,
+    F: SubModel<Output = Tensor>,
+    M: SubModel<Input = Tensor, Output = Tensor>,
+    E::Obs: Into<F::Input>,
+    E::Act: From<Tensor>,
+    F::Config: DeserializeOwned + Serialize + Clone,
+    M::Config: DeserializeOwned + Serialize + Clone + OutDim,
 {
     type Config = IqnConfig<F, M>;
 
-    /// Constructs [Iqn] agent.
+    /// Constructs [`Iqn`] agent.
     fn build(config: Self::Config) -> Self {
         let device = config
             .device
@@ -233,32 +257,6 @@ where
             n_opts: 0,
             phantom: PhantomData,
         }
-    }
-
-    fn sample(&mut self, obs: &E::Obs) -> E::Act {
-        // Do not support vectorized env
-        let batch_size = 1;
-
-        let a = no_grad(|| {
-            let action_value = average(
-                batch_size,
-                &obs.clone().into(),
-                &self.iqn,
-                &self.sample_percents_act,
-                self.device,
-            );
-
-            if self.train {
-                match &mut self.explorer {
-                    IqnExplorer::Softmax(softmax) => softmax.action(&action_value),
-                    IqnExplorer::EpsilonGreedy(egreedy) => egreedy.action(action_value),
-                }
-            } else {
-                action_value.argmax(-1, true)
-            }
-        });
-
-        a.into()
     }
 }
 

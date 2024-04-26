@@ -4,8 +4,9 @@
 
 ### Added
 
-* Support MLflow tracking (`border-mlflow-tracking`) (https://github.com/taku-y/border/issues/2).
-* Add candle agent (`border-candle-agent`)
+* Support MLflow tracking (`border-mlflow-tracking`) (https://github.com/taku-y/border/issues/2)
+* Add candle agent (`border-candle-agent`) (https://github.com/taku-y/border/issues/1)
+* Split policy trait into two traits, one for sampling (`Policy`) and the other for configuration (`Configurable`) (https://github.com/taku-y/border/issues/12)
 
 ### Changed
 
