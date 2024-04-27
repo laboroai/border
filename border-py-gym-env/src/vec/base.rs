@@ -7,8 +7,8 @@ use anyhow::Result;
 use border_core::{record::Record, Act, Env, Obs, Step};
 use log::trace;
 use pyo3::{
-    types::{IntoPyDict, PyTuple},
-    PyObject, ToPyObject,
+    types::{IntoPyDict, /*PyTuple*/},
+    PyObject, /*ToPyObject,*/
 };
 use std::{fmt::Debug, marker::PhantomData};
 
@@ -131,30 +131,31 @@ where
     }
 
     fn step(&mut self, a: &A) -> (Step<Self>, Record) {
-        trace!("PyVecGymEnv::step()");
-        trace!("{:?}", &a);
+        unimplemented!();
+        // trace!("PyVecGymEnv::step()");
+        // trace!("{:?}", &a);
 
-        pyo3::Python::with_gil(|py| {
-            // Does not support render
+        // pyo3::Python::with_gil(|py| {
+        //     // Does not support render
 
-            let (a_py, record_a) = self.act_filter.filt(a.clone());
-            let ret = self.env.call_method(py, "step", (a_py,), None).unwrap();
-            let step: &PyTuple = ret.extract(py).unwrap();
-            let obs = step.get_item(0).to_object(py);
-            let (obs, record_o) = self.obs_filter.filt(obs);
+        //     let (a_py, record_a) = self.act_filter.filt(a.clone());
+        //     let ret = self.env.call_method(py, "step", (a_py,), None).unwrap();
+        //     let step: &PyTuple = ret.extract(py).unwrap();
+        //     let obs = step.get_item(0).to_object(py);
+        //     let (obs, record_o) = self.obs_filter.filt(obs);
 
-            // Reward and is_done
-            let reward = step.get_item(1).to_object(py);
-            let reward: Vec<f32> = reward.extract(py).unwrap();
-            let is_done = step.get_item(2).to_object(py);
-            let is_done: Vec<f32> = is_done.extract(py).unwrap();
-            let is_done: Vec<i8> = is_done.into_iter().map(|x| x as i8).collect();
-            let n = obs.len();
+        //     // Reward and is_done
+        //     let reward = step.get_item(1).to_object(py);
+        //     let reward: Vec<f32> = reward.extract(py).unwrap();
+        //     let is_done = step.get_item(2).to_object(py);
+        //     let is_done: Vec<f32> = is_done.extract(py).unwrap();
+        //     let is_done: Vec<i8> = is_done.into_iter().map(|x| x as i8).collect();
+        //     let n = obs.len();
 
-            let step = Step::<Self>::new(obs, a.clone(), reward, is_done, GymInfo {}, O::dummy(n));
-            let record = record_o.merge(record_a);
+        //     let step = Step::<Self>::new(obs, a.clone(), reward, is_done, GymInfo {}, O::dummy(n));
+        //     let record = record_o.merge(record_a);
 
-            (step, record)
-        })
+        //     (step, record)
+        // })
     }
 }

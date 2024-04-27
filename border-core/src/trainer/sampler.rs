@@ -85,7 +85,7 @@ where
             let (step, mut record) = self.env.step_with_reset(&act);
             self.n_env_steps_in_episode += 1;
             self.n_env_steps_total += 1;
-            let is_done = step.is_done[0] == 1; // not support vectorized env
+            let is_done = step.is_done(); // not support vectorized env
             if let Some(interval) = &self.interval_env_record {
                 if self.n_env_steps_total % interval != 0 {
                     record = Record::empty();

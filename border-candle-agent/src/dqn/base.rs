@@ -59,17 +59,17 @@ where
     fn update_critic(&mut self, buffer: &mut R) -> Record {
         let mut record = Record::empty();
         let batch = buffer.batch(self.batch_size).unwrap();
-        let (obs, act, next_obs, reward, is_done, _ixs, weight) = batch.unpack();
+        let (obs, act, next_obs, reward, is_terminated, _is_truncated, _ixs, weight) = batch.unpack();
         let obs = obs.into();
         let act = act.into().to_device(&self.device).unwrap();
         let next_obs = next_obs.into();
         let reward = Tensor::from_slice(&reward[..], &[reward.len()], &self.device).unwrap();
-        let is_not_done = {
-            let is_not_done = is_done
+        let is_not_terminated = {
+            let is_not_terminated = is_terminated
                 .into_iter()
                 .map(|v| (1 - v) as f32)
                 .collect::<Vec<_>>();
-            Tensor::from_slice(&is_not_done[..], &[is_not_done.len()], &self.device).unwrap()
+            Tensor::from_slice(&is_not_terminated[..], &[is_not_terminated.len()], &self.device).unwrap()
         };
         let pred = {
             let x = self.qnet.forward(&obs);
@@ -104,7 +104,7 @@ where
                     .unwrap()
             };
 
-            reward + is_not_done * self.discount_factor * q.squeeze(D::Minus1).unwrap()
+            reward + is_not_terminated * self.discount_factor * q.squeeze(D::Minus1).unwrap()
         }
         .unwrap()
         .detach();

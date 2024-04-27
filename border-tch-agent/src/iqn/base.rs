@@ -58,19 +58,19 @@ where
     fn update_critic(&mut self, buffer: &mut R) -> f32 {
         trace!("IQN::update_critic()");
         let batch = buffer.batch(self.batch_size).unwrap();
-        let (obs, act, next_obs, reward, is_done, _ixs, _weight) = batch.unpack();
+        let (obs, act, next_obs, reward, is_terminated, _is_truncated, _ixs, _weight) = batch.unpack();
         let obs = obs.into();
         let act = act.into().to(self.device);
         let next_obs = next_obs.into();
         let reward = Tensor::of_slice(&reward[..]).to(self.device).unsqueeze(-1);
-        let is_done = Tensor::of_slice(&is_done[..]).to(self.device).unsqueeze(-1);
+        let is_terminated = Tensor::of_slice(&is_terminated[..]).to(self.device).unsqueeze(-1);
 
         let batch_size = self.batch_size as _;
         let n_percent_points_pred = self.sample_percents_pred.n_percent_points();
         let n_percent_points_tgt = self.sample_percents_tgt.n_percent_points();
 
         debug_assert_eq!(reward.size().as_slice(), &[batch_size, 1]);
-        debug_assert_eq!(is_done.size().as_slice(), &[batch_size, 1]);
+        debug_assert_eq!(is_terminated.size().as_slice(), &[batch_size, 1]);
         debug_assert_eq!(act.size().as_slice(), &[batch_size, 1]);
 
         let loss = {
@@ -135,7 +135,7 @@ where
                 debug_assert_eq!(z.size().as_slice(), &[batch_size, n_percent_points]);
 
                 // target value
-                let tgt: Tensor = reward + (1 - is_done) * self.discount_factor * z;
+                let tgt: Tensor = reward + (1 - is_terminated) * self.discount_factor * z;
                 debug_assert_eq!(tgt.size().as_slice(), &[batch_size, n_percent_points]);
 
                 tgt.unsqueeze(-1)
@@ -289,53 +289,6 @@ where
     fn opt_with_record(&mut self, buffer: &mut R) -> Record {
         self.opt_(buffer)
     }
-
-    // /// Update model parameters.
-    // ///
-    // /// When the return value is `Some(Record)`, it includes:
-    // /// * `loss_critic`: Loss of critic
-    // fn observe(&mut self, step: Step<E>) -> Option<Record> {
-    //     trace!("DQN::observe()");
-
-    //     // Check if doing optimization
-    //     let do_optimize = self.opt_interval_counter.do_optimize(&step.is_done)
-    //         && self.replay_buffer.len() + 1 >= self.min_transitions_warmup;
-
-    //     // Push transition to the replay buffer
-    //     self.push_transition(step);
-    //     trace!("Push transition");
-
-    //     // Do optimization
-    //     if do_optimize {
-    //         let mut loss_critic = 0f32;
-
-    //         for _ in 0..self.n_updates_per_opt {
-    //             let batch = self
-    //                 .replay_buffer
-    //                 .random_batch(self.batch_size, 0f32)
-    //                 .unwrap();
-    //             trace!("Sample random batch");
-
-    //             loss_critic += self.update_critic(batch);
-    //         }
-
-    //         self.soft_update_counter += 1;
-    //         if self.soft_update_counter == self.soft_update_interval {
-    //             self.soft_update_counter = 0;
-    //             self.soft_update();
-    //             trace!("Update target network");
-    //         }
-
-    //         loss_critic /= self.n_updates_per_opt as f32;
-
-    //         Some(Record::from_slice(&[(
-    //             "loss_critic",
-    //             RecordValue::Scalar(loss_critic),
-    //         )]))
-    //     } else {
-    //         None
-    //     }
-    // }
 
     fn save<T: AsRef<Path>>(&self, path: T) -> Result<()> {
         // TODO: consider to rename the path if it already exists
