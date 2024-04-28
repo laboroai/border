@@ -752,11 +752,15 @@ mod candle_dqn_config {
     }
 }
 
+#[allow(unused_imports)]
 pub use replay_buffer_config::DqnAtariReplayBufferConfig;
+#[allow(unused_imports)]
 pub use trainer_config::DqnAtariTrainerConfig;
 
+#[allow(unused_imports)]
 #[cfg(feature = "candle-core")]
 pub use candle_dqn_config::DqnAtariAgentConfig;
+#[allow(unused_imports)]
 #[cfg(feature = "tch")]
 pub use tch_dqn_config::DqnAtariAgentConfig;
 

@@ -121,7 +121,8 @@ where
                         self.qvals_min(&self.qnets_tgt, &next_obs.into(), &next_a.into())?;
                     (next_q - self.ent_coef.alpha()?.broadcast_mul(&next_log_p))?
                 };
-                ((self.reward_scale as f64) * reward)? + (1f64 - &is_terminated)? * self.gamma * next_q
+                ((self.reward_scale as f64) * reward)?
+                    + (1f64 - &is_terminated)? * self.gamma * next_q
             }?
             .detach();
 

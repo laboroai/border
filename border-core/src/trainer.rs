@@ -93,9 +93,6 @@ where
     /// Configuration of the environment for training.
     env_config_train: E::Config,
 
-    /// Configuration of the transition producer.
-    step_proc_config: P::Config,
-
     /// Configuration of the replay buffer.
     replay_buffer_config: R::Config,
 
@@ -128,6 +125,9 @@ where
 
     /// Timer for computing for optimization steps per second.
     timer_for_ops: Duration,
+
+    /// Configuration of the transition producer.
+    step_proc_config: P::Config,
 
     /// Warmup period, for filling replay buffer, in environment steps
     warmup_period: usize,
@@ -276,9 +276,12 @@ where
                     record.insert("opt_steps_per_sec", Scalar(self.opt_steps_per_sec()));
                 }
 
-                // Do evaluation
+                // Evaluation
                 if opt_steps % self.eval_interval == 0 {
+                    info!("Starts evaluation of the trained model");
+                    agent.eval();
                     let eval_reward = evaluator.evaluate(agent)?;
+                    agent.train();
                     record.insert("eval_reward", Scalar(eval_reward));
 
                     // Save the best model up to the current iteration

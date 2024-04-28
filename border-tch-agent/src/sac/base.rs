@@ -112,7 +112,8 @@ where
                     let next_q = self.qvals_min(&self.qnets_tgt, &next_obs.into(), &next_a.into());
                     next_q - self.ent_coef.alpha() * next_log_p
                 });
-                self.reward_scale * reward + (1f32 - &is_terminated) * Tensor::from(self.gamma) * next_q
+                self.reward_scale * reward
+                    + (1f32 - &is_terminated) * Tensor::from(self.gamma) * next_q
             };
 
             debug_assert_eq!(tgt.size().as_slice(), [self.batch_size as i64]);

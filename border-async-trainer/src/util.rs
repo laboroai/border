@@ -2,14 +2,12 @@
 use crate::{
     actor_stats_fmt, ActorManager, ActorManagerConfig, AsyncTrainer, AsyncTrainerConfig, SyncModel,
 };
-use border_core::{Agent, Configurable, DefaultEvaluator, Env, ReplayBufferBase, StepProcessor};
-use border_tensorboard::TensorboardRecorder;
+use border_core::{
+    record::AggregateRecorder, Agent, Configurable, Env, Evaluator, ReplayBufferBase, StepProcessor,
+};
 use crossbeam_channel::unbounded;
 use log::info;
-use std::{
-    path::Path,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 /// Runs asynchronous training.
 ///
@@ -29,8 +27,7 @@ use std::{
 /// * `replay_buffer_config` - Configuration of the replay buffer.
 /// * `actor_man_config` - Configuration of [`ActorManager`].
 /// * `async_trainer_config` - Configuration of [`AsyncTrainer`].
-pub fn train_async<A, E, R, S, P>(
-    model_dir: &P,
+pub fn train_async<A, E, R, S>(
     agent_config: &A::Config,
     agent_configs: &Vec<A::Config>,
     env_config_train: &E::Config,
@@ -39,6 +36,8 @@ pub fn train_async<A, E, R, S, P>(
     replay_buffer_config: &R::Config,
     actor_man_config: &ActorManagerConfig,
     async_trainer_config: &AsyncTrainerConfig,
+    recorder: &mut Box<dyn AggregateRecorder>,
+    evaluator: &mut impl Evaluator<E, A>,
 ) where
     A: Agent<E, R> + Configurable<E> + SyncModel,
     E: Env,
@@ -49,11 +48,7 @@ pub fn train_async<A, E, R, S, P>(
     S::Config: Send + 'static,
     R::PushedItem: Send + 'static,
     A::ModelInfo: Send + 'static,
-    P: AsRef<Path>,
 {
-    let mut recorder = TensorboardRecorder::new(model_dir);
-    let mut evaluator = DefaultEvaluator::new(env_config_eval, 0, 1).unwrap();
-
     // Shared flag to stop actor threads
     let stop = Arc::new(Mutex::new(false));
 
@@ -86,7 +81,7 @@ pub fn train_async<A, E, R, S, P>(
 
     // Starts sampling and training
     actors.run(guard_init_env.clone());
-    let stats = trainer.train(&mut recorder, &mut evaluator, guard_init_env);
+    let stats = trainer.train(recorder, evaluator, guard_init_env);
     info!("Stats of async trainer");
     info!("{}", stats.fmt());
 

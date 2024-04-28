@@ -13,8 +13,6 @@ pub struct TrainerConfig {
     /// The maximum number of optimization steps.
     pub max_opts: usize,
 
-    // ///
-    // pub eval_threshold: Option<f32>,
     /// Directory where model parameters will be saved.
     pub model_dir: Option<String>,
 

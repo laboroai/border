@@ -7,7 +7,7 @@ use anyhow::Result;
 use border_core::{record::Record, Act, Env, Obs, Step};
 use log::trace;
 use pyo3::{
-    types::{IntoPyDict, /*PyTuple*/},
+    types::{IntoPyDict /*PyTuple*/},
     PyObject, /*ToPyObject,*/
 };
 use std::{fmt::Debug, marker::PhantomData};

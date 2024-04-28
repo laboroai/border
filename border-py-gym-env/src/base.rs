@@ -303,7 +303,16 @@ where
             }
 
             // State transition
-            let (act, next_obs, reward, is_terminated, mut is_truncated, mut record, info, init_obs) = {
+            let (
+                act,
+                next_obs,
+                reward,
+                is_terminated,
+                mut is_truncated,
+                mut record,
+                info,
+                init_obs,
+            ) = {
                 let (a_py, record_a) = self.act_filter.filt(act.clone());
                 let ret = self.env.call_method(py, "step", (a_py,), None).unwrap();
                 let step: &PyTuple = ret.extract(py).unwrap();
@@ -318,7 +327,16 @@ where
                 let init_obs = O::dummy(1);
                 let act = act.clone();
 
-                (act, next_obs, reward, is_terminated, is_truncated, record, info, init_obs)
+                (
+                    act,
+                    next_obs,
+                    reward,
+                    is_terminated,
+                    is_truncated,
+                    record,
+                    info,
+                    init_obs,
+                )
             };
 
             self.count_steps += 1; //.replace(c + 1);
@@ -336,7 +354,15 @@ where
             }
 
             (
-                Step::new(next_obs, act, reward, is_terminated, is_truncated, info, init_obs),
+                Step::new(
+                    next_obs,
+                    act,
+                    reward,
+                    is_terminated,
+                    is_truncated,
+                    info,
+                    init_obs,
+                ),
                 record,
             )
         })

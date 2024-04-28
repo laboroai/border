@@ -55,7 +55,8 @@ where
     fn update_critic(&mut self, buffer: &mut R) -> Record {
         let mut record = Record::empty();
         let batch = buffer.batch(self.batch_size).unwrap();
-        let (obs, act, next_obs, reward, is_terminated, _is_truncated, ixs, weight) = batch.unpack();
+        let (obs, act, next_obs, reward, is_terminated, _is_truncated, ixs, weight) =
+            batch.unpack();
         let obs = obs.into();
         let act = act.into().to(self.device);
         let next_obs = next_obs.into();

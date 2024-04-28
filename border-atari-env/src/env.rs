@@ -346,7 +346,15 @@ where
             let reward = self.clip_reward(reward); // in training
             self.stack_frame(obs);
             let (obs, _record) = self.obs_filter.filt(self.frames.clone().into());
-            let step = Step::new(obs, act_org, reward, is_terminated, is_truncated, NullInfo, Self::Obs::dummy(1));
+            let step = Step::new(
+                obs,
+                act_org,
+                reward,
+                is_terminated,
+                is_truncated,
+                NullInfo,
+                Self::Obs::dummy(1),
+            );
             let record = Record::empty();
 
             if let Some(window) = self.window.as_mut() {

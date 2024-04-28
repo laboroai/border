@@ -58,12 +58,15 @@ where
     fn update_critic(&mut self, buffer: &mut R) -> f32 {
         trace!("IQN::update_critic()");
         let batch = buffer.batch(self.batch_size).unwrap();
-        let (obs, act, next_obs, reward, is_terminated, _is_truncated, _ixs, _weight) = batch.unpack();
+        let (obs, act, next_obs, reward, is_terminated, _is_truncated, _ixs, _weight) =
+            batch.unpack();
         let obs = obs.into();
         let act = act.into().to(self.device);
         let next_obs = next_obs.into();
         let reward = Tensor::of_slice(&reward[..]).to(self.device).unsqueeze(-1);
-        let is_terminated = Tensor::of_slice(&is_terminated[..]).to(self.device).unsqueeze(-1);
+        let is_terminated = Tensor::of_slice(&is_terminated[..])
+            .to(self.device)
+            .unsqueeze(-1);
 
         let batch_size = self.batch_size as _;
         let n_percent_points_pred = self.sample_percents_pred.n_percent_points();
