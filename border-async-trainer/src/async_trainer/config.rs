@@ -29,6 +29,9 @@ pub struct AsyncTrainerConfig {
 
     /// Interval of synchronizing model parameters in training steps.
     pub sync_interval: usize,
+
+    /// Warmup period, for filling replay buffer, in environment steps
+    pub warmup_period: usize,
 }
 
 impl AsyncTrainerConfig {

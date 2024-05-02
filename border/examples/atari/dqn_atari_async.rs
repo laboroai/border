@@ -25,7 +25,6 @@ use border_tch_agent::{
 };
 use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg, ArgMatches};
-// use util_dqn_atari::{model_dir_async as model_dir_async_, Params};
 
 mod obs_act_types {
     use super::*;
@@ -72,112 +71,16 @@ use config::DqnAtariAsyncConfig;
 use obs_act_types::*;
 
 mod config {
+    use self::util_dqn_atari::{
+        DqnAtariAgentConfig, DqnAtariAsyncTrainerConfig, DqnAtariReplayBufferConfig,
+    };
     use serde::Serialize;
+    use std::io::Write;
 
     use super::*;
 
     pub fn env_config(name: impl Into<String>) -> EnvConfig {
         BorderAtariEnvConfig::default().name(name.into())
-    }
-
-    pub fn load_dqn_config<'a>(model_dir: impl Into<&'a str>) -> Result<DqnConfig<Cnn>> {
-        let config_path = format!("{}/agent.yaml", model_dir.into());
-        DqnConfig::<Cnn>::load(config_path)
-    }
-
-    pub fn load_replay_buffer_config<'a>(
-        model_dir: impl Into<&'a str>,
-    ) -> Result<SimpleReplayBufferConfig> {
-        let config_path = format!("{}/replay_buffer.yaml", model_dir.into());
-        SimpleReplayBufferConfig::load(config_path)
-    }
-
-    pub fn load_async_trainer_config<'a>(
-        model_dir: impl Into<&'a str>,
-    ) -> Result<AsyncTrainerConfig> {
-        let config_path = format!("{}/trainer.yaml", model_dir.into());
-        AsyncTrainerConfig::load(config_path)
-    }
-
-    #[derive(Serialize)]
-    pub struct DqnAtariAsyncConfig {
-        pub trainer: AsyncTrainerConfig,
-        pub replay_buffer: SimpleReplayBufferConfig,
-        pub agent: DqnConfig<Cnn>,
-    }
-}
-
-mod utils {
-    use super::*;
-
-    pub fn parse_args<'a>() -> ArgMatches<'a> {
-        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-        tch::manual_seed(42);
-
-        let matches = App::new("dqn_atari_async")
-            .version("0.1.0")
-            .author("Taku Yoshioka <yoshioka@laboro.ai>")
-            .arg(
-                Arg::with_name("name")
-                    .long("name")
-                    .takes_value(true)
-                    .required(true)
-                    .index(1)
-                    .help("The name of the atari environment (e.g., PongNoFrameskip-v4)"),
-            )
-            .arg(
-                Arg::with_name("per")
-                    .long("per")
-                    .takes_value(false)
-                    .help("Train/play with prioritized experience replay"),
-            )
-            .arg(
-                Arg::with_name("ddqn")
-                    .long("ddqn")
-                    .takes_value(false)
-                    .help("Train/play with double DQN"),
-            )
-            .arg(
-                Arg::with_name("debug")
-                    .long("debug")
-                    .takes_value(false)
-                    .help("Run with debug configuration"),
-            )
-            .arg(
-                Arg::with_name("show-config")
-                    .long("show-config")
-                    .takes_value(false)
-                    .help("Showing configuration loaded from files"),
-            )
-            .arg(
-                Arg::with_name("n-actors")
-                    .long("n-actors")
-                    .takes_value(true)
-                    .default_value("6")
-                    .help("The number of actors"),
-            )
-            .arg(
-                Arg::with_name("eps-min")
-                    .long("eps-min")
-                    .takes_value(true)
-                    .default_value("0.001")
-                    .help("The minimum value of exploration noise probability"),
-            )
-            .arg(
-                Arg::with_name("eps-max")
-                    .long("eps-max")
-                    .takes_value(true)
-                    .default_value("0.4")
-                    .help("The maximum value of exploration noise probability"),
-            )
-            .arg(
-                Arg::with_name("mlflow")
-                    .long("mlflow")
-                    .help("Logging with mlflow"),
-            )
-            .get_matches();
-
-        matches
     }
 
     pub fn show_config(
@@ -193,15 +96,84 @@ mod utils {
         println!("{}", serde_yaml::to_string(&trainer_config).unwrap());
     }
 
-    pub fn model_dir_async(matches: &ArgMatches) -> Result<String> {
+    pub fn load_dqn_config<'a>(model_dir: impl Into<&'a str>) -> Result<DqnConfig<Cnn>> {
+        let config_path = format!("{}/agent.yaml", model_dir.into());
+        let file = std::fs::File::open(config_path.clone())?;
+        let rdr = std::io::BufReader::new(file);
+        let config: DqnAtariAgentConfig = serde_yaml::from_reader(rdr)?;
+        println!("Load agent config: {}", config_path);
+        Ok(config.into())
+    }
+
+    pub fn load_async_trainer_config<'a>(
+        model_dir: impl Into<&'a str>,
+    ) -> Result<AsyncTrainerConfig> {
+        let config_path = format!("{}/trainer.yaml", model_dir.into());
+        let file = std::fs::File::open(config_path.clone())?;
+        let rdr = std::io::BufReader::new(file);
+        let config: DqnAtariAsyncTrainerConfig = serde_yaml::from_reader(rdr)?;
+        println!("Load async trainer config: {}", config_path);
+        Ok(config.into())
+    }
+
+    pub fn load_replay_buffer_config<'a>(
+        model_dir: impl Into<&'a str>,
+    ) -> Result<SimpleReplayBufferConfig> {
+        let config_path = format!("{}/replay_buffer.yaml", model_dir.into());
+        let file = std::fs::File::open(config_path.clone())?;
+        let rdr = std::io::BufReader::new(file);
+        let config: DqnAtariReplayBufferConfig = serde_yaml::from_reader(rdr)?;
+        println!("Load replay buffer config: {}", config_path);
+        Ok(config.into())
+    }
+
+    pub fn create_async_trainer_config(matches: &ArgMatches) -> Result<()> {
+        let model_dir = utils::model_dir(matches);
+        let config = DqnAtariAsyncTrainerConfig::default();
+        let path = model_dir + "/trainer.yaml";
+        let mut file = std::fs::File::create(path.clone())?;
+        file.write_all(serde_yaml::to_string(&config)?.as_bytes())?;
+        println!("Create trainer config file: {}", path);
+        Ok(())
+    }
+
+    pub fn create_replay_buffer_config(matches: &ArgMatches) -> Result<()> {
+        let model_dir = utils::model_dir(matches);
+        let config = util_dqn_atari::DqnAtariReplayBufferConfig::default();
+        let path = model_dir + "/replay_buffer.yaml";
+        let mut file = std::fs::File::create(path.clone())?;
+        file.write_all(serde_yaml::to_string(&config)?.as_bytes())?;
+        println!("Create replay buffer config file: {}", path);
+        Ok(())
+    }
+
+    pub fn create_agent_config(matches: &ArgMatches) -> Result<()> {
+        let model_dir = utils::model_dir(matches);
+        let config = util_dqn_atari::DqnAtariAgentConfig::default();
+        let path = model_dir + "/agent.yaml";
+        let mut file = std::fs::File::create(path.clone())?;
+        file.write_all(serde_yaml::to_string(&config)?.as_bytes())?;
+        println!("Create agent config file: {}", path);
+        Ok(())
+    }
+
+    #[derive(Serialize)]
+    pub struct DqnAtariAsyncConfig {
+        pub trainer: AsyncTrainerConfig,
+        pub replay_buffer: SimpleReplayBufferConfig,
+        pub agent: DqnConfig<Cnn>,
+    }
+}
+
+mod utils {
+    use super::*;
+
+    pub fn model_dir(matches: &ArgMatches) -> String {
         let name = matches
             .value_of("name")
             .expect("The name of the environment was not given")
             .to_string();
-        Ok(format!(
-            "./border/examples/atari/model/tch/dqn_{}_async",
-            name
-        ))
+        format!("./border/examples/atari/model/tch/dqn_{}_async", name)
 
         // let name = matches
         //     .value_of("name")
@@ -250,11 +222,86 @@ mod utils {
             false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
         }
     }
+
+    pub fn create_matches<'a>() -> ArgMatches<'a> {
+        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+        tch::manual_seed(42);
+
+        let matches = App::new("dqn_atari_async")
+            .version("0.1.0")
+            .author("Taku Yoshioka <yoshioka@laboro.ai>")
+            .arg(
+                Arg::with_name("name")
+                    .long("name")
+                    .takes_value(true)
+                    .required(true)
+                    .index(1)
+                    .help("The name of the atari environment (e.g., PongNoFrameskip-v4)"),
+            )
+            .arg(
+                Arg::with_name("create-config")
+                    .long("create-config")
+                    .help("Create config files"),
+            )
+            // .arg(
+            //     Arg::with_name("per")
+            //         .long("per")
+            //         .takes_value(false)
+            //         .help("Train/play with prioritized experience replay"),
+            // )
+            // .arg(
+            //     Arg::with_name("ddqn")
+            //         .long("ddqn")
+            //         .takes_value(false)
+            //         .help("Train/play with double DQN"),
+            // )
+            // .arg(
+            //     Arg::with_name("debug")
+            //         .long("debug")
+            //         .takes_value(false)
+            //         .help("Run with debug configuration"),
+            // )
+            .arg(
+                Arg::with_name("show-config")
+                    .long("show-config")
+                    .takes_value(false)
+                    .help("Showing configuration loaded from files"),
+            )
+            .arg(
+                Arg::with_name("n-actors")
+                    .long("n-actors")
+                    .takes_value(true)
+                    .default_value("6")
+                    .help("The number of actors"),
+            )
+            .arg(
+                Arg::with_name("eps-min")
+                    .long("eps-min")
+                    .takes_value(true)
+                    .default_value("0.001")
+                    .help("The minimum value of exploration noise probability"),
+            )
+            .arg(
+                Arg::with_name("eps-max")
+                    .long("eps-max")
+                    .takes_value(true)
+                    .default_value("0.4")
+                    .help("The maximum value of exploration noise probability"),
+            )
+            .arg(
+                Arg::with_name("mlflow")
+                    .long("mlflow")
+                    .help("Logging with mlflow"),
+            )
+            .get_matches();
+
+        matches
+    }
 }
 
 fn train(matches: ArgMatches) -> Result<()> {
     let name = matches.value_of("name").unwrap();
-    let model_dir = utils::model_dir_async(&matches)?;
+    let model_dir = utils::model_dir(&matches);
     let env_config_train = config::env_config(name);
     let n_actions = utils::n_actions(&env_config_train)?;
 
@@ -290,7 +337,7 @@ fn train(matches: ArgMatches) -> Result<()> {
     let async_trainer_config = config::load_async_trainer_config(model_dir.as_str())?;
 
     if matches.is_present("show-config") {
-        utils::show_config(
+        config::show_config(
             &env_config_train,
             &agent_config,
             &actor_man_config,
@@ -322,10 +369,21 @@ fn train(matches: ArgMatches) -> Result<()> {
     Ok(())
 }
 
-fn main() -> Result<()> {
-    let matches = utils::parse_args();
+fn create_config(matches: ArgMatches) -> Result<()> {
+    config::create_async_trainer_config(&matches)?;
+    config::create_replay_buffer_config(&matches)?;
+    config::create_agent_config(&matches)?;
+    Ok(())
+}
 
-    train(matches)?;
+fn main() -> Result<()> {
+    let matches = utils::create_matches();
+
+    if matches.is_present("create-config") {
+        create_config(matches)?;
+    } else {
+        train(matches)?;
+    }
 
     Ok(())
 }

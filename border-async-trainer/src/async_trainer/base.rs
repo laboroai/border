@@ -90,6 +90,9 @@ where
     /// Timer for computing for optimization steps per second.
     timer_for_ops: Duration,
 
+    /// Warmup period, for filling replay buffer, in environment steps
+    warmup_period: usize,
+
     /// Interval of synchronizing model parameters in training steps.
     sync_interval: usize,
 
@@ -134,6 +137,7 @@ where
             flush_records_interval: config.flush_record_interval,
             save_interval: config.save_interval,
             sync_interval: config.sync_interval,
+            warmup_period: config.warmup_period,
             agent_config: agent_config.clone(),
             env_config: env_config.clone(),
             replay_buffer_config: replay_buffer_config.clone(),
@@ -279,6 +283,11 @@ where
         info!("Starts training loop");
         loop {
             self.update_replay_buffer(&mut buffer, &mut samples, &mut samples_total);
+
+            if buffer.len() < self.warmup_period {
+                std::thread::sleep(Duration::from_millis(100));
+                continue;
+            }
 
             let mut record = self.train_step(&mut agent, &mut buffer);
             opt_steps += 1;
