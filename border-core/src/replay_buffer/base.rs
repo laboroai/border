@@ -184,7 +184,6 @@ where
             let ixs = ixs.iter().map(|&ix| ix as usize).collect();
             (ixs, Some(weight))
         } else {
-            println!("self.size = {}", self.size);
             let ixs = (0..size)
                 // .map(|_| self.rng.usize(..self.size))
                 .map(|_| (self.rng.next_u32() as usize) % self.size)
