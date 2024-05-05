@@ -162,7 +162,7 @@ mod trainer_config {
     }
 }
 
-// #[cfg(feature = "border-async-trainer")]
+#[cfg(feature = "border-async-trainer")]
 mod async_trainer_config {
     use border_async_trainer::AsyncTrainerConfig;
     use serde::{Deserialize, Serialize};
