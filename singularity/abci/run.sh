@@ -1,1 +1,1 @@
-singularity run --fakeroot border.sif "$1"
+SINGULARITY_TMPDIR=$SGE_LOCALDIR singularity run --nv --fakeroot border.sif "$1"

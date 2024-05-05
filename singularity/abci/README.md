@@ -4,12 +4,21 @@ This directory contains scripts to build and run a singularity container for tra
 
 ## Build
 
+Build the SIF image in an interactive node. 
+
 ```bash
+# in $HOME
+git clone https://github.com/taku-y/border.git
+```
+
+```bash
+cd border/singularity/abci
 sh build.sh
 ```
 
 ## Run
 
 ```bash
-qsub -g group [option] dqn_cartpole.sh
+cd dqn_cartpole
+qsub -g [group_id] dqn_cartpole.sh
 ```
