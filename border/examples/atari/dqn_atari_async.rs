@@ -334,7 +334,8 @@ fn train(matches: ArgMatches) -> Result<()> {
     let replay_buffer_config = config::load_replay_buffer_config(model_dir.as_str())?;
     let step_proc_config = SimpleStepProcessorConfig::default();
     let actor_man_config = ActorManagerConfig::default();
-    let async_trainer_config = config::load_async_trainer_config(model_dir.as_str())?;
+    let async_trainer_config =
+        config::load_async_trainer_config(model_dir.as_str())?.model_dir(model_dir.as_str())?;
 
     if matches.is_present("show-config") {
         config::show_config(

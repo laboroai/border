@@ -49,4 +49,10 @@ impl AsyncTrainerConfig {
         file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;
         Ok(())
     }
+
+    /// Sets the directory the trained model being saved.
+    pub fn model_dir<T: Into<String>>(mut self, model_dir: T) -> Result<Self> {
+        self.model_dir = Some(model_dir.into());
+        Ok(self)
+    }
 }
