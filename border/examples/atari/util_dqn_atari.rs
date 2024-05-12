@@ -162,6 +162,145 @@ mod trainer_config {
     }
 }
 
+#[cfg(feature = "border-async-trainer")]
+mod async_trainer_config {
+    use border_async_trainer::AsyncTrainerConfig;
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Deserialize, Serialize)]
+    pub struct DqnAtariAsyncTrainerConfig {
+        pub model_dir: Option<String>,
+
+        #[serde(
+            default = "default_max_opts",
+            skip_serializing_if = "is_default_max_opts"
+        )]
+        pub max_opts: usize,
+
+        #[serde(
+            default = "default_eval_interval",
+            skip_serializing_if = "is_default_eval_interval"
+        )]
+        pub eval_interval: usize,
+
+        #[serde(
+            default = "default_flush_record_interval",
+            skip_serializing_if = "is_default_flush_record_interval"
+        )]
+        pub flush_record_interval: usize,
+
+        #[serde(
+            default = "default_record_compute_cost_interval",
+            skip_serializing_if = "is_default_record_compute_cost_interval"
+        )]
+        pub record_compute_cost_interval: usize,
+
+        #[serde(
+            default = "default_save_interval",
+            skip_serializing_if = "is_default_save_interval"
+        )]
+        pub save_interval: usize,
+
+        #[serde(
+            default = "default_sync_interval",
+            skip_serializing_if = "is_default_sync_interval"
+        )]
+        pub sync_interval: usize,
+
+        #[serde(
+            default = "default_warmup_period",
+            skip_serializing_if = "is_default_warmup_period"
+        )]
+        pub warmup_period: usize,
+    }
+
+    impl Default for DqnAtariAsyncTrainerConfig {
+        fn default() -> Self {
+            Self {
+                model_dir: None,
+                max_opts: 3000000,
+                eval_interval: 5000,
+                flush_record_interval: 5000,
+                record_compute_cost_interval: 5000,
+                sync_interval: 1,
+                save_interval: 500000,
+                warmup_period: 10000,
+            }
+        }
+    }
+
+    fn default_max_opts() -> usize {
+        DqnAtariAsyncTrainerConfig::default().max_opts
+    }
+
+    fn default_eval_interval() -> usize {
+        DqnAtariAsyncTrainerConfig::default().eval_interval
+    }
+
+    fn default_flush_record_interval() -> usize {
+        DqnAtariAsyncTrainerConfig::default().flush_record_interval
+    }
+
+    fn default_record_compute_cost_interval() -> usize {
+        DqnAtariAsyncTrainerConfig::default().record_compute_cost_interval
+    }
+
+    fn default_sync_interval() -> usize {
+        DqnAtariAsyncTrainerConfig::default().sync_interval
+    }
+
+    fn default_save_interval() -> usize {
+        DqnAtariAsyncTrainerConfig::default().save_interval
+    }
+
+    fn default_warmup_period() -> usize {
+        DqnAtariAsyncTrainerConfig::default().warmup_period
+    }
+
+    fn is_default_max_opts(v: &usize) -> bool {
+        *v == default_max_opts()
+    }
+
+    fn is_default_eval_interval(v: &usize) -> bool {
+        *v == default_eval_interval()
+    }
+
+    fn is_default_flush_record_interval(v: &usize) -> bool {
+        *v == default_flush_record_interval()
+    }
+
+    fn is_default_record_compute_cost_interval(v: &usize) -> bool {
+        *v == default_record_compute_cost_interval()
+    }
+
+    fn is_default_sync_interval(v: &usize) -> bool {
+        *v == default_sync_interval()
+    }
+
+    fn is_default_save_interval(v: &usize) -> bool {
+        *v == default_save_interval()
+    }
+
+    fn is_default_warmup_period(v: &usize) -> bool {
+        *v == default_warmup_period()
+    }
+
+    impl Into<AsyncTrainerConfig> for DqnAtariAsyncTrainerConfig {
+        fn into(self) -> AsyncTrainerConfig {
+            AsyncTrainerConfig {
+                model_dir: self.model_dir,
+                max_opts: self.max_opts,
+                eval_interval: self.eval_interval,
+                flush_record_interval: self.flush_record_interval,
+                record_compute_cost_interval: self.record_compute_cost_interval,
+                save_interval: self.save_interval,
+                sync_interval: self.sync_interval,
+                warmup_period: self.warmup_period,
+            }
+        }
+    }
+}
+
 mod replay_buffer_config {
     use border_core::replay_buffer::{PerConfig, SimpleReplayBufferConfig};
     use serde::{Deserialize, Serialize};
@@ -752,38 +891,17 @@ mod candle_dqn_config {
     }
 }
 
+#[allow(unused_imports)]
 pub use replay_buffer_config::DqnAtariReplayBufferConfig;
+#[allow(unused_imports)]
 pub use trainer_config::DqnAtariTrainerConfig;
 
+#[cfg(feature = "border-async-trainer")]
+pub use async_trainer_config::DqnAtariAsyncTrainerConfig;
+
+#[allow(unused_imports)]
 #[cfg(feature = "candle-core")]
 pub use candle_dqn_config::DqnAtariAgentConfig;
+#[allow(unused_imports)]
 #[cfg(feature = "tch")]
 pub use tch_dqn_config::DqnAtariAgentConfig;
-
-// #[allow(dead_code)]
-// pub fn model_dir_async(env_name: String, params: &Params) -> Result<String> {
-//     let per = params.per;
-//     let ddqn = params.double_dqn;
-//     let debug = params.debug;
-
-//     let mut model_dir = format!("./border/examples/atari/model/dqn_{}", env_name);
-//     if ddqn {
-//         model_dir.push_str("_ddqn");
-//     }
-
-//     if per {
-//         model_dir.push_str("_per");
-//     }
-
-//     if debug {
-//         model_dir.push_str("_debug");
-//     }
-
-//     model_dir.push_str("_async");
-
-//     if !Path::new(&model_dir).exists() {
-//         std::fs::create_dir(Path::new(&model_dir))?;
-//     }
-
-//     Ok(model_dir)
-// }

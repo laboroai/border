@@ -27,7 +27,7 @@ where
                 let act = policy.sample(&prev_obs);
                 let (step, _) = self.env.step(&act);
                 r_total += step.reward[0];
-                if step.is_done[0] == 1 {
+                if step.is_done() {
                     break;
                 }
                 prev_obs = step.obs;

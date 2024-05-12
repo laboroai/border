@@ -215,7 +215,7 @@ class WrapPyTorch(gym.ObservationWrapper):
 
     def observation(self, observation):
         return observation.transpose(2, 0, 1)
-
+    
 # vecenv.py
 class VecEnv(object):
     """

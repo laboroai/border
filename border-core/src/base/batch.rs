@@ -17,7 +17,7 @@ pub trait StdBatchBase {
     /// A set of observation in a batch.
     type ActBatch;
 
-    /// Unpack the data `(o_t, a_t, o_t+n, r_t, is_done_t)`.
+    /// Unpack the data `(o_t, a_t, o_t+n, r_t, is_terminated_t, is_truncated_t)`.
     ///
     /// Optionally, the return value has sample indices in the replay buffer and
     /// thier weights. Those are used for prioritized experience replay (PER).
@@ -28,6 +28,7 @@ pub trait StdBatchBase {
         Self::ActBatch,
         Self::ObsBatch,
         Vec<f32>,
+        Vec<i8>,
         Vec<i8>,
         Option<Vec<usize>>,
         Option<Vec<f32>>,
@@ -48,8 +49,11 @@ pub trait StdBatchBase {
     /// Returns `r_t`.
     fn reward(&self) -> &Vec<f32>;
 
-    /// Returns `is_done_t`.
-    fn is_done(&self) -> &Vec<i8>;
+    /// Returns `is_terminated_t`.
+    fn is_terminated(&self) -> &Vec<i8>;
+
+    /// Returns `is_terminated_t`.
+    fn is_truncated(&self) -> &Vec<i8>;
 
     /// Returns `weight`. It is used for PER.
     fn weight(&self) -> &Option<Vec<f32>>;

@@ -9,10 +9,6 @@ pub trait Info {}
 ///
 /// An environment emits [`Step`] object at every interaction steps.
 /// This object might be used to create transitions `(o_t, a_t, o_t+1, r_t)`.
-///
-/// Old versions of the library support veectorized environments, which requires
-/// elements in [`Step`] to be able to handle multiple values.
-/// This is why `reward` and `is_done` are vector.
 pub struct Step<E: Env> {
     /// Action.
     pub act: E::Act,
@@ -23,8 +19,11 @@ pub struct Step<E: Env> {
     /// Reward.
     pub reward: Vec<f32>,
 
-    /// Flag denoting if episode is done.
-    pub is_done: Vec<i8>,
+    /// Flag denoting if episode is terminated.
+    pub is_terminated: Vec<i8>,
+
+    /// Flag denoting if episode is truncated.
+    pub is_truncated: Vec<i8>,
 
     /// Information defined by user.
     pub info: E::Info,
@@ -39,7 +38,8 @@ impl<E: Env> Step<E> {
         obs: E::Obs,
         act: E::Act,
         reward: Vec<f32>,
-        is_done: Vec<i8>,
+        is_terminated: Vec<i8>,
+        is_truncated: Vec<i8>,
         info: E::Info,
         init_obs: E::Obs,
     ) -> Self {
@@ -47,10 +47,17 @@ impl<E: Env> Step<E> {
             act,
             obs,
             reward,
-            is_done,
+            is_terminated,
+            is_truncated,
             info,
             init_obs,
         }
+    }
+
+    #[inline]
+    /// Terminated or truncated.
+    pub fn is_done(&self) -> bool {
+        self.is_terminated[0] == 1 || self.is_truncated[0] == 1
     }
 }
 

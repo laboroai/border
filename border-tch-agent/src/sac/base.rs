@@ -101,9 +101,9 @@ where
 
     fn update_critic(&mut self, batch: R::Batch) -> f32 {
         let losses = {
-            let (obs, act, next_obs, reward, is_done, _, _) = batch.unpack();
+            let (obs, act, next_obs, reward, is_terminated, _is_truncated, _, _) = batch.unpack();
             let reward = Tensor::of_slice(&reward[..]).to(self.device);
-            let is_done = Tensor::of_slice(&is_done[..]).to(self.device);
+            let is_terminated = Tensor::of_slice(&is_terminated[..]).to(self.device);
 
             let preds = self.qvals(&self.qnets, &obs.into(), &act.into());
             let tgt = {
@@ -112,7 +112,8 @@ where
                     let next_q = self.qvals_min(&self.qnets_tgt, &next_obs.into(), &next_a.into());
                     next_q - self.ent_coef.alpha() * next_log_p
                 });
-                self.reward_scale * reward + (1f32 - &is_done) * Tensor::from(self.gamma) * next_q
+                self.reward_scale * reward
+                    + (1f32 - &is_terminated) * Tensor::from(self.gamma) * next_q
             };
 
             debug_assert_eq!(tgt.size().as_slice(), [self.batch_size as i64]);

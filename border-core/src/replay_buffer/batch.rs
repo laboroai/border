@@ -20,8 +20,11 @@ where
     /// Rewards.
     pub reward: Vec<f32>,
 
-    /// Done flags.
-    pub is_done: Vec<i8>,
+    /// Termination flags.
+    pub is_terminated: Vec<i8>,
+
+    /// Truncation flags.
+    pub is_truncated: Vec<i8>,
 
     /// Priority weights.
     pub weight: Option<Vec<f32>>,
@@ -46,6 +49,7 @@ where
         Self::ObsBatch,
         Vec<f32>,
         Vec<i8>,
+        Vec<i8>,
         Option<Vec<usize>>,
         Option<Vec<f32>>,
     ) {
@@ -54,7 +58,8 @@ where
             self.act,
             self.next_obs,
             self.reward,
-            self.is_done,
+            self.is_terminated,
+            self.is_truncated,
             self.ix_sample,
             self.weight,
         )
@@ -80,8 +85,12 @@ where
         &self.reward
     }
 
-    fn is_done(&self) -> &Vec<i8> {
-        &self.is_done
+    fn is_terminated(&self) -> &Vec<i8> {
+        &self.is_terminated
+    }
+
+    fn is_truncated(&self) -> &Vec<i8> {
+        &self.is_truncated
     }
 
     fn weight(&self) -> &Option<Vec<f32>> {
@@ -98,7 +107,8 @@ where
             act: A::new(0),
             next_obs: O::new(0),
             reward: vec![],
-            is_done: vec![],
+            is_terminated: vec![],
+            is_truncated: vec![],
             ix_sample: None,
             weight: None,
         }
@@ -117,7 +127,8 @@ where
             act: A::new(capacity),
             next_obs: O::new(capacity),
             reward: vec![0.0; capacity],
-            is_done: vec![0; capacity],
+            is_terminated: vec![0; capacity],
+            is_truncated: vec![0; capacity],
             ix_sample: None,
             weight: None,
         }

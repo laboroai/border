@@ -103,37 +103,40 @@ where
         let actions = self.env.minimal_actions();
         let ix = a.act;
         let reward = self.env.step(actions[ix as usize]) as f32;
-        let mut done = self.env.is_game_over();
-        self.was_real_done = done;
+
+        let is_terminated = match self.env.is_game_over() {
+            true => 1,
+            false => 0,
+        };
+        self.was_real_done = is_terminated == 1;
         let lives = self.env.lives();
 
-        if self.train && lives < self.lives && lives > 0 {
-            done = true;
-        }
+        // if self.train && lives < self.lives && lives > 0 {
+        //     done = true;
+        // }
         self.lives = lives;
 
-        let done = if done { 1 } else { 0 };
         let (w, h) = (self.env.width(), self.env.height());
         let mut obs = vec![0u8; w * h * 3];
         self.env.render_rgb24(&mut obs);
 
-        (obs, reward, done)
+        (obs, reward, is_terminated)
     }
 
     fn skip_and_max(&mut self, a: &BorderAtariAct) -> (Vec<u8>, f32, Vec<i8>) {
         let mut total_reward = 0f32;
-        let mut done = 0;
+        let mut is_terminated = 0;
 
         for i in 0..4 {
-            let (obs, reward, done_) = self.episodic_life_env_step(a);
+            let (obs, reward, is_terminated_) = self.episodic_life_env_step(a);
             total_reward += reward;
-            done = done_;
+            is_terminated = is_terminated_;
             if i == 2 {
                 self.obs_buffer[0] = obs;
             } else if i == 3 {
                 self.obs_buffer[1] = obs;
             }
-            if done_ == 1 {
+            if is_terminated_ == 1 {
                 break;
             }
         }
@@ -145,7 +148,7 @@ where
             .map(|(&a, &b)| a.max(b))
             .collect::<Vec<_>>();
 
-        (obs, total_reward, vec![done])
+        (obs, total_reward, vec![is_terminated])
     }
 
     fn clip_reward(&self, r: f32) -> Vec<f32> {
@@ -309,14 +312,15 @@ where
         Self: Sized,
     {
         let (step, record) = self.step(a);
-        assert_eq!(step.is_done.len(), 1);
-        let step = if step.is_done[0] == 1 {
+        assert_eq!(step.is_terminated.len(), 1);
+        let step = if step.is_done() {
             let init_obs = self.reset(None).unwrap();
             Step {
                 act: step.act,
                 obs: step.obs,
                 reward: step.reward,
-                is_done: step.is_done,
+                is_terminated: step.is_terminated,
+                is_truncated: step.is_truncated,
                 info: step.info,
                 init_obs,
             }
@@ -335,13 +339,22 @@ where
         {
             let act_org = act.clone();
             let (act, _record) = self.act_filter.filt(act_org.clone());
-            let (obs, reward, is_done) = self.skip_and_max(&act);
+            let (obs, reward, is_terminated) = self.skip_and_max(&act);
+            let is_truncated = vec![0]; // not compatible with the official implementation
             let (w, h) = (self.env.width() as u32, self.env.height() as u32);
             let obs = Self::warp_and_grayscale(w, h, obs);
             let reward = self.clip_reward(reward); // in training
             self.stack_frame(obs);
             let (obs, _record) = self.obs_filter.filt(self.frames.clone().into());
-            let step = Step::new(obs, act_org, reward, is_done, NullInfo, Self::Obs::dummy(1));
+            let step = Step::new(
+                obs,
+                act_org,
+                reward,
+                is_terminated,
+                is_truncated,
+                NullInfo,
+                Self::Obs::dummy(1),
+            );
             let record = Record::empty();
 
             if let Some(window) = self.window.as_mut() {

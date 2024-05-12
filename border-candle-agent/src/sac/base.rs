@@ -105,12 +105,12 @@ where
 
     fn update_critic(&mut self, batch: R::Batch) -> Result<f32> {
         let losses = {
-            let (obs, act, next_obs, reward, is_done, _, _) = batch.unpack();
+            let (obs, act, next_obs, reward, is_terminated, _is_truncated, _, _) = batch.unpack();
             let batch_size = reward.len();
             let reward = Tensor::from_slice(&reward[..], (batch_size,), &self.device)?;
-            let is_done = {
-                let is_done = is_done.iter().map(|e| *e as f32).collect::<Vec<_>>();
-                Tensor::from_slice(&is_done[..], (batch_size,), &self.device)?
+            let is_terminated = {
+                let is_terminated = is_terminated.iter().map(|e| *e as f32).collect::<Vec<_>>();
+                Tensor::from_slice(&is_terminated[..], (batch_size,), &self.device)?
             };
 
             let preds = self.qvals(&self.qnets, &obs.into(), &act.into());
@@ -121,7 +121,8 @@ where
                         self.qvals_min(&self.qnets_tgt, &next_obs.into(), &next_a.into())?;
                     (next_q - self.ent_coef.alpha()?.broadcast_mul(&next_log_p))?
                 };
-                ((self.reward_scale as f64) * reward)? + (1f64 - &is_done)? * self.gamma * next_q
+                ((self.reward_scale as f64) * reward)?
+                    + (1f64 - &is_terminated)? * self.gamma * next_q
             }?
             .detach();
 

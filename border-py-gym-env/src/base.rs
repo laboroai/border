@@ -174,14 +174,15 @@ where
         Self: Sized,
     {
         let (step, record) = self.step(a);
-        assert_eq!(step.is_done.len(), 1);
-        let step = if step.is_done[0] == 1 {
+        assert_eq!(step.is_terminated.len(), 1);
+        let step = if step.is_done() {
             let init_obs = self.reset(None).unwrap();
             Step {
                 act: step.act,
                 obs: step.obs,
                 reward: step.reward,
-                is_done: step.is_done,
+                is_terminated: step.is_terminated,
+                is_truncated: step.is_truncated,
                 info: step.info,
                 init_obs,
             }
@@ -270,16 +271,18 @@ where
     /// The [`Record`] is composed of [`Record`]s constructed in [`GymObsFilter`] and
     /// [`GymActFilter`].
     fn step(&mut self, act: &A) -> (Step<Self>, Record) {
-        fn is_done(step: &PyTuple) -> i8 {
+        fn is_done(step: &PyTuple) -> (i8, i8) {
             // terminated or truncated
-            let terminated: bool = step.get_item(2).extract().unwrap();
-            let truncated: bool = step.get_item(3).extract().unwrap();
+            let is_terminated = match step.get_item(2).extract().unwrap() {
+                true => 1,
+                false => 0,
+            };
+            let is_truncated = match step.get_item(3).extract().unwrap() {
+                true => 1,
+                false => 0,
+            };
 
-            if terminated | truncated {
-                1
-            } else {
-                0
-            }
+            (is_terminated, is_truncated)
         }
 
         trace!("PyGymEnv::step()");
@@ -300,39 +303,66 @@ where
             }
 
             // State transition
-            let (act, next_obs, reward, mut is_done, mut record, info, init_obs) = {
+            let (
+                act,
+                next_obs,
+                reward,
+                is_terminated,
+                mut is_truncated,
+                mut record,
+                info,
+                init_obs,
+            ) = {
                 let (a_py, record_a) = self.act_filter.filt(act.clone());
                 let ret = self.env.call_method(py, "step", (a_py,), None).unwrap();
                 let step: &PyTuple = ret.extract(py).unwrap();
                 let next_obs = step.get_item(0).to_owned();
                 let (next_obs, record_o) = self.obs_filter.filt(next_obs.to_object(py));
                 let reward: Vec<f32> = vec![step.get_item(1).extract().unwrap()];
-                let is_done: Vec<i8> = vec![is_done(step)];
+                let (is_terminated, is_truncated) = is_done(step);
+                let is_terminated = vec![is_terminated];
+                let is_truncated = vec![is_truncated];
                 let record = record_o.merge(record_a);
                 let info = GymInfo {};
                 let init_obs = O::dummy(1);
                 let act = act.clone();
 
-                (act, next_obs, reward, is_done, record, info, init_obs)
+                (
+                    act,
+                    next_obs,
+                    reward,
+                    is_terminated,
+                    is_truncated,
+                    record,
+                    info,
+                    init_obs,
+                )
             };
 
             self.count_steps += 1; //.replace(c + 1);
 
             // Terminated or truncated
-            // TODO: distinguish these two conditions
             if let Some(max_steps) = self.max_steps {
                 if self.count_steps >= max_steps {
-                    is_done[0] = 1;
+                    is_truncated[0] = 1;
                 }
             };
 
-            if is_done[0] == 1 {
+            if (is_terminated[0] | is_truncated[0]) == 1 {
                 record.insert("episode_length", Scalar(self.count_steps as _));
                 self.count_steps = 0;
             }
 
             (
-                Step::new(next_obs, act, reward, is_done, info, init_obs),
+                Step::new(
+                    next_obs,
+                    act,
+                    reward,
+                    is_terminated,
+                    is_truncated,
+                    info,
+                    init_obs,
+                ),
                 record,
             )
         })

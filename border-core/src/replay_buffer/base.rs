@@ -40,7 +40,8 @@ where
     act: A,
     next_obs: O,
     reward: Vec<f32>,
-    is_done: Vec<i8>,
+    is_terminated: Vec<i8>,
+    is_truncated: Vec<i8>,
     rng: StdRng,
     per_state: Option<PerState>,
 }
@@ -63,10 +64,21 @@ where
     }
 
     #[inline]
-    fn push_is_done(&mut self, i: usize, b: &Vec<i8>) {
+    fn push_is_terminated(&mut self, i: usize, b: &Vec<i8>) {
         let mut j = i;
         for d in b.iter() {
-            self.is_done[j] = *d;
+            self.is_terminated[j] = *d;
+            j += 1;
+            if j == self.capacity {
+                j = 0;
+            }
+        }
+    }
+
+    fn push_is_truncated(&mut self, i: usize, b: &Vec<i8>) {
+        let mut j = i;
+        for d in b.iter() {
+            self.is_truncated[j] = *d;
             j += 1;
             if j == self.capacity {
                 j = 0;
@@ -78,8 +90,12 @@ where
         ixs.iter().map(|ix| self.reward[*ix]).collect()
     }
 
-    fn sample_is_done(&self, ixs: &Vec<usize>) -> Vec<i8> {
-        ixs.iter().map(|ix| self.is_done[*ix]).collect()
+    fn sample_is_terminated(&self, ixs: &Vec<usize>) -> Vec<i8> {
+        ixs.iter().map(|ix| self.is_terminated[*ix]).collect()
+    }
+
+    fn sample_is_truncated(&self, ixs: &Vec<usize>) -> Vec<i8> {
+        ixs.iter().map(|ix| self.is_truncated[*ix]).collect()
     }
 
     /// Sets priorities for the added samples.
@@ -107,12 +123,13 @@ where
 
     fn push(&mut self, tr: Self::PushedItem) -> Result<()> {
         let len = tr.len(); // batch size
-        let (obs, act, next_obs, reward, is_done, _, _) = tr.unpack();
+        let (obs, act, next_obs, reward, is_terminated, is_truncated, _, _) = tr.unpack();
         self.obs.push(self.i, obs);
         self.act.push(self.i, act);
         self.next_obs.push(self.i, next_obs);
         self.push_reward(self.i, &reward);
-        self.push_is_done(self.i, &is_done);
+        self.push_is_terminated(self.i, &is_terminated);
+        self.push_is_truncated(self.i, &is_truncated);
 
         if self.per_state.is_some() {
             self.set_priority(len)
@@ -151,7 +168,8 @@ where
             act: A::new(capacity),
             next_obs: O::new(capacity),
             reward: vec![0.; capacity],
-            is_done: vec![0; capacity],
+            is_terminated: vec![0; capacity],
+            is_truncated: vec![0; capacity],
             // rng: Rng::with_seed(config.seed),
             rng: StdRng::seed_from_u64(config.seed as _),
             per_state,
@@ -179,7 +197,8 @@ where
             act: self.act.sample(&ixs),
             next_obs: self.next_obs.sample(&ixs),
             reward: self.sample_reward(&ixs),
-            is_done: self.sample_is_done(&ixs),
+            is_terminated: self.sample_is_terminated(&ixs),
+            is_truncated: self.sample_is_truncated(&ixs),
             ix_sample: Some(ixs),
             weight,
         })

@@ -55,12 +55,13 @@ where
     fn update_critic(&mut self, buffer: &mut R) -> Record {
         let mut record = Record::empty();
         let batch = buffer.batch(self.batch_size).unwrap();
-        let (obs, act, next_obs, reward, is_done, ixs, weight) = batch.unpack();
+        let (obs, act, next_obs, reward, is_terminated, _is_truncated, ixs, weight) =
+            batch.unpack();
         let obs = obs.into();
         let act = act.into().to(self.device);
         let next_obs = next_obs.into();
         let reward = Tensor::of_slice(&reward[..]).to(self.device);
-        let is_done = Tensor::of_slice(&is_done[..]).to(self.device);
+        let is_terminated = Tensor::of_slice(&is_terminated[..]).to(self.device);
 
         let pred = {
             let x = self.qnet.forward(&obs);
@@ -92,7 +93,7 @@ where
                 let y = x.argmax(-1, false).unsqueeze(-1);
                 x.gather(-1, &y, false).squeeze()
             };
-            reward + (1 - is_done) * self.discount_factor * q
+            reward + (1 - is_terminated) * self.discount_factor * q
         });
 
         if self.record_verbose_level >= 2 {

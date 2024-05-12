@@ -83,7 +83,6 @@ pub mod error;
 mod evaluator;
 pub mod record;
 pub mod replay_buffer;
-pub mod util;
 
 mod base;
 pub use base::{
