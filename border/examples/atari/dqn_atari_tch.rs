@@ -10,8 +10,7 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    Agent, Configurable, DefaultEvaluator, Env as _, Evaluator as _, Trainer,
-    TrainerConfig,
+    Agent, Configurable, DefaultEvaluator, Env as _, Evaluator as _, Trainer, TrainerConfig,
 };
 use border_derive::{Act, SubBatch};
 use border_mlflow_tracking::MlflowTrackingClient;
