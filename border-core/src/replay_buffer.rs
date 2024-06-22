@@ -8,4 +8,4 @@ pub use base::{IwScheduler, SimpleReplayBuffer, WeightNormalizer};
 pub use batch::StdBatch;
 pub use config::{PerConfig, SimpleReplayBufferConfig};
 pub use step_proc::{SimpleStepProcessor, SimpleStepProcessorConfig};
-pub use subbatch::SubBatch;
+pub use subbatch::BatchBase;

@@ -1,4 +1,4 @@
-use border_core::replay_buffer::SubBatch;
+use border_core::replay_buffer::BatchBase;
 use candle_core::{error::Result, DType, Device, Tensor};
 
 /// Adds capability of constructing [Tensor] with a static method.
@@ -44,7 +44,7 @@ impl TensorSubBatch {
     }
 }
 
-impl SubBatch for TensorSubBatch {
+impl BatchBase for TensorSubBatch {
     fn new(capacity: usize) -> Self {
         Self {
             buf: Vec::with_capacity(capacity),

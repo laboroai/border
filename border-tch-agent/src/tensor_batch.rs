@@ -1,4 +1,4 @@
-use border_core::replay_buffer::SubBatch;
+use border_core::replay_buffer::BatchBase;
 use tch::{Device, Tensor};
 
 /// Adds capability of constructing [Tensor] with a static method.
@@ -66,7 +66,7 @@ impl TensorSubBatch {
     }
 }
 
-impl SubBatch for TensorSubBatch {
+impl BatchBase for TensorSubBatch {
     fn new(capacity: usize) -> Self {
         // let capacity = capacity as i64;
         // let mut shape: Vec<_> = S::shape().to_vec().iter().map(|e| *e as i64).collect();

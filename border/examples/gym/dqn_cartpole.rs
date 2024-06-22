@@ -10,7 +10,7 @@ use border_core::{
     record::AggregateRecorder,
     replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
-        SimpleStepProcessorConfig, SubBatch,
+        SimpleStepProcessorConfig, BatchBase,
     },
     Agent, Configurable, DefaultEvaluator, Evaluator as _, Trainer, TrainerConfig,
 };
@@ -71,7 +71,7 @@ mod obs_act_types {
 
     pub struct ObsBatch(TensorSubBatch);
 
-    impl SubBatch for ObsBatch {
+    impl BatchBase for ObsBatch {
         fn new(capacity: usize) -> Self {
             Self(TensorSubBatch::new(capacity))
         }
@@ -121,7 +121,7 @@ mod obs_act_types {
 
     pub struct ActBatch(TensorSubBatch);
 
-    impl SubBatch for ActBatch {
+    impl BatchBase for ActBatch {
         fn new(capacity: usize) -> Self {
             Self(TensorSubBatch::new(capacity))
         }

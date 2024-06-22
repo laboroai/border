@@ -1,12 +1,24 @@
 //! A generic implementation of [`TransitionBatch`](crate::TransitionBatch).
-use super::SubBatch;
+use super::BatchBase;
 use crate::TransitionBatch;
+
+// /// A generic implementation of a batch of items.
+// pub trait SubBatch {
+//     /// Builds a subbatch with a capacity.
+//     fn new(capacity: usize) -> Self;
+
+//     /// Pushes the samples in `data`.
+//     fn push(&mut self, ix: usize, data: Self);
+
+//     /// Takes samples in the batch.
+//     fn sample(&self, ixs: &Vec<usize>) -> Self;
+// }
 
 /// A generic implementation of [`TransitionBatch`](`crate::TransitionBatch`).
 pub struct StdBatch<O, A>
 where
-    O: SubBatch,
-    A: SubBatch,
+    O: BatchBase,
+    A: BatchBase,
 {
     /// Observations.
     pub obs: O,
@@ -35,8 +47,8 @@ where
 
 impl<O, A> TransitionBatch for StdBatch<O, A>
 where
-    O: SubBatch,
-    A: SubBatch,
+    O: BatchBase,
+    A: BatchBase,
 {
     type ObsBatch = O;
     type ActBatch = A;
@@ -76,8 +88,8 @@ where
 
 impl<O, A> StdBatch<O, A>
 where
-    O: SubBatch,
-    A: SubBatch,
+    O: BatchBase,
+    A: BatchBase,
 {
     /// Creates new batch with the given capacity.
     pub fn with_capacity(capacity: usize) -> Self {

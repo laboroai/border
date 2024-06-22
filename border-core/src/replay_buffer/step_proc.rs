@@ -1,5 +1,5 @@
 //! A generic implementation of [`StepProcessor`](crate::StepProcessor).
-use super::{StdBatch, SubBatch};
+use super::{StdBatch, BatchBase};
 use crate::{Env, Obs, StepProcessor};
 use std::{default::Default, marker::PhantomData};
 
@@ -25,8 +25,8 @@ pub struct SimpleStepProcessor<E, O, A> {
 impl<E, O, A> StepProcessor<E> for SimpleStepProcessor<E, O, A>
 where
     E: Env,
-    O: SubBatch + From<E::Obs>,
-    A: SubBatch + From<E::Act>,
+    O: BatchBase + From<E::Obs>,
+    A: BatchBase + From<E::Act>,
 {
     type Config = SimpleStepProcessorConfig;
     type Output = StdBatch<O, A>;

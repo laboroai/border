@@ -1,7 +1,7 @@
 //! Simple generic replay buffer.
 mod iw_scheduler;
 mod sum_tree;
-use super::{config::PerConfig, SimpleReplayBufferConfig, StdBatch, SubBatch};
+use super::{config::PerConfig, SimpleReplayBufferConfig, StdBatch, BatchBase};
 use crate::{ExperienceBufferBase, ReplayBufferBase, TransitionBatch};
 use anyhow::Result;
 pub use iw_scheduler::IwScheduler;
@@ -30,8 +30,8 @@ impl PerState {
 /// A simple generic replay buffer.
 pub struct SimpleReplayBuffer<O, A>
 where
-    O: SubBatch,
-    A: SubBatch,
+    O: BatchBase,
+    A: BatchBase,
 {
     capacity: usize,
     i: usize,
@@ -48,8 +48,8 @@ where
 
 impl<O, A> SimpleReplayBuffer<O, A>
 where
-    O: SubBatch,
-    A: SubBatch,
+    O: BatchBase,
+    A: BatchBase,
 {
     #[inline]
     fn push_reward(&mut self, i: usize, b: &Vec<f32>) {
@@ -112,8 +112,8 @@ where
 
 impl<O, A> ExperienceBufferBase for SimpleReplayBuffer<O, A>
 where
-    O: SubBatch,
-    A: SubBatch,
+    O: BatchBase,
+    A: BatchBase,
 {
     type PushedItem = StdBatch<O, A>;
 
@@ -147,8 +147,8 @@ where
 
 impl<O, A> ReplayBufferBase for SimpleReplayBuffer<O, A>
 where
-    O: SubBatch,
-    A: SubBatch,
+    O: BatchBase,
+    A: BatchBase,
 {
     type Config = SimpleReplayBufferConfig;
     type Batch = StdBatch<O, A>;
