@@ -14,7 +14,7 @@ pub trait BatchBase {
 }
 
 /// A generic implementation of [`TransitionBatch`](`crate::TransitionBatch`).
-pub struct StdBatch<O, A>
+pub struct GenericTransitionBatch<O, A>
 where
     O: BatchBase,
     A: BatchBase,
@@ -44,7 +44,7 @@ where
     pub ix_sample: Option<Vec<usize>>,
 }
 
-impl<O, A> TransitionBatch for StdBatch<O, A>
+impl<O, A> TransitionBatch for GenericTransitionBatch<O, A>
 where
     O: BatchBase,
     A: BatchBase,
@@ -85,7 +85,7 @@ where
     }
 }
 
-impl<O, A> StdBatch<O, A>
+impl<O, A> GenericTransitionBatch<O, A>
 where
     O: BatchBase,
     A: BatchBase,

@@ -62,13 +62,13 @@
 //! [`SimpleReplayBuffer<O, A>`] implementats [`ReplayBufferBase`].
 //! This type has two parameters `O` and `A`, which are representation of
 //! observation and action in the replay buffer. `O` and `A` must implement
-//! [`SubBatch`], which has the functionality of storing samples, like `Vec<T>`,
+//! [`BatchBase`], which has the functionality of storing samples, like `Vec<T>`,
 //! for observation and action. The associated types `PushedItem` and `Batch`
-//! are the same type, [`StdBatch`], representing sets of `(o_t, r_t, a_t, o_t+1)`.
+//! are the same type, [`GenericTransitionBatch`], representing sets of `(o_t, r_t, a_t, o_t+1)`.
 //!
 //! [`SimpleStepProcessor<E, O, A>`] might be used with [`SimpleReplayBuffer<O, A>`].
-//! It converts `E::Obs` and `E::Act` into [`SubBatch`]s of respective types
-//! and generates [`StdBatch`]. The conversion process relies on trait bounds,
+//! It converts `E::Obs` and `E::Act` into [`BatchBase`]s of respective types
+//! and generates [`GenericTransitionBatch`]. The conversion process relies on trait bounds,
 //! `O: From<E::Obs>` and `A: From<E::Act>`.
 //!
 //! # Trainer
@@ -79,9 +79,9 @@
 //! given [`Agent`] and [`Recorder`](crate::record::Recorder).
 //!
 //! [`SimpleReplayBuffer`]: replay_buffer::SimpleReplayBuffer
-//! [`SimpleReplayBuffer<O, A>`]: replay_buffer::SimpleReplayBuffer
-//! [`SubBatch`]: replay_buffer::SubBatch
-//! [`StdBatch`]: replay_buffer::StdBatch
+//! [`SimpleReplayBuffer<O, A>`]: generic_replay_buffer::SimpleReplayBuffer
+//! [`BatchBase`]: generic_replay_buffer::BatchBase
+//! [`GenericTransitionBatch`]: generic_replay_buffer::GenericTransitionBatch
 //! [`SimpleStepProcessor`]: replay_buffer::SimpleStepProcessor
 //! [`SimpleStepProcessor<E, O, A>`]: replay_buffer::SimpleStepProcessor
 pub mod error;

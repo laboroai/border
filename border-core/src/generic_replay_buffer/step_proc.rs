@@ -1,5 +1,5 @@
 //! A generic implementation of [`StepProcessor`](crate::StepProcessor).
-use super::{BatchBase, StdBatch};
+use super::{BatchBase, GenericTransitionBatch};
 use crate::{Env, Obs, StepProcessor};
 use std::{default::Default, marker::PhantomData};
 
@@ -29,7 +29,7 @@ where
     A: BatchBase + From<E::Act>,
 {
     type Config = SimpleStepProcessorConfig;
-    type Output = StdBatch<O, A>;
+    type Output = GenericTransitionBatch<O, A>;
 
     fn build(_config: &Self::Config) -> Self {
         Self {
@@ -62,7 +62,7 @@ where
                 self.prev_obs.replace(step.init_obs.into());
             }
 
-            StdBatch {
+            GenericTransitionBatch {
                 obs,
                 act,
                 next_obs,
