@@ -1,5 +1,4 @@
 //! Replay buffer.
-//use super::StdBatchBase;
 use anyhow::Result;
 
 /// Interface of buffers of experiences from environments.

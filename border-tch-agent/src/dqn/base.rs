@@ -7,7 +7,7 @@ use crate::{
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, Configurable, Env, Policy, ReplayBufferBase, StdBatchBase,
+    Agent, Configurable, Env, Policy, ReplayBufferBase, TransitionBatch,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use std::{convert::TryInto, fs, marker::PhantomData, path::Path};
@@ -48,9 +48,9 @@ where
     Q: SubModel<Output = Tensor>,
     R: ReplayBufferBase,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
+    R::Batch: TransitionBatch,
+    <R::Batch as TransitionBatch>::ObsBatch: Into<Q::Input>,
+    <R::Batch as TransitionBatch>::ActBatch: Into<Tensor>,
 {
     fn update_critic(&mut self, buffer: &mut R) -> Record {
         let mut record = Record::empty();
@@ -279,9 +279,9 @@ where
     E::Obs: Into<Q::Input>,
     E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
+    R::Batch: TransitionBatch,
+    <R::Batch as TransitionBatch>::ObsBatch: Into<Q::Input>,
+    <R::Batch as TransitionBatch>::ActBatch: Into<Tensor>,
 {
     fn train(&mut self) {
         self.train = true;
@@ -358,9 +358,9 @@ where
     E::Obs: Into<Q::Input>,
     E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
+    R::Batch: TransitionBatch,
+    <R::Batch as TransitionBatch>::ObsBatch: Into<Q::Input>,
+    <R::Batch as TransitionBatch>::ActBatch: Into<Tensor>,
 {
     type ModelInfo = NamedTensors;
 

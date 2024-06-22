@@ -7,7 +7,7 @@ use crate::{
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, Configurable, Env, Policy, ReplayBufferBase, StdBatchBase,
+    Agent, Configurable, Env, Policy, ReplayBufferBase, TransitionBatch,
 };
 use log::trace;
 use serde::{de::DeserializeOwned, Serialize};
@@ -51,9 +51,9 @@ where
     R: ReplayBufferBase,
     F::Config: DeserializeOwned + Serialize,
     M::Config: DeserializeOwned + Serialize + OutDim,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<F::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
+    R::Batch: TransitionBatch,
+    <R::Batch as TransitionBatch>::ObsBatch: Into<F::Input>,
+    <R::Batch as TransitionBatch>::ActBatch: Into<Tensor>,
 {
     fn update_critic(&mut self, buffer: &mut R) -> f32 {
         trace!("IQN::update_critic()");
@@ -273,9 +273,9 @@ where
     E::Act: From<Tensor>,
     F::Config: DeserializeOwned + Serialize + Clone,
     M::Config: DeserializeOwned + Serialize + Clone + OutDim,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<F::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
+    R::Batch: TransitionBatch,
+    <R::Batch as TransitionBatch>::ObsBatch: Into<F::Input>,
+    <R::Batch as TransitionBatch>::ActBatch: Into<Tensor>,
 {
     fn train(&mut self) {
         self.train = true;

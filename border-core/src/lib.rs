@@ -40,6 +40,11 @@
 //! This trait also has methods for saving/loading the trained policy
 //! in the given directory.
 //!
+//! # Batch
+//! 
+//! [`TransitionBatch`] is a trait of a batch of transitions `(o_t, r_t, a_t, o_t+1)`.
+//! This is used to train [`Agent`]s with an RL algorithm.
+//! 
 //! # Replay buffer
 //!
 //! [`ReplayBufferBase`] trait is an abstraction of replay buffers. For handling samples,
@@ -87,7 +92,7 @@ pub mod replay_buffer;
 mod base;
 pub use base::{
     Act, Agent, Configurable, Env, ExperienceBufferBase, Info, Obs, Policy, ReplayBufferBase,
-    StdBatchBase, Step, StepProcessor,
+    TransitionBatch, Step, StepProcessor,
 };
 
 mod trainer;

@@ -1,8 +1,8 @@
-//! A generic implementation of [`StdBatchBase`](crate::StdBatchBase).
+//! A generic implementation of [`TransitionBatch`](crate::TransitionBatch).
 use super::SubBatch;
-use crate::StdBatchBase;
+use crate::TransitionBatch;
 
-/// A generic implementation of [`StdBatchBase`](`crate::StdBatchBase`).
+/// A generic implementation of [`TransitionBatch`](`crate::TransitionBatch`).
 pub struct StdBatch<O, A>
 where
     O: SubBatch,
@@ -33,7 +33,7 @@ where
     pub ix_sample: Option<Vec<usize>>,
 }
 
-impl<O, A> StdBatchBase for StdBatch<O, A>
+impl<O, A> TransitionBatch for StdBatch<O, A>
 where
     O: SubBatch,
     A: SubBatch,

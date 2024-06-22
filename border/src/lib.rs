@@ -122,7 +122,7 @@
 //! [`Step<E: Env>`]: border_core::Step
 //! [`ReplayBufferBase`]: border_core::ReplayBufferBase
 //! [`ReplayBufferBase::Batch`]: border_core::ReplayBufferBase::Batch
-//! [`StdBatchBase`]: border_core::StdBatchBase
+//! [`TransitionBatch`]: border_core::TransitionBatch
 //! [`ReplayBufferBase::Batch`]: border_core::ReplayBufferBase::Batch
 //! [`Agent::opt()`]: border_core::Agent::opt
 //! [`ExperienceBufferBase`]: border_core::ExperienceBufferBase

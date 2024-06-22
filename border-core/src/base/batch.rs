@@ -10,7 +10,7 @@
 ///
 /// The type of `o` and `o'` is the associated type `ObsBatch`.
 /// The type of `a` is the associated type `ActBatch`.
-pub trait StdBatchBase {
+pub trait TransitionBatch {
     /// A set of observation in a batch.
     type ObsBatch;
 
