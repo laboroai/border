@@ -18,9 +18,9 @@ pub trait ExperienceBufferBase {
 
 /// Interface of replay buffers.
 ///
-/// Ones implementing this trait generates a [ReplayBufferBase::Batch],
+/// Ones implementing this trait generates a [`ReplayBufferBase::Batch`],
 /// which is used to train agents.
-pub trait ReplayBufferBase: ExperienceBufferBase {
+pub trait ReplayBufferBase {
     /// Configuration of the replay buffer.
     type Config: Clone;
 

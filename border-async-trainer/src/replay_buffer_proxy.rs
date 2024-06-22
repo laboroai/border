@@ -14,7 +14,7 @@ pub struct ReplayBufferProxyConfig {
 }
 
 /// A wrapper of replay buffer for asynchronous trainer.
-pub struct ReplayBufferProxy<R: ReplayBufferBase> {
+pub struct ReplayBufferProxy<R: ExperienceBufferBase> {
     id: usize,
 
     /// Sender of [PushedItemMessage].
@@ -29,7 +29,7 @@ pub struct ReplayBufferProxy<R: ReplayBufferBase> {
     phantom: PhantomData<R>,
 }
 
-impl<R: ReplayBufferBase> ReplayBufferProxy<R> {
+impl<R: ExperienceBufferBase> ReplayBufferProxy<R> {
     pub fn build_with_sender(
         id: usize,
         config: &ReplayBufferProxyConfig,
@@ -46,7 +46,7 @@ impl<R: ReplayBufferBase> ReplayBufferProxy<R> {
     }
 }
 
-impl<R: ReplayBufferBase> ExperienceBufferBase for ReplayBufferProxy<R> {
+impl<R: ExperienceBufferBase> ExperienceBufferBase for ReplayBufferProxy<R> {
     type Item = R::Item;
 
     fn push(&mut self, tr: Self::Item) -> Result<()> {
@@ -76,7 +76,7 @@ impl<R: ReplayBufferBase> ExperienceBufferBase for ReplayBufferProxy<R> {
     }
 }
 
-impl<R: ReplayBufferBase> ReplayBufferBase for ReplayBufferProxy<R> {
+impl<R: ExperienceBufferBase + ReplayBufferBase> ReplayBufferBase for ReplayBufferProxy<R> {
     type Config = ReplayBufferProxyConfig;
     type Batch = R::Batch;
 

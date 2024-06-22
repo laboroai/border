@@ -1,7 +1,9 @@
 use crate::{
     Actor, ActorManagerConfig, ActorStat, PushedItemMessage, ReplayBufferProxyConfig, SyncModel,
 };
-use border_core::{Agent, Configurable, Env, ReplayBufferBase, StepProcessor};
+use border_core::{
+    Agent, Configurable, Env, ExperienceBufferBase, ReplayBufferBase, StepProcessor,
+};
 use crossbeam_channel::{bounded, /*unbounded,*/ Receiver, Sender};
 use log::info;
 use std::{
@@ -21,7 +23,7 @@ where
     A: Agent<E, R> + Configurable<E> + SyncModel,
     E: Env,
     P: StepProcessor<E>,
-    R: ReplayBufferBase<Item = P::Output>,
+    R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
 {
     /// Configurations of [Agent]s.
     agent_configs: Vec<A::Config>,
@@ -68,7 +70,7 @@ where
     A: Agent<E, R> + Configurable<E> + SyncModel,
     E: Env,
     P: StepProcessor<E>,
-    R: ReplayBufferBase<Item = P::Output> + Send + 'static,
+    R: ExperienceBufferBase<Item = P::Output> + Send + 'static + ReplayBufferBase,
     A::Config: Send + 'static,
     E::Config: Send + 'static,
     P::Config: Send + 'static,

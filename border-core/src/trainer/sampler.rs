@@ -1,5 +1,5 @@
 //! Samples transitions and pushes them into a replay buffer.
-use crate::{record::Record, Agent, Env, ReplayBufferBase, StepProcessor};
+use crate::{record::Record, Agent, Env, ExperienceBufferBase, ReplayBufferBase, StepProcessor};
 use anyhow::Result;
 
 /// Encapsulates sampling steps. Specifically it does the followint steps:
@@ -65,8 +65,8 @@ where
     pub fn sample_and_push<A, R, R_>(&mut self, agent: &mut A, buffer: &mut R_) -> Result<Record>
     where
         A: Agent<E, R>,
-        R: ReplayBufferBase<Item = P::Output>,
-        R_: ReplayBufferBase<Item = R::Item>,
+        R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
+        R_: ExperienceBufferBase<Item = R::Item>,
     {
         let now = std::time::SystemTime::now();
 

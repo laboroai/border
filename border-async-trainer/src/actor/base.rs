@@ -1,5 +1,7 @@
 use crate::{ActorStat, PushedItemMessage, ReplayBufferProxy, ReplayBufferProxyConfig, SyncModel};
-use border_core::{Agent, Configurable, Env, ReplayBufferBase, Sampler, StepProcessor};
+use border_core::{
+    Agent, Configurable, Env, ExperienceBufferBase, ReplayBufferBase, Sampler, StepProcessor,
+};
 use crossbeam_channel::Sender;
 use log::info;
 use std::{
@@ -35,7 +37,7 @@ where
     A: Agent<E, R> + Configurable<E> + SyncModel,
     E: Env,
     P: StepProcessor<E>,
-    R: ReplayBufferBase<Item = P::Output>,
+    R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
 {
     /// Stops sampling process if this field is set to `true`.
     id: usize,
@@ -56,7 +58,7 @@ where
     A: Agent<E, R> + Configurable<E> + SyncModel,
     E: Env,
     P: StepProcessor<E>,
-    R: ReplayBufferBase<Item = P::Output>,
+    R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
 {
     pub fn build(
         id: usize,

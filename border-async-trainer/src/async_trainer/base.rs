@@ -1,7 +1,7 @@
 use crate::{AsyncTrainStat, AsyncTrainerConfig, PushedItemMessage, SyncModel};
 use border_core::{
     record::{AggregateRecorder, Record, RecordValue::Scalar},
-    Agent, Configurable, Env, Evaluator, ReplayBufferBase,
+    Agent, Configurable, Env, Evaluator, ExperienceBufferBase, ReplayBufferBase,
 };
 use crossbeam_channel::{Receiver, Sender};
 use log::info;
@@ -57,7 +57,7 @@ where
     A: Agent<E, R> + Configurable<E> + SyncModel,
     E: Env,
     // R: ReplayBufferBase + Sync + Send + 'static,
-    R: ReplayBufferBase,
+    R: ExperienceBufferBase + ReplayBufferBase,
     R::Item: Send + 'static,
 {
     /// Configuration of [`Env`]. Note that it is used only for evaluation, not for training.
@@ -116,7 +116,7 @@ where
     A: Agent<E, R> + Configurable<E> + SyncModel,
     E: Env,
     // R: ReplayBufferBase + Sync + Send + 'static,
-    R: ReplayBufferBase,
+    R: ExperienceBufferBase + ReplayBufferBase,
     R::Item: Send + 'static,
 {
     /// Creates [`AsyncTrainer`].

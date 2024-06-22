@@ -5,7 +5,7 @@ use std::time::{Duration, SystemTime};
 
 use crate::{
     record::{AggregateRecorder, Record, RecordValue::Scalar},
-    Agent, Env, Evaluator, ReplayBufferBase, StepProcessor,
+    Agent, Env, Evaluator, ExperienceBufferBase, ReplayBufferBase, StepProcessor,
 };
 use anyhow::Result;
 pub use config::TrainerConfig;
@@ -88,7 +88,7 @@ pub struct Trainer<E, P, R>
 where
     E: Env,
     P: StepProcessor<E>,
-    R: ReplayBufferBase<Item = P::Output>,
+    R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
 {
     /// Configuration of the environment for training.
     env_config_train: E::Config,
@@ -137,7 +137,7 @@ impl<E, P, R> Trainer<E, P, R>
 where
     E: Env,
     P: StepProcessor<E>,
-    R: ReplayBufferBase<Item = P::Output>,
+    R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
 {
     /// Constructs a trainer.
     pub fn build(
