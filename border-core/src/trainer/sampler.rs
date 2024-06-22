@@ -61,12 +61,12 @@ where
     /// Samples transitions and pushes them into the replay buffer.
     ///
     /// The replay buffer `R_`, to which samples will be pushed, has to accept
-    /// `PushedItem` that are the same with `Agent::R`.
+    /// `Item` that are the same with `Agent::R`.
     pub fn sample_and_push<A, R, R_>(&mut self, agent: &mut A, buffer: &mut R_) -> Result<Record>
     where
         A: Agent<E, R>,
-        R: ReplayBufferBase<PushedItem = P::Output>,
-        R_: ReplayBufferBase<PushedItem = R::PushedItem>,
+        R: ReplayBufferBase<Item = P::Output>,
+        R_: ReplayBufferBase<Item = R::Item>,
     {
         let now = std::time::SystemTime::now();
 

@@ -66,10 +66,10 @@ impl<E: Env> Step<E> {
 /// This trait is used in [`Trainer`](crate::Trainer). [`Step`] object is transformed to
 /// [`Self::Output`], which will be pushed into a replay buffer implementing
 /// [`ExperienceBufferBase`](crate::ExperienceBufferBase).
-/// The type [`Self::Output`] should be the same with [`ExperienceBufferBase::PushedItem`].
+/// The type [`Self::Output`] should be the same with [`ExperienceBufferBase::Item`].
 ///
 /// [`Self::Output`]: StepProcessor::Output
-/// [`ExperienceBufferBase::PushedItem`]: crate::ExperienceBufferBase::PushedItem
+/// [`ExperienceBufferBase::Item`]: crate::ExperienceBufferBase::Item
 pub trait StepProcessor<E: Env> {
     /// Configuration.
     type Config: Clone;

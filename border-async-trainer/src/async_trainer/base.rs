@@ -34,10 +34,10 @@ use std::{
 /// ```
 ///
 /// * In [`ActorManager`] (right), [`Actor`]s sample transitions, which have type
-///   [`ReplayBufferBase::PushedItem`], in parallel and push the transitions into
+///   [`ReplayBufferBase::Item`], in parallel and push the transitions into
 ///   [`ReplayBufferProxy`]. It should be noted that [`ReplayBufferProxy`] has a
 ///   type parameter of [`ReplayBufferBase`] and the proxy accepts
-///   [`ReplayBufferBase::PushedItem`].
+///   [`ReplayBufferBase::Item`].
 /// * The proxy sends the transitions into the replay buffer, implementing
 ///   [`ReplayBufferBase`], in the [`AsyncTrainer`].
 /// * The [`Agent`] in [`AsyncTrainer`] trains its model parameters by using batches
@@ -48,7 +48,7 @@ use std::{
 ///
 /// [`ActorManager`]: crate::ActorManager
 /// [`Actor`]: crate::Actor
-/// [`ReplayBufferBase::PushedItem`]: border_core::ReplayBufferBase::PushedItem
+/// [`ReplayBufferBase::Item`]: border_core::ReplayBufferBase::PushedItem
 /// [`ReplayBufferProxy`]: crate::ReplayBufferProxy
 /// [`ReplayBufferBase`]: border_core::ReplayBufferBase
 /// [`SyncModel::ModelInfo`]: crate::SyncModel::ModelInfo
@@ -58,7 +58,7 @@ where
     E: Env,
     // R: ReplayBufferBase + Sync + Send + 'static,
     R: ReplayBufferBase,
-    R::PushedItem: Send + 'static,
+    R::Item: Send + 'static,
 {
     /// Configuration of [`Env`]. Note that it is used only for evaluation, not for training.
     env_config: E::Config,
@@ -97,7 +97,7 @@ where
     sync_interval: usize,
 
     /// Receiver of pushed items.
-    r_bulk_pushed_item: Receiver<PushedItemMessage<R::PushedItem>>,
+    r_bulk_pushed_item: Receiver<PushedItemMessage<R::Item>>,
 
     /// If `false`, stops the actor threads.
     stop: Arc<Mutex<bool>>,
@@ -117,7 +117,7 @@ where
     E: Env,
     // R: ReplayBufferBase + Sync + Send + 'static,
     R: ReplayBufferBase,
-    R::PushedItem: Send + 'static,
+    R::Item: Send + 'static,
 {
     /// Creates [`AsyncTrainer`].
     pub fn build(
@@ -125,7 +125,7 @@ where
         agent_config: &A::Config,
         env_config: &E::Config,
         replay_buffer_config: &R::Config,
-        r_bulk_pushed_item: Receiver<PushedItemMessage<R::PushedItem>>,
+        r_bulk_pushed_item: Receiver<PushedItemMessage<R::Item>>,
         model_info_sender: Sender<(usize, A::ModelInfo)>,
         stop: Arc<Mutex<bool>>,
     ) -> Self {
@@ -241,14 +241,14 @@ where
     /// In the training loop, the following values will be pushed into the given recorder:
     ///
     /// * `samples_total` - Total number of samples pushed into the replay buffer.
-    ///   Here, a "sample" is an item in [`ExperienceBufferBase::PushedItem`].
+    ///   Here, a "sample" is an item in [`ExperienceBufferBase::Item`].
     /// * `opt_steps_per_sec` - The number of optimization steps per second.
     /// * `samples_per_sec` - The number of samples per second.
     /// * `samples_per_opt_steps` - The number of samples per optimization step.
     ///
     /// These values will typically be monitored with tensorboard.
     ///
-    /// [`ExperienceBufferBase::PushedItem`]: border_core::ExperienceBufferBase::PushedItem
+    /// [`ExperienceBufferBase::Item`]: border_core::ExperienceBufferBase::Item
     pub fn train<D>(
         &mut self,
         recorder: &mut Box<dyn AggregateRecorder>,

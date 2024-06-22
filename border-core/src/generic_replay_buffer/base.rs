@@ -115,13 +115,13 @@ where
     O: BatchBase,
     A: BatchBase,
 {
-    type PushedItem = GenericTransitionBatch<O, A>;
+    type Item = GenericTransitionBatch<O, A>;
 
     fn len(&self) -> usize {
         self.size
     }
 
-    fn push(&mut self, tr: Self::PushedItem) -> Result<()> {
+    fn push(&mut self, tr: Self::Item) -> Result<()> {
         let len = tr.len(); // batch size
         let (obs, act, next_obs, reward, is_terminated, is_truncated, _, _) = tr.unpack();
         self.obs.push(self.i, obs);

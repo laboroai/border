@@ -41,12 +41,12 @@ pub fn train_async<A, E, R, S>(
 ) where
     A: Agent<E, R> + Configurable<E> + SyncModel,
     E: Env,
-    R: ReplayBufferBase<PushedItem = S::Output> + Send + 'static,
+    R: ReplayBufferBase<Item = S::Output> + Send + 'static,
     S: StepProcessor<E>,
     A::Config: Send + 'static,
     E::Config: Send + 'static,
     S::Config: Send + 'static,
-    R::PushedItem: Send + 'static,
+    R::Item: Send + 'static,
     A::ModelInfo: Send + 'static,
 {
     // Shared flag to stop actor threads

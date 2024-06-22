@@ -7,10 +7,10 @@ use anyhow::Result;
 /// This trait is usually required by processes sampling experiences.
 pub trait ExperienceBufferBase {
     /// Items pushed into the buffer.
-    type PushedItem;
+    type Item;
 
     /// Pushes a transition into the buffer.
-    fn push(&mut self, tr: Self::PushedItem) -> Result<()>;
+    fn push(&mut self, tr: Self::Item) -> Result<()>;
 
     /// The number of samples in the buffer.
     fn len(&self) -> usize;

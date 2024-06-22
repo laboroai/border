@@ -35,7 +35,7 @@ where
     A: Agent<E, R> + Configurable<E> + SyncModel,
     E: Env,
     P: StepProcessor<E>,
-    R: ReplayBufferBase<PushedItem = P::Output>,
+    R: ReplayBufferBase<Item = P::Output>,
 {
     /// Stops sampling process if this field is set to `true`.
     id: usize,
@@ -56,7 +56,7 @@ where
     A: Agent<E, R> + Configurable<E> + SyncModel,
     E: Env,
     P: StepProcessor<E>,
-    R: ReplayBufferBase<PushedItem = P::Output>,
+    R: ReplayBufferBase<Item = P::Output>,
 {
     pub fn build(
         id: usize,
@@ -109,7 +109,7 @@ where
     /// When finishes, this method sets [ActorStat].
     pub fn run(
         &mut self,
-        sender: Sender<PushedItemMessage<R::PushedItem>>,
+        sender: Sender<PushedItemMessage<R::Item>>,
         model_info: Arc<Mutex<(usize, A::ModelInfo)>>,
         guard: Arc<Mutex<bool>>,
         guard_init_model: Arc<Mutex<bool>>,

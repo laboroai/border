@@ -9,7 +9,7 @@ use std::marker::PhantomData;
 pub struct ReplayBufferProxyConfig {
     /// Number of samples buffered until sent to the trainer.
     ///
-    /// Here, a sample corresponds to a `R::PushedItem` for [`ReplayBufferProxy`]`<R>`.
+    /// Here, a sample corresponds to a `R::Item` for [`ReplayBufferProxy`]`<R>`.
     pub n_buffer: usize,
 }
 
@@ -18,13 +18,13 @@ pub struct ReplayBufferProxy<R: ReplayBufferBase> {
     id: usize,
 
     /// Sender of [PushedItemMessage].
-    sender: Sender<PushedItemMessage<R::PushedItem>>,
+    sender: Sender<PushedItemMessage<R::Item>>,
 
     /// Number of samples buffered until sent to the trainer.
     n_buffer: usize,
 
-    /// Buffer of `R::PushedItem`s.
-    buffer: Vec<R::PushedItem>,
+    /// Buffer of `R::Item`s.
+    buffer: Vec<R::Item>,
 
     phantom: PhantomData<R>,
 }
@@ -33,7 +33,7 @@ impl<R: ReplayBufferBase> ReplayBufferProxy<R> {
     pub fn build_with_sender(
         id: usize,
         config: &ReplayBufferProxyConfig,
-        sender: Sender<PushedItemMessage<R::PushedItem>>,
+        sender: Sender<PushedItemMessage<R::Item>>,
     ) -> Self {
         let n_buffer = config.n_buffer;
         Self {
@@ -47,9 +47,9 @@ impl<R: ReplayBufferBase> ReplayBufferProxy<R> {
 }
 
 impl<R: ReplayBufferBase> ExperienceBufferBase for ReplayBufferProxy<R> {
-    type PushedItem = R::PushedItem;
+    type Item = R::Item;
 
-    fn push(&mut self, tr: Self::PushedItem) -> Result<()> {
+    fn push(&mut self, tr: Self::Item) -> Result<()> {
         self.buffer.push(tr);
         if self.buffer.len() == self.n_buffer {
             let mut buffer = Vec::with_capacity(self.n_buffer);

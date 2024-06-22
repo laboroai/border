@@ -48,10 +48,10 @@
 //! # Replay buffer
 //!
 //! [`ReplayBufferBase`] trait is an abstraction of replay buffers. For handling samples,
-//! there are two associated types: `PushedItem` and `Batch`. `PushedItem` is a type
+//! there are two associated types: `Item` and `Batch`. `Item` is a type
 //! representing samples pushed to the buffer. These samples might be generated from
 //! [`Step<E: Env>`]. [`StepProcessor<E: Env>`] trait provides the interface
-//! for converting [`Step<E: Env>`] into `PushedItem`.
+//! for converting [`Step<E: Env>`] into `Item`.
 //!
 //! `Batch` is a type of samples taken from the buffer for training [`Agent`]s.
 //! The user implements [`Agent::opt()`] method such that it handles `Batch` objects
@@ -63,7 +63,7 @@
 //! This type has two parameters `O` and `A`, which are representation of
 //! observation and action in the replay buffer. `O` and `A` must implement
 //! [`BatchBase`], which has the functionality of storing samples, like `Vec<T>`,
-//! for observation and action. The associated types `PushedItem` and `Batch`
+//! for observation and action. The associated types `Item` and `Batch`
 //! are the same type, [`GenericTransitionBatch`], representing sets of `(o_t, r_t, a_t, o_t+1)`.
 //!
 //! [`SimpleStepProcessor<E, O, A>`] might be used with [`SimpleReplayBuffer<O, A>`].

@@ -72,7 +72,7 @@ pub use sampler::Sampler;
 /// * Next, [`Step<E: Env>`] will be created with the next observation `o_t+1`,
 ///   reward `r_t`, and `a_t`.
 /// * The [`Step<E: Env>`] object will be processed by [`StepProcessor`] and
-///   creates [`ReplayBufferBase::PushedItem`], typically representing a transition
+///   creates [`ReplayBufferBase::Item`], typically representing a transition
 ///   `(o_t, a_t, o_t+1, r_t)`, where `o_t` is kept in the
 ///   [`StepProcessor`], while other items in the given [`Step<E: Env>`].
 /// * Finally, the transitions pushed to the [`ReplayBufferBase`] will be used to create
@@ -88,7 +88,7 @@ pub struct Trainer<E, P, R>
 where
     E: Env,
     P: StepProcessor<E>,
-    R: ReplayBufferBase<PushedItem = P::Output>,
+    R: ReplayBufferBase<Item = P::Output>,
 {
     /// Configuration of the environment for training.
     env_config_train: E::Config,
@@ -137,7 +137,7 @@ impl<E, P, R> Trainer<E, P, R>
 where
     E: Env,
     P: StepProcessor<E>,
-    R: ReplayBufferBase<PushedItem = P::Output>,
+    R: ReplayBufferBase<Item = P::Output>,
 {
     /// Constructs a trainer.
     pub fn build(

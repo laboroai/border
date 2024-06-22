@@ -126,7 +126,7 @@
 //! [`ReplayBufferBase::Batch`]: border_core::ReplayBufferBase::Batch
 //! [`Agent::opt()`]: border_core::Agent::opt
 //! [`ExperienceBufferBase`]: border_core::ExperienceBufferBase
-//! [`ExperienceBufferBase::PushedItem`]: border_core::ExperienceBufferBase::PushedItem
+//! [`ExperienceBufferBase::Item`]: border_core::ExperienceBufferBase::Item
 //! [`SimpleReplayBuffer`]: border_core::generic_replay_buffer::SimpleReplayBuffer
 //! [`Evaluator`]: border_core::Evaluator
 //! [`DefaultEvaluator`]: border_core::DefaultEvaluator
