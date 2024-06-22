@@ -1,6 +1,6 @@
 use border_derive::{Act, SubBatch};
 use border_py_gym_env::GymDiscreteAct;
-use border_tch_agent::TensorSubBatch;
+use border_tch_agent::TensorBatch;
 use ndarray::ArrayD;
 use std::convert::TryFrom;
 use tch::Tensor;
@@ -9,7 +9,7 @@ use tch::Tensor;
 struct Obs(ArrayD<f32>);
 
 #[derive(SubBatch)]
-struct ObsBatch(TensorSubBatch);
+struct ObsBatch(TensorBatch);
 
 impl From<Obs> for Tensor {
     fn from(value: Obs) -> Self {
@@ -20,7 +20,7 @@ impl From<Obs> for Tensor {
 impl From<Obs> for ObsBatch {
     fn from(obs: Obs) -> Self {
         let tensor = obs.into();
-        Self(TensorSubBatch::from_tensor(tensor))
+        Self(TensorBatch::from_tensor(tensor))
     }
 }
 
@@ -28,12 +28,12 @@ impl From<Obs> for ObsBatch {
 struct Act(GymDiscreteAct);
 
 #[derive(SubBatch)]
-struct ActBatch(TensorSubBatch);
+struct ActBatch(TensorBatch);
 
 impl From<Act> for ActBatch {
     fn from(act: Act) -> Self {
         let tensor = act.into();
-        Self(TensorSubBatch::from_tensor(tensor))
+        Self(TensorBatch::from_tensor(tensor))
     }
 }
 

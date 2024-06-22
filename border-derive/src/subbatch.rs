@@ -12,11 +12,11 @@ pub fn derive(input: TokenStream) -> TokenStream {
         "The item for deriving SubBatch must be a new type like SubBatch(TensorSubBatch<ObsShape, f32>)",
     );
 
-    let output = if field_type_str == "TensorSubBatch" {
-        tensor_sub_batch(ident, field_type)
+    let output = if field_type_str == "TensorBatch" {
+        tensor_batch(ident, field_type)
     } else {
         panic!(
-            "Deriving ObsBatch support TensorSubBatch, given {:?}",
+            "Deriving ObsBatch support TensorBatch, given {:?}",
             field_type_str
         );
     };
@@ -24,12 +24,12 @@ pub fn derive(input: TokenStream) -> TokenStream {
     output.into()
 }
 
-fn tensor_sub_batch(ident: proc_macro2::Ident, field_type: syn::Type) -> proc_macro2::TokenStream {
+fn tensor_batch(ident: proc_macro2::Ident, field_type: syn::Type) -> proc_macro2::TokenStream {
     #[allow(unused_mut)]
     let mut output = quote! {
         impl border_core::replay_buffer::SubBatch for #ident {
             fn new(capacity: usize) -> Self {
-                Self(TensorSubBatch::new(capacity))
+                Self(TensorBatch::new(capacity))
             }
 
             fn push(&mut self, i: usize, data: Self) {

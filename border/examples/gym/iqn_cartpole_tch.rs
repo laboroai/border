@@ -15,7 +15,7 @@ use border_py_gym_env::{
 use border_tch_agent::{
     iqn::{EpsilonGreedy, Iqn as Iqn_, IqnConfig, IqnModelConfig},
     mlp::{Mlp, MlpConfig},
-    TensorSubBatch,
+    TensorBatch,
 };
 use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg, ArgMatches};
@@ -73,11 +73,11 @@ mod obs_act_types {
         }
     }
 
-    pub struct ObsBatch(TensorSubBatch);
+    pub struct ObsBatch(TensorBatch);
 
     impl BatchBase for ObsBatch {
         fn new(capacity: usize) -> Self {
-            Self(TensorSubBatch::new(capacity))
+            Self(TensorBatch::new(capacity))
         }
 
         fn push(&mut self, i: usize, data: Self) {
@@ -93,7 +93,7 @@ mod obs_act_types {
     impl From<Obs> for ObsBatch {
         fn from(obs: Obs) -> Self {
             let tensor = obs.into();
-            Self(TensorSubBatch::from_tensor(tensor))
+            Self(TensorBatch::from_tensor(tensor))
         }
     }
 
@@ -123,11 +123,11 @@ mod obs_act_types {
         }
     }
 
-    pub struct ActBatch(TensorSubBatch);
+    pub struct ActBatch(TensorBatch);
 
     impl BatchBase for ActBatch {
         fn new(capacity: usize) -> Self {
-            Self(TensorSubBatch::new(capacity))
+            Self(TensorBatch::new(capacity))
         }
 
         fn push(&mut self, i: usize, data: Self) {
@@ -143,7 +143,7 @@ mod obs_act_types {
     impl From<Act> for ActBatch {
         fn from(act: Act) -> Self {
             let t = vec_to_tensor::<_, i64>(act.0, true);
-            Self(TensorSubBatch::from_tensor(t))
+            Self(TensorBatch::from_tensor(t))
         }
     }
 

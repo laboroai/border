@@ -5,7 +5,7 @@ use border_py_gym_env::{
     FrameStackFilter, PyGymEnv, PyGymEnvActFilter, PyGymEnvConfig, PyGymEnvDiscreteAct,
     PyGymEnvDiscreteActRawFilter, PyGymEnvObs,
 };
-use border_tch_agent::TensorSubBatch;
+use border_tch_agent::TensorBatch;
 // use clap::{App, Arg};
 use std::convert::TryFrom;
 // use tch::Tensor;
@@ -16,13 +16,12 @@ type PyObsDtype = u8;
 struct Obs(PyGymEnvObs<PyObsDtype, f32>);
 
 #[derive(Clone, SubBatch)]
-// struct ObsBatch(TensorSubBatch<ObsShape, u8>);
-struct ObsBatch(TensorSubBatch);
+struct ObsBatch(TensorBatch);
 
 impl From<Obs> for ObsBatch {
     fn from(obs: Obs) -> Self {
         let tensor = obs.into();
-        Self(TensorSubBatch::from_tensor(tensor))
+        Self(TensorBatch::from_tensor(tensor))
     }
 }
 
@@ -30,13 +29,12 @@ impl From<Obs> for ObsBatch {
 struct Act(PyGymEnvDiscreteAct);
 
 #[derive(SubBatch)]
-// struct ActBatch(TensorSubBatch<ActShape, f32>);
-struct ActBatch(TensorSubBatch);
+struct ActBatch(TensorBatch);
 
 impl From<Act> for ActBatch {
     fn from(act: Act) -> Self {
         let tensor = act.into();
-        Self(TensorSubBatch::from_tensor(tensor))
+        Self(TensorBatch::from_tensor(tensor))
     }
 }
 

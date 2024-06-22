@@ -35,14 +35,14 @@ impl ZeroTensor for i64 {
 ///
 /// The internal buffer of this struct has the shape of `[n_capacity, shape[1..]]`,
 /// where `shape` is obtained from the data pushed at the first time via
-/// [`TensorSubBatch::push`] method. `[1..]` means that the first axis of the
+/// [`TensorBatch::push`] method. `[1..]` means that the first axis of the
 /// given data is ignored as it might be batch size.
-pub struct TensorSubBatch {
+pub struct TensorBatch {
     buf: Option<Tensor>,
     capacity: i64,
 }
 
-impl Clone for TensorSubBatch {
+impl Clone for TensorBatch {
     fn clone(&self) -> Self {
         let buf = match self.buf.is_none() {
             true => None,
@@ -56,7 +56,7 @@ impl Clone for TensorSubBatch {
     }
 }
 
-impl TensorSubBatch {
+impl TensorBatch {
     pub fn from_tensor(t: Tensor) -> Self {
         let capacity = t.size()[0] as _;
         Self {
@@ -66,7 +66,7 @@ impl TensorSubBatch {
     }
 }
 
-impl BatchBase for TensorSubBatch {
+impl BatchBase for TensorBatch {
     fn new(capacity: usize) -> Self {
         // let capacity = capacity as i64;
         // let mut shape: Vec<_> = S::shape().to_vec().iter().map(|e| *e as i64).collect();
@@ -121,8 +121,8 @@ impl BatchBase for TensorSubBatch {
     }
 }
 
-impl From<TensorSubBatch> for Tensor {
-    fn from(b: TensorSubBatch) -> Self {
+impl From<TensorBatch> for Tensor {
+    fn from(b: TensorBatch) -> Self {
         b.buf.unwrap()
     }
 }

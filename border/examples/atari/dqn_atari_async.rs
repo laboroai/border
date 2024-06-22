@@ -21,7 +21,7 @@ use border_mlflow_tracking::MlflowTrackingClient;
 use border_tch_agent::{
     cnn::Cnn,
     dqn::{Dqn, DqnConfig, DqnExplorer, EpsilonGreedy},
-    TensorSubBatch,
+    TensorBatch,
 };
 use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg, ArgMatches};
@@ -32,22 +32,22 @@ mod obs_act_types {
     pub type Obs = BorderAtariObs;
 
     #[derive(Clone, SubBatch)]
-    pub struct ObsBatch(TensorSubBatch);
+    pub struct ObsBatch(TensorBatch);
 
     impl From<Obs> for ObsBatch {
         fn from(obs: Obs) -> Self {
             let tensor = obs.into();
-            Self(TensorSubBatch::from_tensor(tensor))
+            Self(TensorBatch::from_tensor(tensor))
         }
     }
 
     #[derive(SubBatch)]
-    pub struct ActBatch(TensorSubBatch);
+    pub struct ActBatch(TensorBatch);
 
     impl From<Act> for ActBatch {
         fn from(act: Act) -> Self {
             let tensor = act.into();
-            Self(TensorSubBatch::from_tensor(tensor))
+            Self(TensorBatch::from_tensor(tensor))
         }
     }
 

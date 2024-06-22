@@ -7,7 +7,7 @@ use border_atari_env::{
 use border_candle_agent::{
     cnn::Cnn,
     dqn::{Dqn as Dqn_, DqnConfig},
-    TensorSubBatch,
+    TensorBatch,
 };
 use border_core::{
     record::AggregateRecorder,
@@ -28,23 +28,22 @@ mod obs_act_types {
     pub type Obs = BorderAtariObs;
 
     #[derive(Clone, SubBatch)]
-    pub struct ObsBatch(TensorSubBatch);
+    pub struct ObsBatch(TensorBatch);
 
     impl From<Obs> for ObsBatch {
         fn from(obs: Obs) -> Self {
             let tensor = obs.into();
-            Self(TensorSubBatch::from_tensor(tensor))
+            Self(TensorBatch::from_tensor(tensor))
         }
     }
 
     #[derive(SubBatch)]
-    // struct ActBatch(TensorSubBatch<ActShape, i64>);
-    pub struct ActBatch(TensorSubBatch);
+    pub struct ActBatch(TensorBatch);
 
     impl From<Act> for ActBatch {
         fn from(act: Act) -> Self {
             let tensor = act.into();
-            Self(TensorSubBatch::from_tensor(tensor))
+            Self(TensorBatch::from_tensor(tensor))
         }
     }
 

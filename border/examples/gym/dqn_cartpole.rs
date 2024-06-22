@@ -4,7 +4,7 @@ use border_candle_agent::{
     mlp::{Mlp, MlpConfig},
     opt::OptimizerConfig,
     util::CriticLoss,
-    TensorSubBatch,
+    TensorBatch,
 };
 use border_core::{
     generic_replay_buffer::{
@@ -69,11 +69,11 @@ mod obs_act_types {
         }
     }
 
-    pub struct ObsBatch(TensorSubBatch);
+    pub struct ObsBatch(TensorBatch);
 
     impl BatchBase for ObsBatch {
         fn new(capacity: usize) -> Self {
-            Self(TensorSubBatch::new(capacity))
+            Self(TensorBatch::new(capacity))
         }
 
         fn push(&mut self, i: usize, data: Self) {
@@ -89,7 +89,7 @@ mod obs_act_types {
     impl From<Obs> for ObsBatch {
         fn from(obs: Obs) -> Self {
             let tensor = obs.into();
-            Self(TensorSubBatch::from_tensor(tensor))
+            Self(TensorBatch::from_tensor(tensor))
         }
     }
 
@@ -119,11 +119,11 @@ mod obs_act_types {
         }
     }
 
-    pub struct ActBatch(TensorSubBatch);
+    pub struct ActBatch(TensorBatch);
 
     impl BatchBase for ActBatch {
         fn new(capacity: usize) -> Self {
-            Self(TensorSubBatch::new(capacity))
+            Self(TensorBatch::new(capacity))
         }
 
         fn push(&mut self, i: usize, data: Self) {
@@ -140,7 +140,7 @@ mod obs_act_types {
         fn from(act: Act) -> Self {
             let t =
                 vec_to_tensor::<_, i64>(act.0, true).expect("Failed to convert Act to ActBatch");
-            Self(TensorSubBatch::from_tensor(t))
+            Self(TensorBatch::from_tensor(t))
         }
     }
 
