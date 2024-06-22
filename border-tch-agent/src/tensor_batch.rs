@@ -31,7 +31,7 @@ impl ZeroTensor for i64 {
     }
 }
 
-/// A buffer consisting of a [`Tensor`](tch::Tensor).
+/// A buffer consisting of a [`Tensor`].
 ///
 /// The internal buffer of this struct has the shape of `[n_capacity, shape[1..]]`,
 /// where `shape` is obtained from the data pushed at the first time via

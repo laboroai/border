@@ -113,7 +113,7 @@ pub use run::Run;
 use std::time::{SystemTime, UNIX_EPOCH};
 pub use writer::MlflowTrackingRecorder;
 
-/// Code adapted from https://stackoverflow.com/questions/26593387
+/// Code adapted from <https://stackoverflow.com/questions/26593387>.
 fn system_time_as_millis() -> u128 {
     let time = SystemTime::now();
     time.duration_since(UNIX_EPOCH)

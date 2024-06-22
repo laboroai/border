@@ -130,7 +130,7 @@ fn test_track() -> Result<()> {
     Ok(())
 }
 
-/// See https://pytorch.org/docs/stable/generated/torch.nn.SmoothL1Loss.html
+/// See <https://pytorch.org/docs/stable/generated/torch.nn.SmoothL1Loss.html>.
 pub fn smooth_l1_loss(x: &Tensor, y: &Tensor) -> Result<Tensor, candle_core::Error> {
     let device = x.device();
     let d = (x - y)?.abs()?;

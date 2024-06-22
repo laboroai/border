@@ -83,7 +83,7 @@
 //! [`BatchBase`]: generic_replay_buffer::BatchBase
 //! [`GenericTransitionBatch`]: generic_replay_buffer::GenericTransitionBatch
 //! [`SimpleStepProcessor`]: replay_buffer::SimpleStepProcessor
-//! [`SimpleStepProcessor<E, O, A>`]: replay_buffer::SimpleStepProcessor
+//! [`SimpleStepProcessor<E, O, A>`]: generic_replay_buffer::SimpleStepProcessor
 pub mod error;
 mod evaluator;
 pub mod generic_replay_buffer;

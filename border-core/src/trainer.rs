@@ -1,4 +1,4 @@
-//! Train [`Agent`](crate::Agent).
+//! Train [`Agent`].
 mod config;
 mod sampler;
 use std::time::{Duration, SystemTime};

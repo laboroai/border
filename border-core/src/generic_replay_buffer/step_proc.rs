@@ -1,4 +1,4 @@
-//! A generic implementation of [`StepProcessor`](crate::StepProcessor).
+//! A generic implementation of [`StepProcessor`].
 use super::{BatchBase, GenericTransitionBatch};
 use crate::{Env, Obs, StepProcessor};
 use std::{default::Default, marker::PhantomData};
@@ -13,7 +13,7 @@ impl Default for SimpleStepProcessorConfig {
     }
 }
 
-/// A generic implementation of [`StepProcessor`](crate::StepProcessor).
+/// A generic implementation of [`StepProcessor`].
 ///
 /// It supports 1-step TD backup for non-vectorized environment:
 /// `E::Obs.len()` must be 1.

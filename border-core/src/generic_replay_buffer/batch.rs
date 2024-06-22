@@ -1,4 +1,4 @@
-//! A generic implementation of [`TransitionBatch`](crate::TransitionBatch).
+//! A generic implementation of [`TransitionBatch`].
 use crate::TransitionBatch;
 
 /// A generic implementation of a batch of items.

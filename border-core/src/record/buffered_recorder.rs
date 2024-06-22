@@ -3,7 +3,7 @@ use super::{Record, Recorder};
 /// Buffered recorder.
 ///
 /// This is used for recording sequences of observation and action
-/// during evaluation runs in [`crate::util::eval_with_recorder`].
+/// during evaluation runs.
 #[derive(Default)]
 pub struct BufferedRecorder(Vec<Record>);
 

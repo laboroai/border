@@ -117,8 +117,8 @@
 //! [`border_py_gym_env/examples/random_cartpols.rs`]: (https://github.com/taku-y/border/blob/982ef2d25a0ade93fb71cab3bb85e5062b6f769c/border-py-gym-env/examples/random_cartpole.rs)
 //! [`Agent`]: border_core::Agent
 //! [`StepProcessor`]: border_core::StepProcessor
-//! [`SimpleStepProcessor`]: border_core::replay_buffer::SimpleStepProcessor
-//! [`SimpleStepProcessorConfig`]: border_core::replay_buffer::SimpleStepProcessorConfig
+//! [`SimpleStepProcessor`]: border_core::generic_replay_buffer::SimpleStepProcessor
+//! [`SimpleStepProcessorConfig`]: border_core::generic_replay_buffer::SimpleStepProcessorConfig
 //! [`Step<E: Env>`]: border_core::Step
 //! [`ReplayBufferBase`]: border_core::ReplayBufferBase
 //! [`ReplayBufferBase::Batch`]: border_core::ReplayBufferBase::Batch
@@ -127,7 +127,7 @@
 //! [`Agent::opt()`]: border_core::Agent::opt
 //! [`ExperienceBufferBase`]: border_core::ExperienceBufferBase
 //! [`ExperienceBufferBase::PushedItem`]: border_core::ExperienceBufferBase::PushedItem
-//! [`SimpleReplayBuffer`]: border_core::replay_buffer::SimpleReplayBuffer
+//! [`SimpleReplayBuffer`]: border_core::generic_replay_buffer::SimpleReplayBuffer
 //! [`Evaluator`]: border_core::Evaluator
 //! [`DefaultEvaluator`]: border_core::DefaultEvaluator
 //! [`Trainer`]: border_core::Trainer

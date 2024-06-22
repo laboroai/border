@@ -31,7 +31,7 @@ impl Display for GetExperimentIdError {
 impl Error for GetExperimentIdError {}
 
 #[derive(Debug, Serialize)]
-/// Parameters adapted from https://mlflow.org/docs/latest/rest-api.html#id74
+/// Parameters adapted from <https://mlflow.org/docs/latest/rest-api.html#id74>.
 ///
 /// TODO: Support parameters in API, if required.
 struct CreateRunParams {
