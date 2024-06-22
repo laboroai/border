@@ -41,10 +41,10 @@
 //! in the given directory.
 //!
 //! # Batch
-//! 
+//!
 //! [`TransitionBatch`] is a trait of a batch of transitions `(o_t, r_t, a_t, o_t+1)`.
 //! This is used to train [`Agent`]s with an RL algorithm.
-//! 
+//!
 //! # Replay buffer
 //!
 //! [`ReplayBufferBase`] trait is an abstraction of replay buffers. For handling samples,
@@ -86,13 +86,13 @@
 //! [`SimpleStepProcessor<E, O, A>`]: replay_buffer::SimpleStepProcessor
 pub mod error;
 mod evaluator;
+pub mod generic_replay_buffer;
 pub mod record;
-pub mod replay_buffer;
 
 mod base;
 pub use base::{
-    Act, Agent, Configurable, Env, ExperienceBufferBase, Info, Obs, Policy, ReplayBufferBase,
-    TransitionBatch, Step, StepProcessor,
+    Act, Agent, Configurable, Env, ExperienceBufferBase, Info, Obs, Policy, ReplayBufferBase, Step,
+    StepProcessor, TransitionBatch,
 };
 
 mod trainer;

@@ -1,4 +1,4 @@
-use border_core::replay_buffer::BatchBase;
+use border_core::generic_replay_buffer::BatchBase;
 use candle_core::{error::Result, DType, Device, Tensor};
 
 /// Adds capability of constructing [Tensor] with a static method.

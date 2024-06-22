@@ -2,8 +2,8 @@ use anyhow::Result;
 use border_core::{
     record::AggregateRecorder,
     replay_buffer::{
-        SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
-        SimpleStepProcessorConfig, BatchBase,
+        BatchBase, SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
+        SimpleStepProcessorConfig,
     },
     Agent, Configurable, DefaultEvaluator, Evaluator as _, Trainer, TrainerConfig,
 };

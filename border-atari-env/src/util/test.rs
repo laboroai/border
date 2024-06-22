@@ -5,8 +5,8 @@ use crate::{
 };
 use anyhow::Result;
 use border_core::{
+    generic_replay_buffer::{BatchBase, SimpleReplayBuffer},
     record::Record,
-    replay_buffer::{SimpleReplayBuffer, BatchBase},
     Agent as Agent_, Configurable, Policy, ReplayBufferBase,
 };
 use std::ptr::copy;

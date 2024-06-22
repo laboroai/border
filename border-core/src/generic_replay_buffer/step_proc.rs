@@ -1,5 +1,5 @@
 //! A generic implementation of [`StepProcessor`](crate::StepProcessor).
-use super::{StdBatch, BatchBase};
+use super::{BatchBase, StdBatch};
 use crate::{Env, Obs, StepProcessor};
 use std::{default::Default, marker::PhantomData};
 

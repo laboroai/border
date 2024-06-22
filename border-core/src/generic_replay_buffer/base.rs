@@ -1,7 +1,7 @@
 //! Simple generic replay buffer.
 mod iw_scheduler;
 mod sum_tree;
-use super::{config::PerConfig, SimpleReplayBufferConfig, StdBatch, BatchBase};
+use super::{config::PerConfig, BatchBase, SimpleReplayBufferConfig, StdBatch};
 use crate::{ExperienceBufferBase, ReplayBufferBase, TransitionBatch};
 use anyhow::Result;
 pub use iw_scheduler::IwScheduler;

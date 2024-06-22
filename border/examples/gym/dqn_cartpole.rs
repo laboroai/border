@@ -7,11 +7,11 @@ use border_candle_agent::{
     TensorSubBatch,
 };
 use border_core::{
-    record::AggregateRecorder,
-    replay_buffer::{
-        SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
-        SimpleStepProcessorConfig, BatchBase,
+    generic_replay_buffer::{
+        BatchBase, SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
+        SimpleStepProcessorConfig,
     },
+    record::AggregateRecorder,
     Agent, Configurable, DefaultEvaluator, Evaluator as _, Trainer, TrainerConfig,
 };
 use border_mlflow_tracking::MlflowTrackingClient;
