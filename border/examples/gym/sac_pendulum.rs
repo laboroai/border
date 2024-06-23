@@ -6,14 +6,15 @@ use border_candle_agent::{
     TensorBatch,
 };
 use border_core::{
-    record::{AggregateRecorder, Record, RecordValue},
-    replay_buffer::{
+    generic_replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    Agent, Configurable, DefaultEvaluator, Evaluator as _, Trainer, TrainerConfig,
+    record::{AggregateRecorder, Record, RecordValue},
+    Agent, Configurable, DefaultEvaluator, Env as _, Evaluator as _, ReplayBufferBase,
+    StepProcessor, Trainer, TrainerConfig,
 };
-use border_derive::SubBatch;
+use border_derive::BatchBase;
 use border_py_gym_env::{
     util::{arrayd_to_pyobj, arrayd_to_tensor, tensor_to_arrayd},
     ArrayObsFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
@@ -48,7 +49,7 @@ mod obs {
     #[derive(Clone, Debug)]
     pub struct Obs(ArrayD<f32>);
 
-    #[derive(Clone, SubBatch)]
+    #[derive(Clone, BatchBase)]
     pub struct ObsBatch(TensorBatch);
 
     impl border_core::Obs for Obs {
@@ -108,7 +109,7 @@ mod act {
         }
     }
 
-    #[derive(SubBatch)]
+    #[derive(BatchBase)]
     pub struct ActBatch(TensorBatch);
 
     impl From<Act> for ActBatch {
@@ -229,11 +230,10 @@ fn create_recorder(
 }
 
 fn train(max_opts: usize, model_dir: &str, eval_interval: usize, mlflow: bool) -> Result<()> {
+    let env_config = env_config();
+    let step_proc_config = SimpleStepProcessorConfig {};
+    let replay_buffer_config = SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
     let (mut trainer, config) = {
-        let env_config = env_config();
-        let step_proc_config = SimpleStepProcessorConfig {};
-        let replay_buffer_config =
-            SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
         let config = TrainerConfig::default()
             .max_opts(max_opts)
             .opt_interval(OPT_INTERVAL)
@@ -244,20 +244,25 @@ fn train(max_opts: usize, model_dir: &str, eval_interval: usize, mlflow: bool) -
             .save_interval(EVAL_INTERVAL)
             .warmup_period(WARMUP_PERIOD)
             .model_dir(model_dir);
-        let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
-            config.clone(),
-            env_config,
-            step_proc_config,
-            replay_buffer_config,
-        );
+        let trainer = Trainer::build(config.clone());
 
         (trainer, config)
     };
+    let env = Env::build(&env_config, 0)?;
+    let step_proc = StepProc::build(&step_proc_config);
     let mut agent = create_agent(DIM_OBS, DIM_ACT)?;
+    let mut buffer = ReplayBuffer::build(&replay_buffer_config);
     let mut recorder = create_recorder(model_dir, mlflow, &config)?;
-    let mut evaluator = Evaluator::new(&env_config(), 0, N_EPISODES_PER_EVAL)?;
+    let mut evaluator = Evaluator::new(&env_config, 0, N_EPISODES_PER_EVAL)?;
 
-    trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
+    trainer.train(
+        env,
+        step_proc,
+        &mut agent,
+        &mut buffer,
+        &mut recorder,
+        &mut evaluator,
+    )?;
 
     Ok(())
 }

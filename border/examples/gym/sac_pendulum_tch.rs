@@ -8,7 +8,7 @@ use border_core::{
     Agent, Configurable, DefaultEvaluator, Env as _, Evaluator as _, ReplayBufferBase,
     StepProcessor, Trainer, TrainerConfig,
 };
-use border_derive::SubBatch;
+use border_derive::BatchBase;
 use border_py_gym_env::{
     util::{arrayd_to_pyobj, arrayd_to_tensor, tensor_to_arrayd},
     ArrayObsFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
@@ -49,7 +49,7 @@ mod obs {
     #[derive(Clone, Debug)]
     pub struct Obs(ArrayD<f32>);
 
-    #[derive(Clone, SubBatch)]
+    #[derive(Clone, BatchBase)]
     pub struct ObsBatch(TensorBatch);
 
     impl border_core::Obs for Obs {
@@ -109,7 +109,7 @@ mod act {
         }
     }
 
-    #[derive(SubBatch)]
+    #[derive(BatchBase)]
     pub struct ActBatch(TensorBatch);
 
     impl From<Act> for ActBatch {
