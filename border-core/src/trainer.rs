@@ -153,7 +153,7 @@ impl Trainer {
     where
         E: Env,
         A: Agent<E, R>,
-        R: ExperienceBufferBase + ReplayBufferBase,
+        R: ReplayBufferBase,
     {
         match agent.save(&model_dir) {
             Ok(()) => info!("Saved the model in {:?}.", &model_dir),
@@ -165,7 +165,7 @@ impl Trainer {
     where
         E: Env,
         A: Agent<E, R>,
-        R: ExperienceBufferBase + ReplayBufferBase,
+        R: ReplayBufferBase,
     {
         let model_dir = model_dir + "/best";
         Self::save_model(agent, model_dir);
@@ -175,7 +175,7 @@ impl Trainer {
     where
         E: Env,
         A: Agent<E, R>,
-        R: ExperienceBufferBase + ReplayBufferBase,
+        R: ReplayBufferBase,
     {
         let model_dir = model_dir + format!("/{}", steps).as_str();
         Self::save_model(agent, model_dir);
@@ -202,11 +202,8 @@ impl Trainer {
     where
         E: Env,
         A: Agent<E, R>,
-        // P: StepProcessor<E>,
-        // R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
         R: ReplayBufferBase,
     {
-        // Optimization step
         if self.env_steps < self.warmup_period {
             Ok((Record::empty(), false))
         } else if self.env_steps % self.opt_interval != 0 {
@@ -229,6 +226,50 @@ impl Trainer {
             self.opt_steps_for_ops += 1;
             Ok((Record::empty(), true))
         }
+    }
+
+    fn post_process<E, A, R, D>(
+        &mut self,
+        agent: &mut A,
+        evaluator: &mut D,
+        record: &mut Record,
+        fps: f32,
+    ) -> Result<()>
+    where
+        E: Env,
+        A: Agent<E, R>,
+        R: ReplayBufferBase,
+        D: Evaluator<E, A>,
+    {
+        // Add stats wrt computation cost
+        if self.opt_steps % self.record_compute_cost_interval == 0 {
+            record.insert("fps", Scalar(fps));
+            record.insert("opt_steps_per_sec", Scalar(self.opt_steps_per_sec()));
+        }
+
+        // Evaluation
+        if self.opt_steps % self.eval_interval == 0 {
+            info!("Starts evaluation of the trained model");
+            agent.eval();
+            let eval_reward = evaluator.evaluate(agent)?;
+            agent.train();
+            record.insert("eval_reward", Scalar(eval_reward));
+
+            // Save the best model up to the current iteration
+            if eval_reward > self.max_eval_reward {
+                self.max_eval_reward = eval_reward;
+                let model_dir = self.model_dir.as_ref().unwrap().clone();
+                Self::save_best_model(agent, model_dir)
+            }
+        };
+
+        // Save the current model
+        if (self.save_interval > 0) && (self.opt_steps % self.save_interval == 0) {
+            let model_dir = self.model_dir.as_ref().unwrap().clone();
+            Self::save_model_with_steps(agent, model_dir, self.opt_steps);
+        }
+
+        Ok(())
     }
 
     /// Train the agent.
@@ -265,33 +306,8 @@ impl Trainer {
 
             // Postprocessing after each training step
             if is_opt {
-                // Add stats wrt computation cost
-                if self.opt_steps % self.record_compute_cost_interval == 0 {
-                    record.insert("fps", Scalar(sampler.fps()));
-                    record.insert("opt_steps_per_sec", Scalar(self.opt_steps_per_sec()));
-                }
-
-                // Evaluation
-                if self.opt_steps % self.eval_interval == 0 {
-                    info!("Starts evaluation of the trained model");
-                    agent.eval();
-                    let eval_reward = evaluator.evaluate(agent)?;
-                    agent.train();
-                    record.insert("eval_reward", Scalar(eval_reward));
-
-                    // Save the best model up to the current iteration
-                    if eval_reward > self.max_eval_reward {
-                        self.max_eval_reward = eval_reward;
-                        let model_dir = self.model_dir.as_ref().unwrap().clone();
-                        Self::save_best_model(agent, model_dir)
-                    }
-                };
-
-                // Save the current model
-                if (self.save_interval > 0) && (self.opt_steps % self.save_interval == 0) {
-                    let model_dir = self.model_dir.as_ref().unwrap().clone();
-                    Self::save_model_with_steps(agent, model_dir, self.opt_steps);
-                }
+                let fps = sampler.fps();
+                self.post_process(agent, evaluator, &mut record, fps)?;
 
                 // End loop
                 if self.opt_steps == self.max_opts {
