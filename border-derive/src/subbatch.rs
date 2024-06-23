@@ -9,7 +9,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
     let field_type = get_field_type(data);
     let field_type_str = get_type_str(
         field_type.clone(),
-        "The item for deriving SubBatch must be a new type like SubBatch(TensorSubBatch<ObsShape, f32>)",
+        "The item for deriving BatchBase must be a new type like Batch(TensorSubBatch<ObsShape, f32>)",
     );
 
     let output = if field_type_str == "TensorBatch" {
@@ -27,7 +27,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
 fn tensor_batch(ident: proc_macro2::Ident, field_type: syn::Type) -> proc_macro2::TokenStream {
     #[allow(unused_mut)]
     let mut output = quote! {
-        impl border_core::replay_buffer::SubBatch for #ident {
+        impl border_core::generic_replay_buffer::BatchBase for #ident {
             fn new(capacity: usize) -> Self {
                 Self(TensorBatch::new(capacity))
             }

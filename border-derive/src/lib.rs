@@ -16,7 +16,7 @@ pub fn derive1(input: TokenStream) -> TokenStream {
     obs::derive(input)
 }
 
-/// Implements `border_core::replay_buffer::SubBatch` for the newtype.
+/// Implements `border_core::generic_replay_buffer::BatchBase` for the newtype.
 #[proc_macro_derive(SubBatch, attributes(my_trait))]
 pub fn derive2(input: TokenStream) -> TokenStream {
     subbatch::derive(input)
