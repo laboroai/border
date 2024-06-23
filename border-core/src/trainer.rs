@@ -117,6 +117,15 @@ pub struct Trainer {
 
     /// Warmup period, for filling replay buffer, in environment steps
     warmup_period: usize,
+
+    /// Max value of evaluation reward.
+    max_eval_reward: f32,
+
+    /// Environment steps during online training.
+    env_steps: usize,
+
+    /// Optimization steps during training.
+    opt_steps: usize,
 }
 
 impl Trainer {
@@ -134,6 +143,9 @@ impl Trainer {
             warmup_period: config.warmup_period,
             opt_steps_for_ops: 0,
             timer_for_ops: Duration::new(0, 0),
+            max_eval_reward: f32::MIN,
+            env_steps: 0,
+            opt_steps: 0,
         }
     }
 
@@ -185,47 +197,37 @@ impl Trainer {
     /// step.
     ///
     /// The second return value in the tuple is if an optimization step is done (`true`).
-    pub fn train_step<E, A, P, R>(
-        &mut self,
-        agent: &mut A,
-        buffer: &mut R,
-        sampler: &mut Sampler<E, P>,
-        env_steps: &mut usize,
-        opt_steps: &mut usize,
-    ) -> Result<(Record, bool)>
+    // pub fn train_step<E, A, P, R>(
+    pub fn train_step<E, A, R>(&mut self, agent: &mut A, buffer: &mut R) -> Result<(Record, bool)>
     where
         E: Env,
         A: Agent<E, R>,
-        P: StepProcessor<E>,
-        R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
+        // P: StepProcessor<E>,
+        // R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
+        R: ReplayBufferBase,
     {
-        // Sample transition and push it into the replay buffer
-        let mut record = sampler.sample_and_push(agent, buffer)?;
-        *env_steps += 1;
-
         // Optimization step
-        if *env_steps < self.warmup_period {
-            Ok((record, false))
-        } else if *env_steps % self.opt_interval != 0 {
+        if self.env_steps < self.warmup_period {
+            Ok((Record::empty(), false))
+        } else if self.env_steps % self.opt_interval != 0 {
             // skip optimization step
-            Ok((record, false))
-        } else if (*opt_steps + 1) % self.record_agent_info_interval == 0 {
+            Ok((Record::empty(), false))
+        } else if (self.opt_steps + 1) % self.record_agent_info_interval == 0 {
             // Do optimization step with record
             let timer = SystemTime::now();
             let record_agent = agent.opt_with_record(buffer);
-            *opt_steps += 1;
+            self.opt_steps += 1;
             self.timer_for_ops += timer.elapsed()?;
             self.opt_steps_for_ops += 1;
-            record = record.merge(record_agent);
-            Ok((record, true))
+            Ok((record_agent, true))
         } else {
             // Do optimization step without record
             let timer = SystemTime::now();
             agent.opt(buffer);
-            *opt_steps += 1;
+            self.opt_steps += 1;
             self.timer_for_ops += timer.elapsed()?;
             self.opt_steps_for_ops += 1;
-            Ok((record, true))
+            Ok((Record::empty(), true))
         }
     }
 
@@ -247,26 +249,30 @@ impl Trainer {
         D: Evaluator<E, A>,
     {
         let mut sampler = Sampler::new(env, step_proc);
-        let mut max_eval_reward = f32::MIN;
-        let mut env_steps: usize = 0;
-        let mut opt_steps: usize = 0;
         sampler.reset_fps_counter();
         agent.train();
 
         loop {
-            let (mut record, is_opt) =
-                self.train_step(agent, buffer, &mut sampler, &mut env_steps, &mut opt_steps)?;
+            // Sample transition and push it into the replay buffer
+            let record = sampler.sample_and_push(agent, buffer)?;
+            self.env_steps += 1;
+
+            // Performe optimization step(s)
+            let (mut record, is_opt) = {
+                let (r, is_opt) = self.train_step(agent, buffer)?;
+                (record.merge(r), is_opt)
+            };
 
             // Postprocessing after each training step
             if is_opt {
                 // Add stats wrt computation cost
-                if opt_steps % self.record_compute_cost_interval == 0 {
+                if self.opt_steps % self.record_compute_cost_interval == 0 {
                     record.insert("fps", Scalar(sampler.fps()));
                     record.insert("opt_steps_per_sec", Scalar(self.opt_steps_per_sec()));
                 }
 
                 // Evaluation
-                if opt_steps % self.eval_interval == 0 {
+                if self.opt_steps % self.eval_interval == 0 {
                     info!("Starts evaluation of the trained model");
                     agent.eval();
                     let eval_reward = evaluator.evaluate(agent)?;
@@ -274,21 +280,21 @@ impl Trainer {
                     record.insert("eval_reward", Scalar(eval_reward));
 
                     // Save the best model up to the current iteration
-                    if eval_reward > max_eval_reward {
-                        max_eval_reward = eval_reward;
+                    if eval_reward > self.max_eval_reward {
+                        self.max_eval_reward = eval_reward;
                         let model_dir = self.model_dir.as_ref().unwrap().clone();
                         Self::save_best_model(agent, model_dir)
                     }
                 };
 
                 // Save the current model
-                if (self.save_interval > 0) && (opt_steps % self.save_interval == 0) {
+                if (self.save_interval > 0) && (self.opt_steps % self.save_interval == 0) {
                     let model_dir = self.model_dir.as_ref().unwrap().clone();
-                    Self::save_model_with_steps(agent, model_dir, opt_steps);
+                    Self::save_model_with_steps(agent, model_dir, self.opt_steps);
                 }
 
                 // End loop
-                if opt_steps == self.max_opts {
+                if self.opt_steps == self.max_opts {
                     break;
                 }
             }
@@ -299,8 +305,8 @@ impl Trainer {
             }
 
             // Flush records
-            if is_opt && ((opt_steps - 1) % self.flush_records_interval == 0) {
-                recorder.flush(opt_steps as _);
+            if is_opt && ((self.opt_steps - 1) % self.flush_records_interval == 0) {
+                recorder.flush(self.opt_steps as _);
             }
         }
 
