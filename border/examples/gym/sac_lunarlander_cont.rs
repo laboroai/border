@@ -6,14 +6,15 @@ use border_candle_agent::{
     TensorBatch,
 };
 use border_core::{
-    record::{AggregateRecorder, Record},
-    replay_buffer::{
+    generic_replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
+    record::{AggregateRecorder, Record},
+    Agent, Configurable, DefaultEvaluator, Env as _, Evaluator as _, ReplayBufferBase,
+    StepProcessor, Trainer, TrainerConfig,
 };
-use border_derive::SubBatch;
+use border_derive::BatchBase;
 use border_py_gym_env::{
     util::{arrayd_to_tensor, tensor_to_arrayd},
     ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
@@ -72,7 +73,7 @@ mod obs_act_types {
         }
     }
 
-    #[derive(Clone, SubBatch)]
+    #[derive(Clone, BatchBase)]
     pub struct ObsBatch(TensorBatch);
 
     impl From<Obs> for ObsBatch {
@@ -106,7 +107,7 @@ mod obs_act_types {
         }
     }
 
-    #[derive(SubBatch)]
+    #[derive(BatchBase)]
     pub struct ActBatch(TensorBatch);
 
     impl From<Act> for ActBatch {
@@ -249,36 +250,33 @@ mod utils {
 }
 
 fn train(matches: ArgMatches, max_opts: usize) -> Result<()> {
-    let (mut trainer, config) = {
-        // Configs
-        let env_config = config::env_config();
-        let step_proc_config = SimpleStepProcessorConfig {};
-        let replay_buffer_config =
-            SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
-        let trainer_config = config::trainer_config(max_opts, EVAL_INTERVAL);
-        let agent_config = config::agent_config(DIM_OBS, DIM_ACT);
-
-        let trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
-            trainer_config.clone(),
-            env_config,
-            step_proc_config,
-            replay_buffer_config.clone(),
-        );
-
-        // For logging
-        let config = config::SacLunarLanderConfig {
-            agent_config,
-            replay_buffer_config,
-            trainer_config,
-        };
-
-        (trainer, config)
+    let env_config = config::env_config();
+    let trainer_config = config::trainer_config(max_opts, EVAL_INTERVAL);
+    let step_proc_config = SimpleStepProcessorConfig {};
+    let replay_buffer_config = SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
+    let agent_config = config::agent_config(DIM_OBS, DIM_ACT);
+    let config = config::SacLunarLanderConfig {
+        agent_config: agent_config.clone(),
+        replay_buffer_config: replay_buffer_config.clone(),
+        trainer_config,
     };
     let mut recorder = utils::create_recorder(&matches, &config)?;
-    let mut agent = Sac::build(config.agent_config);
-    let mut evaluator = Evaluator::new(&config::env_config(), 0, N_EPISODES_PER_EVAL)?;
+    let mut trainer = Trainer::build(config.trainer_config.clone());
 
-    trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
+    let env = Env::build(&env_config, 0)?;
+    let step_proc = StepProc::build(&step_proc_config);
+    let mut agent = Sac::build(config.agent_config);
+    let mut buffer = ReplayBuffer::build(&replay_buffer_config);
+    let mut evaluator = Evaluator::new(&env_config, 0, N_EPISODES_PER_EVAL)?;
+
+    trainer.train(
+        env,
+        step_proc,
+        &mut agent,
+        &mut buffer,
+        &mut recorder,
+        &mut evaluator,
+    )?;
 
     Ok(())
 }
