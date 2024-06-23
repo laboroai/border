@@ -274,55 +274,51 @@ impl Trainer {
         Ok(())
     }
 
-    fn _train<E, A, R, D>(
+    fn loop_step<E, A, R, D>(
         &mut self,
         agent: &mut A,
         buffer: &mut R,
         recorder: &mut Box<dyn AggregateRecorder>,
         evaluator: &mut D,
-        mut f: impl FnMut(&mut A, &mut R, &mut usize) -> Result<(Record, f32)>,
-    ) -> Result<()>
+        record: Record,
+        fps: f32,
+    ) -> Result<bool>
     where
         E: Env,
         A: Agent<E, R>,
-        R: ExperienceBufferBase + ReplayBufferBase,
+        R: ReplayBufferBase,
         D: Evaluator<E, A>,
     {
-        loop {
-            // Sample transition and push it into the replay buffer
-            let (record, fps): (Record, f32) = f(agent, buffer, &mut self.env_steps)?;
+        // Performe optimization step(s)
+        let (mut record, is_opt) = {
+            let (r, is_opt) = self.train_step(agent, buffer)?;
+            (record.merge(r), is_opt)
+        };
 
-            // Performe optimization step(s)
-            let (mut record, is_opt) = {
-                let (r, is_opt) = self.train_step(agent, buffer)?;
-                (record.merge(r), is_opt)
-            };
+        // Postprocessing after each training step
+        if is_opt {
+            self.post_process(agent, evaluator, &mut record, fps)?;
 
-            // Postprocessing after each training step
-            if is_opt {
-                self.post_process(agent, evaluator, &mut record, fps)?;
-
-                // End loop
-                if self.opt_steps == self.max_opts {
-                    break;
-                }
-            }
-
-            // Store record to the recorder
-            if !record.is_empty() {
-                recorder.store(record);
-            }
-
-            // Flush records
-            if is_opt && ((self.opt_steps - 1) % self.flush_records_interval == 0) {
-                recorder.flush(self.opt_steps as _);
+            // End loop
+            if self.opt_steps == self.max_opts {
+                return Ok(true);
             }
         }
 
-        Ok(())
+        // Store record to the recorder
+        if !record.is_empty() {
+            recorder.store(record);
+        }
+
+        // Flush records
+        if is_opt && ((self.opt_steps - 1) % self.flush_records_interval == 0) {
+            recorder.flush(self.opt_steps as _);
+        }
+
+        Ok(false)
     }
 
-    /// Train the agent in online.
+    /// Train the agent online.
     pub fn train<E, A, P, R, D>(
         &mut self,
         env: E,
@@ -339,23 +335,23 @@ impl Trainer {
         R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
         D: Evaluator<E, A>,
     {
-        // Sample transition, push it to a buffer, return FPS
-        let f = {
-            let mut sampler = Sampler::new(env, step_proc);
-            sampler.reset_fps_counter();
-            move |agent: &mut A, buffer: &mut R, env_steps: &mut usize| -> Result<(Record, f32)> {
-                let record = sampler.sample_and_push(agent, buffer)?;
-                let fps = sampler.fps();
-                *env_steps += 1;
-                Ok((record, fps))
-            }
-        };
+        let mut sampler = Sampler::new(env, step_proc);
+        sampler.reset_fps_counter();
         agent.train();
-        self._train(agent, buffer, recorder, evaluator, f)
+
+        loop {
+            let record = sampler.sample_and_push(agent, buffer)?;
+            let fps = sampler.fps();
+            self.env_steps += 1;
+
+            if self.loop_step(agent, buffer, recorder, evaluator, record, fps)? {
+                return Ok(());
+            }
+        }
     }
 
-    /// Train the agent in offline.
-    pub fn train_offline<E, A, P, R, D>(
+    /// Train the agent offline.
+    pub fn train_offline<E, A, R, D>(
         &mut self,
         agent: &mut A,
         buffer: &mut R,
@@ -365,17 +361,21 @@ impl Trainer {
     where
         E: Env,
         A: Agent<E, R>,
-        P: StepProcessor<E>,
-        R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
+        R: ReplayBufferBase,
         D: Evaluator<E, A>,
     {
         // Return empty record
-        let f = |_: &mut A, _: &mut R, _: &mut usize| -> Result<(Record, f32)> {
-            Ok((Record::empty(), 0f32))
-        };
         self.warmup_period = 0;
         self.opt_interval = 1;
         agent.train();
-        self._train(agent, buffer, recorder, evaluator, f)
+        let fps = 0f32;
+
+        loop {
+            let record = Record::empty();
+
+            if self.loop_step(agent, buffer, recorder, evaluator, record, fps)? {
+                return Ok(());
+            }
+        }
     }
 }
