@@ -12,7 +12,8 @@ use border_core::{
         SimpleStepProcessorConfig,
     },
     record::AggregateRecorder,
-    Agent, Configurable, DefaultEvaluator, Evaluator as _, Trainer, TrainerConfig,
+    Agent, Configurable, DefaultEvaluator, Env as _, Evaluator as _, ReplayBufferBase,
+    StepProcessor, Trainer, TrainerConfig,
 };
 use border_mlflow_tracking::MlflowTrackingClient;
 use border_py_gym_env::{
@@ -285,24 +286,25 @@ fn train(
     eval_interval: usize,
 ) -> Result<()> {
     let config = DqnCartpoleConfig::new(DIM_OBS, DIM_ACT, max_opts, model_dir, eval_interval);
+    let step_proc_config = SimpleStepProcessorConfig {};
+    let replay_buffer_config = SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
     let mut recorder = utils::create_recorder(&matches, model_dir, &config)?;
-    let mut trainer = {
-        let step_proc_config = SimpleStepProcessorConfig {};
-        let replay_buffer_config =
-            SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
+    let mut trainer = Trainer::build(config.trainer_config.clone());
 
-        Trainer::<Env, StepProc, ReplayBuffer>::build(
-            config.trainer_config.clone(),
-            config.env_config.clone(),
-            step_proc_config,
-            replay_buffer_config,
-        )
-    };
-
+    let env = Env::build(&config.env_config, 0)?;
+    let step_proc = StepProc::build(&step_proc_config);
     let mut agent = Dqn::build(config.agent_config);
+    let mut buffer = ReplayBuffer::build(&replay_buffer_config);
     let mut evaluator = Evaluator::new(&config.env_config, 0, N_EPISODES_PER_EVAL)?;
 
-    trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
+    trainer.train(
+        env,
+        step_proc,
+        &mut agent,
+        &mut buffer,
+        &mut recorder,
+        &mut evaluator,
+    )?;
 
     Ok(())
 }
