@@ -5,8 +5,8 @@ use border_core::{
         SimpleStepProcessorConfig,
     },
     record::AggregateRecorder,
-    Agent, Configurable, DefaultEvaluator, Evaluator as _, ReplayBufferBase, Trainer,
-    TrainerConfig,
+    Agent, Configurable, DefaultEvaluator, Evaluator as _, ReplayBufferBase, StepProcessor,
+    Trainer, TrainerConfig,
 };
 use border_py_gym_env::{
     util::vec_to_tensor, ArrayObsFilter, DiscreteActFilter, GymActFilter, GymEnv, GymEnvConfig,
@@ -287,22 +287,23 @@ fn train(
 ) -> Result<()> {
     let config = DqnCartpoleConfig::new(DIM_OBS, DIM_ACT, max_opts, model_dir, eval_interval);
     let replay_buffer_config = SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
+    let step_proc_config = SimpleStepProcessorConfig {};
     let mut recorder = utils::create_recorder(&matches, model_dir, &config)?;
-    let mut trainer = {
-        let step_proc_config = SimpleStepProcessorConfig {};
-
-        Trainer::<Env, StepProc>::build(
-            config.trainer_config.clone(),
-            config.env_config.clone(),
-            step_proc_config,
-        )
-    };
+    let mut trainer =
+        Trainer::<Env>::build(config.trainer_config.clone(), config.env_config.clone());
 
     let mut agent = Dqn::build(config.agent_config);
+    let step_proc = StepProc::build(&step_proc_config);
     let mut buffer = ReplayBuffer::build(&replay_buffer_config);
     let mut evaluator = Evaluator::new(&config.env_config, 0, N_EPISODES_PER_EVAL)?;
 
-    trainer.train(&mut agent, &mut buffer, &mut recorder, &mut evaluator)?;
+    trainer.train(
+        &mut agent,
+        step_proc,
+        &mut buffer,
+        &mut recorder,
+        &mut evaluator,
+    )?;
 
     Ok(())
 }

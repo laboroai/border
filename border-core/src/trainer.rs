@@ -84,10 +84,9 @@ pub use sampler::Sampler;
 /// [`Act`]: crate::Act
 /// [`BatchBase`]: crate::BatchBase
 /// [`Step<E: Env>`]: crate::Step
-pub struct Trainer<E, P>
+pub struct Trainer<E>
 where
     E: Env,
-    P: StepProcessor<E>,
 {
     /// Configuration of the environment for training.
     env_config_train: E::Config,
@@ -122,27 +121,18 @@ where
     /// Timer for computing for optimization steps per second.
     timer_for_ops: Duration,
 
-    /// Configuration of the transition producer.
-    step_proc_config: P::Config,
-
     /// Warmup period, for filling replay buffer, in environment steps
     warmup_period: usize,
 }
 
-impl<E, P> Trainer<E, P>
+impl<E> Trainer<E>
 where
     E: Env,
-    P: StepProcessor<E>,
 {
     /// Constructs a trainer.
-    pub fn build(
-        config: TrainerConfig,
-        env_config_train: E::Config,
-        step_proc_config: P::Config,
-    ) -> Self {
+    pub fn build(config: TrainerConfig, env_config_train: E::Config) -> Self {
         Self {
             env_config_train,
-            step_proc_config,
             model_dir: config.model_dir,
             opt_interval: config.opt_interval,
             record_compute_cost_interval: config.record_compute_cost_interval,
@@ -160,7 +150,7 @@ where
     fn save_model<A, R>(agent: &A, model_dir: String)
     where
         A: Agent<E, R>,
-        R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
+        R: ExperienceBufferBase + ReplayBufferBase,
     {
         match agent.save(&model_dir) {
             Ok(()) => info!("Saved the model in {:?}.", &model_dir),
@@ -171,7 +161,7 @@ where
     fn save_best_model<A, R>(agent: &A, model_dir: String)
     where
         A: Agent<E, R>,
-        R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
+        R: ExperienceBufferBase + ReplayBufferBase,
     {
         let model_dir = model_dir + "/best";
         Self::save_model(agent, model_dir);
@@ -180,7 +170,7 @@ where
     fn save_model_with_steps<A, R>(agent: &A, model_dir: String, steps: usize)
     where
         A: Agent<E, R>,
-        R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
+        R: ExperienceBufferBase + ReplayBufferBase,
     {
         let model_dir = model_dir + format!("/{}", steps).as_str();
         Self::save_model(agent, model_dir);
@@ -202,7 +192,7 @@ where
     /// step.
     ///
     /// The second return value in the tuple is if an optimization step is done (`true`).
-    pub fn train_step<A, R>(
+    pub fn train_step<A, P, R>(
         &mut self,
         agent: &mut A,
         buffer: &mut R,
@@ -212,6 +202,7 @@ where
     ) -> Result<(Record, bool)>
     where
         A: Agent<E, R>,
+        P: StepProcessor<E>,
         R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
     {
         // Sample transition and push it into the replay buffer
@@ -245,21 +236,22 @@ where
     }
 
     /// Train the agent.
-    pub fn train<A, R, D>(
+    pub fn train<A, P, R, D>(
         &mut self,
         agent: &mut A,
+        step_proc: P,
         buffer: &mut R,
         recorder: &mut Box<dyn AggregateRecorder>,
         evaluator: &mut D,
     ) -> Result<()>
     where
         A: Agent<E, R>,
+        P: StepProcessor<E>,
         R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
         D: Evaluator<E, A>,
     {
         let env = E::build(&self.env_config_train, 0)?;
-        let producer = P::build(&self.step_proc_config);
-        let mut sampler = Sampler::new(env, producer);
+        let mut sampler = Sampler::new(env, step_proc);
         let mut max_eval_reward = f32::MIN;
         let mut env_steps: usize = 0;
         let mut opt_steps: usize = 0;
