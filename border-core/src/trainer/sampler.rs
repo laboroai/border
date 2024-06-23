@@ -133,9 +133,13 @@ where
     /// A frame involves taking action, applying it to the environment,
     /// producing transition, and pushing it into the replay buffer.
     pub fn fps(&mut self) -> f32 {
-        let fps = self.n_env_steps_for_fps as f32 / self.time * 1000f32;
-        self.reset_fps_counter();
-        fps
+        if self.time == 0f32 {
+            0f32
+        } else {
+            let fps = self.n_env_steps_for_fps as f32 / self.time * 1000f32;
+            self.reset_fps_counter();
+            fps
+        }
     }
 
     /// Reset stats for computing FPS.

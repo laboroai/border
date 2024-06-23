@@ -89,6 +89,7 @@ pub struct Trainer {
     model_dir: Option<String>,
 
     /// Interval of optimization in environment steps.
+    /// This is ignored for offline training.
     opt_interval: usize,
 
     /// Interval of recording computational cost in optimization steps.
@@ -115,7 +116,8 @@ pub struct Trainer {
     /// Timer for computing for optimization steps per second.
     timer_for_ops: Duration,
 
-    /// Warmup period, for filling replay buffer, in environment steps
+    /// Warmup period, for filling replay buffer, in environment steps.
+    /// This is ignored for offline training.
     warmup_period: usize,
 
     /// Max value of evaluation reward.
@@ -272,31 +274,23 @@ impl Trainer {
         Ok(())
     }
 
-    /// Train the agent.
-    pub fn train<E, A, P, R, D>(
+    fn _train<E, A, R, D>(
         &mut self,
-        env: E,
-        step_proc: P,
         agent: &mut A,
         buffer: &mut R,
         recorder: &mut Box<dyn AggregateRecorder>,
         evaluator: &mut D,
+        mut f: impl FnMut(&mut A, &mut R, &mut usize) -> Result<(Record, f32)>,
     ) -> Result<()>
     where
         E: Env,
         A: Agent<E, R>,
-        P: StepProcessor<E>,
-        R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
+        R: ExperienceBufferBase + ReplayBufferBase,
         D: Evaluator<E, A>,
     {
-        let mut sampler = Sampler::new(env, step_proc);
-        sampler.reset_fps_counter();
-        agent.train();
-
         loop {
             // Sample transition and push it into the replay buffer
-            let record = sampler.sample_and_push(agent, buffer)?;
-            self.env_steps += 1;
+            let (record, fps): (Record, f32) = f(agent, buffer, &mut self.env_steps)?;
 
             // Performe optimization step(s)
             let (mut record, is_opt) = {
@@ -306,7 +300,6 @@ impl Trainer {
 
             // Postprocessing after each training step
             if is_opt {
-                let fps = sampler.fps();
                 self.post_process(agent, evaluator, &mut record, fps)?;
 
                 // End loop
@@ -327,5 +320,62 @@ impl Trainer {
         }
 
         Ok(())
+    }
+
+    /// Train the agent in online.
+    pub fn train<E, A, P, R, D>(
+        &mut self,
+        env: E,
+        step_proc: P,
+        agent: &mut A,
+        buffer: &mut R,
+        recorder: &mut Box<dyn AggregateRecorder>,
+        evaluator: &mut D,
+    ) -> Result<()>
+    where
+        E: Env,
+        A: Agent<E, R>,
+        P: StepProcessor<E>,
+        R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
+        D: Evaluator<E, A>,
+    {
+        // Sample transition, push it to a buffer, return FPS
+        let f = {
+            let mut sampler = Sampler::new(env, step_proc);
+            sampler.reset_fps_counter();
+            move |agent: &mut A, buffer: &mut R, env_steps: &mut usize| -> Result<(Record, f32)> {
+                let record = sampler.sample_and_push(agent, buffer)?;
+                let fps = sampler.fps();
+                *env_steps += 1;
+                Ok((record, fps))
+            }
+        };
+        agent.train();
+        self._train(agent, buffer, recorder, evaluator, f)
+    }
+
+    /// Train the agent in offline.
+    pub fn train_offline<E, A, P, R, D>(
+        &mut self,
+        agent: &mut A,
+        buffer: &mut R,
+        recorder: &mut Box<dyn AggregateRecorder>,
+        evaluator: &mut D,
+    ) -> Result<()>
+    where
+        E: Env,
+        A: Agent<E, R>,
+        P: StepProcessor<E>,
+        R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
+        D: Evaluator<E, A>,
+    {
+        // Return empty record
+        let f = |_: &mut A, _: &mut R, _: &mut usize| -> Result<(Record, f32)> {
+            Ok((Record::empty(), 0f32))
+        };
+        self.warmup_period = 0;
+        self.opt_interval = 1;
+        agent.train();
+        self._train(agent, buffer, recorder, evaluator, f)
     }
 }
