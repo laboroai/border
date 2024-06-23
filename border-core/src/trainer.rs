@@ -84,17 +84,13 @@ pub use sampler::Sampler;
 /// [`Act`]: crate::Act
 /// [`BatchBase`]: crate::BatchBase
 /// [`Step<E: Env>`]: crate::Step
-pub struct Trainer<E, P, R>
+pub struct Trainer<E, P>
 where
     E: Env,
     P: StepProcessor<E>,
-    R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
 {
     /// Configuration of the environment for training.
     env_config_train: E::Config,
-
-    /// Configuration of the replay buffer.
-    replay_buffer_config: R::Config,
 
     /// Where to save the trained model.
     model_dir: Option<String>,
@@ -133,23 +129,20 @@ where
     warmup_period: usize,
 }
 
-impl<E, P, R> Trainer<E, P, R>
+impl<E, P> Trainer<E, P>
 where
     E: Env,
     P: StepProcessor<E>,
-    R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
 {
     /// Constructs a trainer.
     pub fn build(
         config: TrainerConfig,
         env_config_train: E::Config,
         step_proc_config: P::Config,
-        replay_buffer_config: R::Config,
     ) -> Self {
         Self {
             env_config_train,
             step_proc_config,
-            replay_buffer_config,
             model_dir: config.model_dir,
             opt_interval: config.opt_interval,
             record_compute_cost_interval: config.record_compute_cost_interval,
@@ -164,19 +157,31 @@ where
         }
     }
 
-    fn save_model<A: Agent<E, R>>(agent: &A, model_dir: String) {
+    fn save_model<A, R>(agent: &A, model_dir: String)
+    where
+        A: Agent<E, R>,
+        R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
+    {
         match agent.save(&model_dir) {
             Ok(()) => info!("Saved the model in {:?}.", &model_dir),
             Err(_) => info!("Failed to save model in {:?}.", &model_dir),
         }
     }
 
-    fn save_best_model<A: Agent<E, R>>(agent: &A, model_dir: String) {
+    fn save_best_model<A, R>(agent: &A, model_dir: String)
+    where
+        A: Agent<E, R>,
+        R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
+    {
         let model_dir = model_dir + "/best";
         Self::save_model(agent, model_dir);
     }
 
-    fn save_model_with_steps<A: Agent<E, R>>(agent: &A, model_dir: String, steps: usize) {
+    fn save_model_with_steps<A, R>(agent: &A, model_dir: String, steps: usize)
+    where
+        A: Agent<E, R>,
+        R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
+    {
         let model_dir = model_dir + format!("/{}", steps).as_str();
         Self::save_model(agent, model_dir);
     }
@@ -197,7 +202,7 @@ where
     /// step.
     ///
     /// The second return value in the tuple is if an optimization step is done (`true`).
-    pub fn train_step<A: Agent<E, R>>(
+    pub fn train_step<A, R>(
         &mut self,
         agent: &mut A,
         buffer: &mut R,
@@ -207,6 +212,7 @@ where
     ) -> Result<(Record, bool)>
     where
         A: Agent<E, R>,
+        R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
     {
         // Sample transition and push it into the replay buffer
         let mut record = sampler.sample_and_push(agent, buffer)?;
@@ -239,19 +245,20 @@ where
     }
 
     /// Train the agent.
-    pub fn train<A, D>(
+    pub fn train<A, R, D>(
         &mut self,
         agent: &mut A,
+        buffer: &mut R,
         recorder: &mut Box<dyn AggregateRecorder>,
         evaluator: &mut D,
     ) -> Result<()>
     where
         A: Agent<E, R>,
+        R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
         D: Evaluator<E, A>,
     {
         let env = E::build(&self.env_config_train, 0)?;
         let producer = P::build(&self.step_proc_config);
-        let mut buffer = R::build(&self.replay_buffer_config);
         let mut sampler = Sampler::new(env, producer);
         let mut max_eval_reward = f32::MIN;
         let mut env_steps: usize = 0;
@@ -260,13 +267,8 @@ where
         agent.train();
 
         loop {
-            let (mut record, is_opt) = self.train_step(
-                agent,
-                &mut buffer,
-                &mut sampler,
-                &mut env_steps,
-                &mut opt_steps,
-            )?;
+            let (mut record, is_opt) =
+                self.train_step(agent, buffer, &mut sampler, &mut env_steps, &mut opt_steps)?;
 
             // Postprocessing after each training step
             if is_opt {
