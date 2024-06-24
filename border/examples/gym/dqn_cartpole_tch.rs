@@ -8,6 +8,7 @@ use border_core::{
     Agent, Configurable, DefaultEvaluator, Env as _, Evaluator as _, ReplayBufferBase,
     StepProcessor, Trainer, TrainerConfig,
 };
+use border_mlflow_tracking::MlflowTrackingClient;
 use border_py_gym_env::{
     util::vec_to_tensor, ArrayObsFilter, DiscreteActFilter, GymActFilter, GymEnv, GymEnvConfig,
     GymObsFilter,
@@ -20,8 +21,6 @@ use border_tch_agent::{
 };
 use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg, ArgMatches};
-// use csv::WriterBuilder;
-use border_mlflow_tracking::MlflowTrackingClient;
 use ndarray::{ArrayD, IxDyn};
 use serde::Serialize;
 use std::convert::TryFrom;
