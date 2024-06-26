@@ -1,4 +1,20 @@
-FROM dorowu/ubuntu-desktop-lxde-vnc:focal
+FROM --platform=linux/amd64 ubuntu:22.04
+
+# Adapted from https://qiita.com/takahashiakari/items/f096e5bcdfecf3d5ba90
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt update -y && apt install --no-install-recommends --fix-missing -y xfce4 xfce4-goodies tigervnc-standalone-server novnc websockify sudo xterm init systemd snapd vim net-tools curl wget git tzdata
+RUN apt update -y && apt install -y dbus-x11 x11-utils x11-xserver-utils x11-apps
+RUN apt install software-properties-common -y
+RUN add-apt-repository ppa:mozillateam/ppa -y
+RUN echo 'Package: *' >> /etc/apt/preferences.d/mozilla-firefox
+RUN echo 'Pin: release o=LP-PPA-mozillateam' >> /etc/apt/preferences.d/mozilla-firefox
+RUN echo 'Pin-Priority: 1001' >> /etc/apt/preferences.d/mozilla-firefox
+RUN echo 'Unattended-Upgrade::Allowed-Origins:: "LP-PPA-mozillateam:jammy";' | tee /etc/apt/apt.conf.d/51unattended-upgrades-firefox
+RUN apt update -y && apt install -y firefox
+RUN apt update -y && apt install -y xubuntu-icon-theme
+RUN touch /root/.Xauthority
+EXPOSE 5901
+EXPOSE 6080
 
 ENV DEBIAN_FRONTEND noninteractive
 RUN echo "Set disable_coredump false" >> /etc/sudo.conf
@@ -6,9 +22,6 @@ RUN sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4EB27DB2A3B88B
 RUN apt-get update -q && \
     apt-get upgrade -yq && \
     apt-get install -yq wget curl git build-essential vim sudo libssl-dev
-
-# lsb-release locales bash-completion tzdata gosu && \
-# RUN rm -rf /var/lib/apt/lists/*
 
 # clang
 RUN apt install -y -q libclang-dev
@@ -19,7 +32,7 @@ RUN apt update -y && \
     DEBIAN_FRONTEND=noninteractive && \
     apt install -y -q --no-install-recommends \
         libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev libsdl2-ttf-dev \
-        libsdl-dev libsdl-image1.2-dev
+        libsdl-image1.2-dev
 
 # zip
 RUN apt install -y zip
@@ -28,7 +41,7 @@ RUN apt install -y zip
 RUN apt install -y swig
 
 # python
-RUN apt install -y python3.8 python3.8-dev python3.8-distutils python3.8-venv python3-pip
+RUN apt install -y python3.10 python3.10-dev python3.10-distutils python3.10-venv python3-pip
 
 # cmake
 RUN apt install -y cmake
@@ -53,33 +66,23 @@ RUN chmod 777 /test_dmc_viewer.py
 # Use bash
 RUN mv /bin/sh /bin/sh_tmp && ln -s /bin/bash /bin/sh
 
-# Add user
-RUN useradd --create-home --home-dir /home/ubuntu --shell /bin/bash --user-group --groups adm,sudo ubuntu && \
-    echo ubuntu:ubuntu | chpasswd && \
-    echo "ubuntu ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-COPY lxterminal.conf /lxterminal.conf
-COPY desktop.conf /desktop.conf
-RUN chmod 777 /*.conf
-
-# User desktop configs
-USER ubuntu
-RUN mkdir -p /home/ubuntu/.config/lxterminal && \
-    cp /lxterminal.conf /home/ubuntu/.config/lxterminal/
-RUN mkdir -p /home/ubuntu/.config/lxsession/LXDE && \
-    cp /desktop.conf /home/ubuntu/.config/lxsession/LXDE/
-
 # rustup
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
 # python
-RUN cd /home/ubuntu && python -m venv venv
-RUN source /home/ubuntu/venv/bin/activate && pip3 install --upgrade pip
-RUN source /home/ubuntu/venv/bin/activate && pip3 install pyyaml typing-extensions
-RUN source /home/ubuntu/venv/bin/activate && pip3 install torch==1.12.0
-RUN source /home/ubuntu/venv/bin/activate && pip3 install ipython jupyterlab
-RUN source /home/ubuntu/venv/bin/activate && pip3 install numpy==1.21.3
-RUN source /home/ubuntu/venv/bin/activate && pip3 install gymnasium[box2d]==0.29.0
-RUN source /home/ubuntu/venv/bin/activate && pip3 install gymnasium-robotics==1.2.2
+RUN cd /root && python3 -m venv venv
+RUN source /root/venv/bin/activate && pip3 install --upgrade pip
+RUN source /root/venv/bin/activate && pip3 install pyyaml typing-extensions
+RUN source /root/venv/bin/activate && pip3 install torch==1.13.1
+RUN source /root/venv/bin/activate && pip3 install ipython jupyterlab
+RUN source /root/venv/bin/activate && pip3 install numpy==1.21.3
+RUN source /root/venv/bin/activate && pip3 install mujoco==2.3.7
+RUN source /root/venv/bin/activate && pip3 install gymnasium[box2d]==0.29.0
+RUN source /root/venv/bin/activate && pip3 install gymnasium-robotics==1.2.2
+RUN source /root/venv/bin/activate && pip3 install tensorboard==2.16.2
+RUN source /root/venv/bin/activate && pip3 install mlflow==2.11.1
+RUN source /root/venv/bin/activate && pip3 install tabulate==0.9.0
+RUN source /root/venv/bin/activate && pip3 install mlflow-export-import==1.2.0
 # RUN source /home/ubuntu/venv/bin/activate && pip3 install robosuite==1.3.2
 # RUN source /home/ubuntu/venv/bin/activate && pip3 install -U 'mujoco-py<2.2,>=2.1'
 # RUN source /home/ubuntu/venv/bin/activate && pip3 install dm-control==1.0.8
@@ -88,20 +91,6 @@ RUN source /home/ubuntu/venv/bin/activate && pip3 install gymnasium-robotics==1.
 
 # border
 RUN cd $HOME && mkdir -p .border/model
-
-# Mujoco amd64 binary
-RUN cd $HOME && \
-    mkdir .mujoco && \
-    cd .mujoco && \
-    wget https://github.com/deepmind/mujoco/releases/download/2.1.1/mujoco-2.1.1-linux-x86_64.tar.gz
-RUN cd $HOME/.mujoco && \
-    tar zxf mujoco-2.1.1-linux-x86_64.tar.gz && \
-    mkdir -p mujoco210/bin && \
-    ln -sf $PWD/mujoco-2.1.1/lib/libmujoco.so.2.1.1 $PWD/mujoco210/bin/libmujoco210.so && \
-    ln -sf $PWD/mujoco-2.1.1/lib/libglewosmesa.so $PWD/mujoco210/bin/libglewosmesa.so && \
-    ln -sf $PWD/mujoco-2.1.1/include/ $PWD/mujoco210/include && \
-    ln -sf $PWD/mujoco-2.1.1/model/ $PWD/mujoco210/model
-RUN cp /*.py $HOME
 
 # # PyBulletGym
 # RUN source /home/ubuntu/venv/bin/activate && pip3 install pybullet==3.2.5
@@ -123,7 +112,7 @@ RUN cp /*.py $HOME
 # RUN sed -i 's/id='\''AntPyBulletEnv-v0'\'',/id='\''AntPyBulletEnv-v0'\'', order_enforce=False,/g' /home/ubuntu/pybullet-gym/pybulletgym/envs/__init__.py
 
 # .bashrc
-RUN echo 'export LIBTORCH=$HOME/venv/lib/python3.8/site-packages/torch' >> ~/.bashrc
+RUN echo 'export LIBTORCH=$HOME/venv/lib/python3.10/site-packages/torch' >> ~/.bashrc
 RUN echo 'export LD_LIBRARY_PATH=$LIBTORCH/lib' >> ~/.bashrc
 RUN echo 'export LIBTORCH_CXX11_ABI=0' >> ~/.bashrc
 RUN echo 'export PATH=$HOME/.local/bin:$PATH' >> ~/.bashrc
@@ -132,9 +121,8 @@ RUN echo 'export CARGO_TARGET_DIR=$HOME/target' >> ~/.bashrc
 RUN echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.mujoco/mujoco210/bin' >> ~/.bashrc
 RUN echo 'export MUJOCO_GL=glfw' >> ~/.bashrc
 RUN echo 'source $HOME/venv/bin/activate' >> ~/.bashrc
-# RUN echo 'export PYTHONPATH=$HOME/bullet3/build_cmake/examples/pybullet:$PYTHONPATH' >> ~/.bashrc
+RUN echo 'export RUSTFLAGS="-C target-feature=+fp16"' >> ~/.bashrc
 
-USER root
 RUN rm /bin/sh && mv /bin/sh_tmp /bin/sh
 
-ENV USER ubuntu
+CMD bash -c "vncserver -localhost no -SecurityTypes None -geometry 1024x768 --I-KNOW-THIS-IS-INSECURE && openssl req -new -subj "/C=JP" -x509 -days 365 -nodes -out self.pem -keyout self.pem && websockify -D --web=/usr/share/novnc/ --cert=self.pem 6080 localhost:5901 && tail -f /dev/null"
