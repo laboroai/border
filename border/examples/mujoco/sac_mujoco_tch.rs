@@ -254,7 +254,7 @@ mod utils {
     /// Returns (dim_obs, dim_act, target_ent, env_name, model_dir)
     pub fn env_params<'a>(matches: &ArgMatches) -> (i64, i64, f64, &'a str, String) {
         let env_name = matches.value_of("env").unwrap();
-        let model_dir = format!("./border/examples/mujoco/model/{}/candle", env_name);
+        let model_dir = format!("./border/examples/mujoco/model/{}/tch", env_name);
         match matches.value_of("env").unwrap() {
             "ant" => (27, 8, -8., "Ant-v4", model_dir),
             "cheetah" => (17, 6, -6., "HalfCheetah-v4", model_dir),
