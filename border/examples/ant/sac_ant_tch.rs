@@ -1,14 +1,15 @@
 use anyhow::Result;
-use border::util::get_model_from_url;
+// use border::util::get_model_from_url;
 use border_core::{
-    record::AggregateRecorder,
-    replay_buffer::{
+    generic_replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    Agent, DefaultEvaluator, Evaluator as _, Policy, Trainer, TrainerConfig,
+    record::AggregateRecorder,
+    Agent, Configurable, DefaultEvaluator, Env as _, Evaluator as _, ReplayBufferBase,
+    StepProcessor, Trainer, TrainerConfig,
 };
-use border_derive::SubBatch;
+use border_derive::BatchBase;
 use border_mlflow_tracking::MlflowTrackingClient;
 use border_py_gym_env::{
     util::{arrayd_to_tensor, tensor_to_arrayd},
@@ -23,13 +24,11 @@ use border_tch_agent::{
 };
 use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg, ArgMatches};
-use log::info;
+// use log::info;
 use ndarray::{ArrayD, IxDyn};
 use std::convert::TryFrom;
 use tch::Tensor;
 
-const DIM_OBS: i64 = 27;
-const DIM_ACT: i64 = 8;
 const LR_ACTOR: f64 = 3e-4;
 const LR_CRITIC: f64 = 3e-4;
 const BATCH_SIZE: usize = 256;
@@ -41,10 +40,8 @@ const REPLAY_BUFFER_CAPACITY: usize = 300_000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const N_CRITICS: usize = 2;
 const TAU: f64 = 0.02;
-const TARGET_ENTROPY: f64 = -(DIM_ACT as f64);
 const LR_ENT_COEF: f64 = 3e-4;
 const CRITIC_LOSS: CriticLoss = CriticLoss::SmoothL1;
-const MODEL_DIR: &str = "./border/examples/ant/model/tch";
 
 fn cuda_if_available() -> tch::Device {
     tch::Device::cuda_if_available()
@@ -56,7 +53,7 @@ mod obs_act_types {
     #[derive(Clone, Debug)]
     pub struct Obs(ArrayD<f32>);
 
-    #[derive(Clone, SubBatch)]
+    #[derive(Clone, BatchBase)]
     pub struct ObsBatch(TensorBatch);
 
     impl border_core::Obs for Obs {
@@ -112,7 +109,7 @@ mod obs_act_types {
         }
     }
 
-    #[derive(SubBatch)]
+    #[derive(BatchBase)]
     pub struct ActBatch(TensorBatch);
 
     impl From<Act> for ActBatch {
@@ -146,14 +143,14 @@ mod config {
         pub agent: SacConfig<Mlp, Mlp2>,
     }
 
-    pub fn env_config() -> EnvConfig {
+    pub fn env_config(env_name: &str) -> EnvConfig {
         GymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
-            .name("Ant-v4".to_string())
+            .name(env_name.to_string())
             .obs_filter_config(ObsFilter::default_config())
             .act_filter_config(ActFilter::default_config())
     }
 
-    pub fn create_trainer_config() -> TrainerConfig {
+    pub fn create_trainer_config(model_dir: &str) -> TrainerConfig {
         TrainerConfig::default()
             .max_opts(MAX_OPTS)
             .opt_interval(OPT_INTERVAL)
@@ -163,18 +160,18 @@ mod config {
             .flush_record_interval(EVAL_INTERVAL)
             .save_interval(EVAL_INTERVAL)
             .warmup_period(WARMUP_PERIOD)
-            .model_dir(MODEL_DIR)
+            .model_dir(model_dir)
     }
 
-    pub fn create_sac_config() -> SacConfig<Mlp, Mlp2> {
+    pub fn create_sac_config(dim_obs: i64, dim_act: i64, target_ent: f64) -> SacConfig<Mlp, Mlp2> {
         let device = cuda_if_available();
         let actor_config = ActorConfig::default()
             .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
-            .out_dim(DIM_ACT)
-            .pi_config(MlpConfig::new(DIM_OBS, vec![400, 300], DIM_ACT, false));
+            .out_dim(dim_act)
+            .pi_config(MlpConfig::new(dim_obs, vec![400, 300], dim_act, false));
         let critic_config = CriticConfig::default()
             .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
-            .q_config(MlpConfig::new(DIM_OBS + DIM_ACT, vec![400, 300], 1, false));
+            .q_config(MlpConfig::new(dim_obs + dim_act, vec![400, 300], 1, false));
 
         SacConfig::default()
             .batch_size(BATCH_SIZE)
@@ -183,7 +180,7 @@ mod config {
             .tau(TAU)
             .critic_loss(CRITIC_LOSS)
             .n_critics(N_CRITICS)
-            .ent_coef_mode(EntCoefMode::Auto(TARGET_ENTROPY, LR_ENT_COEF))
+            .ent_coef_mode(EntCoefMode::Auto(target_ent, LR_ENT_COEF))
             .device(device)
     }
 }
@@ -195,18 +192,20 @@ mod utils {
         matches: &ArgMatches,
         config: &config::SacAntConfig,
     ) -> Result<Box<dyn AggregateRecorder>> {
+        let env_name = matches.value_of("env").unwrap();
+        let (_, _, _, _, model_dir) = env_params(matches);
         match matches.is_present("mlflow") {
             true => {
                 let client =
                     MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Gym")?;
                 let recorder_run = client.create_recorder("")?;
                 recorder_run.log_params(&config)?;
-                recorder_run.set_tag("env", "ant")?;
+                recorder_run.set_tag("env", env_name)?;
                 recorder_run.set_tag("algo", "sac")?;
                 recorder_run.set_tag("backend", "tch")?;
                 Ok(Box::new(recorder_run))
             }
-            false => Ok(Box::new(TensorboardRecorder::new(MODEL_DIR))),
+            false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
         }
     }
 
@@ -215,23 +214,33 @@ mod utils {
             .version("0.1.0")
             .author("Taku Yoshioka <yoshioka@laboro.ai>")
             .arg(
-                Arg::with_name("play")
-                    .long("play")
+                Arg::with_name("env")
+                    .long("env")
+                    .value_name("name")
+                    .default_value("ant")
                     .takes_value(true)
-                    .help("Play with the trained model of the given path"),
+                    .help("Environment name (ant, cheetah, walker, hopper)"),
             )
             .arg(
-                Arg::with_name("play-gdrive")
-                    .long("play-gdrive")
-                    .takes_value(false)
-                    .help("Play with the trained model downloaded from google drive"),
+                Arg::with_name("eval")
+                    .long("eval")
+                    .value_name("path")
+                    .default_value("")
+                    .takes_value(true)
+                    .help("Evaluation with the trained model of the given path"),
             )
+            // .arg(
+            //     Arg::with_name("play-gdrive")
+            //         .long("play-gdrive")
+            //         .takes_value(false)
+            //         .help("Play with the trained model downloaded from google drive"),
+            // )
             .arg(
                 Arg::with_name("wait")
                     .long("wait")
                     .takes_value(true)
                     .default_value("25")
-                    .help("Waiting time in milliseconds between frames when playing"),
+                    .help("Waiting time in milliseconds between frames when evaluation"),
             )
             .arg(
                 Arg::with_name("mlflow")
@@ -241,38 +250,58 @@ mod utils {
             )
             .get_matches()
     }
+
+    /// Returns (dim_obs, dim_act, target_ent, env_name, model_dir)
+    pub fn env_params<'a>(matches: &ArgMatches) -> (i64, i64, f64, &'a str, String) {
+        let env_name = matches.value_of("env").unwrap();
+        let model_dir = format!("./border/examples/mujoco/model/{}/candle", env_name);
+        match matches.value_of("env").unwrap() {
+            "ant" => (27, 8, -8., "Ant-v4", model_dir),
+            "cheetah" => (17, 6, -6., "HalfCheetah-v4", model_dir),
+            "walker" => (17, 6, -6., "Walker2d-v4", model_dir),
+            "hopper" => (11, 3, -3., "Hopper-v4", model_dir),
+            env => panic!("Unsupported env {:?}", env),
+        }
+    }
 }
 
 fn train(matches: ArgMatches) -> Result<()> {
-    let env_config = config::env_config();
-    let agent_config = config::create_sac_config();
-    let trainer_config = config::create_trainer_config();
-    let replay_buffer_config = SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
+    let (dim_obs, dim_act, target_ent, env_name, model_dir) = utils::env_params(&matches);
+    let env_config = config::env_config(env_name);
     let step_proc_config = SimpleStepProcessorConfig {};
+    let agent_config = config::create_sac_config(dim_obs, dim_act, target_ent);
+    let trainer_config = config::create_trainer_config(&model_dir);
+    let replay_buffer_config = SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
+    let mut trainer = Trainer::build(trainer_config.clone());
 
     let config = config::SacAntConfig {
-        trainer: trainer_config.clone(),
+        trainer: trainer_config,
         replay_buffer: replay_buffer_config.clone(),
         agent: agent_config.clone(),
     };
+    let env = Env::build(&env_config, 0)?;
+    let step_proc = StepProc::build(&step_proc_config);
     let mut agent = Sac::build(agent_config);
+    let mut buffer = ReplayBuffer::build(&replay_buffer_config);
     let mut recorder = utils::create_recorder(&matches, &config)?;
     let mut evaluator = Evaluator::new(&env_config, 0, N_EPISODES_PER_EVAL)?;
-    let mut trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
-        trainer_config,
-        env_config,
-        step_proc_config,
-        replay_buffer_config,
-    );
 
-    trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
+    trainer.train(
+        env,
+        step_proc,
+        &mut agent,
+        &mut buffer,
+        &mut recorder,
+        &mut evaluator,
+    )?;
 
     Ok(())
 }
 
-fn eval(model_dir: &str, render: bool, wait: u64) -> Result<()> {
+fn eval(matches: &ArgMatches, model_dir: &str, render: bool, wait: u64) -> Result<()> {
+    let (dim_obs, dim_act, target_ent, env_name, _) = utils::env_params(&matches);
     let env_config = {
-        let mut env_config = config::env_config();
+        let mut env_config = config::env_config(&env_name);
         if render {
             env_config = env_config
                 .render_mode(Some("human".to_string()))
@@ -281,9 +310,12 @@ fn eval(model_dir: &str, render: bool, wait: u64) -> Result<()> {
         env_config
     };
     let mut agent = {
-        let agent_config = config::create_sac_config();
+        let agent_config = config::create_sac_config(dim_obs, dim_act, target_ent);
         let mut agent = Sac::build(agent_config);
-        agent.load(model_dir)?;
+        match agent.load(model_dir) {
+            Ok(_) => {}
+            Err(_) => println!("Failed to load model parameters from {:?}", model_dir),
+        }
         agent.eval();
         agent
     };
@@ -297,28 +329,28 @@ fn eval(model_dir: &str, render: bool, wait: u64) -> Result<()> {
 fn eval1(matches: ArgMatches) -> Result<()> {
     let model_dir = {
         let model_dir = matches
-            .value_of("play")
+            .value_of("eval")
             .expect("Failed to parse model directory");
         format!("{}{}", model_dir, "/best").to_owned()
     };
     let render = true;
     let wait = matches.value_of("wait").unwrap().parse().unwrap();
-    eval(&model_dir, render, wait)
+    eval(&matches, &model_dir, render, wait)
 }
 
-fn eval2(matches: ArgMatches) -> Result<()> {
-    let model_dir = {
-        let file_base = "sac_ant_20210324_ec2_smoothl1";
-        let url =
-            "https://drive.google.com/uc?export=download&id=1XvFi2nJD5OhpTvs-Et3YREuoqy8c3Vkq";
-        let model_dir = get_model_from_url(url, file_base)?;
-        info!("Download the model in {:?}", model_dir.as_ref().to_str());
-        model_dir.as_ref().to_str().unwrap().to_string()
-    };
-    let render = true;
-    let wait = matches.value_of("wait").unwrap().parse().unwrap();
-    eval(&model_dir, render, wait)
-}
+// fn eval2(matches: ArgMatches) -> Result<()> {
+//     let model_dir = {
+//         let file_base = "sac_ant_20210324_ec2_smoothl1";
+//         let url =
+//             "https://drive.google.com/uc?export=download&id=1XvFi2nJD5OhpTvs-Et3YREuoqy8c3Vkq";
+//         let model_dir = get_model_from_url(url, file_base)?;
+//         info!("Download the model in {:?}", model_dir.as_ref().to_str());
+//         model_dir.as_ref().to_str().unwrap().to_string()
+//     };
+//     let render = true;
+//     let wait = matches.value_of("wait").unwrap().parse().unwrap();
+//     eval(&matches, &model_dir, render, wait)
+// }
 
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
@@ -327,10 +359,10 @@ fn main() -> Result<()> {
 
     let matches = utils::create_matches();
 
-    if matches.is_present("play") {
+    if matches.is_present("eval") {
         eval1(matches)?;
-    } else if matches.is_present("play-gdrive") {
-        eval2(matches)?;
+    // } else if matches.is_present("play-gdrive") {
+    //     eval2(matches)?;
     } else {
         train(matches)?;
     }
