@@ -43,7 +43,7 @@ From: nvidia/cuda:11.7.1-cudnn8-devel-ubuntu20.04
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
     # Python
-    python3 -m venv /opt/venv
+    python3.10 -m venv /opt/venv
     bash -c "source /opt/venv/bin/activate && pip3 install --upgrade pip"
     bash -c "source /opt/venv/bin/activate && pip3 install pyyaml typing-extensions"
     bash -c "source /opt/venv/bin/activate && pip3 install torch==1.13.1+cu117 --extra-index-url https://download.pytorch.org/whl/cu117"
