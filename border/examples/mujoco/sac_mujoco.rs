@@ -247,6 +247,12 @@ mod utils {
                     .takes_value(false)
                     .help("User mlflow tracking"),
             )
+            .arg(
+                Arg::with_name("train")
+                    .long("train")
+                    .takes_value(false)
+                    .help("Training"),
+            )
             .get_matches()
     }
 
@@ -357,13 +363,13 @@ fn main() -> Result<()> {
 
     let matches = utils::create_matches();
 
-    if matches.is_present("eval") {
+    if matches.is_present("train") {
+        train(matches)?;
+    } else {
         eval1(matches)?;
+    }
     // } else if matches.is_present("play-gdrive") {
     //     eval2(matches)?;
-    } else {
-        train(matches)?;
-    }
 
     Ok(())
 }
