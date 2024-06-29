@@ -3,6 +3,7 @@ $nrconf{restart} = 'a';
 
 export DEBIAN_FRONTEND=noninteractive
 sudo apt update -qy
+sudo apt upgrade -qy
 sudo apt install --no-install-recommends -y xfce4 xfce4-goodies tigervnc-standalone-server novnc websockify sudo xterm init systemd snapd vim net-tools curl wget git tzdata
 sudo apt install -y dbus-x11 x11-utils x11-xserver-utils x11-apps
 sudo apt install software-properties-common -y
@@ -14,7 +15,8 @@ sudo apt install -y -q libclang-dev
 # sdl
 sudo DEBIAN_FRONTEND=noninteractive \
     apt install -y -q --no-install-recommends \
-    libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev libsdl2-ttf-dev
+    libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev libsdl2-ttf-dev \
+    libsdl-image-1.2-dev
 
 # python
 # sudo apt install -y python3.8 python3.8-dev python3.8-distutils python3.8-venv python3-pip
