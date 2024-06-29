@@ -85,7 +85,7 @@ impl EpsilonGreedy {
         if is_random {
             let batch_size = action_value.size()[0];
             let n_actions = action_value.size()[1] as u32;
-            Tensor::of_slice(
+            Tensor::from_slice(
                 (0..batch_size)
                     .map(|_| fastrand::u32(..n_actions) as i32)
                     .collect::<Vec<_>>()

@@ -9,25 +9,25 @@ pub trait ZeroTensor {
 
 impl ZeroTensor for u8 {
     fn zeros(shape: &[i64]) -> Tensor {
-        Tensor::zeros(&shape, (tch::kind::Kind::Uint8, Device::Cpu))
+        Tensor::zeros(shape, (tch::kind::Kind::Uint8, Device::Cpu))
     }
 }
 
 impl ZeroTensor for i32 {
     fn zeros(shape: &[i64]) -> Tensor {
-        Tensor::zeros(&shape, (tch::kind::Kind::Int, Device::Cpu))
+        Tensor::zeros(shape, (tch::kind::Kind::Int, Device::Cpu))
     }
 }
 
 impl ZeroTensor for f32 {
     fn zeros(shape: &[i64]) -> Tensor {
-        Tensor::zeros(&shape, tch::kind::FLOAT_CPU)
+        Tensor::zeros(shape, tch::kind::FLOAT_CPU)
     }
 }
 
 impl ZeroTensor for i64 {
     fn zeros(shape: &[i64]) -> Tensor {
-        Tensor::zeros(&shape, (tch::kind::Kind::Int64, Device::Cpu))
+        Tensor::zeros(shape, (tch::kind::Kind::Int64, Device::Cpu))
     }
 }
 
@@ -112,7 +112,7 @@ impl BatchBase for TensorBatch {
 
     fn sample(&self, ixs: &Vec<usize>) -> Self {
         let ixs = ixs.iter().map(|&ix| ix as i64).collect::<Vec<_>>();
-        let batch_indexes = Tensor::of_slice(&ixs);
+        let batch_indexes = Tensor::from_slice(&ixs);
         let buf = Some(self.buf.as_ref().unwrap().index_select(0, &batch_indexes));
         Self {
             buf,

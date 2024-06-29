@@ -30,6 +30,7 @@ impl From<tch::Device> for Device {
             tch::Device::Cpu => Self::Cpu,
             tch::Device::Cuda(n) => Self::Cuda(n),
             tch::Device::Mps => unimplemented!(),
+            tch::Device::Vulkan => unimplemented!(),
         }
     }
 }

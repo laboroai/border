@@ -37,7 +37,7 @@ cd /home/user && python3 -m venv venv
 source /home/user/venv/bin/activate && pip3 install --upgrade pip
 source /home/user/venv/bin/activate && pip3 install pyyaml typing-extensions
 # source /home/user/venv/bin/activate && pip3 install torch==1.12.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116 --no-cache-dir
-source /home/user/venv/bin/activate && pip3 install torch==1.13.1+cu117 --extra-index-url https://download.pytorch.org/whl/cu117 --no-cache-dir
+source /home/user/venv/bin/activate && pip3 install torch==2.3.0 --index-url https://download.pytorch.org/whl/cu121 --no-cache-dir
 # source /home/user/venv/bin/activate && pip3 install torch==2.0.1
 source /home/user/venv/bin/activate && pip3 install ipython jupyterlab
 source /home/user/venv/bin/activate && pip3 install numpy==1.21.3

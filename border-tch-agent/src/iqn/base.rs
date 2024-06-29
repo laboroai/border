@@ -11,7 +11,7 @@ use border_core::{
 };
 use log::trace;
 use serde::{de::DeserializeOwned, Serialize};
-use std::{fs, marker::PhantomData, path::Path};
+use std::{convert::TryFrom, fs, marker::PhantomData, path::Path};
 use tch::{no_grad, Device, Tensor};
 
 /// IQN agent implemented with tch-rs.
@@ -63,8 +63,8 @@ where
         let obs = obs.into();
         let act = act.into().to(self.device);
         let next_obs = next_obs.into();
-        let reward = Tensor::of_slice(&reward[..]).to(self.device).unsqueeze(-1);
-        let is_terminated = Tensor::of_slice(&is_terminated[..])
+        let reward = Tensor::from_slice(&reward[..]).to(self.device).unsqueeze(-1);
+        let is_terminated = Tensor::from_slice(&is_terminated[..])
             .to(self.device)
             .unsqueeze(-1);
 
@@ -159,7 +159,7 @@ where
 
         self.iqn.backward_step(&loss);
 
-        f32::from(loss)
+        f32::try_from(loss).expect("Failed to convert Tensor to f32")
     }
 
     fn opt_(&mut self, buffer: &mut R) -> Record {

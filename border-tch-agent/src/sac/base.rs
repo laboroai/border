@@ -10,7 +10,7 @@ use border_core::{
 };
 use serde::{de::DeserializeOwned, Serialize};
 // use log::info;
-use std::{fs, marker::PhantomData, path::Path};
+use std::{convert::TryFrom, fs, marker::PhantomData, path::Path};
 use tch::{no_grad, Tensor};
 
 type ActionValue = Tensor;
@@ -102,8 +102,8 @@ where
     fn update_critic(&mut self, batch: R::Batch) -> f32 {
         let losses = {
             let (obs, act, next_obs, reward, is_terminated, _is_truncated, _, _) = batch.unpack();
-            let reward = Tensor::of_slice(&reward[..]).to(self.device);
-            let is_terminated = Tensor::of_slice(&is_terminated[..]).to(self.device);
+            let reward = Tensor::from_slice(&reward[..]).to(self.device);
+            let is_terminated = Tensor::from_slice(&is_terminated[..]).to(self.device);
 
             let preds = self.qvals(&self.qnets, &obs.into(), &act.into());
             let tgt = {
@@ -135,7 +135,12 @@ where
             qnet.backward_step(&loss);
         }
 
-        losses.iter().map(f32::from).sum::<f32>() / (self.qnets.len() as f32)
+        losses
+            .iter()
+            .map(f32::try_from)
+            .map(|a| a.expect("Failed to convert Tensor to f32"))
+            .sum::<f32>()
+            / (self.qnets.len() as f32)
     }
 
     fn update_actor(&mut self, batch: &R::Batch) -> f32 {
@@ -153,7 +158,7 @@ where
 
         self.pi.backward_step(&loss);
 
-        f32::from(loss)
+        f32::try_from(loss).expect("Failed to convert Tensor to f32")
     }
 
     fn soft_update(&mut self) {

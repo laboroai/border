@@ -68,7 +68,7 @@ mod _tch {
 
     pub fn tensor_to_arrayd<T>(t: Tensor, delete_batch_dim: bool) -> ArrayD<T>
     where
-        T: tch::kind::Element,
+        T: tch::kind::Element + Copy,
     {
         let shape = match delete_batch_dim {
             false => t.size()[..].iter().map(|x| *x as usize).collect::<Vec<_>>(),
@@ -77,7 +77,8 @@ mod _tch {
                 .map(|x| *x as usize)
                 .collect::<Vec<_>>(),
         };
-        let v: Vec<T> = t.into();
+        let v =
+            Vec::<T>::try_from(&t.flatten(0, -1)).expect("Failed to convert from Tensor to Vec");
 
         ndarray::Array1::<T>::from(v)
             .into_shape(ndarray::IxDyn(&shape))

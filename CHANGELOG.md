@@ -12,7 +12,7 @@
 
 * Take `self` in the signature of `push()` method of replay buffer (`border-core`)
 * Fix a bug in `MlpConfig` (`border-tch-agent`)
-* Bump the version of tch to 0.10.0 (`border-tch-agent`)
+* Bump the version of tch to 0.16.0 (`border-tch-agent`)
 * Change the name of trait `StepProcessorBase` to `StepProcessor` (`border-core`)
 * Change the environment API to include terminate/truncate flags (`border-core`) (https://github.com/taku-y/border/issues/10)
 

@@ -10,7 +10,12 @@ use border_core::{
     Agent, Configurable, Env, Policy, ReplayBufferBase, TransitionBatch,
 };
 use serde::{de::DeserializeOwned, Serialize};
-use std::{convert::TryInto, fs, marker::PhantomData, path::Path};
+use std::{
+    convert::{TryFrom, TryInto},
+    fs,
+    marker::PhantomData,
+    path::Path,
+};
 use tch::{no_grad, Device, Tensor};
 
 #[allow(clippy::upper_case_acronyms)]
@@ -60,8 +65,8 @@ where
         let obs = obs.into();
         let act = act.into().to(self.device);
         let next_obs = next_obs.into();
-        let reward = Tensor::of_slice(&reward[..]).to(self.device);
-        let is_terminated = Tensor::of_slice(&is_terminated[..]).to(self.device);
+        let reward = Tensor::from_slice(&reward[..]).to(self.device);
+        let is_terminated = Tensor::from_slice(&is_terminated[..]).to(self.device);
 
         let pred = {
             let x = self.qnet.forward(&obs);
@@ -71,7 +76,10 @@ where
         if self.record_verbose_level >= 2 {
             record.insert(
                 "pred_mean",
-                RecordValue::Scalar(f32::from(pred.mean(tch::Kind::Float))),
+                RecordValue::Scalar(
+                    f32::try_from(pred.mean(tch::Kind::Float))
+                        .expect("Failed to convert Tensor to f32"),
+                ),
             );
         }
 
@@ -99,7 +107,10 @@ where
         if self.record_verbose_level >= 2 {
             record.insert(
                 "tgt_mean",
-                RecordValue::Scalar(f32::from(tgt.mean(tch::Kind::Float))),
+                RecordValue::Scalar(
+                    f32::try_from(tgt.mean(tch::Kind::Float))
+                        .expect("Failed to convert Tensor to f32"),
+                ),
             );
             let tgt_minus_pred_mean: f32 =
                 (&tgt - &pred).mean(tch::Kind::Float).try_into().unwrap();
@@ -115,7 +126,7 @@ where
                 None => (&pred - &tgt).abs(),
                 Some((min, max)) => (&pred - &tgt).abs().clip(min, max),
             };
-            let loss = Tensor::of_slice(&ws[..]).to(self.device) * &td_errs;
+            let loss = Tensor::from_slice(&ws[..]).to(self.device) * &td_errs;
             let loss = match self.critic_loss {
                 CriticLoss::SmoothL1 => loss.smooth_l1_loss(
                     &Tensor::zeros(&[n], tch::kind::FLOAT_CPU).to(self.device),
@@ -128,7 +139,7 @@ where
                 ),
             };
             self.qnet.backward_step(&loss);
-            let td_errs = Vec::<f32>::from(td_errs);
+            let td_errs = Vec::<f32>::try_from(td_errs).expect("Failed to convert Tensor to f32");
             buffer.update_priority(&ixs, &Some(td_errs));
             loss
         } else {
@@ -140,7 +151,10 @@ where
             loss
         };
 
-        record.insert("loss", RecordValue::Scalar(f32::from(loss)));
+        record.insert(
+            "loss",
+            RecordValue::Scalar(f32::try_from(loss).expect("Failed to convert Tensor to f32")),
+        );
 
         record
     }
