@@ -1,0 +1,24 @@
+[package]
+name = "border-edge-policy"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
+readme = "README.md"
+
+[dependencies]
+border-core = { version = "0.0.6", path = "../border-core" }
+serde = { workspace = true, features = ["derive"] }
+log = { workspace = true }
+anyhow = { workspace = true }
+tch = { workspace = true, optional = true }
+
+[dev-dependencies]
+tempdir = { workspace = true }
+tch = { workspace = true }
+
+[features]
+tch = ["dep:tch"]
