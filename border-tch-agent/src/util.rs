@@ -7,6 +7,7 @@ mod quantile_loss;
 use border_core::record::{Record, RecordValue};
 pub use named_tensors::NamedTensors;
 pub use quantile_loss::quantile_huber_loss;
+use std::convert::TryFrom;
 use tch::nn::VarStore;
 
 /// Critic loss type.
@@ -59,11 +60,12 @@ pub fn param_stats(var_store: &VarStore) -> Record {
     let mut record = Record::empty();
 
     for (k, v) in var_store.variables() {
-        let m: f32 = v.mean(tch::Kind::Float).into();
+        // let m: f32 = v.mean(tch::Kind::Float).into();
+        let m = f32::try_from(v.mean(tch::Kind::Float)).expect("Failed to convert Tensor to f32");
         let k_mean = format!("{}_mean", &k);
         record.insert(k_mean, RecordValue::Scalar(m));
 
-        let m: f32 = v.std(false).into();
+        let m = f32::try_from(v.std(false)).expect("Failed to convert Tensor to f32");
         let k_std = format!("{}_std", k);
         record.insert(k_std, RecordValue::Scalar(m));
     }

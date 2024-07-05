@@ -1,5 +1,5 @@
-//! A generic implementation of [`StepProcessor`](crate::StepProcessor).
-use super::{StdBatch, SubBatch};
+//! A generic implementation of [`StepProcessor`].
+use super::{BatchBase, GenericTransitionBatch};
 use crate::{Env, Obs, StepProcessor};
 use std::{default::Default, marker::PhantomData};
 
@@ -13,7 +13,7 @@ impl Default for SimpleStepProcessorConfig {
     }
 }
 
-/// A generic implementation of [`StepProcessor`](crate::StepProcessor).
+/// A generic implementation of [`StepProcessor`].
 ///
 /// It supports 1-step TD backup for non-vectorized environment:
 /// `E::Obs.len()` must be 1.
@@ -25,11 +25,11 @@ pub struct SimpleStepProcessor<E, O, A> {
 impl<E, O, A> StepProcessor<E> for SimpleStepProcessor<E, O, A>
 where
     E: Env,
-    O: SubBatch + From<E::Obs>,
-    A: SubBatch + From<E::Act>,
+    O: BatchBase + From<E::Obs>,
+    A: BatchBase + From<E::Act>,
 {
     type Config = SimpleStepProcessorConfig;
-    type Output = StdBatch<O, A>;
+    type Output = GenericTransitionBatch<O, A>;
 
     fn build(_config: &Self::Config) -> Self {
         Self {
@@ -62,7 +62,7 @@ where
                 self.prev_obs.replace(step.init_obs.into());
             }
 
-            StdBatch {
+            GenericTransitionBatch {
                 obs,
                 act,
                 next_obs,

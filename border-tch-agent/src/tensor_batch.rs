@@ -1,4 +1,4 @@
-use border_core::replay_buffer::SubBatch;
+use border_core::generic_replay_buffer::BatchBase;
 use tch::{Device, Tensor};
 
 /// Adds capability of constructing [Tensor] with a static method.
@@ -9,40 +9,40 @@ pub trait ZeroTensor {
 
 impl ZeroTensor for u8 {
     fn zeros(shape: &[i64]) -> Tensor {
-        Tensor::zeros(&shape, (tch::kind::Kind::Uint8, Device::Cpu))
+        Tensor::zeros(shape, (tch::kind::Kind::Uint8, Device::Cpu))
     }
 }
 
 impl ZeroTensor for i32 {
     fn zeros(shape: &[i64]) -> Tensor {
-        Tensor::zeros(&shape, (tch::kind::Kind::Int, Device::Cpu))
+        Tensor::zeros(shape, (tch::kind::Kind::Int, Device::Cpu))
     }
 }
 
 impl ZeroTensor for f32 {
     fn zeros(shape: &[i64]) -> Tensor {
-        Tensor::zeros(&shape, tch::kind::FLOAT_CPU)
+        Tensor::zeros(shape, tch::kind::FLOAT_CPU)
     }
 }
 
 impl ZeroTensor for i64 {
     fn zeros(shape: &[i64]) -> Tensor {
-        Tensor::zeros(&shape, (tch::kind::Kind::Int64, Device::Cpu))
+        Tensor::zeros(shape, (tch::kind::Kind::Int64, Device::Cpu))
     }
 }
 
-/// A buffer consisting of a [`Tensor`](tch::Tensor).
+/// A buffer consisting of a [`Tensor`].
 ///
 /// The internal buffer of this struct has the shape of `[n_capacity, shape[1..]]`,
 /// where `shape` is obtained from the data pushed at the first time via
-/// [`TensorSubBatch::push`] method. `[1..]` means that the first axis of the
+/// [`TensorBatch::push`] method. `[1..]` means that the first axis of the
 /// given data is ignored as it might be batch size.
-pub struct TensorSubBatch {
+pub struct TensorBatch {
     buf: Option<Tensor>,
     capacity: i64,
 }
 
-impl Clone for TensorSubBatch {
+impl Clone for TensorBatch {
     fn clone(&self) -> Self {
         let buf = match self.buf.is_none() {
             true => None,
@@ -56,7 +56,7 @@ impl Clone for TensorSubBatch {
     }
 }
 
-impl TensorSubBatch {
+impl TensorBatch {
     pub fn from_tensor(t: Tensor) -> Self {
         let capacity = t.size()[0] as _;
         Self {
@@ -66,7 +66,7 @@ impl TensorSubBatch {
     }
 }
 
-impl SubBatch for TensorSubBatch {
+impl BatchBase for TensorBatch {
     fn new(capacity: usize) -> Self {
         // let capacity = capacity as i64;
         // let mut shape: Vec<_> = S::shape().to_vec().iter().map(|e| *e as i64).collect();
@@ -112,7 +112,7 @@ impl SubBatch for TensorSubBatch {
 
     fn sample(&self, ixs: &Vec<usize>) -> Self {
         let ixs = ixs.iter().map(|&ix| ix as i64).collect::<Vec<_>>();
-        let batch_indexes = Tensor::of_slice(&ixs);
+        let batch_indexes = Tensor::from_slice(&ixs);
         let buf = Some(self.buf.as_ref().unwrap().index_select(0, &batch_indexes));
         Self {
             buf,
@@ -121,8 +121,8 @@ impl SubBatch for TensorSubBatch {
     }
 }
 
-impl From<TensorSubBatch> for Tensor {
-    fn from(b: TensorSubBatch) -> Self {
+impl From<TensorBatch> for Tensor {
+    fn from(b: TensorBatch) -> Self {
         b.buf.unwrap()
     }
 }

@@ -7,11 +7,11 @@ use crate::{
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, Configurable, Env, Policy, ReplayBufferBase, StdBatchBase,
+    Agent, Configurable, Env, Policy, ReplayBufferBase, TransitionBatch,
 };
 use log::trace;
 use serde::{de::DeserializeOwned, Serialize};
-use std::{fs, marker::PhantomData, path::Path};
+use std::{convert::TryFrom, fs, marker::PhantomData, path::Path};
 use tch::{no_grad, Device, Tensor};
 
 /// IQN agent implemented with tch-rs.
@@ -51,9 +51,9 @@ where
     R: ReplayBufferBase,
     F::Config: DeserializeOwned + Serialize,
     M::Config: DeserializeOwned + Serialize + OutDim,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<F::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
+    R::Batch: TransitionBatch,
+    <R::Batch as TransitionBatch>::ObsBatch: Into<F::Input>,
+    <R::Batch as TransitionBatch>::ActBatch: Into<Tensor>,
 {
     fn update_critic(&mut self, buffer: &mut R) -> f32 {
         trace!("IQN::update_critic()");
@@ -63,8 +63,8 @@ where
         let obs = obs.into();
         let act = act.into().to(self.device);
         let next_obs = next_obs.into();
-        let reward = Tensor::of_slice(&reward[..]).to(self.device).unsqueeze(-1);
-        let is_terminated = Tensor::of_slice(&is_terminated[..])
+        let reward = Tensor::from_slice(&reward[..]).to(self.device).unsqueeze(-1);
+        let is_terminated = Tensor::from_slice(&is_terminated[..])
             .to(self.device)
             .unsqueeze(-1);
 
@@ -159,7 +159,7 @@ where
 
         self.iqn.backward_step(&loss);
 
-        f32::from(loss)
+        f32::try_from(loss).expect("Failed to convert Tensor to f32")
     }
 
     fn opt_(&mut self, buffer: &mut R) -> Record {
@@ -273,9 +273,9 @@ where
     E::Act: From<Tensor>,
     F::Config: DeserializeOwned + Serialize + Clone,
     M::Config: DeserializeOwned + Serialize + Clone + OutDim,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<F::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
+    R::Batch: TransitionBatch,
+    <R::Batch as TransitionBatch>::ObsBatch: Into<F::Input>,
+    <R::Batch as TransitionBatch>::ActBatch: Into<Tensor>,
 {
     fn train(&mut self) {
         self.train = true;

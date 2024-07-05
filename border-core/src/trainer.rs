@@ -1,11 +1,11 @@
-//! Train [`Agent`](crate::Agent).
+//! Train [`Agent`].
 mod config;
 mod sampler;
 use std::time::{Duration, SystemTime};
 
 use crate::{
     record::{AggregateRecorder, Record, RecordValue::Scalar},
-    Agent, Env, Evaluator, ReplayBufferBase, StepProcessor,
+    Agent, Env, Evaluator, ExperienceBufferBase, ReplayBufferBase, StepProcessor,
 };
 use anyhow::Result;
 pub use config::TrainerConfig;
@@ -72,7 +72,7 @@ pub use sampler::Sampler;
 /// * Next, [`Step<E: Env>`] will be created with the next observation `o_t+1`,
 ///   reward `r_t`, and `a_t`.
 /// * The [`Step<E: Env>`] object will be processed by [`StepProcessor`] and
-///   creates [`ReplayBufferBase::PushedItem`], typically representing a transition
+///   creates [`ReplayBufferBase::Item`], typically representing a transition
 ///   `(o_t, a_t, o_t+1, r_t)`, where `o_t` is kept in the
 ///   [`StepProcessor`], while other items in the given [`Step<E: Env>`].
 /// * Finally, the transitions pushed to the [`ReplayBufferBase`] will be used to create
@@ -84,22 +84,12 @@ pub use sampler::Sampler;
 /// [`Act`]: crate::Act
 /// [`BatchBase`]: crate::BatchBase
 /// [`Step<E: Env>`]: crate::Step
-pub struct Trainer<E, P, R>
-where
-    E: Env,
-    P: StepProcessor<E>,
-    R: ReplayBufferBase<PushedItem = P::Output>,
-{
-    /// Configuration of the environment for training.
-    env_config_train: E::Config,
-
-    /// Configuration of the replay buffer.
-    replay_buffer_config: R::Config,
-
+pub struct Trainer {
     /// Where to save the trained model.
     model_dir: Option<String>,
 
     /// Interval of optimization in environment steps.
+    /// This is ignored for offline training.
     opt_interval: usize,
 
     /// Interval of recording computational cost in optimization steps.
@@ -126,30 +116,24 @@ where
     /// Timer for computing for optimization steps per second.
     timer_for_ops: Duration,
 
-    /// Configuration of the transition producer.
-    step_proc_config: P::Config,
-
-    /// Warmup period, for filling replay buffer, in environment steps
+    /// Warmup period, for filling replay buffer, in environment steps.
+    /// This is ignored for offline training.
     warmup_period: usize,
+
+    /// Max value of evaluation reward.
+    max_eval_reward: f32,
+
+    /// Environment steps during online training.
+    env_steps: usize,
+
+    /// Optimization steps during training.
+    opt_steps: usize,
 }
 
-impl<E, P, R> Trainer<E, P, R>
-where
-    E: Env,
-    P: StepProcessor<E>,
-    R: ReplayBufferBase<PushedItem = P::Output>,
-{
+impl Trainer {
     /// Constructs a trainer.
-    pub fn build(
-        config: TrainerConfig,
-        env_config_train: E::Config,
-        step_proc_config: P::Config,
-        replay_buffer_config: R::Config,
-    ) -> Self {
+    pub fn build(config: TrainerConfig) -> Self {
         Self {
-            env_config_train,
-            step_proc_config,
-            replay_buffer_config,
             model_dir: config.model_dir,
             opt_interval: config.opt_interval,
             record_compute_cost_interval: config.record_compute_cost_interval,
@@ -161,22 +145,40 @@ where
             warmup_period: config.warmup_period,
             opt_steps_for_ops: 0,
             timer_for_ops: Duration::new(0, 0),
+            max_eval_reward: f32::MIN,
+            env_steps: 0,
+            opt_steps: 0,
         }
     }
 
-    fn save_model<A: Agent<E, R>>(agent: &A, model_dir: String) {
+    fn save_model<E, A, R>(agent: &A, model_dir: String)
+    where
+        E: Env,
+        A: Agent<E, R>,
+        R: ReplayBufferBase,
+    {
         match agent.save(&model_dir) {
             Ok(()) => info!("Saved the model in {:?}.", &model_dir),
             Err(_) => info!("Failed to save model in {:?}.", &model_dir),
         }
     }
 
-    fn save_best_model<A: Agent<E, R>>(agent: &A, model_dir: String) {
+    fn save_best_model<E, A, R>(agent: &A, model_dir: String)
+    where
+        E: Env,
+        A: Agent<E, R>,
+        R: ReplayBufferBase,
+    {
         let model_dir = model_dir + "/best";
         Self::save_model(agent, model_dir);
     }
 
-    fn save_model_with_steps<A: Agent<E, R>>(agent: &A, model_dir: String, steps: usize) {
+    fn save_model_with_steps<E, A, R>(agent: &A, model_dir: String, steps: usize)
+    where
+        E: Env,
+        A: Agent<E, R>,
+        R: ReplayBufferBase,
+    {
         let model_dir = model_dir + format!("/{}", steps).as_str();
         Self::save_model(agent, model_dir);
     }
@@ -197,124 +199,183 @@ where
     /// step.
     ///
     /// The second return value in the tuple is if an optimization step is done (`true`).
-    pub fn train_step<A: Agent<E, R>>(
-        &mut self,
-        agent: &mut A,
-        buffer: &mut R,
-        sampler: &mut Sampler<E, P>,
-        env_steps: &mut usize,
-        opt_steps: &mut usize,
-    ) -> Result<(Record, bool)>
+    // pub fn train_step<E, A, P, R>(
+    pub fn train_step<E, A, R>(&mut self, agent: &mut A, buffer: &mut R) -> Result<(Record, bool)>
     where
+        E: Env,
         A: Agent<E, R>,
+        R: ReplayBufferBase,
     {
-        // Sample transition and push it into the replay buffer
-        let mut record = sampler.sample_and_push(agent, buffer)?;
-        *env_steps += 1;
-
-        // Optimization step
-        if *env_steps < self.warmup_period {
-            Ok((record, false))
-        } else if *env_steps % self.opt_interval != 0 {
+        if self.env_steps < self.warmup_period {
+            Ok((Record::empty(), false))
+        } else if self.env_steps % self.opt_interval != 0 {
             // skip optimization step
-            Ok((record, false))
-        } else if (*opt_steps + 1) % self.record_agent_info_interval == 0 {
+            Ok((Record::empty(), false))
+        } else if (self.opt_steps + 1) % self.record_agent_info_interval == 0 {
             // Do optimization step with record
             let timer = SystemTime::now();
             let record_agent = agent.opt_with_record(buffer);
-            *opt_steps += 1;
+            self.opt_steps += 1;
             self.timer_for_ops += timer.elapsed()?;
             self.opt_steps_for_ops += 1;
-            record = record.merge(record_agent);
-            Ok((record, true))
+            Ok((record_agent, true))
         } else {
             // Do optimization step without record
             let timer = SystemTime::now();
             agent.opt(buffer);
-            *opt_steps += 1;
+            self.opt_steps += 1;
             self.timer_for_ops += timer.elapsed()?;
             self.opt_steps_for_ops += 1;
-            Ok((record, true))
+            Ok((Record::empty(), true))
         }
     }
 
-    /// Train the agent.
-    pub fn train<A, D>(
+    fn post_process<E, A, R, D>(
         &mut self,
         agent: &mut A,
+        evaluator: &mut D,
+        record: &mut Record,
+        fps: f32,
+    ) -> Result<()>
+    where
+        E: Env,
+        A: Agent<E, R>,
+        R: ReplayBufferBase,
+        D: Evaluator<E, A>,
+    {
+        // Add stats wrt computation cost
+        if self.opt_steps % self.record_compute_cost_interval == 0 {
+            record.insert("fps", Scalar(fps));
+            record.insert("opt_steps_per_sec", Scalar(self.opt_steps_per_sec()));
+        }
+
+        // Evaluation
+        if self.opt_steps % self.eval_interval == 0 {
+            info!("Starts evaluation of the trained model");
+            agent.eval();
+            let eval_reward = evaluator.evaluate(agent)?;
+            agent.train();
+            record.insert("eval_reward", Scalar(eval_reward));
+
+            // Save the best model up to the current iteration
+            if eval_reward > self.max_eval_reward {
+                self.max_eval_reward = eval_reward;
+                let model_dir = self.model_dir.as_ref().unwrap().clone();
+                Self::save_best_model(agent, model_dir)
+            }
+        };
+
+        // Save the current model
+        if (self.save_interval > 0) && (self.opt_steps % self.save_interval == 0) {
+            let model_dir = self.model_dir.as_ref().unwrap().clone();
+            Self::save_model_with_steps(agent, model_dir, self.opt_steps);
+        }
+
+        Ok(())
+    }
+
+    fn loop_step<E, A, R, D>(
+        &mut self,
+        agent: &mut A,
+        buffer: &mut R,
+        recorder: &mut Box<dyn AggregateRecorder>,
+        evaluator: &mut D,
+        record: Record,
+        fps: f32,
+    ) -> Result<bool>
+    where
+        E: Env,
+        A: Agent<E, R>,
+        R: ReplayBufferBase,
+        D: Evaluator<E, A>,
+    {
+        // Performe optimization step(s)
+        let (mut record, is_opt) = {
+            let (r, is_opt) = self.train_step(agent, buffer)?;
+            (record.merge(r), is_opt)
+        };
+
+        // Postprocessing after each training step
+        if is_opt {
+            self.post_process(agent, evaluator, &mut record, fps)?;
+
+            // End loop
+            if self.opt_steps == self.max_opts {
+                return Ok(true);
+            }
+        }
+
+        // Store record to the recorder
+        if !record.is_empty() {
+            recorder.store(record);
+        }
+
+        // Flush records
+        if is_opt && ((self.opt_steps - 1) % self.flush_records_interval == 0) {
+            recorder.flush(self.opt_steps as _);
+        }
+
+        Ok(false)
+    }
+
+    /// Train the agent online.
+    pub fn train<E, A, P, R, D>(
+        &mut self,
+        env: E,
+        step_proc: P,
+        agent: &mut A,
+        buffer: &mut R,
         recorder: &mut Box<dyn AggregateRecorder>,
         evaluator: &mut D,
     ) -> Result<()>
     where
+        E: Env,
         A: Agent<E, R>,
+        P: StepProcessor<E>,
+        R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
         D: Evaluator<E, A>,
     {
-        let env = E::build(&self.env_config_train, 0)?;
-        let producer = P::build(&self.step_proc_config);
-        let mut buffer = R::build(&self.replay_buffer_config);
-        let mut sampler = Sampler::new(env, producer);
-        let mut max_eval_reward = f32::MIN;
-        let mut env_steps: usize = 0;
-        let mut opt_steps: usize = 0;
+        let mut sampler = Sampler::new(env, step_proc);
         sampler.reset_fps_counter();
         agent.train();
 
         loop {
-            let (mut record, is_opt) = self.train_step(
-                agent,
-                &mut buffer,
-                &mut sampler,
-                &mut env_steps,
-                &mut opt_steps,
-            )?;
+            let record = sampler.sample_and_push(agent, buffer)?;
+            let fps = sampler.fps();
+            self.env_steps += 1;
 
-            // Postprocessing after each training step
-            if is_opt {
-                // Add stats wrt computation cost
-                if opt_steps % self.record_compute_cost_interval == 0 {
-                    record.insert("fps", Scalar(sampler.fps()));
-                    record.insert("opt_steps_per_sec", Scalar(self.opt_steps_per_sec()));
-                }
-
-                // Evaluation
-                if opt_steps % self.eval_interval == 0 {
-                    info!("Starts evaluation of the trained model");
-                    agent.eval();
-                    let eval_reward = evaluator.evaluate(agent)?;
-                    agent.train();
-                    record.insert("eval_reward", Scalar(eval_reward));
-
-                    // Save the best model up to the current iteration
-                    if eval_reward > max_eval_reward {
-                        max_eval_reward = eval_reward;
-                        let model_dir = self.model_dir.as_ref().unwrap().clone();
-                        Self::save_best_model(agent, model_dir)
-                    }
-                };
-
-                // Save the current model
-                if (self.save_interval > 0) && (opt_steps % self.save_interval == 0) {
-                    let model_dir = self.model_dir.as_ref().unwrap().clone();
-                    Self::save_model_with_steps(agent, model_dir, opt_steps);
-                }
-
-                // End loop
-                if opt_steps == self.max_opts {
-                    break;
-                }
-            }
-
-            // Store record to the recorder
-            if !record.is_empty() {
-                recorder.store(record);
-            }
-
-            // Flush records
-            if is_opt && ((opt_steps - 1) % self.flush_records_interval == 0) {
-                recorder.flush(opt_steps as _);
+            if self.loop_step(agent, buffer, recorder, evaluator, record, fps)? {
+                return Ok(());
             }
         }
+    }
 
-        Ok(())
+    /// Train the agent offline.
+    pub fn train_offline<E, A, R, D>(
+        &mut self,
+        agent: &mut A,
+        buffer: &mut R,
+        recorder: &mut Box<dyn AggregateRecorder>,
+        evaluator: &mut D,
+    ) -> Result<()>
+    where
+        E: Env,
+        A: Agent<E, R>,
+        R: ReplayBufferBase,
+        D: Evaluator<E, A>,
+    {
+        // Return empty record
+        self.warmup_period = 0;
+        self.opt_interval = 1;
+        agent.train();
+        let fps = 0f32;
+
+        loop {
+            let record = Record::empty();
+
+            if self.loop_step(agent, buffer, recorder, evaluator, record, fps)? {
+                return Ok(());
+            }
+        }
     }
 }

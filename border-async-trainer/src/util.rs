@@ -3,7 +3,8 @@ use crate::{
     actor_stats_fmt, ActorManager, ActorManagerConfig, AsyncTrainer, AsyncTrainerConfig, SyncModel,
 };
 use border_core::{
-    record::AggregateRecorder, Agent, Configurable, Env, Evaluator, ReplayBufferBase, StepProcessor,
+    record::AggregateRecorder, Agent, Configurable, Env, Evaluator, ExperienceBufferBase,
+    ReplayBufferBase, StepProcessor,
 };
 use crossbeam_channel::unbounded;
 use log::info;
@@ -41,12 +42,12 @@ pub fn train_async<A, E, R, S>(
 ) where
     A: Agent<E, R> + Configurable<E> + SyncModel,
     E: Env,
-    R: ReplayBufferBase<PushedItem = S::Output> + Send + 'static,
+    R: ExperienceBufferBase<Item = S::Output> + Send + 'static + ReplayBufferBase,
     S: StepProcessor<E>,
     A::Config: Send + 'static,
     E::Config: Send + 'static,
     S::Config: Send + 'static,
-    R::PushedItem: Send + 'static,
+    R::Item: Send + 'static,
     A::ModelInfo: Send + 'static,
 {
     // Shared flag to stop actor threads

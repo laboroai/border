@@ -112,7 +112,7 @@ impl Default for OptimizerConfig {
 
 /// Optimizers.
 ///
-/// This is a thin wrapper of [tch::nn::Optimizer].
+/// This is a thin wrapper of [`candle_nn::optim::Optimizer`].
 pub enum Optimizer {
     /// Adam optimizer.
     AdamW(AdamW),

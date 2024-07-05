@@ -1,5 +1,5 @@
 //! Samples transitions and pushes them into a replay buffer.
-use crate::{record::Record, Agent, Env, ReplayBufferBase, StepProcessor};
+use crate::{record::Record, Agent, Env, ExperienceBufferBase, ReplayBufferBase, StepProcessor};
 use anyhow::Result;
 
 /// Encapsulates sampling steps. Specifically it does the followint steps:
@@ -61,12 +61,12 @@ where
     /// Samples transitions and pushes them into the replay buffer.
     ///
     /// The replay buffer `R_`, to which samples will be pushed, has to accept
-    /// `PushedItem` that are the same with `Agent::R`.
+    /// `Item` that are the same with `Agent::R`.
     pub fn sample_and_push<A, R, R_>(&mut self, agent: &mut A, buffer: &mut R_) -> Result<Record>
     where
         A: Agent<E, R>,
-        R: ReplayBufferBase<PushedItem = P::Output>,
-        R_: ReplayBufferBase<PushedItem = R::PushedItem>,
+        R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
+        R_: ExperienceBufferBase<Item = R::Item>,
     {
         let now = std::time::SystemTime::now();
 
@@ -133,9 +133,13 @@ where
     /// A frame involves taking action, applying it to the environment,
     /// producing transition, and pushing it into the replay buffer.
     pub fn fps(&mut self) -> f32 {
-        let fps = self.n_env_steps_for_fps as f32 / self.time * 1000f32;
-        self.reset_fps_counter();
-        fps
+        if self.time == 0f32 {
+            0f32
+        } else {
+            let fps = self.n_env_steps_for_fps as f32 / self.time * 1000f32;
+            self.reset_fps_counter();
+            fps
+        }
     }
 
     /// Reset stats for computing FPS.

@@ -353,7 +353,7 @@ impl IqnSample {
     /// Returns samples of percent points.
     pub fn sample(&self, batch_size: i64) -> Tensor {
         match self {
-            Self::Const10 => Tensor::of_slice(&[
+            Self::Const10 => Tensor::from_slice(&[
                 0.05_f32, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95,
             ])
             .unsqueeze(0)
@@ -366,7 +366,7 @@ impl IqnSample {
             Self::Uniform8 => Tensor::rand(&[batch_size, 8], tch::kind::FLOAT_CPU),
             Self::Uniform32 => Tensor::rand(&[batch_size, 32], tch::kind::FLOAT_CPU),
             Self::Uniform64 => Tensor::rand(&[batch_size, 64], tch::kind::FLOAT_CPU),
-            Self::Median => Tensor::of_slice(&[0.5_f32])
+            Self::Median => Tensor::from_slice(&[0.5_f32])
                 .unsqueeze(0)
                 .repeat(&[batch_size, 1]),
         }

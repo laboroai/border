@@ -20,7 +20,7 @@ use border_tch_agent::{
     opt::OptimizerConfig,
     sac::{ActorConfig, CriticConfig, EntCoefMode, Sac, SacConfig},
     util::CriticLoss,
-    TensorSubBatch,
+    TensorBatch,
 };
 use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg, ArgMatches};
@@ -62,7 +62,7 @@ mod obs {
     pub struct Obs(ArrayD<f32>);
 
     #[derive(Clone, SubBatch)]
-    pub struct ObsBatch(TensorSubBatch);
+    pub struct ObsBatch(TensorBatch);
 
     impl border_core::Obs for Obs {
         fn dummy(_n: usize) -> Self {
@@ -89,7 +89,7 @@ mod obs {
     impl From<Obs> for ObsBatch {
         fn from(obs: Obs) -> Self {
             let tensor = obs.into();
-            Self(TensorSubBatch::from_tensor(tensor))
+            Self(TensorBatch::from_tensor(tensor))
         }
     }
 }
@@ -122,12 +122,12 @@ mod act {
     }
 
     #[derive(SubBatch)]
-    pub struct ActBatch(TensorSubBatch);
+    pub struct ActBatch(TensorBatch);
 
     impl From<Act> for ActBatch {
         fn from(act: Act) -> Self {
             let tensor = act.into();
-            Self(TensorSubBatch::from_tensor(tensor))
+            Self(TensorBatch::from_tensor(tensor))
         }
     }
 }

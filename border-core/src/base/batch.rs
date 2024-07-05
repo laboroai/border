@@ -10,7 +10,7 @@
 ///
 /// The type of `o` and `o'` is the associated type `ObsBatch`.
 /// The type of `a` is the associated type `ActBatch`.
-pub trait StdBatchBase {
+pub trait TransitionBatch {
     /// A set of observation in a batch.
     type ObsBatch;
 
@@ -39,28 +39,4 @@ pub trait StdBatchBase {
 
     /// Returns `o_t`.
     fn obs(&self) -> &Self::ObsBatch;
-
-    /// Returns `a_t`.
-    fn act(&self) -> &Self::ActBatch;
-
-    /// Returns `o_t+1`.
-    fn next_obs(&self) -> &Self::ObsBatch;
-
-    /// Returns `r_t`.
-    fn reward(&self) -> &Vec<f32>;
-
-    /// Returns `is_terminated_t`.
-    fn is_terminated(&self) -> &Vec<i8>;
-
-    /// Returns `is_terminated_t`.
-    fn is_truncated(&self) -> &Vec<i8>;
-
-    /// Returns `weight`. It is used for PER.
-    fn weight(&self) -> &Option<Vec<f32>>;
-
-    /// Returns `ix_sample`. It is used for PER.
-    fn ix_sample(&self) -> &Option<Vec<usize>>;
-
-    /// Creates an empty batch.
-    fn empty() -> Self;
 }

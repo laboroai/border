@@ -5,8 +5,8 @@ use crate::{
 };
 use anyhow::Result;
 use border_core::{
+    generic_replay_buffer::{BatchBase, SimpleReplayBuffer},
     record::Record,
-    replay_buffer::{SimpleReplayBuffer, SubBatch},
     Agent as Agent_, Configurable, Policy, ReplayBufferBase,
 };
 use std::ptr::copy;
@@ -34,7 +34,7 @@ pub struct ObsBatch {
     pub buf: Vec<u8>,
 }
 
-impl SubBatch for ObsBatch {
+impl BatchBase for ObsBatch {
     fn new(capacity: usize) -> Self {
         let m = 4 * FRAME_IN_BYTES;
         Self {
@@ -89,7 +89,7 @@ pub struct ActBatch {
     pub buf: Vec<u8>,
 }
 
-impl SubBatch for ActBatch {
+impl BatchBase for ActBatch {
     fn new(capacity: usize) -> Self {
         let m = 1;
         Self {

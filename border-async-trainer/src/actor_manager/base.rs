@@ -1,7 +1,9 @@
 use crate::{
     Actor, ActorManagerConfig, ActorStat, PushedItemMessage, ReplayBufferProxyConfig, SyncModel,
 };
-use border_core::{Agent, Configurable, Env, ReplayBufferBase, StepProcessor};
+use border_core::{
+    Agent, Configurable, Env, ExperienceBufferBase, ReplayBufferBase, StepProcessor,
+};
 use crossbeam_channel::{bounded, /*unbounded,*/ Receiver, Sender};
 use log::info;
 use std::{
@@ -21,7 +23,7 @@ where
     A: Agent<E, R> + Configurable<E> + SyncModel,
     E: Env,
     P: StepProcessor<E>,
-    R: ReplayBufferBase<PushedItem = P::Output>,
+    R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
 {
     /// Configurations of [Agent]s.
     agent_configs: Vec<A::Config>,
@@ -44,10 +46,10 @@ where
     stop: Arc<Mutex<bool>>,
 
     /// Receiver of [PushedItemMessage]s from [Actor].
-    batch_message_receiver: Option<Receiver<PushedItemMessage<R::PushedItem>>>,
+    batch_message_receiver: Option<Receiver<PushedItemMessage<R::Item>>>,
 
     /// Sender of [PushedItemMessage]s to [AsyncTrainer](crate::AsyncTrainer).
-    pushed_item_message_sender: Sender<PushedItemMessage<R::PushedItem>>,
+    pushed_item_message_sender: Sender<PushedItemMessage<R::Item>>,
 
     /// Information of the model.
     ///
@@ -68,11 +70,11 @@ where
     A: Agent<E, R> + Configurable<E> + SyncModel,
     E: Env,
     P: StepProcessor<E>,
-    R: ReplayBufferBase<PushedItem = P::Output> + Send + 'static,
+    R: ExperienceBufferBase<Item = P::Output> + Send + 'static + ReplayBufferBase,
     A::Config: Send + 'static,
     E::Config: Send + 'static,
     P::Config: Send + 'static,
-    R::PushedItem: Send + 'static,
+    R::Item: Send + 'static,
     A::ModelInfo: Send + 'static,
 {
     /// Builds a [ActorManager].
@@ -81,7 +83,7 @@ where
         agent_configs: &Vec<A::Config>,
         env_config: &E::Config,
         step_proc_config: &P::Config,
-        pushed_item_message_sender: Sender<PushedItemMessage<R::PushedItem>>,
+        pushed_item_message_sender: Sender<PushedItemMessage<R::Item>>,
         model_info_receiver: Receiver<(usize, A::ModelInfo)>,
         stop: Arc<Mutex<bool>>,
     ) -> Self {
@@ -207,9 +209,9 @@ where
 
     /// Loop waiting [PushedItemMessage] from [Actor]s.
     fn handle_message(
-        receiver: Receiver<PushedItemMessage<R::PushedItem>>,
+        receiver: Receiver<PushedItemMessage<R::Item>>,
         stop: Arc<Mutex<bool>>,
-        sender: Sender<PushedItemMessage<R::PushedItem>>,
+        sender: Sender<PushedItemMessage<R::Item>>,
     ) {
         let mut _n_samples = 0;
 

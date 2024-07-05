@@ -1,4 +1,4 @@
-/// Message containing a [`ReplayBufferBase`](border_core::ReplayBufferBase)`::PushedItem`.
+/// Message containing a [`ReplayBufferBase`](border_core::ReplayBufferBase)`::Item`.
 ///
 /// It will be sent from [`Actor`](crate::Actor) to [`ActorManager`](crate::ActorManager).
 pub struct PushedItemMessage<T> {

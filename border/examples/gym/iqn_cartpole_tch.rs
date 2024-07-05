@@ -1,11 +1,12 @@
 use anyhow::Result;
 use border_core::{
-    record::AggregateRecorder,
-    replay_buffer::{
-        SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
-        SimpleStepProcessorConfig, SubBatch,
+    generic_replay_buffer::{
+        BatchBase, SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
+        SimpleStepProcessorConfig,
     },
-    Agent, Configurable, DefaultEvaluator, Evaluator as _, Trainer, TrainerConfig,
+    record::AggregateRecorder,
+    Agent, Configurable, DefaultEvaluator, Env as _, Evaluator as _, ReplayBufferBase,
+    StepProcessor, Trainer, TrainerConfig,
 };
 use border_mlflow_tracking::MlflowTrackingClient;
 use border_py_gym_env::{
@@ -15,7 +16,7 @@ use border_py_gym_env::{
 use border_tch_agent::{
     iqn::{EpsilonGreedy, Iqn as Iqn_, IqnConfig, IqnModelConfig},
     mlp::{Mlp, MlpConfig},
-    TensorSubBatch,
+    TensorBatch,
 };
 use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg, ArgMatches};
@@ -73,11 +74,11 @@ mod obs_act_types {
         }
     }
 
-    pub struct ObsBatch(TensorSubBatch);
+    pub struct ObsBatch(TensorBatch);
 
-    impl SubBatch for ObsBatch {
+    impl BatchBase for ObsBatch {
         fn new(capacity: usize) -> Self {
-            Self(TensorSubBatch::new(capacity))
+            Self(TensorBatch::new(capacity))
         }
 
         fn push(&mut self, i: usize, data: Self) {
@@ -93,7 +94,7 @@ mod obs_act_types {
     impl From<Obs> for ObsBatch {
         fn from(obs: Obs) -> Self {
             let tensor = obs.into();
-            Self(TensorSubBatch::from_tensor(tensor))
+            Self(TensorBatch::from_tensor(tensor))
         }
     }
 
@@ -117,17 +118,18 @@ mod obs_act_types {
     impl From<Tensor> for Act {
         // `t` must be a 1-dimentional tensor of `f32`
         fn from(t: Tensor) -> Self {
-            let data: Vec<i64> = t.into();
+            let data =
+                Vec::<i64>::try_from(&t.flatten(0, -1)).expect("Failed to convert from Tensor to Vec");
             let data = data.iter().map(|&e| e as i32).collect();
             Act(data)
         }
     }
 
-    pub struct ActBatch(TensorSubBatch);
+    pub struct ActBatch(TensorBatch);
 
-    impl SubBatch for ActBatch {
+    impl BatchBase for ActBatch {
         fn new(capacity: usize) -> Self {
-            Self(TensorSubBatch::new(capacity))
+            Self(TensorBatch::new(capacity))
         }
 
         fn push(&mut self, i: usize, data: Self) {
@@ -143,7 +145,7 @@ mod obs_act_types {
     impl From<Act> for ActBatch {
         fn from(act: Act) -> Self {
             let t = vec_to_tensor::<_, i64>(act.0, true);
-            Self(TensorSubBatch::from_tensor(t))
+            Self(TensorBatch::from_tensor(t))
         }
     }
 
@@ -293,24 +295,25 @@ fn train(
 ) -> Result<()> {
     let config =
         config::IqnCartpoleConfig::new(DIM_OBS, DIM_ACT, max_opts, model_dir, eval_interval);
+    let step_proc_config = SimpleStepProcessorConfig {};
+    let replay_buffer_config = SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
     let mut recorder = utils::create_recorder(&matches, model_dir, &config)?;
-    let mut trainer = {
-        let step_proc_config = SimpleStepProcessorConfig {};
-        let replay_buffer_config =
-            SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
+    let mut trainer = Trainer::build(config.trainer_config.clone());
 
-        Trainer::<Env, StepProc, ReplayBuffer>::build(
-            config.trainer_config.clone(),
-            config.env_config.clone(),
-            step_proc_config,
-            replay_buffer_config,
-        )
-    };
-
+    let env = Env::build(&config.env_config, 0)?;
+    let step_proc = StepProc::build(&step_proc_config);
     let mut agent = Iqn::build(config.agent_config);
+    let mut buffer = ReplayBuffer::build(&replay_buffer_config);
     let mut evaluator = Evaluator::new(&config.env_config, 0, N_EPISODES_PER_EVAL)?;
 
-    trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
+    trainer.train(
+        env,
+        step_proc,
+        &mut agent,
+        &mut buffer,
+        &mut recorder,
+        &mut evaluator,
+    )?;
 
     Ok(())
 }
@@ -331,7 +334,6 @@ fn eval(model_dir: &str, render: bool) -> Result<()> {
         agent.eval();
         agent
     };
-    // let mut recorder = BufferedRecorder::new();
 
     let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut agent);
 

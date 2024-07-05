@@ -7,7 +7,7 @@ pub struct ExperimentTag {
 }
 
 #[derive(Debug, Deserialize)]
-/// all fields taken from https://mlflow.org/docs/latest/rest-api.html#mlflowexperiment
+/// all fields taken from <https://mlflow.org/docs/latest/rest-api.html#mlflowexperiment>.
 pub struct Experiment {
     pub experiment_id: String,
     pub name: String,

@@ -16,7 +16,7 @@ use border_tch_agent::{
     cnn::Cnn,
     iqn::{Iqn as Iqn_, IqnConfig as IqnConfig_},
     mlp::Mlp,
-    TensorSubBatch,
+    TensorBatch,
 };
 use border_tensorboard::TensorboardRecorder;
 use clap::{App, Arg, ArgMatches};
@@ -27,22 +27,22 @@ use util_iqn_atari::{model_dir as model_dir_, Params};
 type Obs = BorderAtariObs;
 
 #[derive(Clone, SubBatch)]
-struct ObsBatch(TensorSubBatch);
+struct ObsBatch(TensorBatch);
 
 impl From<Obs> for ObsBatch {
     fn from(obs: Obs) -> Self {
         let tensor = obs.into();
-        Self(TensorSubBatch::from_tensor(tensor))
+        Self(TensorBatch::from_tensor(tensor))
     }
 }
 
 #[derive(SubBatch)]
-struct ActBatch(TensorSubBatch);
+struct ActBatch(TensorBatch);
 
 impl From<Act> for ActBatch {
     fn from(act: Act) -> Self {
         let tensor = act.into();
-        Self(TensorSubBatch::from_tensor(tensor))
+        Self(TensorBatch::from_tensor(tensor))
     }
 }
 

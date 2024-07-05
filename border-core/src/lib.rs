@@ -40,13 +40,18 @@
 //! This trait also has methods for saving/loading the trained policy
 //! in the given directory.
 //!
+//! # Batch
+//!
+//! [`TransitionBatch`] is a trait of a batch of transitions `(o_t, r_t, a_t, o_t+1)`.
+//! This is used to train [`Agent`]s with an RL algorithm.
+//!
 //! # Replay buffer
 //!
 //! [`ReplayBufferBase`] trait is an abstraction of replay buffers. For handling samples,
-//! there are two associated types: `PushedItem` and `Batch`. `PushedItem` is a type
+//! there are two associated types: `Item` and `Batch`. `Item` is a type
 //! representing samples pushed to the buffer. These samples might be generated from
 //! [`Step<E: Env>`]. [`StepProcessor<E: Env>`] trait provides the interface
-//! for converting [`Step<E: Env>`] into `PushedItem`.
+//! for converting [`Step<E: Env>`] into `Item`.
 //!
 //! `Batch` is a type of samples taken from the buffer for training [`Agent`]s.
 //! The user implements [`Agent::opt()`] method such that it handles `Batch` objects
@@ -57,13 +62,13 @@
 //! [`SimpleReplayBuffer<O, A>`] implementats [`ReplayBufferBase`].
 //! This type has two parameters `O` and `A`, which are representation of
 //! observation and action in the replay buffer. `O` and `A` must implement
-//! [`SubBatch`], which has the functionality of storing samples, like `Vec<T>`,
-//! for observation and action. The associated types `PushedItem` and `Batch`
-//! are the same type, [`StdBatch`], representing sets of `(o_t, r_t, a_t, o_t+1)`.
+//! [`BatchBase`], which has the functionality of storing samples, like `Vec<T>`,
+//! for observation and action. The associated types `Item` and `Batch`
+//! are the same type, [`GenericTransitionBatch`], representing sets of `(o_t, r_t, a_t, o_t+1)`.
 //!
 //! [`SimpleStepProcessor<E, O, A>`] might be used with [`SimpleReplayBuffer<O, A>`].
-//! It converts `E::Obs` and `E::Act` into [`SubBatch`]s of respective types
-//! and generates [`StdBatch`]. The conversion process relies on trait bounds,
+//! It converts `E::Obs` and `E::Act` into [`BatchBase`]s of respective types
+//! and generates [`GenericTransitionBatch`]. The conversion process relies on trait bounds,
 //! `O: From<E::Obs>` and `A: From<E::Act>`.
 //!
 //! # Trainer
@@ -74,20 +79,20 @@
 //! given [`Agent`] and [`Recorder`](crate::record::Recorder).
 //!
 //! [`SimpleReplayBuffer`]: replay_buffer::SimpleReplayBuffer
-//! [`SimpleReplayBuffer<O, A>`]: replay_buffer::SimpleReplayBuffer
-//! [`SubBatch`]: replay_buffer::SubBatch
-//! [`StdBatch`]: replay_buffer::StdBatch
+//! [`SimpleReplayBuffer<O, A>`]: generic_replay_buffer::SimpleReplayBuffer
+//! [`BatchBase`]: generic_replay_buffer::BatchBase
+//! [`GenericTransitionBatch`]: generic_replay_buffer::GenericTransitionBatch
 //! [`SimpleStepProcessor`]: replay_buffer::SimpleStepProcessor
-//! [`SimpleStepProcessor<E, O, A>`]: replay_buffer::SimpleStepProcessor
+//! [`SimpleStepProcessor<E, O, A>`]: generic_replay_buffer::SimpleStepProcessor
 pub mod error;
 mod evaluator;
+pub mod generic_replay_buffer;
 pub mod record;
-pub mod replay_buffer;
 
 mod base;
 pub use base::{
-    Act, Agent, Configurable, Env, ExperienceBufferBase, Info, Obs, Policy, ReplayBufferBase,
-    StdBatchBase, Step, StepProcessor,
+    Act, Agent, Configurable, Env, ExperienceBufferBase, Info, Obs, Policy, ReplayBufferBase, Step,
+    StepProcessor, TransitionBatch,
 };
 
 mod trainer;

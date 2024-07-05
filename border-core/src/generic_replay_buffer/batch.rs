@@ -1,12 +1,23 @@
-//! A generic implementation of [`StdBatchBase`](crate::StdBatchBase).
-use super::SubBatch;
-use crate::StdBatchBase;
+//! A generic implementation of [`TransitionBatch`].
+use crate::TransitionBatch;
 
-/// A generic implementation of [`StdBatchBase`](`crate::StdBatchBase`).
-pub struct StdBatch<O, A>
+/// A generic implementation of a batch of items.
+pub trait BatchBase {
+    /// Builds a subbatch with a capacity.
+    fn new(capacity: usize) -> Self;
+
+    /// Pushes the samples in `data`.
+    fn push(&mut self, ix: usize, data: Self);
+
+    /// Takes samples in the batch.
+    fn sample(&self, ixs: &Vec<usize>) -> Self;
+}
+
+/// A generic implementation of [`TransitionBatch`](`crate::TransitionBatch`).
+pub struct GenericTransitionBatch<O, A>
 where
-    O: SubBatch,
-    A: SubBatch,
+    O: BatchBase,
+    A: BatchBase,
 {
     /// Observations.
     pub obs: O,
@@ -33,10 +44,10 @@ where
     pub ix_sample: Option<Vec<usize>>,
 }
 
-impl<O, A> StdBatchBase for StdBatch<O, A>
+impl<O, A> TransitionBatch for GenericTransitionBatch<O, A>
 where
-    O: SubBatch,
-    A: SubBatch,
+    O: BatchBase,
+    A: BatchBase,
 {
     type ObsBatch = O;
     type ActBatch = A;
@@ -72,53 +83,12 @@ where
     fn obs(&self) -> &Self::ObsBatch {
         &self.obs
     }
-
-    fn act(&self) -> &Self::ActBatch {
-        &self.act
-    }
-
-    fn next_obs(&self) -> &Self::ObsBatch {
-        &self.next_obs
-    }
-
-    fn reward(&self) -> &Vec<f32> {
-        &self.reward
-    }
-
-    fn is_terminated(&self) -> &Vec<i8> {
-        &self.is_terminated
-    }
-
-    fn is_truncated(&self) -> &Vec<i8> {
-        &self.is_truncated
-    }
-
-    fn weight(&self) -> &Option<Vec<f32>> {
-        &self.weight
-    }
-
-    fn ix_sample(&self) -> &Option<Vec<usize>> {
-        &self.ix_sample
-    }
-
-    fn empty() -> Self {
-        Self {
-            obs: O::new(0),
-            act: A::new(0),
-            next_obs: O::new(0),
-            reward: vec![],
-            is_terminated: vec![],
-            is_truncated: vec![],
-            ix_sample: None,
-            weight: None,
-        }
-    }
 }
 
-impl<O, A> StdBatch<O, A>
+impl<O, A> GenericTransitionBatch<O, A>
 where
-    O: SubBatch,
-    A: SubBatch,
+    O: BatchBase,
+    A: BatchBase,
 {
     /// Creates new batch with the given capacity.
     pub fn with_capacity(capacity: usize) -> Self {

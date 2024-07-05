@@ -7,7 +7,7 @@
 
 docker run -td  \
     --name border \
-    -p 6080:80 \
+    -p 6080:6080 \
     --shm-size=512m \
-    --volume="$(pwd)/../..:/home/ubuntu/border" \
+    --volume="$(pwd)/../..:/root/border" \
     border

@@ -1,8 +1,8 @@
 //! Simple generic replay buffer.
 mod iw_scheduler;
 mod sum_tree;
-use super::{config::PerConfig, SimpleReplayBufferConfig, StdBatch, SubBatch};
-use crate::{ExperienceBufferBase, ReplayBufferBase, StdBatchBase};
+use super::{config::PerConfig, BatchBase, GenericTransitionBatch, SimpleReplayBufferConfig};
+use crate::{ExperienceBufferBase, ReplayBufferBase, TransitionBatch};
 use anyhow::Result;
 pub use iw_scheduler::IwScheduler;
 use rand::{rngs::StdRng, RngCore, SeedableRng};
@@ -30,8 +30,8 @@ impl PerState {
 /// A simple generic replay buffer.
 pub struct SimpleReplayBuffer<O, A>
 where
-    O: SubBatch,
-    A: SubBatch,
+    O: BatchBase,
+    A: BatchBase,
 {
     capacity: usize,
     i: usize,
@@ -48,8 +48,8 @@ where
 
 impl<O, A> SimpleReplayBuffer<O, A>
 where
-    O: SubBatch,
-    A: SubBatch,
+    O: BatchBase,
+    A: BatchBase,
 {
     #[inline]
     fn push_reward(&mut self, i: usize, b: &Vec<f32>) {
@@ -112,16 +112,16 @@ where
 
 impl<O, A> ExperienceBufferBase for SimpleReplayBuffer<O, A>
 where
-    O: SubBatch,
-    A: SubBatch,
+    O: BatchBase,
+    A: BatchBase,
 {
-    type PushedItem = StdBatch<O, A>;
+    type Item = GenericTransitionBatch<O, A>;
 
     fn len(&self) -> usize {
         self.size
     }
 
-    fn push(&mut self, tr: Self::PushedItem) -> Result<()> {
+    fn push(&mut self, tr: Self::Item) -> Result<()> {
         let len = tr.len(); // batch size
         let (obs, act, next_obs, reward, is_terminated, is_truncated, _, _) = tr.unpack();
         self.obs.push(self.i, obs);
@@ -147,11 +147,11 @@ where
 
 impl<O, A> ReplayBufferBase for SimpleReplayBuffer<O, A>
 where
-    O: SubBatch,
-    A: SubBatch,
+    O: BatchBase,
+    A: BatchBase,
 {
     type Config = SimpleReplayBufferConfig;
-    type Batch = StdBatch<O, A>;
+    type Batch = GenericTransitionBatch<O, A>;
 
     fn build(config: &Self::Config) -> Self {
         let capacity = config.capacity;

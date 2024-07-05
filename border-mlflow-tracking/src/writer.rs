@@ -45,12 +45,12 @@ struct SetTagParams<'a> {
 ///
 /// [`MlflowTrackingRecorder::write()`] method logs [`RecordValue::Scalar`] values in the record
 /// as metrics. As an exception, `opt_steps` is treated as the `step` field of Mlflow's metric data
-/// (https://mlflow.org/docs/latest/rest-api.html#metric).
+/// (<https://mlflow.org/docs/latest/rest-api.html#metric>).
 ///
 /// Other types of values like [`RecordValue::Array1`] will be ignored.
 ///
 /// When dropped, this struct updates run's status to "FINISHED"
-/// (https://mlflow.org/docs/latest/rest-api.html#mlflowrunstatus).
+/// (<https://mlflow.org/docs/latest/rest-api.html#mlflowrunstatus>).
 ///
 /// [`RecordValue::Scalar`]: border_core::record::RecordValue::Scalar
 /// [`RecordValue::Array1`]: border_core::record::RecordValue::Array1

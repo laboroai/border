@@ -1,6 +1,5 @@
 Bootstrap: docker
-From: ubuntu:20.04
-# From: nvidia/cuda:12.0.0-devel-ubuntu20.04
+From: nvidia/cuda:11.7.1-cudnn8-devel-ubuntu20.04
 
 %environment
     export CARGO_HOME=/opt/.cargo
@@ -11,7 +10,14 @@ From: ubuntu:20.04
     export DEBIAN_FRONTEND=noninteractive
     echo "Set disable_coredump false" >> /etc/sudo.conf
     apt-get update -q && \
-    apt-get upgrade -yq && \
+    apt-get upgrade -yq
+
+    # python
+    apt install -y gnupg2 curl
+    apt install software-properties-common -y
+    add-apt-repository ppa:deadsnakes/ppa -y
+    apt install -y python3.10 python3.10-dev python3.10-distutils python3.10-venv python3-pip
+
     apt-get install -yq wget curl git build-essential vim sudo libssl-dev
 
     # clang
@@ -22,9 +28,8 @@ From: ubuntu:20.04
         libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev libsdl2-ttf-dev \
         libsdl-dev libsdl-image1.2-dev
 
-    # zip
-    apt install -y zip swig python3.8 python3.8-dev python3.8-distutils python3.8-venv python3-pip \
-        cmake libgoogle-glog-dev libgflags-dev
+    # zip, swig, python, cmake, misc
+    apt install -y zip swig cmake libgoogle-glog-dev libgflags-dev
 
     # llvm, mesa for robosuite
     apt install -y llvm libosmesa6-dev
@@ -38,27 +43,19 @@ From: ubuntu:20.04
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
     # Python
-    python3 -m venv /opt/venv
-    bash -c "source /opt/venv/bin/activate && \
-        pip3 install --upgrade pip && \
-        pip3 install pyyaml typing-extensions torch==1.12.0 ipython jupyterlab numpy==1.21.3 \
-        gym[box2d]==0.26.2 robosuite==1.3.2 pybullet==3.2.5
-    "
-    #     pip3 install -U 'mujoco-py<2.2,>=2.1' dm-control==1.0.9 pyrender==0.1.45 dm2gym==0.2.0
-    # "
-
-    # # Mujoco aarch64 binary
-    # cd /opt && \
-    # mkdir .mujoco && \
-    # cd .mujoco && \
-    # wget https://github.com/deepmind/mujoco/releases/download/2.1.1/mujoco-2.1.1-linux-aarch64.tar.gz
-    # cd /opt/.mujoco && \
-    # tar zxf mujoco-2.1.1-linux-aarch64.tar.gz && \
-    # mkdir -p mujoco210/bin && \
-    # ln -sf $PWD/mujoco-2.1.1/lib/libmujoco.so.2.1.1 $PWD/mujoco210/bin/libmujoco210.so && \
-    # ln -sf $PWD/mujoco-2.1.1/lib/libglewosmesa.so $PWD/mujoco210/bin/libglewosmesa.so && \
-    # ln -sf $PWD/mujoco-2.1.1/include/ $PWD/mujoco210/include && \
-    # ln -sf $PWD/mujoco-2.1.1/model/ $PWD/mujoco210/model
+    python3.10 -m venv /opt/venv
+    bash -c "source /opt/venv/bin/activate && pip3 install --upgrade pip"
+    bash -c "source /opt/venv/bin/activate && pip3 install pyyaml typing-extensions"
+    bash -c "source /opt/venv/bin/activate && pip3 install torch==1.13.1+cu117 --extra-index-url https://download.pytorch.org/whl/cu117"
+    bash -c "source /opt/venv/bin/activate && pip3 install ipython jupyterlab"
+    bash -c "source /opt/venv/bin/activate && pip3 install numpy==1.21.3"
+    bash -c "source /opt/venv/bin/activate && pip3 install mujoco==2.3.7"
+    bash -c "source /opt/venv/bin/activate && pip3 install gymnasium[box2d]==0.29.0"
+    bash -c "source /opt/venv/bin/activate && pip3 install gymnasium-robotics==1.2.2"
+    bash -c "source /opt/venv/bin/activate && pip3 install tensorboard==2.16.2"
+    bash -c "source /opt/venv/bin/activate && pip3 install mlflow==2.11.1"
+    bash -c "source /opt/venv/bin/activate && pip3 install tabulate==0.9.0"
+    bash -c "source /opt/venv/bin/activate && pip3 install mlflow-export-import==1.2.0"
 
     # PyBullet Gym
     cd /opt && \

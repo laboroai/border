@@ -1,4 +1,4 @@
-use border_core::replay_buffer::SubBatch;
+use border_core::generic_replay_buffer::BatchBase;
 use candle_core::{error::Result, DType, Device, Tensor};
 
 /// Adds capability of constructing [Tensor] with a static method.
@@ -29,12 +29,12 @@ impl ZeroTensor for i64 {
 ///
 /// The internal buffer is `Vec<Tensor>`.
 #[derive(Clone, Debug)]
-pub struct TensorSubBatch {
+pub struct TensorBatch {
     buf: Vec<Tensor>,
     capacity: usize,
 }
 
-impl TensorSubBatch {
+impl TensorBatch {
     pub fn from_tensor(t: Tensor) -> Self {
         let capacity = t.dims()[0] as _;
         Self {
@@ -44,7 +44,7 @@ impl TensorSubBatch {
     }
 }
 
-impl SubBatch for TensorSubBatch {
+impl BatchBase for TensorBatch {
     fn new(capacity: usize) -> Self {
         Self {
             buf: Vec::with_capacity(capacity),
@@ -85,8 +85,8 @@ impl SubBatch for TensorSubBatch {
     }
 }
 
-impl From<TensorSubBatch> for Tensor {
-    fn from(b: TensorSubBatch) -> Self {
+impl From<TensorBatch> for Tensor {
+    fn from(b: TensorBatch) -> Self {
         Tensor::cat(&b.buf[..], 0).unwrap()
     }
 }
