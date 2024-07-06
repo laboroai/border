@@ -53,7 +53,7 @@ const TAU: f64 = 0.02;
 const TARGET_ENTROPY: f64 = -(DIM_ACT as f64);
 const LR_ENT_COEF: f64 = 3e-4;
 const CRITIC_LOSS: CriticLoss = CriticLoss::SmoothL1;
-const MODEL_DIR: &str = "./border/examples/model/sac_ant_async";
+const MODEL_DIR: &str = "./border/examples/mujoco/model/tch/sac_ant_async";
 
 mod obs {
     use super::*;

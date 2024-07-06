@@ -24,7 +24,7 @@ use border_py_gym_env::{
 };
 use border_tensorboard::TensorboardRecorder;
 use candle_core::Tensor;
-use clap::{App, Arg, ArgMatches};
+use clap::Parser;
 // use log::info;
 use ndarray::{ArrayD, IxDyn};
 
@@ -41,6 +41,7 @@ const N_CRITICS: usize = 2;
 const TAU: f64 = 0.02;
 const LR_ENT_COEF: f64 = 3e-4;
 const CRITIC_LOSS: CriticLoss = CriticLoss::SmoothL1;
+const MODEL_DIR_BASE: &str = "./border/examples/mujoco/model/candle";
 
 fn cuda_if_available() -> candle_core::Device {
     candle_core::Device::cuda_if_available(0).unwrap()
@@ -188,12 +189,12 @@ mod utils {
     use super::*;
 
     pub fn create_recorder(
-        matches: &ArgMatches,
+        args: &Args,
         config: &config::SacAntConfig,
     ) -> Result<Box<dyn AggregateRecorder>> {
-        let env_name = matches.value_of("env").unwrap();
-        let (_, _, _, _, model_dir) = env_params(matches);
-        match matches.is_present("mlflow") {
+        let env_name = &args.env;
+        let (_, _, _, _, model_dir) = env_params(&args);
+        match args.mlflow {
             true => {
                 let client =
                     MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Gym")?;
@@ -208,59 +209,11 @@ mod utils {
         }
     }
 
-    pub fn create_matches<'a>() -> ArgMatches<'a> {
-        App::new("sac_ant")
-            .version("0.1.0")
-            .author("Taku Yoshioka <yoshioka@laboro.ai>")
-            .arg(
-                Arg::with_name("env")
-                    .long("env")
-                    .value_name("name")
-                    .default_value("ant")
-                    .takes_value(true)
-                    .help("Environment name (ant, cheetah, walker, hopper)"),
-            )
-            .arg(
-                Arg::with_name("eval")
-                    .long("eval")
-                    .value_name("path")
-                    .default_value("")
-                    .takes_value(true)
-                    .help("Evaluation with the trained model of the given path"),
-            )
-            // .arg(
-            //     Arg::with_name("play-gdrive")
-            //         .long("play-gdrive")
-            //         .takes_value(false)
-            //         .help("Play with the trained model downloaded from google drive"),
-            // )
-            .arg(
-                Arg::with_name("wait")
-                    .long("wait")
-                    .takes_value(true)
-                    .default_value("25")
-                    .help("Waiting time in milliseconds between frames when evaluation"),
-            )
-            .arg(
-                Arg::with_name("mlflow")
-                    .long("mlflow")
-                    .takes_value(false)
-                    .help("User mlflow tracking"),
-            )
-            .arg(
-                Arg::with_name("train")
-                    .long("train")
-                    .takes_value(false)
-                    .help("Training"),
-            )
-            .get_matches()
-    }
-
     /// Returns (dim_obs, dim_act, target_ent, env_name, model_dir)
-    pub fn env_params<'a>(matches: &ArgMatches) -> (i64, i64, f64, &'a str, String) {
-        let env_name = matches.value_of("env").unwrap();
-        let model_dir = format!("./border/examples/mujoco/model/{}/candle", env_name);
-        match matches.value_of("env").unwrap() {
+    pub fn env_params<'a>(args: &Args) -> (i64, i64, f64, &'a str, String) {
+        let env_name = &args.env;
+        let model_dir = format!("{}/sac_{}", MODEL_DIR_BASE, env_name);
+        match args.env.as_str() {
             "ant" => (27, 8, -8., "Ant-v4", model_dir),
             "cheetah" => (17, 6, -6., "HalfCheetah-v4", model_dir),
             "walker" => (17, 6, -6., "Walker2d-v4", model_dir),
@@ -270,8 +223,34 @@ mod utils {
     }
 }
 
-fn train(matches: ArgMatches) -> Result<()> {
-    let (dim_obs, dim_act, target_ent, env_name, model_dir) = utils::env_params(&matches);
+/// Train/eval SAC agent in Mujoco environment
+#[derive(Parser, Debug)]
+#[command(version, about)]
+struct Args {
+    /// Environment name (ant, cheetah, walker, hopper)
+    #[arg(long)]
+    env: String,
+
+    /// Train DQN agent, not evaluate
+    #[arg(long, default_value_t = false)]
+    train: bool,
+
+    /// Evaluate DQN agent, not train
+    #[arg(long, default_value_t = false)]
+    eval: bool,
+    // #[arg(long, default_value_t = String::new())]
+    // eval: String,
+    /// Log metrics with MLflow
+    #[arg(long, default_value_t = false)]
+    mlflow: bool,
+
+    /// Waiting time in milliseconds between frames when evaluation
+    #[arg(long, default_value_t = 25)]
+    wait: u64,
+}
+
+fn train(args: &Args) -> Result<()> {
+    let (dim_obs, dim_act, target_ent, env_name, model_dir) = utils::env_params(&args);
     let env_config = config::env_config(env_name);
     let step_proc_config = SimpleStepProcessorConfig {};
     let agent_config = config::create_sac_config(dim_obs, dim_act, target_ent);
@@ -288,7 +267,7 @@ fn train(matches: ArgMatches) -> Result<()> {
     let step_proc = StepProc::build(&step_proc_config);
     let mut agent = Sac::build(agent_config);
     let mut buffer = ReplayBuffer::build(&replay_buffer_config);
-    let mut recorder = utils::create_recorder(&matches, &config)?;
+    let mut recorder = utils::create_recorder(&args, &config)?;
     let mut evaluator = Evaluator::new(&env_config, 0, N_EPISODES_PER_EVAL)?;
 
     trainer.train(
@@ -303,8 +282,8 @@ fn train(matches: ArgMatches) -> Result<()> {
     Ok(())
 }
 
-fn eval(matches: &ArgMatches, model_dir: &str, render: bool, wait: u64) -> Result<()> {
-    let (dim_obs, dim_act, target_ent, env_name, _) = utils::env_params(&matches);
+fn eval(args: &Args, model_dir: &str, render: bool, wait: u64) -> Result<()> {
+    let (dim_obs, dim_act, target_ent, env_name, _) = utils::env_params(&args);
     let env_config = {
         let mut env_config = config::env_config(&env_name);
         if render {
@@ -331,16 +310,14 @@ fn eval(matches: &ArgMatches, model_dir: &str, render: bool, wait: u64) -> Resul
     Ok(())
 }
 
-fn eval1(matches: ArgMatches) -> Result<()> {
+fn eval1(args: &Args) -> Result<()> {
     let model_dir = {
-        let model_dir = matches
-            .value_of("eval")
-            .expect("Failed to parse model directory");
-        format!("{}{}", model_dir, "/best").to_owned()
+        let env_name = &args.env;
+        format!("{}/sac_{}/best", MODEL_DIR_BASE, env_name)
     };
     let render = true;
-    let wait = matches.value_of("wait").unwrap().parse().unwrap();
-    eval(&matches, &model_dir, render, wait)
+    let wait = args.wait;
+    eval(&args, &model_dir, render, wait)
 }
 
 // fn eval2(matches: ArgMatches) -> Result<()> {
@@ -361,12 +338,15 @@ fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     fastrand::seed(42);
 
-    let matches = utils::create_matches();
+    let args = Args::parse();
 
-    if matches.is_present("train") {
-        train(matches)?;
+    if args.train {
+        train(&args)?;
+    } else if args.eval {
+        eval1(&args)?;
     } else {
-        eval1(matches)?;
+        train(&args)?;
+        eval1(&args)?;
     }
     // } else if matches.is_present("play-gdrive") {
     //     eval2(matches)?;
