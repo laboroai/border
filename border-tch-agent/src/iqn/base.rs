@@ -63,7 +63,9 @@ where
         let obs = obs.into();
         let act = act.into().to(self.device);
         let next_obs = next_obs.into();
-        let reward = Tensor::from_slice(&reward[..]).to(self.device).unsqueeze(-1);
+        let reward = Tensor::from_slice(&reward[..])
+            .to(self.device)
+            .unsqueeze(-1);
         let is_terminated = Tensor::from_slice(&is_terminated[..])
             .to(self.device)
             .unsqueeze(-1);

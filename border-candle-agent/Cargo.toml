@@ -10,8 +10,8 @@ license.workspace = true
 readme = "README.md"
 
 [dependencies]
-border-core = { version = "0.0.6", path = "../border-core" }
-border-async-trainer = { version = "0.0.6", path = "../border-async-trainer", optional = true }
+border-core = { version = "0.0.7", path = "../border-core" }
+border-async-trainer = { version = "0.0.7", path = "../border-async-trainer", optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_yaml = { workspace = true }
 tensorboard-rs = { workspace = true }

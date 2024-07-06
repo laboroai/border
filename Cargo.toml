@@ -14,7 +14,7 @@ members = [
 exclude = ["docker/"]
 
 [workspace.package]
-version = "0.0.6"
+version = "0.0.7"
 edition = "2018"
 rust-version = "1.70"
 description = "Reinforcement learning library"
@@ -24,7 +24,7 @@ categories = ["science"]
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-clap = "2.33.3"
+clap = { version = "4.5.8", features = ["derive"] }
 csv = "1.1.5"
 fastrand = "1.4.0"
 tch = "0.16.0"
