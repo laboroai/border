@@ -20,7 +20,7 @@ use border_tch_agent::{
     TensorBatch,
 };
 use border_tensorboard::TensorboardRecorder;
-use clap::{App, Arg, ArgMatches};
+use clap::Parser;
 // use csv::WriterBuilder;
 use border_mlflow_tracking::MlflowTrackingClient;
 use ndarray::{ArrayD, IxDyn};
@@ -297,52 +297,45 @@ fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
     Ok(())
 }
 
-fn create_matches<'a>() -> ArgMatches<'a> {
-    App::new("sac_pendulum_tch")
-        .version("0.1.0")
-        .author("Taku Yoshioka <yoshioka@laboro.ai>")
-        .arg(
-            Arg::with_name("train")
-                .long("train")
-                .takes_value(false)
-                .help("Do training only"),
-        )
-        .arg(
-            Arg::with_name("eval")
-                .long("eval")
-                .takes_value(false)
-                .help("Do evaluation only"),
-        )
-        .arg(
-            Arg::with_name("mlflow")
-                .long("mlflow")
-                .takes_value(false)
-                .help("User mlflow tracking"),
-        )
-        .get_matches()
+/// Train/eval SAC agent in pendulum environment
+#[derive(Parser, Debug)]
+#[command(version, about)]
+struct Args {
+    /// Train SAC agent, not evaluate
+    #[arg(short, long, default_value_t = false)]
+    train: bool,
+
+    /// Evaluate SAC agent, not train
+    #[arg(short, long, default_value_t = false)]
+    eval: bool,
+
+    /// Log metrics with MLflow
+    #[arg(short, long, default_value_t = false)]
+    mlflow: bool,
 }
 
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
 
-    let matches = create_matches();
-    let mlflow = matches.is_present("mlflow");
+    let args = Args::parse();
 
-    let do_train = (matches.is_present("train") && !matches.is_present("eval"))
-        || (!matches.is_present("train") && !matches.is_present("eval"));
-    let do_eval = (!matches.is_present("train") && matches.is_present("eval"))
-        || (!matches.is_present("train") && !matches.is_present("eval"));
-
-    if do_train {
+    if args.train {
         train(
             MAX_OPTS,
             "./border/examples/gym/model/tch/sac_pendulum",
             EVAL_INTERVAL,
-            mlflow,
+            args.mlflow,
         )?;
-    }
-    if do_eval {
+    } else if args.eval {
+        eval(5, true, "./border/examples/gym/model/tch/sac_pendulum/best")?;
+    } else {
+        train(
+            MAX_OPTS,
+            "./border/examples/gym/model/tch/sac_pendulum",
+            EVAL_INTERVAL,
+            args.mlflow,
+        )?;
         eval(5, true, "./border/examples/gym/model/tch/sac_pendulum/best")?;
     }
 

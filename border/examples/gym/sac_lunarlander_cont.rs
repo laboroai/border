@@ -20,7 +20,7 @@ use border_py_gym_env::{
     ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
 use border_tensorboard::TensorboardRecorder;
-use clap::{App, Arg, ArgMatches};
+use clap::Parser;
 //use csv::WriterBuilder;
 use border_mlflow_tracking::MlflowTrackingClient;
 use candle_core::Tensor;
@@ -205,10 +205,10 @@ mod utils {
     use super::*;
 
     pub fn create_recorder(
-        matches: &ArgMatches,
+        args: &Args,
         config: &config::SacLunarLanderConfig,
     ) -> Result<Box<dyn AggregateRecorder>> {
-        match matches.is_present("mlflow") {
+        match args.mlflow {
             true => {
                 let client =
                     MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Gym")?;
@@ -222,34 +222,26 @@ mod utils {
             false => Ok(Box::new(TensorboardRecorder::new(MODEL_DIR))),
         }
     }
-
-    pub fn create_matches<'a>() -> ArgMatches<'a> {
-        App::new("sac_lunarlander_cont")
-            .version("0.1.0")
-            .author("Taku Yoshioka <yoshioka@laboro.ai>")
-            .arg(
-                Arg::with_name("train")
-                    .long("train")
-                    .takes_value(false)
-                    .help("Do training only"),
-            )
-            .arg(
-                Arg::with_name("eval")
-                    .long("eval")
-                    .takes_value(false)
-                    .help("Do evaluation only"),
-            )
-            .arg(
-                Arg::with_name("mlflow")
-                    .long("mlflow")
-                    .takes_value(false)
-                    .help("User mlflow tracking"),
-            )
-            .get_matches()
-    }
 }
 
-fn train(matches: ArgMatches, max_opts: usize) -> Result<()> {
+/// Train/eval SAC agent in lunarlander environment
+#[derive(Parser, Debug)]
+#[command(version, about)]
+struct Args {
+    /// Train SAC agent, not evaluate
+    #[arg(short, long, default_value_t = false)]
+    train: bool,
+
+    /// Evaluate SAC agent, not train
+    #[arg(short, long, default_value_t = false)]
+    eval: bool,
+
+    /// Log metrics with MLflow
+    #[arg(short, long, default_value_t = false)]
+    mlflow: bool,
+}
+
+fn train(args: &Args, max_opts: usize) -> Result<()> {
     let env_config = config::env_config();
     let trainer_config = config::trainer_config(max_opts, EVAL_INTERVAL);
     let step_proc_config = SimpleStepProcessorConfig {};
@@ -260,7 +252,7 @@ fn train(matches: ArgMatches, max_opts: usize) -> Result<()> {
         replay_buffer_config: replay_buffer_config.clone(),
         trainer_config,
     };
-    let mut recorder = utils::create_recorder(&matches, &config)?;
+    let mut recorder = utils::create_recorder(&args, &config)?;
     let mut trainer = Trainer::build(config.trainer_config.clone());
 
     let env = Env::build(&env_config, 0)?;
@@ -307,14 +299,14 @@ fn eval(render: bool) -> Result<()> {
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-    let matches = utils::create_matches();
+    let args = Args::parse();
 
-    if matches.is_present("eval") {
+    if args.eval {
         eval(true)?;
-    } else if matches.is_present("train") {
-        train(matches, MAX_OPTS)?;
+    } else if args.train {
+        train(&args, MAX_OPTS)?;
     } else {
-        train(matches, MAX_OPTS)?;
+        train(&args, MAX_OPTS)?;
         eval(true)?;
     }
 

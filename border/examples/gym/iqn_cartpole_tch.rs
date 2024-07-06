@@ -118,8 +118,8 @@ mod obs_act_types {
     impl From<Tensor> for Act {
         // `t` must be a 1-dimentional tensor of `f32`
         fn from(t: Tensor) -> Self {
-            let data =
-                Vec::<i64>::try_from(&t.flatten(0, -1)).expect("Failed to convert from Tensor to Vec");
+            let data = Vec::<i64>::try_from(&t.flatten(0, -1))
+                .expect("Failed to convert from Tensor to Vec");
             let data = data.iter().map(|&e| e as i32).collect();
             Act(data)
         }
