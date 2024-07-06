@@ -10,24 +10,25 @@ use border_candle_agent::{
     TensorBatch,
 };
 use border_core::{
-    record::AggregateRecorder,
-    replay_buffer::{
+    generic_replay_buffer::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    Agent, DefaultEvaluator, Env as _, Evaluator as _, Policy, Trainer, TrainerConfig,
+    record::AggregateRecorder,
+    Agent, Configurable, DefaultEvaluator, Env as _, Evaluator as _, ReplayBufferBase,
+    StepProcessor, Trainer, TrainerConfig,
 };
-use border_derive::{Act, SubBatch};
+use border_derive::{Act, BatchBase};
 use border_mlflow_tracking::MlflowTrackingClient;
 use border_tensorboard::TensorboardRecorder;
-use clap::{App, Arg, ArgMatches};
+use clap::Parser;
 
 mod obs_act_types {
     use super::*;
 
     pub type Obs = BorderAtariObs;
 
-    #[derive(Clone, SubBatch)]
+    #[derive(Clone, BatchBase)]
     pub struct ObsBatch(TensorBatch);
 
     impl From<Obs> for ObsBatch {
@@ -37,7 +38,7 @@ mod obs_act_types {
         }
     }
 
-    #[derive(SubBatch)]
+    #[derive(BatchBase)]
     pub struct ActBatch(TensorBatch);
 
     impl From<Act> for ActBatch {
@@ -123,8 +124,8 @@ mod config {
         Ok(config.into())
     }
 
-    pub fn create_trainer_config(matches: &ArgMatches) -> Result<()> {
-        let model_dir = utils::model_dir(matches);
+    pub fn create_trainer_config(args: &Args) -> Result<()> {
+        let model_dir = utils::model_dir(args);
         let config = util_dqn_atari::DqnAtariTrainerConfig::default();
         let path = model_dir + "/trainer.yaml";
         let mut file = std::fs::File::create(path.clone())?;
@@ -133,8 +134,8 @@ mod config {
         Ok(())
     }
 
-    pub fn create_replay_buffer_config(matches: &ArgMatches) -> Result<()> {
-        let model_dir = utils::model_dir(matches);
+    pub fn create_replay_buffer_config(args: &Args) -> Result<()> {
+        let model_dir = utils::model_dir(args);
         let config = util_dqn_atari::DqnAtariReplayBufferConfig::default();
         let path = model_dir + "/replay_buffer.yaml";
         let mut file = std::fs::File::create(path.clone())?;
@@ -143,8 +144,8 @@ mod config {
         Ok(())
     }
 
-    pub fn create_agent_config(matches: &ArgMatches) -> Result<()> {
-        let model_dir = utils::model_dir(matches);
+    pub fn create_agent_config(args: &Args) -> Result<()> {
+        let model_dir = utils::model_dir(args);
         let config = util_dqn_atari::DqnAtariAgentConfig::default();
         let path = model_dir + "/agent.yaml";
         let mut file = std::fs::File::create(path.clone())?;
@@ -164,11 +165,8 @@ mod config {
 mod utils {
     use super::*;
 
-    pub fn model_dir(matches: &ArgMatches) -> String {
-        let name = matches
-            .value_of("name")
-            .expect("The name of the environment was not given")
-            .to_string();
+    pub fn model_dir(args: &Args) -> String {
+        let name = &args.name;
         format!("./border/examples/atari/model/candle/dqn_{}", name)
 
         // let mut params = Params::default();
@@ -188,8 +186,8 @@ mod utils {
         // model_dir_(name, &params)
     }
 
-    pub fn model_dir_for_play(matches: &ArgMatches) -> String {
-        matches.value_of("play").unwrap().to_string()
+    pub fn model_dir_for_eval(args: &Args) -> String {
+        model_dir(args)
     }
 
     pub fn n_actions(env_config: &EnvConfig) -> Result<usize> {
@@ -197,13 +195,13 @@ mod utils {
     }
 
     pub fn create_recorder(
-        matches: &ArgMatches,
+        args: &Args,
         model_dir: &str,
         config: &DqnAtariConfig,
     ) -> Result<Box<dyn AggregateRecorder>> {
-        match matches.is_present("mlflow") {
+        match args.mlflow {
             true => {
-                let name = matches.value_of("name").unwrap();
+                let name = &args.name;
                 let client = MlflowTrackingClient::new("http://localhost:8080")
                     .set_experiment_id("Atari")?;
                 let recorder_run = client.create_recorder("")?;
@@ -216,85 +214,45 @@ mod utils {
             false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
         }
     }
-
-    pub fn create_matches<'a>() -> ArgMatches<'a> {
-        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-
-        let matches = App::new("dqn_atari")
-            .version("0.1.0")
-            .author("Taku Yoshioka <yoshioka@laboro.ai>")
-            .arg(
-                Arg::with_name("name")
-                    .long("name")
-                    .takes_value(true)
-                    .required(true)
-                    .index(1)
-                    .help("The name of the atari rom (e.g., pong)"),
-            )
-            .arg(
-                Arg::with_name("play")
-                    .long("play")
-                    .takes_value(true)
-                    .help("Play with the trained model of the given path"),
-            )
-            .arg(
-                Arg::with_name("play-gdrive")
-                    .long("play-gdrive")
-                    .takes_value(false)
-                    .help("Play with the trained model downloaded from google drive"),
-            )
-            .arg(
-                Arg::with_name("create-config")
-                    .long("create-config")
-                    .help("Create config files"),
-            )
-            // not supported yet
-            // .arg(
-            //     Arg::with_name("per")
-            //         .long("per")
-            //         .takes_value(false)
-            //         .help("Train/play with prioritized experience replay"),
-            // )
-            // .arg(
-            //     Arg::with_name("ddqn")
-            //         .long("ddqn")
-            //         .takes_value(false)
-            //         .help("Train/play with double DQN"),
-            // )
-            // .arg(
-            //     Arg::with_name("debug")
-            //         .long("debug")
-            //         .takes_value(false)
-            //         .help("Run with debug configuration"),
-            // )
-            .arg(
-                Arg::with_name("wait")
-                    .long("wait")
-                    .takes_value(true)
-                    .default_value("25")
-                    .help("Waiting time in milliseconds between frames when playing"),
-            )
-            .arg(
-                Arg::with_name("show-config")
-                    .long("show-config")
-                    .takes_value(false)
-                    .help("Showing configuration loaded from files"),
-            )
-            .arg(
-                Arg::with_name("mlflow")
-                    .long("mlflow")
-                    .help("Logging with mlflow"),
-            )
-            .get_matches();
-
-        matches
-    }
 }
 
-fn train(matches: ArgMatches) -> Result<()> {
+/// Train/eval DQN agent in atari environment
+#[derive(Parser, Debug)]
+#[command(version, about)]
+struct Args {
+    /// Name of the game
+    #[arg(long)]
+    name: String,
+
+    /// Train DQN agent, not evaluate
+    #[arg(long, default_value_t = false)]
+    train: bool,
+
+    /// Evaluate DQN agent, not train
+    #[arg(long, default_value_t = false)]
+    eval: bool,
+
+    /// Create config files
+    #[arg(long, default_value_t = false)]
+    create_config: bool,
+
+    /// Show config
+    #[arg(long, default_value_t = false)]
+    show_config: bool,
+
+    /// Log metrics with MLflow
+    #[arg(long, default_value_t = false)]
+    mlflow: bool,
+
+    /// Waiting time in milliseconds between frames when evaluation
+    #[arg(long, default_value_t = 25)]
+    wait: u64,
+}
+
+fn train(args: &Args) -> Result<()> {
     // Configurations
-    let name = matches.value_of("name").unwrap();
-    let model_dir = utils::model_dir(&matches);
+    let name = &args.name;
+    let model_dir = utils::model_dir(&args);
     let env_config_train = config::env_config(name);
     let env_config_eval = config::env_config(name).eval();
     let n_actions = utils::n_actions(&env_config_train)?;
@@ -310,7 +268,7 @@ fn train(matches: ArgMatches) -> Result<()> {
     let step_proc_config = SimpleStepProcessorConfig {};
 
     // Show configs or train
-    if matches.is_present("show-config") {
+    if args.show_config {
         config::show_config(&env_config_train, &agent_config, &trainer_config);
     } else {
         let config = DqnAtariConfig {
@@ -318,25 +276,30 @@ fn train(matches: ArgMatches) -> Result<()> {
             replay_buffer: replay_buffer_config.clone(),
             agent: agent_config.clone(),
         };
+        let mut trainer = Trainer::build(trainer_config);
+        let env = Env::build(&env_config_train, 0)?;
+        let step_proc = StepProc::build(&step_proc_config);
         let mut agent = Dqn::build(agent_config);
-        let mut recorder = utils::create_recorder(&matches, &model_dir, &config)?;
+        let mut buffer = ReplayBuffer::build(&replay_buffer_config);
+        let mut recorder = utils::create_recorder(&args, &model_dir, &config)?;
         let mut evaluator = Evaluator::new(&env_config_eval, 0, 1)?;
-        let mut trainer = Trainer::<Env, StepProc, ReplayBuffer>::build(
-            trainer_config,
-            env_config_train,
-            step_proc_config,
-            replay_buffer_config,
-        );
 
-        trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
+        trainer.train(
+            env,
+            step_proc,
+            &mut agent,
+            &mut buffer,
+            &mut recorder,
+            &mut evaluator,
+        )?;
     }
 
     Ok(())
 }
 
-fn play(matches: ArgMatches) -> Result<()> {
-    let name = matches.value_of("name").unwrap();
-    let model_dir = utils::model_dir_for_play(&matches);
+fn eval(args: &Args) -> Result<()> {
+    let name = &args.name;
+    let model_dir = utils::model_dir_for_eval(&args);
 
     let (env_config, n_actions) = {
         let env_config = config::env_config(name).render(true);
@@ -360,22 +323,22 @@ fn play(matches: ArgMatches) -> Result<()> {
     Ok(())
 }
 
-fn create_config(matches: ArgMatches) -> Result<()> {
-    config::create_trainer_config(&matches)?;
-    config::create_replay_buffer_config(&matches)?;
-    config::create_agent_config(&matches)?;
+fn create_config(args: &Args) -> Result<()> {
+    config::create_trainer_config(&args)?;
+    config::create_replay_buffer_config(&args)?;
+    config::create_agent_config(&args)?;
     Ok(())
 }
 
 fn main() -> Result<()> {
-    let matches = utils::create_matches();
+    let args = Args::parse();
 
-    if matches.is_present("play") || matches.is_present("play-gdrive") {
-        play(matches)?;
-    } else if matches.is_present("create-config") {
-        create_config(matches)?;
+    if args.eval {
+        eval(&args)?;
+    } else if args.create_config {
+        create_config(&args)?;
     } else {
-        train(matches)?;
+        train(&args)?;
     }
 
     Ok(())

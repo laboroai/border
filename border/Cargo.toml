@@ -13,13 +13,13 @@ readme = "README.md"
 aquamarine = { workspace = true }
 tch = { workspace = true, optional = true }
 candle-core = { workspace = true, optional = true }
-border-async-trainer = { version = "0.0.6", path = "../border-async-trainer", optional = true }
+border-async-trainer = { version = "0.0.7", path = "../border-async-trainer", optional = true }
 anyhow = { workspace = true }
 log = { workspace = true }
 dirs = { workspace = true }
 zip = "0.5.12"
 reqwest = { workspace = true }
-border-core = { version = "0.0.6", path = "../border-core" }
+border-core = { version = "0.0.7", path = "../border-core" }
 
 [[example]]
 name = "dqn_cartpole"
@@ -109,11 +109,11 @@ path = "examples/mujoco/sac_mujoco_tch.rs"
 required-features = ["tch"]
 test = false
 
-[[example]]
-name = "sac_ant_async"
-path = "examples/ant/sac_ant_async.rs"
-required-features = ["tch", "border-async-trainer"]
-test = false
+# [[example]]
+# name = "sac_ant_async"
+# path = "examples/mujoco/sac_ant_async.rs"
+# required-features = ["tch", "border-async-trainer"]
+# test = false
 
 # [[example]]
 # name = "make_cfg_dqn_atari"
@@ -129,14 +129,14 @@ test = false
 clap = { workspace = true }
 csv = { workspace = true }
 tempdir = { workspace = true }
-border-derive = { version = "0.0.6", path = "../border-derive" }
-border-core = { version = "0.0.6", path = "../border-core" }
-border-tensorboard = { version = "0.0.6", path = "../border-tensorboard" }
-border-tch-agent = { version = "0.0.6", path = "../border-tch-agent" }
-border-py-gym-env = { version = "0.0.6", path = "../border-py-gym-env" }
-border-atari-env = { version = "0.0.6", path = "../border-atari-env" }
-border-candle-agent = { version = "0.0.6", path = "../border-candle-agent" }
-border-mlflow-tracking = { version = "0.0.6", path = "../border-mlflow-tracking" }
+border-derive = { version = "0.0.7", path = "../border-derive" }
+border-core = { version = "0.0.7", path = "../border-core" }
+border-tensorboard = { version = "0.0.7", path = "../border-tensorboard" }
+border-tch-agent = { version = "0.0.7", path = "../border-tch-agent" }
+border-py-gym-env = { version = "0.0.7", path = "../border-py-gym-env" }
+border-atari-env = { version = "0.0.7", path = "../border-atari-env" }
+border-candle-agent = { version = "0.0.7", path = "../border-candle-agent" }
+border-mlflow-tracking = { version = "0.0.7", path = "../border-mlflow-tracking" }
 serde = { workspace = true, features = ["derive"] }
 crossbeam-channel = { workspace = true }
 env_logger = { workspace = true }
