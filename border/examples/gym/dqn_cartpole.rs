@@ -338,7 +338,7 @@ fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{eval, train};
+    use super::{eval, train, Args};
     use anyhow::Result;
     use tempdir::TempDir;
 

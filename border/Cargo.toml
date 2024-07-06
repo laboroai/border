@@ -109,11 +109,11 @@ path = "examples/mujoco/sac_mujoco_tch.rs"
 required-features = ["tch"]
 test = false
 
-[[example]]
-name = "sac_ant_async"
-path = "examples/ant/sac_ant_async.rs"
-required-features = ["tch", "border-async-trainer"]
-test = false
+# [[example]]
+# name = "sac_ant_async"
+# path = "examples/mujoco/sac_ant_async.rs"
+# required-features = ["tch", "border-async-trainer"]
+# test = false
 
 # [[example]]
 # name = "make_cfg_dqn_atari"

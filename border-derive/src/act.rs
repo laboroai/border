@@ -177,7 +177,13 @@ fn atari_env_act(ident: proc_macro2::Ident, field_type: syn::Type) -> proc_macro
 
             impl From<tch::Tensor> for #ident {
                 fn from(t: tch::Tensor) -> Self {
-                    let data: Vec<i64> = t.into();
+                    let data: Vec<i64> = {
+                        let t = t.to_dtype(tch::Kind::Int64, false, true);
+                        let n = t.numel();
+                        let mut data = vec![0i64; n];
+                        t.f_copy_data(&mut data, n).unwrap();
+                        data
+                    };
                     // Non-vectorized environment
                     #ident(BorderAtariAct::new(data[0] as u8))
                 }

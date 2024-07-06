@@ -302,7 +302,7 @@ mod async_trainer_config {
 }
 
 mod replay_buffer_config {
-    use border_core::replay_buffer::{PerConfig, SimpleReplayBufferConfig};
+    use border_core::generic_replay_buffer::{PerConfig, SimpleReplayBufferConfig};
     use serde::{Deserialize, Serialize};
 
     #[derive(Deserialize, Serialize)]
