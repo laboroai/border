@@ -296,7 +296,7 @@ fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
     };
     let mut agent = {
         let mut agent = create_agent(DIM_OBS, DIM_ACT)?;
-        agent.load(model_dir)?;
+        agent.load_params(model_dir)?;
         agent.eval();
         agent
     };

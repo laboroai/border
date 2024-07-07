@@ -279,12 +279,7 @@ struct Args {
     mlflow: bool,
 }
 
-fn train(
-    args: &Args,
-    max_opts: usize,
-    model_dir: &str,
-    eval_interval: usize,
-) -> Result<()> {
+fn train(args: &Args, max_opts: usize, model_dir: &str, eval_interval: usize) -> Result<()> {
     let config =
         config::IqnCartpoleConfig::new(DIM_OBS, DIM_ACT, max_opts, model_dir, eval_interval);
     let step_proc_config = SimpleStepProcessorConfig {};
@@ -322,7 +317,7 @@ fn eval(model_dir: &str, render: bool) -> Result<()> {
     };
     let mut agent = {
         let mut agent = Iqn::build(config::agent_config(DIM_OBS, DIM_ACT));
-        agent.load(model_dir)?;
+        agent.load_params(model_dir)?;
         agent.eval();
         agent
     };

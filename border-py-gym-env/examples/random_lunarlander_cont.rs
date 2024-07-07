@@ -51,13 +51,14 @@ mod act {
 
 use act::Act;
 use obs::Obs;
+use serde::Deserialize;
 
 type ObsFilter = ArrayObsFilter<f32, f32, Obs>;
 type ActFilter = ContinuousActFilter<Act>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type Evaluator = DefaultEvaluator<Env, RandomPolicy>;
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize)]
 struct RandomPolicyConfig;
 
 struct RandomPolicy;

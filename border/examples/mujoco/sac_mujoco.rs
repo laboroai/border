@@ -296,7 +296,7 @@ fn eval(args: &Args, model_dir: &str, render: bool, wait: u64) -> Result<()> {
     let mut agent = {
         let agent_config = config::create_sac_config(dim_obs, dim_act, target_ent);
         let mut agent = Sac::build(agent_config);
-        match agent.load(model_dir) {
+        match agent.load_params(model_dir) {
             Ok(_) => {}
             Err(_) => println!("Failed to load model parameters from {:?}", model_dir),
         }

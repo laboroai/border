@@ -9,6 +9,7 @@ use border_core::{
     record::Record,
     Agent as Agent_, Configurable, Policy, ReplayBufferBase,
 };
+use serde::Deserialize;
 use std::ptr::copy;
 
 pub type Obs = BorderAtariObs;
@@ -132,8 +133,8 @@ impl From<Act> for ActBatch {
     }
 }
 
-#[derive(Clone)]
-/// Configuration of [RandomAgent].
+#[derive(Clone, Deserialize)]
+/// Configuration of [`RandomAgent``].
 pub struct RandomAgentConfig {
     pub n_acts: usize,
 }
@@ -182,12 +183,12 @@ impl<R: ReplayBufferBase> Agent_<Env, R> for RandomAgent {
         Record::empty()
     }
 
-    fn save<T: AsRef<std::path::Path>>(&self, _path: T) -> Result<()> {
+    fn save_params<T: AsRef<std::path::Path>>(&self, _path: T) -> Result<()> {
         println!("save() was invoked");
         Ok(())
     }
 
-    fn load<T: AsRef<std::path::Path>>(&mut self, _path: T) -> Result<()> {
+    fn load_params<T: AsRef<std::path::Path>>(&mut self, _path: T) -> Result<()> {
         println!("load() was invoked");
         Ok(())
     }
