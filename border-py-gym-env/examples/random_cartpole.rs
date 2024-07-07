@@ -3,7 +3,7 @@ use border_core::{record::Record, Configurable, DefaultEvaluator, Evaluator as _
 use border_py_gym_env::{
     ArrayObsFilter, DiscreteActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
 type PyObsDtype = f32;
@@ -60,7 +60,7 @@ type ActFilter = DiscreteActFilter<Act>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type Evaluator = DefaultEvaluator<Env, RandomPolicy>;
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize)]
 struct RandomPolicyConfig;
 
 struct RandomPolicy;
