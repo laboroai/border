@@ -330,7 +330,7 @@ where
         record
     }
 
-    fn save<T: AsRef<Path>>(&self, path: T) -> Result<()> {
+    fn save_params<T: AsRef<Path>>(&self, path: T) -> Result<()> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
         self.qnet.save(&path.as_ref().join("qnet.pt").as_path())?;
@@ -339,7 +339,7 @@ where
         Ok(())
     }
 
-    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
+    fn load_params<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
         self.qnet.load(&path.as_ref().join("qnet.pt").as_path())?;
         self.qnet_tgt
             .load(&path.as_ref().join("qnet_tgt.pt").as_path())?;

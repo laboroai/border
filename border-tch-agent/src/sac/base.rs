@@ -301,7 +301,7 @@ where
         self.opt_(buffer)
     }
 
-    fn save<T: AsRef<Path>>(&self, path: T) -> Result<()> {
+    fn save_params<T: AsRef<Path>>(&self, path: T) -> Result<()> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
         for (i, (qnet, qnet_tgt)) in self.qnets.iter().zip(&self.qnets_tgt).enumerate() {
@@ -319,7 +319,7 @@ where
         Ok(())
     }
 
-    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
+    fn load_params<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
         for (i, (qnet, qnet_tgt)) in self.qnets.iter_mut().zip(&mut self.qnets_tgt).enumerate() {
             qnet.load(&path.as_ref().join(format!("qnet_{}.pt.tch", i)).as_path())?;
             qnet_tgt.load(

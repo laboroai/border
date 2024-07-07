@@ -298,7 +298,7 @@ fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
     };
     let mut agent = {
         let mut agent = Sac::build(config::create_sac_config(DIM_OBS, DIM_ACT, TARGET_ENTROPY));
-        agent.load(model_dir)?;
+        agent.load_params(model_dir)?;
         agent.eval();
         agent
     };

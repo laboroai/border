@@ -312,7 +312,7 @@ fn eval(args: &Args) -> Result<()> {
             .out_dim(n_actions as _)
             .device(device);
         let mut agent = Dqn::build(agent_config);
-        agent.load(model_dir + "/best")?;
+        agent.load_params(model_dir + "/best")?;
         agent.eval();
         agent
     };

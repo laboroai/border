@@ -42,7 +42,7 @@ type ObsFilter = FrameStackFilter<PyObsDtype, f32, Obs>;
 type ActFilter = PyGymEnvDiscreteActRawFilter<Act>;
 type Env = PyGymEnv<Obs, Act, ObsFilter, ActFilter>;
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize)]
 struct RandomPolicyConfig {
     pub n_acts: usize,
 }

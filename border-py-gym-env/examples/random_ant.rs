@@ -4,6 +4,7 @@ use border_py_gym_env::{
     ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
 use ndarray::{Array, ArrayD, IxDyn};
+use serde::Deserialize;
 use std::default::Default;
 
 mod obs {
@@ -58,7 +59,7 @@ type ActFilter = ContinuousActFilter<Act>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type Evaluator = DefaultEvaluator<Env, RandomPolicy>;
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize)]
 struct RandomPolicyConfig;
 
 struct RandomPolicy;
