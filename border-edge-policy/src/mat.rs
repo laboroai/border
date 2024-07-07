@@ -6,7 +6,7 @@ pub struct Mat {
     pub shape: Vec<i32>,
 }
 
-#[cfg(feature = "tch")]
+#[cfg(feature = "border-tch-agent")]
 impl From<tch::Tensor> for Mat {
     fn from(x: tch::Tensor) -> Self {
         let shape: Vec<i32> = x.size().iter().map(|e| *e as i32).collect();
@@ -78,6 +78,16 @@ impl Mat {
         Self {
             data,
             shape: self.shape.clone(),
+        }
+    }
+}
+
+impl From<Vec<f32>> for Mat {
+    fn from(x: Vec<f32>) -> Self {
+        let shape = vec![x.len() as i32, 1];
+        Self {
+            shape,
+            data: x,
         }
     }
 }

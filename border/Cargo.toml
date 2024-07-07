@@ -109,6 +109,12 @@ path = "examples/mujoco/sac_mujoco_tch.rs"
 required-features = ["tch"]
 test = false
 
+[[example]]
+name = "convert_sac_policy_to_edge"
+path = "examples/gym/convert_sac_policy_to_edge.rs"
+required-features = ["border-tch-agent", "tch"]
+test = false
+
 # [[example]]
 # name = "sac_ant_async"
 # path = "examples/mujoco/sac_ant_async.rs"
@@ -133,6 +139,7 @@ border-derive = { version = "0.0.7", path = "../border-derive" }
 border-core = { version = "0.0.7", path = "../border-core" }
 border-tensorboard = { version = "0.0.7", path = "../border-tensorboard" }
 border-tch-agent = { version = "0.0.7", path = "../border-tch-agent" }
+border-edge-policy = { version = "0.0.7", path = "../border-edge-policy" }
 border-py-gym-env = { version = "0.0.7", path = "../border-py-gym-env" }
 border-atari-env = { version = "0.0.7", path = "../border-atari-env" }
 border-candle-agent = { version = "0.0.7", path = "../border-candle-agent" }
@@ -157,3 +164,4 @@ features = ["doc-only"]
 doc-only = ["tch/doc-only"]
 cuda = ["candle-core/cuda"]
 cudnn = ["candle-core/cudnn"]
+border-tch-agent = []

@@ -191,6 +191,10 @@ where
             ),
         ])
     }
+
+    pub fn get_policy_net(&self) -> &Actor<P> {
+        &self.pi
+    }
 }
 
 impl<E, Q, P, R> Policy<E> for Sac<E, Q, P, R>
