@@ -115,6 +115,11 @@ path = "examples/gym/convert_sac_policy_to_edge.rs"
 required-features = ["border-tch-agent", "tch"]
 test = false
 
+[[example]]
+name = "pendulum_edge"
+path = "examples/gym/pendulum_edge.rs"
+test = false
+
 # [[example]]
 # name = "sac_ant_async"
 # path = "examples/mujoco/sac_ant_async.rs"

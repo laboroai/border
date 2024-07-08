@@ -28,6 +28,7 @@ impl Mat {
             self.shape[1] as usize,
             x.shape[1] as usize,
         );
+        // println!("{:?}", (m, l, x.shape[0], n));
         let mut data = vec![0.0f32; (m * n) as usize];
         for i in 0..m as usize {
             for j in 0..n as usize {
@@ -80,14 +81,26 @@ impl Mat {
             shape: self.shape.clone(),
         }
     }
+
+    pub fn empty() -> Self {
+        Self {
+            data: vec![],
+            shape: vec![0, 0],
+        }
+    }
+
+    pub fn shape(&self) -> &Vec<i32> {
+        &self.shape
+    }
+
+    pub fn new(data: Vec<f32>, shape: Vec<i32>) -> Self {
+        Self { data, shape }
+    }
 }
 
 impl From<Vec<f32>> for Mat {
     fn from(x: Vec<f32>) -> Self {
         let shape = vec![x.len() as i32, 1];
-        Self {
-            shape,
-            data: x,
-        }
+        Self { shape, data: x }
     }
 }
