@@ -6,6 +6,7 @@ use border_tch_agent::{
     model::ModelBase,
     sac::{ActorConfig, CriticConfig, SacConfig},
 };
+use std::{fs, io::Write};
 
 const DIM_OBS: i64 = 3;
 const DIM_ACT: i64 = 1;
@@ -184,7 +185,7 @@ fn create_sac_config() -> SacConfig<mlp::Mlp, mlp::Mlp2> {
 
 fn main() -> Result<()> {
     let src_path = "./border/examples/gym/model/tch/sac_pendulum/best";
-    let dest_path = "";
+    let dest_path = "./border/examples/gym/model/edge/sac_pendulum/best/mlp.bincode";
 
     // Load Sac model
     let sac = {
@@ -194,7 +195,7 @@ fn main() -> Result<()> {
         sac
     };
 
-    // Check variables in the VarStore
+    // Create Mlp
     let mlp = {
         let vs = sac.get_policy_net().get_var_store();
         let w_names = ["mlp.al0.weight", "mlp.al1.weight", "ml.weight"];
@@ -202,7 +203,13 @@ fn main() -> Result<()> {
         Mlp::from_varstore(vs, &w_names, &b_names)
     };
 
-    // println!("{:?}", mlp);
+    // Serialize to file
+    let encoded = bincode::serialize(&mlp)?;
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(&dest_path)?;
+    file.write_all(&encoded)?;
 
     Ok(())
 }

@@ -156,6 +156,7 @@ chrono = { workspace = true }
 tensorboard-rs = { workspace = true }
 thiserror = { workspace = true }
 serde_yaml = { workspace = true }
+bincode = { workspace = true }
 
 [package.metadata.docs.rs]
 features = ["doc-only"]
