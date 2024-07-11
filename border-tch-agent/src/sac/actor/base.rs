@@ -10,8 +10,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::path::Path;
 use tch::{nn, Device, Tensor};
 
-#[allow(clippy::upper_case_acronyms)]
-/// Represents a stochastic policy for SAC agents.
+/// Stochastic policy for SAC agents.
 pub struct Actor<P>
 where
     P: SubModel<Output = (Tensor, Tensor)>,

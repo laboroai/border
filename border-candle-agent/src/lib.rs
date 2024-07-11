@@ -16,6 +16,8 @@ pub use tensor_batch::{TensorBatch, ZeroTensor};
 /// Device for using candle.
 ///
 /// This enum is added because [`candle_core::Device`] does not support serialization.
+///
+/// [`candle_core::Device`]: https://docs.rs/candle-core/0.4.1/candle_core/enum.Device.html
 pub enum Device {
     /// The main CPU device.
     Cpu,

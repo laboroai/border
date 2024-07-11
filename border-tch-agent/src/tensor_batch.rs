@@ -1,7 +1,9 @@
 use border_core::generic_replay_buffer::BatchBase;
 use tch::{Device, Tensor};
 
-/// Adds capability of constructing [Tensor] with a static method.
+/// Adds capability of constructing [`Tensor`] with a static method.
+/// 
+/// [`Tensor`]: https://docs.rs/tch/0.16.0/tch/struct.Tensor.html
 pub trait ZeroTensor {
     /// Constructs zero tensor.
     fn zeros(shape: &[i64]) -> Tensor;
@@ -37,6 +39,8 @@ impl ZeroTensor for i64 {
 /// where `shape` is obtained from the data pushed at the first time via
 /// [`TensorBatch::push`] method. `[1..]` means that the first axis of the
 /// given data is ignored as it might be batch size.
+/// 
+/// [`Tensor`]: https://docs.rs/tch/0.16.0/tch/struct.Tensor.html
 pub struct TensorBatch {
     buf: Option<Tensor>,
     capacity: i64,

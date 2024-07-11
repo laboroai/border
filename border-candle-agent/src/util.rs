@@ -23,27 +23,10 @@ pub enum CriticLoss {
     SmoothL1,
 }
 
-// /// Apply soft update on a model.
-// ///
-// /// Variables are identified by their names.
-// pub fn track<M: ModelBase>(dest: &mut M, src: &mut M, tau: f64) {
-//     let src = &mut src.get_var_store().variables();
-//     let dest = &mut dest.get_var_store().variables();
-//     debug_assert_eq!(src.len(), dest.len());
-
-//     let names = src.keys();
-//     tch::no_grad(|| {
-//         for name in names {
-//             let src = src.get(name).unwrap();
-//             let dest = dest.get_mut(name).unwrap();
-//             dest.copy_(&(tau * src + (1.0 - tau) * &*dest));
-//         }
-//     });
-//     trace!("soft update");
-// }
-
-/// Apply soft update on model parameters.
+/// Apply soft update on variables.
 ///
+/// Variables are identified by their names.
+/// 
 /// dest = tau * src + (1.0 - tau) * dest
 pub fn track(dest: &VarMap, src: &VarMap, tau: f64) -> Result<()> {
     trace!("dest");
@@ -69,6 +52,7 @@ pub fn track(dest: &VarMap, src: &VarMap, tau: f64) -> Result<()> {
 //     v
 // }
 
+/// Interface for handling output dimensions.
 pub trait OutDim {
     /// Returns the output dimension.
     fn get_out_dim(&self) -> i64;
@@ -141,6 +125,7 @@ pub fn smooth_l1_loss(x: &Tensor, y: &Tensor) -> Result<Tensor, candle_core::Err
     (((0.5 * m1)? * d.powf(2.0))? + m2 * (d - 0.5))?.mean_all()
 }
 
+/// Returns the standard deviation of a tensor.
 pub fn std(t: &Tensor) -> f32 {
     t.broadcast_sub(&t.mean_all().unwrap())
         .unwrap()
@@ -154,6 +139,7 @@ pub fn std(t: &Tensor) -> f32 {
         .unwrap()
 }
 
+/// Returns the mean and standard deviation of the parameters.
 pub fn param_stats(varmap: &VarMap) -> Record {
     let mut record = Record::empty();
 

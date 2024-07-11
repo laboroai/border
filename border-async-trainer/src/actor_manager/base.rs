@@ -15,9 +15,11 @@ use std::{
 /// Manages [`Actor`]s.
 ///
 /// This struct handles the following requests:
-/// * From the [LearnerManager]() for updating the latest model info, stored in this struct.
+/// * From the [`AsyncTrainer`] for updating the latest model info, stored in this struct.
 /// * From the [`Actor`]s for getting the latest model info.
 /// * From the [`Actor`]s for pushing sample batch to the `LearnerManager`.
+///
+/// [`AsyncTrainer`]: crate::AsyncTrainer
 pub struct ActorManager<A, E, R, P>
 where
     A: Agent<E, R> + Configurable<E> + SyncModel,
@@ -25,10 +27,10 @@ where
     P: StepProcessor<E>,
     R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
 {
-    /// Configurations of [Agent]s.
+    /// Configurations of [`Agent`]s.
     agent_configs: Vec<A::Config>,
 
-    /// Configuration of [Env].
+    /// Configuration of [`Env`].
     env_config: E::Config,
 
     /// Configuration of a `StepProcessor`.
@@ -77,7 +79,7 @@ where
     R::Item: Send + 'static,
     A::ModelInfo: Send + 'static,
 {
-    /// Builds a [ActorManager].
+    /// Builds a [`ActorManager`].
     pub fn build(
         config: &ActorManagerConfig,
         agent_configs: &Vec<A::Config>,
@@ -103,10 +105,10 @@ where
         }
     }
 
-    /// Runs threads for [Actor]s and a thread for sending samples into the replay buffer.
+    /// Runs threads for [`Actor`]s and a thread for sending samples into the replay buffer.
     ///
-    /// A thread will wait for the initial [SyncModel::ModelInfo] from [AsyncTrainer](crate::AsyncTrainer),
-    /// which blocks execution of [Actor] threads.
+    /// Each thread is blocked until receiving the initial [`SyncModel::ModelInfo`]
+    /// from [`AsyncTrainer`](crate::AsyncTrainer).
     pub fn run(&mut self, guard_init_env: Arc<Mutex<bool>>) {
         // Guard for sync of the initial model
         let guard_init_model = Arc::new(Mutex::new(true));
@@ -220,10 +222,11 @@ where
             // TODO: error handling, timeout
             // TODO: caching
             // TODO: stats
-            let msg = receiver.recv().unwrap();
-            _n_samples += 1;
-            sender.try_send(msg).unwrap();
-            // println!("{:?}", (_msg.id, n_samples));
+            let msg = receiver.recv();
+            if msg.is_ok() {
+                _n_samples += 1;
+                sender.try_send(msg.unwrap()).unwrap();    
+            }
 
             // Stop the loop
             if *stop.lock().unwrap() {

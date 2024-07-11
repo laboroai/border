@@ -67,7 +67,7 @@ impl From<BorderAtariObs> for Tensor {
     }
 }
 
-/// Converts [`BorderAtariObs`] to `O` with an arbitrary processing.
+/// Converts [`BorderAtariObs`] to observation of type `O` with an arbitrary processing.
 pub trait BorderAtariObsFilter<O: Obs> {
     /// Configuration of the filter.
     type Config: Clone + Default;
@@ -98,7 +98,7 @@ impl Default for BorderAtariObsRawFilterConfig {
     }
 }
 
-/// A filter without any processing.
+/// A filter that performs no processing.
 pub struct BorderAtariObsRawFilter<O> {
     phantom: PhantomData<O>,
 }

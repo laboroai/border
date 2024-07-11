@@ -1,4 +1,4 @@
-//! DQN agent implemented with tch-rs.
+//! DQN agent implemented with candle.
 use super::{config::DqnConfig, explorer::DqnExplorer, model::DqnModel};
 use crate::{
     model::SubModel1,
@@ -17,7 +17,7 @@ use std::convert::TryFrom;
 use std::{fs, marker::PhantomData, path::Path};
 
 #[allow(clippy::upper_case_acronyms, dead_code)]
-/// DQN agent implemented with tch-rs.
+/// DQN agent implemented with candle.
 pub struct Dqn<E, Q, R>
 where
     Q: SubModel1<Output = Tensor>,
@@ -330,6 +330,10 @@ where
         record
     }
 
+    /// Save model parameters in the given directory.
+    /// 
+    /// The parameters of the model are saved as `qnet.pt`.
+    /// The parameters of the target model are saved as `qnet_tgt.pt`.
     fn save_params<T: AsRef<Path>>(&self, path: T) -> Result<()> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;

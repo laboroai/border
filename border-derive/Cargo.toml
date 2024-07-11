@@ -25,16 +25,10 @@ border-tch-agent = { version = "0.0.7", path = "../border-tch-agent" }
 border-candle-agent = { version = "0.0.7", path = "../border-candle-agent" }
 border-py-gym-env = { version = "0.0.7", path = "../border-py-gym-env" }
 border-core = { version = "0.0.7", path = "../border-core" }
+border-atari-env = { version = "0.0.7", path = "../border-atari-env" }
 ndarray = { workspace = true }
 tch = { workspace = true }
 candle-core = { workspace = true }
-
-# [features]
-# default = ["tch"]
-
-[[example]]
-name = "test1"
-required-features = ["tch"]
 
 [package.metadata.docs.rs]
 features = ["doc-only"]

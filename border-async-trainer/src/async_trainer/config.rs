@@ -6,7 +6,7 @@ use std::{
     path::Path,
 };
 
-/// Configuration of [AsyncTrainer](crate::AsyncTrainer)
+/// Configuration of [`AsyncTrainer`](crate::AsyncTrainer).
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AsyncTrainerConfig {
     /// The maximum number of optimization steps.
@@ -54,5 +54,21 @@ impl AsyncTrainerConfig {
     pub fn model_dir<T: Into<String>>(mut self, model_dir: T) -> Result<Self> {
         self.model_dir = Some(model_dir.into());
         Ok(self)
+    }
+}
+
+impl Default for AsyncTrainerConfig {
+    /// There is no special intention behind these initial values.
+    fn default() -> Self {
+        Self {
+            max_opts: 10, //000,
+            model_dir: None,
+            eval_interval: 5000,
+            flush_record_interval: 5000,
+            record_compute_cost_interval: 5000,
+            save_interval: 50000,
+            sync_interval: 100,
+            warmup_period: 10000,
+        }
     }
 }

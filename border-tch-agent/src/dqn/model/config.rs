@@ -8,7 +8,7 @@ use std::{
 };
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
-/// Configuration of [DqnModel](super::DqnModel).
+/// Configuration of [`DqnModel`](super::DqnModel).
 pub struct DqnModelConfig<Q>
 where
     // Q: SubModel<Output = Tensor>,

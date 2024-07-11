@@ -33,25 +33,26 @@ use std::{
 ///   end
 /// ```
 ///
-/// * In [`ActorManager`] (right), [`Actor`]s sample transitions, which have type
-///   [`ReplayBufferBase::Item`], in parallel and push the transitions into
-///   [`ReplayBufferProxy`]. It should be noted that [`ReplayBufferProxy`] has a
-///   type parameter of [`ReplayBufferBase`] and the proxy accepts
-///   [`ReplayBufferBase::Item`].
-/// * The proxy sends the transitions into the replay buffer, implementing
-///   [`ReplayBufferBase`], in the [`AsyncTrainer`].
-/// * The [`Agent`] in [`AsyncTrainer`] trains its model parameters by using batches
+/// * The [`Agent`] in [`AsyncTrainer`] (left) is trained with batches
 ///   of type [`ReplayBufferBase::Batch`], which are taken from the replay buffer.
 /// * The model parameters of the [`Agent`] in [`AsyncTrainer`] are wrapped in
 ///   [`SyncModel::ModelInfo`] and periodically sent to the [`Agent`]s in [`Actor`]s.
-///   [`Agent`] must implement [`SyncModel`] to synchronize its model.
+///   [`Agent`] must implement [`SyncModel`] to synchronize the model parameters.
+/// * In [`ActorManager`] (right), [`Actor`]s sample transitions, which have type
+///   [`ReplayBufferBase::Item`], and push the transitions into
+///   [`ReplayBufferProxy`].
+/// * [`ReplayBufferProxy`] has a type parameter of [`ReplayBufferBase`] and the proxy accepts
+///   [`ReplayBufferBase::Item`].
+/// * The proxy sends the transitions into the replay buffer in the [`AsyncTrainer`].
 ///
 /// [`ActorManager`]: crate::ActorManager
 /// [`Actor`]: crate::Actor
 /// [`ReplayBufferBase::Item`]: border_core::ReplayBufferBase::PushedItem
+/// [`ReplayBufferBase::Batch`]: border_core::ReplayBufferBase::PushedBatch
 /// [`ReplayBufferProxy`]: crate::ReplayBufferProxy
 /// [`ReplayBufferBase`]: border_core::ReplayBufferBase
 /// [`SyncModel::ModelInfo`]: crate::SyncModel::ModelInfo
+/// [`Agent`]: border_core::Agent
 pub struct AsyncTrainer<A, E, R>
 where
     A: Agent<E, R> + Configurable<E> + SyncModel,
@@ -266,10 +267,7 @@ where
         };
         let mut agent = A::build(self.agent_config.clone());
         let mut buffer = R::build(&self.replay_buffer_config);
-        // let buffer = Arc::new(Mutex::new(R::build(&self.replay_buffer_config)));
         agent.train();
-
-        // self.run_replay_buffer_thread(buffer.clone());
 
         let mut max_eval_reward = f32::MIN;
         let mut opt_steps = 0;
@@ -294,7 +292,6 @@ where
 
             // Add stats wrt computation cost
             if opt_steps % self.record_compute_cost_interval == 0 {
-                // record.insert("fps", Scalar(sampler.fps()));
                 record.insert("opt_steps_per_sec", Scalar(self.opt_steps_per_sec()));
             }
 

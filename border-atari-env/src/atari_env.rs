@@ -1,3 +1,4 @@
+//! Atari environment for reinforcement learning.
 pub mod ale;
 use std::path::Path;
 
