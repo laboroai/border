@@ -11,11 +11,11 @@
 //! [`Env`] trait is an abstraction of environments. It has four associated types:
 //! `Config`, `Obs`, `Act` and `Info`. `Obs` and `Act` are concrete types of
 //! observation and action of the environment.
-//! These must implement [`Obs`] and [`Act`] traits, respectively.
+//! These types must implement [`Obs`] and [`Act`] traits, respectively.
 //! The environment that implements [`Env`] generates [`Step<E: Env>`] object
 //! at every environment interaction step with [`Env::step()`] method.
 //!
-//! `Info` stores some information at every step of interactions of an agent and
+//! [`Info`] stores some information at every step of interactions of an agent and
 //! the environment. It could be empty (zero-sized struct). `Config` represents
 //! configurations of the environment and is used to build.
 //!
@@ -32,18 +32,18 @@
 //! the agent's policy might be probabilistic for exploration, while in evaluation mode,
 //! the policy might be deterministic.
 //!
-//! [`Agent::opt()`] method does a single optimization step. The definition of an
-//! optimization step depends on each agent. It might be multiple stochastic gradient
+//! The [`Agent::opt()`] method performs a single optimization step. The definition of an
+//! optimization step varies for each agent. It might be multiple stochastic gradient
 //! steps in an optimization step. Samples for training are taken from
 //! [`R: ReplayBufferBase`][`ReplayBufferBase`].
 //!
-//! This trait also has methods for saving/loading the trained policy
-//! in the given directory.
+//! This trait also has methods for saving/loading parameters of the trained policy
+//! in a directory.
 //!
 //! # Batch
 //!
 //! [`TransitionBatch`] is a trait of a batch of transitions `(o_t, r_t, a_t, o_t+1)`.
-//! This is used to train [`Agent`]s with an RL algorithm.
+//! This trait is used to train [`Agent`]s using an RL algorithm.
 //!
 //! # Replay buffer
 //!
