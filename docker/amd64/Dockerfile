@@ -73,7 +73,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 RUN cd /root && python3 -m venv venv
 RUN source /root/venv/bin/activate && pip3 install --upgrade pip
 RUN source /root/venv/bin/activate && pip3 install pyyaml typing-extensions
-RUN source /root/venv/bin/activate && pip3 install torch==1.13.1
+RUN source /root/venv/bin/activate && pip3 install torch==2.3.0 --index-url https://download.pytorch.org/whl/cpu --timeout 300
 RUN source /root/venv/bin/activate && pip3 install ipython jupyterlab
 RUN source /root/venv/bin/activate && pip3 install numpy==1.21.3
 RUN source /root/venv/bin/activate && pip3 install mujoco==2.3.7
@@ -95,12 +95,6 @@ RUN cd $HOME && mkdir -p .border/model
 # # PyBulletGym
 # RUN source /home/ubuntu/venv/bin/activate && pip3 install pybullet==3.2.5
 # RUN source /home/ubuntu/venv/bin/activate && pip3 install pybullet==2.7.1
-# RUN source /home/ubuntu/venv/bin/activate && \
-#     cd $HOME && \
-#     git clone https://github.com/bulletphysics/bullet3.git && \
-#     cd bullet3 && \
-#     git checkout -b tmp 2c204c49e56ed15ec5fcfa71d199ab6d6570b3f5 && \
-#     ./build_cmake_pybullet_double.sh
 # RUN cd $HOME && \
 #     git clone https://github.com/benelot/pybullet-gym.git && \
 #     cd pybullet-gym && \
@@ -121,7 +115,7 @@ RUN echo 'export CARGO_TARGET_DIR=$HOME/target' >> ~/.bashrc
 RUN echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.mujoco/mujoco210/bin' >> ~/.bashrc
 RUN echo 'export MUJOCO_GL=glfw' >> ~/.bashrc
 RUN echo 'source $HOME/venv/bin/activate' >> ~/.bashrc
-RUN echo 'export RUSTFLAGS="-C target-feature=+fp16"' >> ~/.bashrc
+# RUN echo 'export RUSTFLAGS="-C target-feature=+fp16"' >> ~/.bashrc
 
 RUN rm /bin/sh && mv /bin/sh_tmp /bin/sh
 
