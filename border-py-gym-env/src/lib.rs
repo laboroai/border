@@ -30,8 +30,6 @@
 //! Examples with `border-tch-agents`, which are collections of RL agents implemented with tch-rs,
 //! are in [here](https://github.com/taku-y/border/blob/main/border/examples).
 mod act;
-mod act_c;
-mod act_d;
 mod atari;
 mod base;
 mod config;
@@ -41,14 +39,10 @@ mod vec;
 pub use act::{
     ContinuousActFilter, ContinuousActFilterConfig, DiscreteActFilter, DiscreteActFilterConfig,
 };
-pub use act_c::{to_pyobj, GymContinuousAct};
-pub use act_d::GymDiscreteAct;
 pub use atari::AtariWrapper;
 pub use base::{GymActFilter, GymEnv, GymInfo, GymObsFilter};
 pub use config::GymEnvConfig;
 #[allow(deprecated)]
 pub use obs::{
     ArrayDictObsFilter, ArrayDictObsFilterConfig, ArrayObsFilter, ArrayObsFilterConfig,
-    FrameStackFilter, FrameStackFilterConfig, GymObs,
 };
-// pub use vec::{PyVecGymEnv, PyVecGymEnvConfig};
