@@ -1,4 +1,4 @@
-use border_edge_policy::Mat;
+use border_policy_no_backend::Mat;
 use tch::Tensor;
 
 #[test]

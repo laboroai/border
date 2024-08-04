@@ -1,6 +1,6 @@
 use anyhow::Result;
 use border_core::{Agent, Configurable};
-use border_edge_policy::Mlp;
+use border_policy_no_backend::Mlp;
 use border_tch_agent::{
     mlp,
     model::ModelBase,

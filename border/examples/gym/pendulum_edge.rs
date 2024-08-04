@@ -1,6 +1,6 @@
 use anyhow::Result;
 use border_core::{DefaultEvaluator, Evaluator as _};
-use border_edge_policy::{Mat, Mlp};
+use border_policy_no_backend::{Mat, Mlp};
 use border_py_gym_env::{
     ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
