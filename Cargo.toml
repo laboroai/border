@@ -9,7 +9,7 @@ members = [
     "border-derive",
     "border-atari-env",
     "border-async-trainer",
-    "border-edge-policy",
+    "border-policy-no-backend",
     "border",
 ]
 exclude = ["docker/"]

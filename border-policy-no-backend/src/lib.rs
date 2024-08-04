@@ -1,3 +1,4 @@
+//! Policy with no backend.
 mod mat;
 mod mlp;
 
