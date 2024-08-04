@@ -22,6 +22,8 @@ pub struct GymInfo {}
 impl Info for GymInfo {}
 
 /// Convert [`PyObject`] to [`GymEnv`]::Obs with a preprocessing.
+/// 
+/// [`PyObject`]: https://docs.rs/pyo3/0.14.5/pyo3/type.PyObject.html
 pub trait GymObsFilter<O: Obs> {
     /// Configuration.
     type Config: Clone + Default + Serialize + DeserializeOwned;
@@ -50,7 +52,7 @@ pub trait GymObsFilter<O: Obs> {
 
 /// Convert [`GymEnv`]::Act to [`PyObject`] with a preprocessing.
 ///
-/// This trait should support vectorized environments.
+/// [`PyObject`]: https://docs.rs/pyo3/0.14.5/pyo3/type.PyObject.html
 pub trait GymActFilter<A: Act> {
     /// Configuration.
     type Config: Clone + Default + Serialize + DeserializeOwned;
@@ -79,7 +81,7 @@ pub trait GymActFilter<A: Act> {
     }
 }
 
-/// An environment in [OpenAI gym](https://github.com/openai/gym).
+/// An wrapper of [Gymnasium](https://gymnasium.farama.org).
 #[derive(Debug)]
 pub struct GymEnv<O, A, OF, AF>
 where

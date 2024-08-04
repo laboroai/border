@@ -1,3 +1,4 @@
+//! Utility functions mainly for data conversion between Python and Rust.
 use ndarray::{concatenate, ArrayD, Axis};
 use num_traits::cast::AsPrimitive;
 use numpy::{Element, PyArrayDyn};

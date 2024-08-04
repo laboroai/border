@@ -22,7 +22,7 @@ impl Default for ContinuousActFilterConfig {
 
 /// Raw filter for continuous actions.
 ///
-/// Type `A` must implements `Into<ArrayD<f32>>`
+/// Type `A` must implements `Into<ArrayD<f32>>`.
 #[derive(Clone, Debug)]
 pub struct ContinuousActFilter<A> {
     // `true` indicates that this filter is used in a vectorized environment.
