@@ -106,3 +106,4 @@ jobs:
             cd border-candle-agent; cargo test; cd ..
             cd border-tch-agent; cargo test; cd ..
             cd border-policy-no-backend; cargo test --features=border-tch-agent; cd ..
+            cd border-py-gym-env; cargo test; cd ..
