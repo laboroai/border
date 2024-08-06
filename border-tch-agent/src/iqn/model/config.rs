@@ -25,7 +25,7 @@ where
 }
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
-/// Configuration of [IqnModel](super::IqnModel).
+/// Configuration of [`IqnModel`](super::IqnModel).
 ///
 /// The type parameter `F` represents a configuration struct of a feature extractor.
 /// The type parameter `M` represents a configuration struct of a model for merging

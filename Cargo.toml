@@ -9,6 +9,7 @@ members = [
     "border-derive",
     "border-atari-env",
     "border-async-trainer",
+    "border-policy-no-backend",
     "border",
 ]
 exclude = ["docker/"]
@@ -49,9 +50,10 @@ segment-tree = "2.0.0"
 image = "0.23.14"
 candle-core = { version = "=0.4.1", feature = ["cuda", "cudnn"] }
 candle-nn = "0.4.1"
-rand = "0.8.5"
+rand = { version = "0.8.5", features = ["small_rng"] }
 itertools = "0.12.1"
 ordered-float = "4.2.0"
 reqwest = { version = "0.11.26", features = ["json", "blocking"] }
 xxhash-rust = { version = "0.8.10", features = ["xxh3"] }
 candle-optimisers = "0.4.0"
+bincode = "1.3.3"

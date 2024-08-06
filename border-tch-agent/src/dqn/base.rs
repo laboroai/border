@@ -341,6 +341,10 @@ where
         record
     }
 
+    /// Save model parameters in the given directory.
+    /// 
+    /// The parameters of the model are saved as `qnet.pt`.
+    /// The parameters of the target model are saved as `qnet_tgt.pt`.
     fn save_params<T: AsRef<Path>>(&self, path: T) -> Result<()> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;

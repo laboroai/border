@@ -5,12 +5,11 @@ use syn::{parse_macro_input, DeriveInput};
 
 pub fn derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input);
-    // let opts = Opts::from_derive_input(&input).expect("Wrong options");
     let DeriveInput { ident, data, .. } = input;
     let field_type = get_field_type(data);
     let field_type_str = get_type_str(
         field_type.clone(),
-        "The item for deriving Obs must be a new type like MyObs(PyGymEnvObs)",
+        "The item for deriving Obs must be a new type like MyObs(BorderAtariObs)",
     );
 
     // let output = if field_type_str == "PyGymEnvObs" {

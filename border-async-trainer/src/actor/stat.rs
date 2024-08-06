@@ -1,12 +1,12 @@
 use std::time::Duration;
 
-/// Stats of sampling process in each [`Actor`](crate::Actor).
+/// Stats of sampling process in an [`Actor`](crate::Actor).
 #[derive(Clone, Debug)]
 pub struct ActorStat {
     /// The number of steps for interaction between agent and env.
     pub env_steps: usize,
 
-    /// Duration of sampling loop in [`Actor`](crate::Actor).
+    /// Duration of sampling loop in the [`Actor`](crate::Actor).
     pub duration: Duration,
 }
 

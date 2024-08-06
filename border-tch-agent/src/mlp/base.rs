@@ -2,7 +2,7 @@ use super::{mlp, MlpConfig};
 use crate::model::{SubModel, SubModel2};
 use tch::{nn, nn::Module, Device, Tensor};
 
-/// Multilayer perceptron.
+/// Multilayer perceptron with ReLU activation function.
 pub struct Mlp {
     config: MlpConfig,
     device: Device,

@@ -7,7 +7,7 @@ use candle_nn::VarBuilder;
 
 /// Neural network model not owing its [`VarMap`] internally.
 ///
-/// [`VarMap`]: candle_nn::VarMap
+/// [`VarMap`]: https://docs.rs/candle-nn/0.4.1/candle_nn/var_map/struct.VarMap.html
 pub trait SubModel1 {
     /// Configuration from which [`SubModel1`] is constructed.
     type Config;
@@ -19,6 +19,8 @@ pub trait SubModel1 {
     type Output;
 
     /// Builds [`SubModel1`] with [`VarBuilder`] and [`SubModel1::Config`].
+    /// 
+    /// [`VarBuilder`]: https://docs.rs/candle-nn/0.4.1/candle_nn/var_builder/type.VarBuilder.html
     fn build(vb: VarBuilder, config: Self::Config) -> Self;
 
     /// A generalized forward function.
@@ -29,7 +31,7 @@ pub trait SubModel1 {
 ///
 /// The difference from [`SubModel1`] is that this trait takes two inputs.
 ///
-/// [`VarMap`]: candle_nn::VarMap
+/// [`VarMap`]: https://docs.rs/candle-nn/0.4.1/candle_nn/var_map/struct.VarMap.html
 pub trait SubModel2 {
     /// Configuration from which [`SubModel2`] is constructed.
     type Config;

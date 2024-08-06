@@ -21,9 +21,11 @@ pub enum CriticLoss {
     SmoothL1,
 }
 
-/// Apply soft update on a model.
+/// Apply soft update on variables.
 ///
 /// Variables are identified by their names.
+/// 
+/// dest = tau * src + (1.0 - tau) * dest
 pub fn track<M: ModelBase>(dest: &mut M, src: &mut M, tau: f64) {
     let src = &mut src.get_var_store().variables();
     let dest = &mut dest.get_var_store().variables();
@@ -47,15 +49,16 @@ pub fn concat_slices(s1: &[i64], s2: &[i64]) -> Vec<i64> {
     v
 }
 
-/// Returns the dimension of output vectors, i.e., the number of discrete outputs.
+/// Interface for handling output dimensions.
 pub trait OutDim {
-    /// Returns the dimension of output vectors, i.e., the number of discrete outputs.
+    /// Returns the output dimension.
     fn get_out_dim(&self) -> i64;
 
     /// Sets the  output dimension.
     fn set_out_dim(&mut self, v: i64);
 }
 
+/// Returns the mean and standard deviation of the parameters.
 pub fn param_stats(var_store: &VarStore) -> Record {
     let mut record = Record::empty();
 

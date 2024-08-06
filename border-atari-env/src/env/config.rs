@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::{default::Default, env};
 
 #[derive(Serialize, Deserialize, Debug)]
-/// Configurations of [`BorderAtariEnv`](super::BorderAtariEnv).
+/// Configuration of [`BorderAtariEnv`](super::BorderAtariEnv).
 pub struct BorderAtariEnvConfig<O, A, OF, AF>
 where
     O: Obs,

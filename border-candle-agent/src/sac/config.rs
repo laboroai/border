@@ -18,7 +18,7 @@ use std::{
     path::Path,
 };
 
-/// Constructs [`Sac`](super::Sac).
+/// Configuration of [`Sac`](super::Sac).
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct SacConfig<Q, P>

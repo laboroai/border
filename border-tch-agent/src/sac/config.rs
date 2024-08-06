@@ -18,8 +18,7 @@ use std::{
 };
 use tch::Tensor;
 
-/// Constructs [Sac](super::Sac).
-#[allow(clippy::upper_case_acronyms)]
+/// Configuration of [`Sac`](super::Sac).
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct SacConfig<Q, P>
 where

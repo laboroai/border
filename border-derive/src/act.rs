@@ -56,7 +56,8 @@ fn py_gym_env_cont_act(
                     .iter()
                     .map(|x| *x as usize)
                     .collect::<Vec<_>>();
-                let act: Vec<f32> = t.into();
+                use std::convert::TryInto;
+                let act: Vec<f32> = t.try_into().unwrap();
 
                 let act = ndarray::Array1::<f32>::from(act).into_shape(ndarray::IxDyn(&shape)).unwrap();
 
@@ -121,7 +122,8 @@ fn py_gym_env_disc_act(
 
             impl From<tch::Tensor> for #ident {
                 fn from(t: tch::Tensor) -> Self {
-                    let data: Vec<i64> = t.into();
+                    use std::convert::TryInto;
+                    let data: Vec<i64> = t.try_into().unwrap();
                     let data: Vec<_> = data.iter().map(|e| *e as i32).collect();
                     #ident(GymDiscreteAct::new(data))
                 }

@@ -109,6 +109,23 @@ path = "examples/mujoco/sac_mujoco_tch.rs"
 required-features = ["tch"]
 test = false
 
+[[example]]
+name = "convert_sac_policy_to_edge"
+path = "examples/gym/convert_sac_policy_to_edge.rs"
+required-features = ["border-tch-agent", "tch"]
+test = false
+
+# [[example]]
+# name = "sac_ant_async"
+# path = "examples/mujoco/sac_ant_async.rs"
+# required-features = ["tch", "border-async-trainer"]
+# test = false
+
+[[example]]
+name = "pendulum_edge"
+path = "examples/gym/pendulum_edge.rs"
+test = false
+
 # [[example]]
 # name = "sac_ant_async"
 # path = "examples/mujoco/sac_ant_async.rs"
@@ -133,6 +150,7 @@ border-derive = { version = "0.0.7", path = "../border-derive" }
 border-core = { version = "0.0.7", path = "../border-core" }
 border-tensorboard = { version = "0.0.7", path = "../border-tensorboard" }
 border-tch-agent = { version = "0.0.7", path = "../border-tch-agent" }
+border-policy-no-backend = { version = "0.0.7", path = "../border-policy-no-backend" }
 border-py-gym-env = { version = "0.0.7", path = "../border-py-gym-env" }
 border-atari-env = { version = "0.0.7", path = "../border-atari-env" }
 border-candle-agent = { version = "0.0.7", path = "../border-candle-agent" }
@@ -149,6 +167,7 @@ chrono = { workspace = true }
 tensorboard-rs = { workspace = true }
 thiserror = { workspace = true }
 serde_yaml = { workspace = true }
+bincode = { workspace = true }
 
 [package.metadata.docs.rs]
 features = ["doc-only"]
@@ -157,3 +176,4 @@ features = ["doc-only"]
 doc-only = ["tch/doc-only"]
 cuda = ["candle-core/cuda"]
 cudnn = ["candle-core/cudnn"]
+border-tch-agent = []
