@@ -1,6 +1,7 @@
 use crate::{system_time_as_millis, Run};
 use anyhow::Result;
 use border_core::record::{AggregateRecorder, RecordStorage, RecordValue, Recorder};
+use chrono::{DateTime, Local, SecondsFormat, Duration};
 use reqwest::blocking::Client;
 use serde::Serialize;
 use serde_json::Value;
@@ -63,12 +64,19 @@ pub struct MlflowTrackingRecorder {
     user_name: String,
     storage: RecordStorage,
     password: String,
+    start_time: DateTime<Local>,
 }
 
 impl MlflowTrackingRecorder {
+    /// Create a new instance of `MlflowTrackingRecorder`.
+    ///
+    /// This method adds a tag "host_start_time" with the current time.
+    /// This tag is useful when using mlflow-export-import: it losts the original time.
+    /// See https://github.com/mlflow/mlflow-export-import/issues/72
     pub fn new(base_url: &String, experiment_id: &String, run: &Run) -> Result<Self> {
         let client = Client::new();
-        Ok(Self {
+        let start_time = Local::now();
+        let recorder = Self {
             client,
             base_url: base_url.clone(),
             experiment_id: experiment_id.to_string(),
@@ -77,7 +85,16 @@ impl MlflowTrackingRecorder {
             user_name: "".to_string(),
             password: "".to_string(),
             storage: RecordStorage::new(),
-        })
+            start_time: start_time.clone(),
+        };
+
+        // Record current time as tag "host_start_time"
+        recorder.set_tag(
+            "host_start_time",
+            start_time.to_rfc3339_opts(SecondsFormat::Secs, true),
+        )?;
+
+        Ok(recorder)
     }
 
     pub fn log_params(&self, params: impl Serialize) -> Result<()> {
@@ -162,13 +179,24 @@ impl Recorder for MlflowTrackingRecorder {
 }
 
 impl Drop for MlflowTrackingRecorder {
+    /// Update run's status to "FINISHED" when dropped.
+    ///
+    /// It also adds tags "host_end_time" and "host_duration" with the current time and duration.
     fn drop(&mut self) {
-        let end_time = system_time_as_millis() as i64;
+        let end_time = Local::now();
+        let duration = end_time.signed_duration_since(self.start_time);
+        self.set_tag(
+            "host_end_time",
+            end_time.to_rfc3339_opts(SecondsFormat::Secs, true),
+        )
+        .unwrap();
+        self.set_tag("host_duration", format_duration(&duration)).unwrap();
+
         let url = format!("{}/api/2.0/mlflow/runs/update", self.base_url);
         let params = UpdateRunParams {
             run_id: &self.run_id,
             status: "FINISHED".to_string(),
-            end_time,
+            end_time: end_time.timestamp_millis(),
             run_name: &self.run_name,
         };
         let _resp = self
@@ -192,4 +220,13 @@ impl AggregateRecorder for MlflowTrackingRecorder {
     fn store(&mut self, record: border_core::record::Record) {
         self.storage.store(record);
     }
+}
+
+fn format_duration(dt: &Duration) -> String {
+    let mut seconds = dt.num_seconds();
+    let mut minutes = seconds / 60;
+    seconds %= 60;
+    let hours = minutes / 60;
+    minutes %= 60;
+    format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
 }
