@@ -22,6 +22,7 @@ pub trait ModelBase {
 }
 
 /// Neural networks with a single input and a single output.
+#[allow(dead_code)]
 pub trait Model1: ModelBase {
     /// The input of the neural network.
     type Input;
@@ -39,6 +40,7 @@ pub trait Model1: ModelBase {
 }
 
 /// Neural networks with double inputs and a single output.
+#[allow(dead_code)]
 pub trait Model2: ModelBase {
     /// An input of the neural network.
     type Input1;
