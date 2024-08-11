@@ -7,7 +7,7 @@ mlflow server --host 127.0.0.1 --port 8080
 ```
 
 Then, training configurations and metrices can be logged to the tracking server.
-The following code is an example. Nested configuration parameters will be flattened,
+The following code provides an example. Nested configuration parameters will be flattened,
 logged like `hyper_params.param1`, `hyper_params.param2`.
 
 ```rust

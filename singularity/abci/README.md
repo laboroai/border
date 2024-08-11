@@ -27,24 +27,22 @@ qsub -g [group_id] dqn_cartpole.sh
 
 ## Open MLflow in an interactive note
 
-### Portforward
+### Login to the interactive node
 
 ```bash
-ssh -i identity_file -L 10022:es:22 -l user_name as.abci.ai
+# Login to the access server
+ssh -i $ABCI_IDENTITY_FILE -L 10022:es:22 -l $ABCI_USER_NAME as.abci.ai
 ```
 
 ```bash
-ssh -N -L 8080:host_name:8080 -l user_name -i identity_file -p 10022 localhost
+# Login to the interactive node
+ssh -i $ABCI_IDENTITY_FILE -p 10022 -l $ABCI_USER_NAME localhost
 ```
 
-### Login interactive node
+### Login to the compute node
 
 ```bash
-ssh -i identity_file -p 10022 -l user_name localhost
-```
-
-```bash
-qrsh -g group_name -l rt_F=1
+qrsh -g $ABCI_GROUP_NAME -l rt_F=1
 ```
 
 ### Run MLflow server
@@ -52,7 +50,14 @@ qrsh -g group_name -l rt_F=1
 ```bash
 module load python/3.10
 source venv/bin/activate
+cd border
 mlflow server --host 0.0.0.0 --port 8080
+```
+
+### Portforward
+
+```bash
+ssh -N -L 8080:host_name:8080 -l $ABCI_USER_NAME -i $ABCI_IDENTITY_FILE -p 10022 localhost
 ```
 
 Access `localhost:8080` in your browser to show MLflow UI.
