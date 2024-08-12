@@ -221,7 +221,6 @@ mod utils {
 #[command(version, about)]
 struct Args {
     /// Name of the game
-    #[arg(long)]
     name: String,
 
     /// Train DQN agent, not evaluate
