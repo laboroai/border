@@ -2,7 +2,19 @@
 
 This directory contains scripts to build and run a singularity container for training on [ABCI](https://abci.ai/).
 
-## Run training
+## Preparation
+
+### Login to the interactive node
+
+```bash
+# Login to the access server
+ssh -i $ABCI_IDENTITY_FILE -L 10022:es:22 -l $ABCI_USER_NAME as.abci.ai
+```
+
+```bash
+# Login to the interactive node
+ssh -i $ABCI_IDENTITY_FILE -p 10022 -l $ABCI_USER_NAME localhost
+```
 
 ### Build singularity container image
 
@@ -18,7 +30,29 @@ cd border/singularity/abci
 sh build.sh
 ```
 
-### Run
+### Install MLflow (optional)
+
+```bash
+cd $HOME
+load module python/3.10
+python3 -m venv venv
+source venv/bin/activate
+pip3 install mlflow
+```
+
+### Install AutoROM (optional)
+
+```bash
+cd $HOME
+source venv/bin/activate
+pip3 install autorom
+mkdir atari_rom
+AutoROM --install-dir atari_rom
+```
+
+## Run training
+
+### Submit training job
 
 ```bash
 cd dqn_cartpole
@@ -26,18 +60,6 @@ qsub -g [group_id] dqn_cartpole.sh
 ```
 
 ## Open MLflow in an interactive note
-
-### Login to the interactive node
-
-```bash
-# Login to the access server
-ssh -i $ABCI_IDENTITY_FILE -L 10022:es:22 -l $ABCI_USER_NAME as.abci.ai
-```
-
-```bash
-# Login to the interactive node
-ssh -i $ABCI_IDENTITY_FILE -p 10022 -l $ABCI_USER_NAME localhost
-```
 
 ### Login to the compute node
 
