@@ -2,18 +2,12 @@
 
 This directory contains scripts to build and run a docker container for training.
 
-## Build
-
-The following command creates a container image locally, named `border_headless`.
+## Build a Docker image
 
 ```bash
 cd $REPO/docker/aarch64_headless
 sh build.sh
 ```
-
-# Build document
-
-The following commands builds the document and places it as `$REPO/doc`.
 
 ## Run
 

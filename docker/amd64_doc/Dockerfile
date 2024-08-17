@@ -57,7 +57,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 RUN cd /root && python3 -m venv venv
 RUN source /root/venv/bin/activate && pip3 install --upgrade pip
 RUN source /root/venv/bin/activate && pip3 install pyyaml typing-extensions
-RUN source /root/venv/bin/activate && pip3 install torch==2.3.0 --index-url https://download.pytorch.org/whl/test/cu118 --timeout 300
+RUN source /root/venv/bin/activate && pip3 install torch==2.3.0 --index-url https://download.pytorch.org/whl/cpu --timeout 300
 RUN source /root/venv/bin/activate && pip3 install ipython jupyterlab
 RUN source /root/venv/bin/activate && pip3 install numpy==1.21.3
 RUN source /root/venv/bin/activate && pip3 install mujoco==2.3.7
