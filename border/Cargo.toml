@@ -81,8 +81,8 @@ required-features = ["tch"]
 test = false
 
 [[example]]
-name = "dqn_atari_async"
-path = "examples/atari/dqn_atari_async.rs"
+name = "dqn_atari_async_tch"
+path = "examples/atari/dqn_atari_async_tch.rs"
 required-features = ["tch", "border-async-trainer"]
 test = false
 
