@@ -81,6 +81,15 @@
 //! In the training loop of this method, the agent interacts with the environment to
 //! take samples and perform optimization steps. Some metrices are recorded at the same time.
 //! 
+//! # Evaluator
+//! 
+//! [`Evaluator<E, P>`] is used to evaluate the policy's (`P`) performance in the environment (`E`).
+//! The object of this type is given to the [`Trainer`] object to evaluate the policy during training.
+//! [`DefaultEvaluator<E, P>`] is a default implementation of [`Evaluator<E, P>`].
+//! This evaluator runs the policy in the environment for a certain number of episodes.
+//! At the start of each episode, the environment is reset using [`Env::reset_with_index()`]
+//! to control specific conditions for evaluation.
+//! 
 //! [`SimpleReplayBuffer`]: replay_buffer::SimpleReplayBuffer
 //! [`SimpleReplayBuffer<O, A>`]: generic_replay_buffer::SimpleReplayBuffer
 //! [`BatchBase`]: generic_replay_buffer::BatchBase
