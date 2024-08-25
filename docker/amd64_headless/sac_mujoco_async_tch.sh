@@ -10,5 +10,5 @@ sh run_detach.sh "
     LD_LIBRARY_PATH=/root/venv/lib/python3.10/site-packages/torch/lib \
     PYTHONPATH=/home/ubuntu/border/border-py-gym-env/examples \
     cargo run --release --example sac_mujoco_async_tch --features=tch,border-async-trainer \
-    -- --env ${1} --mlflow --n-actors 6 > \
+    -- ${1} --mlflow --n-actors 6 > \
     $HOME/border/docker/amd64_headless/log_sac_mujoco_async_tch_${1}.txt 2>&1"
