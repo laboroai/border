@@ -221,6 +221,7 @@ mod utils {
                 recorder_run.set_tag("env", env_name)?;
                 recorder_run.set_tag("algo", "sac")?;
                 recorder_run.set_tag("backend", "tch")?;
+                recorder_run.set_tag("n_actors", args.n_actors.to_string())?;
                 Ok(Box::new(recorder_run))
             }
             false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
