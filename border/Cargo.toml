@@ -1,46 +1,65 @@
 [package]
 name = "border"
-version = "0.0.6"
-authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
-edition = "2018"
-rust-version = "1.68.2"
-
-description = "Reinforcement learning library"
-repository = "https://github.com/taku-y/border"
-keywords = ["rl"]
-categories = ["science"]
-license = "GPL-2.0-or-later"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+package.license = "GPL-2.0-or-later"
 readme = "README.md"
-autoexamples = false
 
 [dependencies]
 aquamarine = { workspace = true }
 tch = { workspace = true, optional = true }
-border-async-trainer = { version = "0.0.6", path = "../border-async-trainer", optional = true }
+candle-core = { workspace = true, optional = true }
+border-async-trainer = { version = "0.0.7", path = "../border-async-trainer", optional = true }
 anyhow = { workspace = true }
 log = { workspace = true }
 dirs = { workspace = true }
 zip = "0.5.12"
-reqwest = { version = "0.11.3", features = ["blocking"] }
-border-core = { version = "0.0.6", path = "../border-core" }
+reqwest = { workspace = true }
+border-core = { version = "0.0.7", path = "../border-core" }
 
 [[example]]
 name = "dqn_cartpole"
+path = "examples/gym/dqn_cartpole.rs"
+required-features = ["candle-core"]
+test = false
+
+[[example]]
+name = "dqn_cartpole_tch"
+path = "examples/gym/dqn_cartpole_tch.rs"
 required-features = ["tch"]
 test = true
 
 [[example]]
-name = "iqn_cartpole"
+name = "iqn_cartpole_tch"
+path = "examples/gym/iqn_cartpole_tch.rs"
+required-features = ["tch"]
+test = true
+
+[[example]]
+name = "sac_pendulum_tch"
+path = "examples/gym/sac_pendulum_tch.rs"
 required-features = ["tch"]
 test = true
 
 [[example]]
 name = "sac_pendulum"
-required-features = ["tch"]
+path = "examples/gym/sac_pendulum.rs"
+required-features = ["candle-core"]
 test = true
 
 [[example]]
 name = "sac_lunarlander_cont"
+path = "examples/gym/sac_lunarlander_cont.rs"
+required-features = ["candle-core"]
+test = false
+
+[[example]]
+name = "sac_lunarlander_cont_tch"
+path = "examples/gym/sac_lunarlander_cont_tch.rs"
 required-features = ["tch"]
 test = false
 
@@ -52,12 +71,18 @@ test = false
 [[example]]
 name = "dqn_atari"
 path = "examples/atari/dqn_atari.rs"
+required-features = ["candle-core"]
+test = false
+
+[[example]]
+name = "dqn_atari_tch"
+path = "examples/atari/dqn_atari_tch.rs"
 required-features = ["tch"]
 test = false
 
 [[example]]
-name = "dqn_atari_async"
-path = "examples/atari/dqn_atari_async.rs"
+name = "dqn_atari_async_tch"
+path = "examples/atari/dqn_atari_async_tch.rs"
 required-features = ["tch", "border-async-trainer"]
 test = false
 
@@ -67,41 +92,69 @@ path = "examples/gym-robotics/sac_fetch_reach.rs"
 required-features = ["tch"]
 test = false
 
+# [[example]]
+# name = "iqn_atari_rs"
+# required-features = ["tch"]
+# test = false
+
 [[example]]
-name = "iqn_atari_rs"
+name = "sac_mujoco"
+path = "examples/mujoco/sac_mujoco.rs"
+required-features = ["candle-core"]
+test = false
+
+[[example]]
+name = "sac_mujoco_tch"
+path = "examples/mujoco/sac_mujoco_tch.rs"
 required-features = ["tch"]
 test = false
 
 [[example]]
-name = "sac_ant"
-required-features = ["tch"]
+name = "convert_sac_policy_to_edge"
+path = "examples/gym/convert_sac_policy_to_edge.rs"
+required-features = ["border-tch-agent", "tch"]
 test = false
 
 [[example]]
-name = "sac_ant_async"
+name = "sac_mujoco_async_tch"
+path = "examples/mujoco/sac_mujoco_async_tch.rs"
 required-features = ["tch", "border-async-trainer"]
 test = false
 
 [[example]]
-name = "make_cfg_dqn_atari"
-required-features = ["border-async-trainer"]
+name = "pendulum_edge"
+path = "examples/gym/pendulum_edge.rs"
 test = false
 
-[[example]]
-name = "make_cfg_iqn_atari"
-required-features = ["border-async-trainer"]
-test = false
+# [[example]]
+# name = "sac_ant_async"
+# path = "examples/mujoco/sac_ant_async.rs"
+# required-features = ["tch", "border-async-trainer"]
+# test = false
+
+# [[example]]
+# name = "make_cfg_dqn_atari"
+# required-features = ["border-async-trainer"]
+# test = false
+
+# [[example]]
+# name = "make_cfg_iqn_atari"
+# required-features = ["border-async-trainer"]
+# test = false
 
 [dev-dependencies]
 clap = { workspace = true }
 csv = { workspace = true }
 tempdir = { workspace = true }
-border-derive = { version = "0.0.6", path = "../border-derive" }
-border-core = { version = "0.0.6", path = "../border-core" }
-border-tensorboard = { version = "0.0.6", path = "../border-tensorboard" }
-border-tch-agent = { version = "0.0.6", path = "../border-tch-agent" }
-border-py-gym-env = { version = "0.0.6", path = "../border-py-gym-env" }
-border-atari-env = { version = "0.0.6", path = "../border-atari-env" }
+border-derive = { version = "0.0.7", path = "../border-derive" }
+border-core = { version = "0.0.7", path = "../border-core" }
+border-tensorboard = { version = "0.0.7", path = "../border-tensorboard" }
+border-tch-agent = { version = "0.0.7", path = "../border-tch-agent" }
+border-policy-no-backend = { version = "0.0.7", path = "../border-policy-no-backend" }
+border-py-gym-env = { version = "0.0.7", path = "../border-py-gym-env" }
+border-atari-env = { version = "0.0.7", path = "../border-atari-env" }
+border-candle-agent = { version = "0.0.7", path = "../border-candle-agent" }
+border-mlflow-tracking = { version = "0.0.7", path = "../border-mlflow-tracking" }
 serde = { workspace = true, features = ["derive"] }
 crossbeam-channel = { workspace = true }
 env_logger = { workspace = true }
@@ -114,14 +167,13 @@ chrono = { workspace = true }
 tensorboard-rs = { workspace = true }
 thiserror = { workspace = true }
 serde_yaml = { workspace = true }
+bincode = { workspace = true }
 
 [package.metadata.docs.rs]
 features = ["doc-only"]
 
 [features]
-# default = [ "adam_eps" ]
 doc-only = ["tch/doc-only"]
-adam_eps = []
-
-#[target.'cfg(feature="adam_eps")'.patch.crates-io]
-#tch = { git = "https://github.com/taku-y/tch-rs", branch = "adam_eps" }
+cuda = ["candle-core/cuda"]
+cudnn = ["candle-core/cudnn"]
+border-tch-agent = []

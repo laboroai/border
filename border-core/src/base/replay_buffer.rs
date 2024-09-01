@@ -1,5 +1,4 @@
 //! Replay buffer.
-//use super::StdBatchBase;
 use anyhow::Result;
 
 /// Interface of buffers of experiences from environments.
@@ -8,10 +7,10 @@ use anyhow::Result;
 /// This trait is usually required by processes sampling experiences.
 pub trait ExperienceBufferBase {
     /// Items pushed into the buffer.
-    type PushedItem;
+    type Item;
 
     /// Pushes a transition into the buffer.
-    fn push(&mut self, tr: Self::PushedItem) -> Result<()>;
+    fn push(&mut self, tr: Self::Item) -> Result<()>;
 
     /// The number of samples in the buffer.
     fn len(&self) -> usize;
@@ -19,9 +18,9 @@ pub trait ExperienceBufferBase {
 
 /// Interface of replay buffers.
 ///
-/// Ones implementing this trait generates a [ReplayBufferBase::Batch],
+/// Ones implementing this trait generates a [`ReplayBufferBase::Batch`],
 /// which is used to train agents.
-pub trait ReplayBufferBase: ExperienceBufferBase {
+pub trait ReplayBufferBase {
     /// Configuration of the replay buffer.
     type Config: Clone;
 

@@ -6,11 +6,11 @@ use crate::{
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, Env, Policy, ReplayBufferBase, StdBatchBase,
+    Agent, Configurable, Env, Policy, ReplayBufferBase, TransitionBatch,
 };
 use serde::{de::DeserializeOwned, Serialize};
 // use log::info;
-use std::{fs, marker::PhantomData, path::Path};
+use std::{convert::TryFrom, fs, marker::PhantomData, path::Path};
 use tch::{no_grad, Tensor};
 
 type ActionValue = Tensor;
@@ -20,25 +20,16 @@ type ActStd = Tensor;
 fn normal_logp(x: &Tensor) -> Tensor {
     let tmp: Tensor = Tensor::from(-0.5 * (2.0 * std::f32::consts::PI).ln() as f32)
         - 0.5 * x.pow_tensor_scalar(2);
-    tmp.sum_dim_intlist(&[-1], false, tch::Kind::Float)
+    tmp.sum_dim_intlist(Some([-1].as_slice()), false, tch::Kind::Float)
 }
 
 /// Soft actor critic (SAC) agent.
-#[allow(clippy::upper_case_acronyms)]
 pub struct Sac<E, Q, P, R>
 where
-    E: Env,
     Q: SubModel2<Output = ActionValue>,
     P: SubModel<Output = (ActMean, ActStd)>,
-    R: ReplayBufferBase,
-    E::Obs: Into<Q::Input1> + Into<P::Input>,
-    E::Act: Into<Q::Input2>,
-    Q::Input2: From<ActMean>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
     P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
     pub(super) qnets: Vec<Critic<Q>>,
     pub(super) qnets_tgt: Vec<Critic<Q>>,
@@ -50,7 +41,6 @@ where
     pub(super) min_lstd: f64,
     pub(super) max_lstd: f64,
     pub(super) n_updates_per_opt: usize,
-    pub(super) min_transitions_warmup: usize,
     pub(super) batch_size: usize,
     pub(super) train: bool,
     pub(super) reward_scale: f32,
@@ -71,9 +61,9 @@ where
     Q::Input2: From<ActMean>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
     P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
+    R::Batch: TransitionBatch,
+    <R::Batch as TransitionBatch>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
+    <R::Batch as TransitionBatch>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
     fn action_logp(&self, o: &P::Input) -> (Tensor, Tensor) {
         let (mean, lstd) = self.pi.forward(o);
@@ -83,7 +73,7 @@ where
         let log_p = normal_logp(&z)
             - (Tensor::from(1f32) - a.pow_tensor_scalar(2.0) + Tensor::from(self.epsilon))
                 .log()
-                .sum_dim_intlist(&[-1], false, tch::Kind::Float);
+                .sum_dim_intlist(Some([-1].as_slice()), false, tch::Kind::Float);
 
         debug_assert_eq!(a.size().as_slice()[0], self.batch_size as i64);
         debug_assert_eq!(log_p.size().as_slice(), [self.batch_size as i64]);
@@ -111,9 +101,9 @@ where
 
     fn update_critic(&mut self, batch: R::Batch) -> f32 {
         let losses = {
-            let (obs, act, next_obs, reward, is_done, _, _) = batch.unpack();
-            let reward = Tensor::of_slice(&reward[..]).to(self.device);
-            let is_done = Tensor::of_slice(&is_done[..]).to(self.device);
+            let (obs, act, next_obs, reward, is_terminated, _is_truncated, _, _) = batch.unpack();
+            let reward = Tensor::from_slice(&reward[..]).to(self.device);
+            let is_terminated = Tensor::from_slice(&is_terminated[..]).to(self.device);
 
             let preds = self.qvals(&self.qnets, &obs.into(), &act.into());
             let tgt = {
@@ -122,13 +112,14 @@ where
                     let next_q = self.qvals_min(&self.qnets_tgt, &next_obs.into(), &next_a.into());
                     next_q - self.ent_coef.alpha() * next_log_p
                 });
-                self.reward_scale * reward + (1f32 - &is_done) * Tensor::from(self.gamma) * next_q
+                self.reward_scale * reward
+                    + (1f32 - &is_terminated) * Tensor::from(self.gamma) * next_q
             };
 
             debug_assert_eq!(tgt.size().as_slice(), [self.batch_size as i64]);
 
             let losses: Vec<_> = match self.critic_loss {
-                CriticLoss::MSE => preds
+                CriticLoss::Mse => preds
                     .iter()
                     .map(|pred| pred.mse_loss(&tgt, tch::Reduction::Mean))
                     .collect(),
@@ -144,7 +135,12 @@ where
             qnet.backward_step(&loss);
         }
 
-        losses.iter().map(f32::from).sum::<f32>() / (self.qnets.len() as f32)
+        losses
+            .iter()
+            .map(f32::try_from)
+            .map(|a| a.expect("Failed to convert Tensor to f32"))
+            .sum::<f32>()
+            / (self.qnets.len() as f32)
     }
 
     fn update_actor(&mut self, batch: &R::Batch) -> f32 {
@@ -153,16 +149,16 @@ where
             let (a, log_p) = self.action_logp(&o.into());
 
             // Update the entropy coefficient
-            self.ent_coef.update(&log_p);
+            self.ent_coef.update(&log_p.detach());
 
             let o = batch.obs().clone();
             let qval = self.qvals_min(&self.qnets, &o.into(), &a.into());
-            (self.ent_coef.alpha() * &log_p - &qval).mean(tch::Kind::Float)
+            (self.ent_coef.alpha().detach() * &log_p - &qval).mean(tch::Kind::Float)
         };
 
         self.pi.backward_step(&loss);
 
-        f32::from(loss)
+        f32::try_from(loss).expect("Failed to convert Tensor to f32")
     }
 
     fn soft_update(&mut self) {
@@ -195,6 +191,10 @@ where
             ),
         ])
     }
+
+    pub fn get_policy_net(&self) -> &Actor<P> {
+        &self.pi
+    }
 }
 
 impl<E, Q, P, R> Policy<E> for Sac<E, Q, P, R>
@@ -202,19 +202,37 @@ where
     E: Env,
     Q: SubModel2<Output = ActionValue>,
     P: SubModel<Output = (ActMean, ActStd)>,
-    R: ReplayBufferBase,
     E::Obs: Into<Q::Input1> + Into<P::Input>,
     E::Act: Into<Q::Input2> + From<Tensor>,
-    Q::Input2: From<ActMean>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
     P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
+{
+    fn sample(&mut self, obs: &E::Obs) -> E::Act {
+        let obs = obs.clone().into();
+        let (mean, lstd) = self.pi.forward(&obs);
+        let std = lstd.clip(self.min_lstd, self.max_lstd).exp();
+        let act = if self.train {
+            std * Tensor::randn(&mean.size(), tch::kind::FLOAT_CPU).to(self.device) + mean
+        } else {
+            mean
+        };
+        act.tanh().into()
+    }
+}
+
+impl<E, Q, P, R> Configurable<E> for Sac<E, Q, P, R>
+where
+    E: Env,
+    Q: SubModel2<Output = ActionValue>,
+    P: SubModel<Output = (ActMean, ActStd)>,
+    E::Obs: Into<Q::Input1> + Into<P::Input>,
+    E::Act: Into<Q::Input2> + From<Tensor>,
+    Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
+    P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
 {
     type Config = SacConfig<Q, P>;
 
-    /// Constructs [Sac] agent.
+    /// Constructs [`Sac`] agent.
     fn build(config: Self::Config) -> Self {
         let device = config
             .device
@@ -245,7 +263,6 @@ where
             min_lstd: config.min_lstd,
             max_lstd: config.max_lstd,
             n_updates_per_opt: config.n_updates_per_opt,
-            min_transitions_warmup: config.min_transitions_warmup,
             batch_size: config.batch_size,
             train: config.train,
             reward_scale: config.reward_scale,
@@ -254,18 +271,6 @@ where
             device,
             phantom: PhantomData,
         }
-    }
-
-    fn sample(&mut self, obs: &E::Obs) -> E::Act {
-        let obs = obs.clone().into();
-        let (mean, lstd) = self.pi.forward(&obs);
-        let std = lstd.clip(self.min_lstd, self.max_lstd).exp();
-        let act = if self.train {
-            std * Tensor::randn(&mean.size(), tch::kind::FLOAT_CPU).to(self.device) + mean
-        } else {
-            mean
-        };
-        act.tanh().into()
     }
 }
 
@@ -280,9 +285,9 @@ where
     Q::Input2: From<ActMean>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
     P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
+    R::Batch: TransitionBatch,
+    <R::Batch as TransitionBatch>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
+    <R::Batch as TransitionBatch>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
     fn train(&mut self) {
         self.train = true;
@@ -296,35 +301,41 @@ where
         self.train
     }
 
-    fn opt(&mut self, buffer: &mut R) -> Option<Record> {
-        if buffer.len() >= self.min_transitions_warmup {
-            Some(self.opt_(buffer))
-        } else {
-            None
-        }
+    fn opt_with_record(&mut self, buffer: &mut R) -> Record {
+        self.opt_(buffer)
     }
 
-    fn save<T: AsRef<Path>>(&self, path: T) -> Result<()> {
+    fn save_params<T: AsRef<Path>>(&self, path: T) -> Result<()> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
         for (i, (qnet, qnet_tgt)) in self.qnets.iter().zip(&self.qnets_tgt).enumerate() {
-            qnet.save(&path.as_ref().join(format!("qnet_{}.pt", i)).as_path())?;
-            qnet_tgt.save(&path.as_ref().join(format!("qnet_tgt_{}.pt", i)).as_path())?;
+            qnet.save(&path.as_ref().join(format!("qnet_{}.pt.tch", i)).as_path())?;
+            qnet_tgt.save(
+                &path
+                    .as_ref()
+                    .join(format!("qnet_tgt_{}.pt.tch", i))
+                    .as_path(),
+            )?;
         }
-        self.pi.save(&path.as_ref().join("pi.pt").as_path())?;
+        self.pi.save(&path.as_ref().join("pi.pt.tch").as_path())?;
         self.ent_coef
-            .save(&path.as_ref().join("ent_coef.pt").as_path())?;
+            .save(&path.as_ref().join("ent_coef.pt.tch").as_path())?;
         Ok(())
     }
 
-    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
+    fn load_params<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
         for (i, (qnet, qnet_tgt)) in self.qnets.iter_mut().zip(&mut self.qnets_tgt).enumerate() {
-            qnet.load(&path.as_ref().join(format!("qnet_{}.pt", i)).as_path())?;
-            qnet_tgt.load(&path.as_ref().join(format!("qnet_tgt_{}.pt", i)).as_path())?;
+            qnet.load(&path.as_ref().join(format!("qnet_{}.pt.tch", i)).as_path())?;
+            qnet_tgt.load(
+                &path
+                    .as_ref()
+                    .join(format!("qnet_tgt_{}.pt.tch", i))
+                    .as_path(),
+            )?;
         }
-        self.pi.load(&path.as_ref().join("pi.pt").as_path())?;
+        self.pi.load(&path.as_ref().join("pi.pt.tch").as_path())?;
         self.ent_coef
-            .load(&path.as_ref().join("ent_coef.pt").as_path())?;
+            .load(&path.as_ref().join("ent_coef.pt.tch").as_path())?;
         Ok(())
     }
 }
@@ -344,9 +355,9 @@ where
     Q::Input2: From<ActMean>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
     P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Q::Input2> + Into<Tensor>,
+    R::Batch: TransitionBatch,
+    <R::Batch as TransitionBatch>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
+    <R::Batch as TransitionBatch>::ActBatch: Into<Q::Input2> + Into<Tensor>,
 {
     type ModelInfo = NamedTensors;
 

@@ -1,3 +1,4 @@
+//! Utility functions mainly for data conversion between Python and Rust.
 use ndarray::{concatenate, ArrayD, Axis};
 use num_traits::cast::AsPrimitive;
 use numpy::{Element, PyArrayDyn};
@@ -34,56 +35,117 @@ pub fn arrayd_to_pyobj(act: ArrayD<f32>) -> PyObject {
 }
 
 #[cfg(feature = "tch")]
-use {std::convert::TryFrom, tch::Tensor};
+mod _tch {
+    use super::*;
+    use {std::convert::TryFrom, tch::Tensor};
 
-#[cfg(feature = "tch")]
-pub fn vec_to_tensor<T1, T2>(v: Vec<T1>, add_batch_dim: bool) -> Tensor
-where
-    T1: num_traits::AsPrimitive<T2>,
-    T2: Copy + 'static + tch::kind::Element,
-{
-    let v = v.iter().map(|e| e.as_()).collect::<Vec<_>>();
-    let t: Tensor = TryFrom::<Vec<T2>>::try_from(v).unwrap();
+    pub fn vec_to_tensor<T1, T2>(v: Vec<T1>, add_batch_dim: bool) -> Tensor
+    where
+        T1: num_traits::AsPrimitive<T2>,
+        T2: Copy + 'static + tch::kind::Element,
+    {
+        let v = v.iter().map(|e| e.as_()).collect::<Vec<_>>();
+        let t: Tensor = TryFrom::<Vec<T2>>::try_from(v).unwrap();
 
-    match add_batch_dim {
-        true => t.unsqueeze(0),
-        false => t,
+        match add_batch_dim {
+            true => t.unsqueeze(0),
+            false => t,
+        }
+    }
+
+    pub fn arrayd_to_tensor<T1, T2>(a: ArrayD<T1>, add_batch_dim: bool) -> Tensor
+    where
+        T1: num_traits::AsPrimitive<T2>,
+        T2: Copy + 'static + tch::kind::Element,
+    {
+        let v = a.iter().map(|e| e.as_()).collect::<Vec<_>>();
+        let t: Tensor = TryFrom::<Vec<T2>>::try_from(v).unwrap();
+
+        match add_batch_dim {
+            true => t.unsqueeze(0),
+            false => t,
+        }
+    }
+
+    pub fn tensor_to_arrayd<T>(t: Tensor, delete_batch_dim: bool) -> ArrayD<T>
+    where
+        T: tch::kind::Element + Copy,
+    {
+        let shape = match delete_batch_dim {
+            false => t.size()[..].iter().map(|x| *x as usize).collect::<Vec<_>>(),
+            true => t.size()[1..]
+                .iter()
+                .map(|x| *x as usize)
+                .collect::<Vec<_>>(),
+        };
+        let v =
+            Vec::<T>::try_from(&t.flatten(0, -1)).expect("Failed to convert from Tensor to Vec");
+
+        ndarray::Array1::<T>::from(v)
+            .into_shape(ndarray::IxDyn(&shape))
+            .unwrap()
     }
 }
 
 #[cfg(feature = "tch")]
-pub fn arrayd_to_tensor<T1, T2>(a: ArrayD<T1>, add_batch_dim: bool) -> Tensor
-where
-    T1: num_traits::AsPrimitive<T2>,
-    T2: Copy + 'static + tch::kind::Element,
-{
-    let v = a.iter().map(|e| e.as_()).collect::<Vec<_>>();
-    let t: Tensor = TryFrom::<Vec<T2>>::try_from(v).unwrap();
+pub use _tch::*;
 
-    match add_batch_dim {
-        true => t.unsqueeze(0),
-        false => t,
+#[cfg(feature = "candle-core")]
+mod _candle {
+    use super::*;
+    use anyhow::Result;
+    use candle_core::{Tensor, WithDType};
+    use std::convert::TryFrom;
+
+    pub fn vec_to_tensor<T1, T2>(v: Vec<T1>, add_batch_dim: bool) -> Result<Tensor>
+    where
+        T1: num_traits::AsPrimitive<T2>,
+        T2: WithDType,
+    {
+        let v = v.iter().map(|e| e.as_()).collect::<Vec<_>>();
+        let t: Tensor = TryFrom::<Vec<T2>>::try_from(v).unwrap();
+
+        match add_batch_dim {
+            true => Ok(t.unsqueeze(0)?),
+            false => Ok(t),
+        }
+    }
+
+    pub fn arrayd_to_tensor<T1, T2>(a: ArrayD<T1>, add_batch_dim: bool) -> Result<Tensor>
+    where
+        T1: num_traits::AsPrimitive<T2>,
+        T2: WithDType,
+    {
+        let shape = a.shape();
+        let v = a.iter().map(|e| e.as_()).collect::<Vec<_>>();
+        let t: Tensor = TryFrom::<Vec<T2>>::try_from(v)?;
+        let t = t.reshape(shape)?;
+
+        match add_batch_dim {
+            true => Ok(t.unsqueeze(0)?),
+            false => Ok(t),
+        }
+    }
+
+    pub fn tensor_to_arrayd<T>(t: Tensor, delete_batch_dim: bool) -> Result<ArrayD<T>>
+    where
+        T: WithDType, //tch::kind::Element,
+    {
+        let shape = match delete_batch_dim {
+            false => t.dims()[..].iter().map(|x| *x as usize).collect::<Vec<_>>(),
+            true => t.dims()[1..]
+                .iter()
+                .map(|x| *x as usize)
+                .collect::<Vec<_>>(),
+        };
+        let v: Vec<T> = t.flatten_all()?.to_vec1()?;
+
+        Ok(ndarray::Array1::<T>::from(v).into_shape(ndarray::IxDyn(&shape))?)
     }
 }
 
-#[cfg(feature = "tch")]
-pub fn tensor_to_arrayd<T>(t: Tensor, delete_batch_dim: bool) -> ArrayD<T>
-where
-    T: tch::kind::Element,
-{
-    let shape = match delete_batch_dim {
-        false => t.size()[..].iter().map(|x| *x as usize).collect::<Vec<_>>(),
-        true => t.size()[1..]
-            .iter()
-            .map(|x| *x as usize)
-            .collect::<Vec<_>>(),
-    };
-    let v: Vec<T> = t.into();
-
-    ndarray::Array1::<T>::from(v)
-        .into_shape(ndarray::IxDyn(&shape))
-        .unwrap()
-}
+#[cfg(feature = "candle-core")]
+pub use _candle::*;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum ArrayType {

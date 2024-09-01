@@ -28,9 +28,10 @@ impl Default for ArrayDictObsFilterConfig {
 
 impl ArrayDictObsFilterConfig {
     pub fn add_key_and_types(self, key_and_types: Vec<(impl Into<String>, ArrayType)>) -> Self {
-        let key_and_types = key_and_types.into_iter().map(|(k, t)| {
-            (k.into(), t)
-        }).collect::<Vec<_>>();
+        let key_and_types = key_and_types
+            .into_iter()
+            .map(|(k, t)| (k.into(), t))
+            .collect::<Vec<_>>();
         let mut config = self;
         config.key_and_types.extend(key_and_types);
         config
@@ -84,7 +85,7 @@ where
     /// observation, for either of single and vectorized environments.
     fn filt(&mut self, obs: PyObject) -> (O, Record)
     where
-        O: From<Vec<(String, Array)>>
+        O: From<Vec<(String, Array)>>,
     {
         let obs = pyo3::Python::with_gil(|py| {
             self.config
@@ -103,10 +104,10 @@ where
                 obs.iter().for_each(|(key, arr)| {
                     if keys.contains(key) {
                         let v = arr.to_flat_vec::<f32>();
-                        record.insert(key, RecordValue::Array1(v))    
+                        record.insert(key, RecordValue::Array1(v))
                     }
                 });
-                record    
+                record
             }
         };
         (obs.into(), record)

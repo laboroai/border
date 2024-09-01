@@ -2,25 +2,30 @@
 use crate::model::ModelBase;
 use log::trace;
 use serde::{Deserialize, Serialize};
-mod quantile_loss;
 mod named_tensors;
-pub use quantile_loss::quantile_huber_loss;
+mod quantile_loss;
+use border_core::record::{Record, RecordValue};
 pub use named_tensors::NamedTensors;
+pub use quantile_loss::quantile_huber_loss;
+use std::convert::TryFrom;
+use tch::nn::VarStore;
 
 /// Critic loss type.
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub enum CriticLoss {
     /// Mean squared error.
-    MSE,
+    Mse,
 
     /// Smooth L1 loss.
     SmoothL1,
 }
 
-/// Apply soft update on a model.
+/// Apply soft update on variables.
 ///
 /// Variables are identified by their names.
+/// 
+/// dest = tau * src + (1.0 - tau) * dest
 pub fn track<M: ModelBase>(dest: &mut M, src: &mut M, tau: f64) {
     let src = &mut src.get_var_store().variables();
     let dest = &mut dest.get_var_store().variables();
@@ -44,11 +49,29 @@ pub fn concat_slices(s1: &[i64], s2: &[i64]) -> Vec<i64> {
     v
 }
 
-/// Returns the dimension of output vectors, i.e., the number of discrete outputs.
+/// Interface for handling output dimensions.
 pub trait OutDim {
-    /// Returns the dimension of output vectors, i.e., the number of discrete outputs.
+    /// Returns the output dimension.
     fn get_out_dim(&self) -> i64;
 
     /// Sets the  output dimension.
     fn set_out_dim(&mut self, v: i64);
+}
+
+/// Returns the mean and standard deviation of the parameters.
+pub fn param_stats(var_store: &VarStore) -> Record {
+    let mut record = Record::empty();
+
+    for (k, v) in var_store.variables() {
+        // let m: f32 = v.mean(tch::Kind::Float).into();
+        let m = f32::try_from(v.mean(tch::Kind::Float)).expect("Failed to convert Tensor to f32");
+        let k_mean = format!("{}_mean", &k);
+        record.insert(k_mean, RecordValue::Scalar(m));
+
+        let m = f32::try_from(v.std(false)).expect("Failed to convert Tensor to f32");
+        let k_std = format!("{}_std", k);
+        record.insert(k_std, RecordValue::Scalar(m));
+    }
+
+    record
 }

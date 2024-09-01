@@ -2,7 +2,10 @@
 #![allow(clippy::float_cmp)]
 use crate::{AtariWrapper, GymEnvConfig};
 use anyhow::Result;
-use border_core::{record::Record, Act, Env, Info, Obs, Step};
+use border_core::{
+    record::{Record, RecordValue::Scalar},
+    Act, Env, Info, Obs, Step,
+};
 use log::{info, trace};
 // use pyo3::IntoPy;
 use pyo3::types::{IntoPyDict, PyTuple};
@@ -19,6 +22,8 @@ pub struct GymInfo {}
 impl Info for GymInfo {}
 
 /// Convert [`PyObject`] to [`GymEnv`]::Obs with a preprocessing.
+/// 
+/// [`PyObject`]: https://docs.rs/pyo3/0.14.5/pyo3/type.PyObject.html
 pub trait GymObsFilter<O: Obs> {
     /// Configuration.
     type Config: Clone + Default + Serialize + DeserializeOwned;
@@ -47,7 +52,7 @@ pub trait GymObsFilter<O: Obs> {
 
 /// Convert [`GymEnv`]::Act to [`PyObject`] with a preprocessing.
 ///
-/// This trait should support vectorized environments.
+/// [`PyObject`]: https://docs.rs/pyo3/0.14.5/pyo3/type.PyObject.html
 pub trait GymActFilter<A: Act> {
     /// Configuration.
     type Config: Clone + Default + Serialize + DeserializeOwned;
@@ -76,7 +81,7 @@ pub trait GymActFilter<A: Act> {
     }
 }
 
-/// An environment in [OpenAI gym](https://github.com/openai/gym).
+/// An wrapper of [Gymnasium](https://gymnasium.farama.org).
 #[derive(Debug)]
 pub struct GymEnv<O, A, OF, AF>
 where
@@ -171,14 +176,15 @@ where
         Self: Sized,
     {
         let (step, record) = self.step(a);
-        assert_eq!(step.is_done.len(), 1);
-        let step = if step.is_done[0] == 1 {
+        assert_eq!(step.is_terminated.len(), 1);
+        let step = if step.is_done() {
             let init_obs = self.reset(None).unwrap();
             Step {
                 act: step.act,
                 obs: step.obs,
                 reward: step.reward,
-                is_done: step.is_done,
+                is_terminated: step.is_terminated,
+                is_truncated: step.is_truncated,
                 info: step.info,
                 init_obs,
             }
@@ -266,17 +272,19 @@ where
     /// It returns [`Step`] and [`Record`] objects.
     /// The [`Record`] is composed of [`Record`]s constructed in [`GymObsFilter`] and
     /// [`GymActFilter`].
-    fn step(&mut self, a: &A) -> (Step<Self>, Record) {
-        fn is_done(step: &PyTuple) -> i8 {
+    fn step(&mut self, act: &A) -> (Step<Self>, Record) {
+        fn is_done(step: &PyTuple) -> (i8, i8) {
             // terminated or truncated
-            let terminated: bool = step.get_item(2).extract().unwrap();
-            let truncated: bool = step.get_item(3).extract().unwrap();
+            let is_terminated = match step.get_item(2).extract().unwrap() {
+                true => 1,
+                false => 0,
+            };
+            let is_truncated = match step.get_item(3).extract().unwrap() {
+                true => 1,
+                false => 0,
+            };
 
-            if terminated | truncated {
-                1
-            } else {
-                0
-            }
+            (is_terminated, is_truncated)
         }
 
         trace!("PyGymEnv::step()");
@@ -296,26 +304,68 @@ where
                 std::thread::sleep(self.wait);
             }
 
-            let (a_py, record_a) = self.act_filter.filt(a.clone());
-            let ret = self.env.call_method(py, "step", (a_py,), None).unwrap();
-            let step: &PyTuple = ret.extract(py).unwrap();
-            let obs = step.get_item(0).to_owned();
-            let (obs, record_o) = self.obs_filter.filt(obs.to_object(py));
-            let reward: Vec<f32> = vec![step.get_item(1).extract().unwrap()];
-            let mut is_done: Vec<i8> = vec![is_done(step)];
+            // State transition
+            let (
+                act,
+                next_obs,
+                reward,
+                is_terminated,
+                mut is_truncated,
+                mut record,
+                info,
+                init_obs,
+            ) = {
+                let (a_py, record_a) = self.act_filter.filt(act.clone());
+                let ret = self.env.call_method(py, "step", (a_py,), None).unwrap();
+                let step: &PyTuple = ret.extract(py).unwrap();
+                let next_obs = step.get_item(0).to_owned();
+                let (next_obs, record_o) = self.obs_filter.filt(next_obs.to_object(py));
+                let reward: Vec<f32> = vec![step.get_item(1).extract().unwrap()];
+                let (is_terminated, is_truncated) = is_done(step);
+                let is_terminated = vec![is_terminated];
+                let is_truncated = vec![is_truncated];
+                let record = record_o.merge(record_a);
+                let info = GymInfo {};
+                let init_obs = O::dummy(1);
+                let act = act.clone();
 
-            // let c = *self.count_steps.borrow();
+                (
+                    act,
+                    next_obs,
+                    reward,
+                    is_terminated,
+                    is_truncated,
+                    record,
+                    info,
+                    init_obs,
+                )
+            };
+
             self.count_steps += 1; //.replace(c + 1);
+
+            // Terminated or truncated
             if let Some(max_steps) = self.max_steps {
                 if self.count_steps >= max_steps {
-                    is_done[0] = 1;
-                    self.count_steps = 0;
+                    is_truncated[0] = 1;
                 }
             };
 
+            if (is_terminated[0] | is_truncated[0]) == 1 {
+                record.insert("episode_length", Scalar(self.count_steps as _));
+                self.count_steps = 0;
+            }
+
             (
-                Step::<Self>::new(obs, a.clone(), reward, is_done, GymInfo {}, O::dummy(1)),
-                record_o.merge(record_a),
+                Step::new(
+                    next_obs,
+                    act,
+                    reward,
+                    is_terminated,
+                    is_truncated,
+                    info,
+                    init_obs,
+                ),
+                record,
             )
         })
     }

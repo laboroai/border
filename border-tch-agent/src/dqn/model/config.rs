@@ -8,15 +8,15 @@ use std::{
 };
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
-/// Configuration of [DqnModel](super::DqnModel).
+/// Configuration of [`DqnModel`](super::DqnModel).
 pub struct DqnModelConfig<Q>
 where
     // Q: SubModel<Output = Tensor>,
     // Q::Config: DeserializeOwned + Serialize + OutDim,
     Q: OutDim,
 {
-    pub(super) q_config: Option<Q>,
-    pub(super) opt_config: OptimizerConfig,
+    pub q_config: Option<Q>,
+    pub opt_config: OptimizerConfig,
 }
 
 // impl<Q: SubModel<Output = Tensor>> Default for DQNModelConfig<Q>
@@ -41,7 +41,6 @@ where
     // Q::Config: DeserializeOwned + Serialize + OutDim,
     Q: DeserializeOwned + Serialize + OutDim,
 {
-
     /// Sets configurations for action-value function.
     // pub fn q_config(mut self, v: Q::Config) -> Self {
     pub fn q_config(mut self, v: Q) -> Self {

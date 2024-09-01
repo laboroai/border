@@ -10,13 +10,32 @@ use std::{
 /// Configuration of [`Trainer`](super::Trainer).
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct TrainerConfig {
-    pub(super) max_opts: usize,
-    pub(super) eval_threshold: Option<f32>,
-    pub(super) model_dir: Option<String>,
-    pub(super) opt_interval: usize,
-    pub(super) eval_interval: usize,
-    pub(super) record_interval: usize,
-    pub(super) save_interval: usize,
+    /// The maximum number of optimization steps.
+    pub max_opts: usize,
+
+    /// Directory where model parameters will be saved.
+    pub model_dir: Option<String>,
+
+    /// Interval of optimization steps in environment steps.
+    pub opt_interval: usize,
+
+    /// Interval of evaluation in optimization steps.
+    pub eval_interval: usize,
+
+    /// Interval of flushing records in optimization steps.
+    pub flush_record_interval: usize,
+
+    /// Interval of recording agent information in optimization steps.
+    pub record_compute_cost_interval: usize,
+
+    /// Interval of recording agent information in optimization steps.
+    pub record_agent_info_interval: usize,
+
+    /// Warmup period, for filling replay buffer, in environment steps
+    pub warmup_period: usize,
+
+    /// Intercal of saving model parameters in optimization steps.
+    pub save_interval: usize,
 }
 
 impl Default for TrainerConfig {
@@ -24,10 +43,13 @@ impl Default for TrainerConfig {
         Self {
             max_opts: 0,
             eval_interval: 0,
-            eval_threshold: None,
+            // eval_threshold: None,
             model_dir: None,
             opt_interval: 1,
-            record_interval: usize::MAX,
+            flush_record_interval: usize::MAX,
+            record_compute_cost_interval: usize::MAX,
+            record_agent_info_interval: usize::MAX,
+            warmup_period: 0,
             save_interval: usize::MAX,
         }
     }
@@ -46,10 +68,11 @@ impl TrainerConfig {
         self
     }
 
-    /// Sets the evaluation threshold.
-    pub fn eval_threshold(mut self, v: f32) -> Self {
-        self.eval_threshold = Some(v);
-        self
+    /// (Deprecated) Sets the evaluation threshold.
+    pub fn eval_threshold(/*mut */ self, _v: f32) -> Self {
+        unimplemented!();
+        // self.eval_threshold = Some(v);
+        // self
     }
 
     /// Sets the directory the trained model being saved.
@@ -64,9 +87,27 @@ impl TrainerConfig {
         self
     }
 
-    /// Sets the interval of recording in optimization steps.
-    pub fn record_interval(mut self, record_interval: usize) -> Self {
-        self.record_interval = record_interval;
+    /// Sets the interval of flushing recordd in optimization steps.
+    pub fn flush_record_interval(mut self, flush_record_interval: usize) -> Self {
+        self.flush_record_interval = flush_record_interval;
+        self
+    }
+
+    /// Sets the interval of computation cost in optimization steps.
+    pub fn record_compute_cost_interval(mut self, record_compute_cost_interval: usize) -> Self {
+        self.record_compute_cost_interval = record_compute_cost_interval;
+        self
+    }
+
+    /// Sets the interval of recording agent information in optimization steps.
+    pub fn record_agent_info_interval(mut self, record_agent_info_interval: usize) -> Self {
+        self.record_agent_info_interval = record_agent_info_interval;
+        self
+    }
+
+    /// Sets warmup period in environment steps.
+    pub fn warmup_period(mut self, warmup_period: usize) -> Self {
+        self.warmup_period = warmup_period;
         self
     }
 
@@ -76,7 +117,7 @@ impl TrainerConfig {
         self
     }
 
-    /// Constructs [TrainerConfig] from YAML file.
+    /// Constructs [`TrainerConfig`] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let file = File::open(path)?;
         let rdr = BufReader::new(file);
@@ -84,7 +125,7 @@ impl TrainerConfig {
         Ok(b)
     }
 
-    /// Saves [TrainerConfig].
+    /// Saves [`TrainerConfig`].
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let mut file = File::create(path)?;
         file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;

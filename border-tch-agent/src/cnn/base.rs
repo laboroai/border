@@ -1,6 +1,6 @@
+use super::CnnConfig;
 use crate::model::SubModel;
 use tch::{nn, nn::Module, Device, Tensor};
-use super::CnnConfig;
 
 #[allow(clippy::upper_case_acronyms)]
 /// Convolutional neural network, which has the same architecture of the DQN paper.
@@ -67,6 +67,16 @@ impl SubModel for Cnn {
         } else {
             Self::create_net(var_store, n_stack, out_dim)
         };
+
+        // // Debug: check weight scale
+        // for (k, v) in var_store.variables() {
+        //     if k.starts_with("c") {
+        //         let m: f32 = v.mean(tch::Kind::Float).into();
+        //         let s: f32 = v.std(false).into();
+        //         println!("{}: mean={}, std={}", k, m, s);
+        //     }
+        // }
+        // panic!();
 
         Self {
             n_stack,

@@ -1,7 +1,9 @@
 use crate::{
     Actor, ActorManagerConfig, ActorStat, PushedItemMessage, ReplayBufferProxyConfig, SyncModel,
 };
-use border_core::{Agent, Env, ReplayBufferBase, StepProcessorBase};
+use border_core::{
+    Agent, Configurable, Env, ExperienceBufferBase, ReplayBufferBase, StepProcessor,
+};
 use crossbeam_channel::{bounded, /*unbounded,*/ Receiver, Sender};
 use log::info;
 use std::{
@@ -13,20 +15,22 @@ use std::{
 /// Manages [`Actor`]s.
 ///
 /// This struct handles the following requests:
-/// * From the [LearnerManager]() for updating the latest model info, stored in this struct.
+/// * From the [`AsyncTrainer`] for updating the latest model info, stored in this struct.
 /// * From the [`Actor`]s for getting the latest model info.
 /// * From the [`Actor`]s for pushing sample batch to the `LearnerManager`.
+///
+/// [`AsyncTrainer`]: crate::AsyncTrainer
 pub struct ActorManager<A, E, R, P>
 where
-    A: Agent<E, R> + SyncModel,
+    A: Agent<E, R> + Configurable<E> + SyncModel,
     E: Env,
-    P: StepProcessorBase<E>,
-    R: ReplayBufferBase<PushedItem = P::Output>,
+    P: StepProcessor<E>,
+    R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
 {
-    /// Configurations of [Agent]s.
+    /// Configurations of [`Agent`]s.
     agent_configs: Vec<A::Config>,
 
-    /// Configuration of [Env].
+    /// Configuration of [`Env`].
     env_config: E::Config,
 
     /// Configuration of a `StepProcessor`.
@@ -44,10 +48,10 @@ where
     stop: Arc<Mutex<bool>>,
 
     /// Receiver of [PushedItemMessage]s from [Actor].
-    batch_message_receiver: Option<Receiver<PushedItemMessage<R::PushedItem>>>,
+    batch_message_receiver: Option<Receiver<PushedItemMessage<R::Item>>>,
 
     /// Sender of [PushedItemMessage]s to [AsyncTrainer](crate::AsyncTrainer).
-    pushed_item_message_sender: Sender<PushedItemMessage<R::PushedItem>>,
+    pushed_item_message_sender: Sender<PushedItemMessage<R::Item>>,
 
     /// Information of the model.
     ///
@@ -65,23 +69,23 @@ where
 
 impl<A, E, R, P> ActorManager<A, E, R, P>
 where
-    A: Agent<E, R> + SyncModel,
+    A: Agent<E, R> + Configurable<E> + SyncModel,
     E: Env,
-    P: StepProcessorBase<E>,
-    R: ReplayBufferBase<PushedItem = P::Output> + Send + 'static,
+    P: StepProcessor<E>,
+    R: ExperienceBufferBase<Item = P::Output> + Send + 'static + ReplayBufferBase,
     A::Config: Send + 'static,
     E::Config: Send + 'static,
     P::Config: Send + 'static,
-    R::PushedItem: Send + 'static,
+    R::Item: Send + 'static,
     A::ModelInfo: Send + 'static,
 {
-    /// Builds a [ActorManager].
+    /// Builds a [`ActorManager`].
     pub fn build(
         config: &ActorManagerConfig,
         agent_configs: &Vec<A::Config>,
         env_config: &E::Config,
         step_proc_config: &P::Config,
-        pushed_item_message_sender: Sender<PushedItemMessage<R::PushedItem>>,
+        pushed_item_message_sender: Sender<PushedItemMessage<R::Item>>,
         model_info_receiver: Receiver<(usize, A::ModelInfo)>,
         stop: Arc<Mutex<bool>>,
     ) -> Self {
@@ -101,10 +105,10 @@ where
         }
     }
 
-    /// Runs threads for [Actor]s and a thread for sending samples into the replay buffer.
+    /// Runs threads for [`Actor`]s and a thread for sending samples into the replay buffer.
     ///
-    /// A thread will wait for the initial [SyncModel::ModelInfo] from [AsyncTrainer](crate::AsyncTrainer),
-    /// which blocks execution of [Actor] threads.
+    /// Each thread is blocked until receiving the initial [`SyncModel::ModelInfo`]
+    /// from [`AsyncTrainer`](crate::AsyncTrainer).
     pub fn run(&mut self, guard_init_env: Arc<Mutex<bool>>) {
         // Guard for sync of the initial model
         let guard_init_model = Arc::new(Mutex::new(true));
@@ -207,9 +211,9 @@ where
 
     /// Loop waiting [PushedItemMessage] from [Actor]s.
     fn handle_message(
-        receiver: Receiver<PushedItemMessage<R::PushedItem>>,
+        receiver: Receiver<PushedItemMessage<R::Item>>,
         stop: Arc<Mutex<bool>>,
-        sender: Sender<PushedItemMessage<R::PushedItem>>,
+        sender: Sender<PushedItemMessage<R::Item>>,
     ) {
         let mut _n_samples = 0;
 
@@ -218,10 +222,11 @@ where
             // TODO: error handling, timeout
             // TODO: caching
             // TODO: stats
-            let msg = receiver.recv().unwrap();
-            _n_samples += 1;
-            sender.try_send(msg).unwrap();
-            // println!("{:?}", (_msg.id, n_samples));
+            let msg = receiver.recv();
+            if msg.is_ok() {
+                _n_samples += 1;
+                sender.try_send(msg.unwrap()).unwrap();    
+            }
 
             // Stop the loop
             if *stop.lock().unwrap() {

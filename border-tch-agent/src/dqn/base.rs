@@ -2,35 +2,32 @@
 use super::{config::DqnConfig, explorer::DqnExplorer, model::DqnModel};
 use crate::{
     model::{ModelBase, SubModel},
-    util::{track, OutDim},
+    util::{track, CriticLoss, OutDim},
 };
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, Env, Policy, ReplayBufferBase, StdBatchBase,
+    Agent, Configurable, Env, Policy, ReplayBufferBase, TransitionBatch,
 };
 use serde::{de::DeserializeOwned, Serialize};
-use std::{fs, marker::PhantomData, path::Path};
+use std::{
+    convert::{TryFrom, TryInto},
+    fs,
+    marker::PhantomData,
+    path::Path,
+};
 use tch::{no_grad, Device, Tensor};
 
 #[allow(clippy::upper_case_acronyms)]
 /// DQN agent implemented with tch-rs.
 pub struct Dqn<E, Q, R>
 where
-    E: Env,
     Q: SubModel<Output = Tensor>,
-    R: ReplayBufferBase,
-    E::Obs: Into<Q::Input>,
-    E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
     pub(in crate::dqn) soft_update_interval: usize,
     pub(in crate::dqn) soft_update_counter: usize,
     pub(in crate::dqn) n_updates_per_opt: usize,
-    pub(in crate::dqn) min_transitions_warmup: usize,
     pub(in crate::dqn) batch_size: usize,
     pub(in crate::dqn) qnet: DqnModel<Q>,
     pub(in crate::dqn) qnet_tgt: DqnModel<Q>,
@@ -44,6 +41,10 @@ where
     pub(in crate::dqn) double_dqn: bool,
     pub(in crate::dqn) _clip_reward: Option<f64>,
     pub(in crate::dqn) clip_td_err: Option<(f64, f64)>,
+    pub(in crate::dqn) critic_loss: CriticLoss,
+    n_samples_act: usize,
+    n_samples_best_act: usize,
+    record_verbose_level: usize,
 }
 
 impl<E, Q, R> Dqn<E, Q, R>
@@ -51,28 +52,43 @@ where
     E: Env,
     Q: SubModel<Output = Tensor>,
     R: ReplayBufferBase,
-    E::Obs: Into<Q::Input>,
-    E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
+    R::Batch: TransitionBatch,
+    <R::Batch as TransitionBatch>::ObsBatch: Into<Q::Input>,
+    <R::Batch as TransitionBatch>::ActBatch: Into<Tensor>,
 {
-    fn update_critic(&mut self, buffer: &mut R) -> f32 {
+    fn update_critic(&mut self, buffer: &mut R) -> Record {
+        let mut record = Record::empty();
         let batch = buffer.batch(self.batch_size).unwrap();
-        let (obs, act, next_obs, reward, is_done, ixs, weight) = batch.unpack();
+        let (obs, act, next_obs, reward, is_terminated, _is_truncated, ixs, weight) =
+            batch.unpack();
         let obs = obs.into();
         let act = act.into().to(self.device);
         let next_obs = next_obs.into();
-        let reward = Tensor::of_slice(&reward[..]).to(self.device);
-        let is_done = Tensor::of_slice(&is_done[..]).to(self.device);
+        let reward = Tensor::from_slice(&reward[..]).to(self.device);
+        let is_terminated = Tensor::from_slice(&is_terminated[..]).to(self.device);
 
         let pred = {
             let x = self.qnet.forward(&obs);
             x.gather(-1, &act, false).squeeze()
         };
 
-        let tgt = no_grad(|| {
+        if self.record_verbose_level >= 2 {
+            record.insert(
+                "pred_mean",
+                RecordValue::Scalar(
+                    f32::try_from(pred.mean(tch::Kind::Float))
+                        .expect("Failed to convert Tensor to f32"),
+                ),
+            );
+        }
+
+        if self.record_verbose_level >= 2 {
+            let reward_mean: f32 = reward.mean(tch::Kind::Float).try_into().unwrap();
+            record.insert("reward_mean", RecordValue::Scalar(reward_mean));
+        }
+
+        let tgt: Tensor = no_grad(|| {
             let q = if self.double_dqn {
                 let x = self.qnet.forward(&next_obs);
                 let y = x.argmax(-1, false).unsqueeze(-1);
@@ -85,8 +101,24 @@ where
                 let y = x.argmax(-1, false).unsqueeze(-1);
                 x.gather(-1, &y, false).squeeze()
             };
-            reward + (1 - is_done) * self.discount_factor * q
+            reward + (1 - is_terminated) * self.discount_factor * q
         });
+
+        if self.record_verbose_level >= 2 {
+            record.insert(
+                "tgt_mean",
+                RecordValue::Scalar(
+                    f32::try_from(tgt.mean(tch::Kind::Float))
+                        .expect("Failed to convert Tensor to f32"),
+                ),
+            );
+            let tgt_minus_pred_mean: f32 =
+                (&tgt - &pred).mean(tch::Kind::Float).try_into().unwrap();
+            record.insert(
+                "tgt_minus_pred_mean",
+                RecordValue::Scalar(tgt_minus_pred_mean),
+            );
+        }
 
         let loss = if let Some(ws) = weight {
             let n = ws.len() as i64;
@@ -94,31 +126,65 @@ where
                 None => (&pred - &tgt).abs(),
                 Some((min, max)) => (&pred - &tgt).abs().clip(min, max),
             };
-            let loss = Tensor::of_slice(&ws[..]).to(self.device) * &td_errs;
-            let loss = loss.smooth_l1_loss(
-                &Tensor::zeros(&[n], tch::kind::FLOAT_CPU).to(self.device),
-                tch::Reduction::Mean,
-                1.0,
-            );
+            let loss = Tensor::from_slice(&ws[..]).to(self.device) * &td_errs;
+            let loss = match self.critic_loss {
+                CriticLoss::SmoothL1 => loss.smooth_l1_loss(
+                    &Tensor::zeros(&[n], tch::kind::FLOAT_CPU).to(self.device),
+                    tch::Reduction::Mean,
+                    1.0,
+                ),
+                CriticLoss::Mse => loss.mse_loss(
+                    &Tensor::zeros(&[n], tch::kind::FLOAT_CPU).to(self.device),
+                    tch::Reduction::Mean,
+                ),
+            };
             self.qnet.backward_step(&loss);
-            let td_errs = Vec::<f32>::from(td_errs);
+            let td_errs = Vec::<f32>::try_from(td_errs).expect("Failed to convert Tensor to f32");
             buffer.update_priority(&ixs, &Some(td_errs));
             loss
         } else {
-            let loss = pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0);
+            let loss = match self.critic_loss {
+                CriticLoss::SmoothL1 => pred.smooth_l1_loss(&tgt, tch::Reduction::Mean, 1.0),
+                CriticLoss::Mse => pred.mse_loss(&tgt, tch::Reduction::Mean),
+            };
             self.qnet.backward_step(&loss);
             loss
         };
 
-        f32::from(loss)
+        record.insert(
+            "loss",
+            RecordValue::Scalar(f32::try_from(loss).expect("Failed to convert Tensor to f32")),
+        );
+
+        record
     }
 
+    // fn opt_(&mut self, buffer: &mut R) -> Record {
+    //     let mut loss = 0f32;
+
+    //     for _ in 0..self.n_updates_per_opt {
+    //         loss += self.update_critic(buffer);
+    //     }
+
+    //     self.soft_update_counter += 1;
+    //     if self.soft_update_counter == self.soft_update_interval {
+    //         self.soft_update_counter = 0;
+    //         track(&mut self.qnet_tgt, &mut self.qnet, self.tau);
+    //     }
+
+    //     loss /= self.n_updates_per_opt as f32;
+
+    //     self.n_opts += 1;
+
+    //     Record::from_slice(&[("loss", RecordValue::Scalar(loss))])
+    // }
+
     fn opt_(&mut self, buffer: &mut R) -> Record {
-        let mut loss_critic = 0f32;
+        let mut record_ = Record::empty();
 
         for _ in 0..self.n_updates_per_opt {
-            let loss = self.update_critic(buffer);
-            loss_critic += loss;
+            let record = self.update_critic(buffer);
+            record_ = record_.merge(record);
         }
 
         self.soft_update_counter += 1;
@@ -127,11 +193,10 @@ where
             track(&mut self.qnet_tgt, &mut self.qnet, self.tau);
         }
 
-        loss_critic /= self.n_updates_per_opt as f32;
-
         self.n_opts += 1;
 
-        Record::from_slice(&[("loss_critic", RecordValue::Scalar(loss_critic))])
+        record_
+        // Record::from_slice(&[("loss", RecordValue::Scalar(loss_critic))])
     }
 }
 
@@ -139,13 +204,50 @@ impl<E, Q, R> Policy<E> for Dqn<E, Q, R>
 where
     E: Env,
     Q: SubModel<Output = Tensor>,
-    R: ReplayBufferBase,
     E::Obs: Into<Q::Input>,
     E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
+{
+    fn sample(&mut self, obs: &E::Obs) -> E::Act {
+        no_grad(|| {
+            let a = self.qnet.forward(&obs.clone().into());
+            let a = if self.train {
+                self.n_samples_act += 1;
+                match &mut self.explorer {
+                    DqnExplorer::Softmax(softmax) => softmax.action(&a),
+                    DqnExplorer::EpsilonGreedy(egreedy) => {
+                        if self.record_verbose_level >= 2 {
+                            let (act, best) = egreedy.action_with_best(&a);
+                            if best {
+                                self.n_samples_best_act += 1;
+                            }
+                            act
+                        } else {
+                            egreedy.action(&a)
+                        }
+                    }
+                }
+            } else {
+                if fastrand::f32() < 0.01 {
+                    let n_actions = a.size()[1] as i32;
+                    let a = fastrand::i32(0..n_actions);
+                    Tensor::from(a)
+                } else {
+                    a.argmax(-1, true)
+                }
+            };
+            a.into()
+        })
+    }
+}
+
+impl<E, Q, R> Configurable<E> for Dqn<E, Q, R>
+where
+    E: Env,
+    Q: SubModel<Output = Tensor>,
+    E::Obs: Into<Q::Input>,
+    E::Act: From<Q::Output>,
+    Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
 {
     type Config = DqnConfig<Q>;
 
@@ -164,7 +266,6 @@ where
             soft_update_interval: config.soft_update_interval,
             soft_update_counter: 0,
             n_updates_per_opt: config.n_updates_per_opt,
-            min_transitions_warmup: config.min_transitions_warmup,
             batch_size: config.batch_size,
             discount_factor: config.discount_factor,
             tau: config.tau,
@@ -175,29 +276,12 @@ where
             _clip_reward: config.clip_reward,
             double_dqn: config.double_dqn,
             clip_td_err: config.clip_td_err,
+            critic_loss: config.critic_loss,
+            n_samples_act: 0,
+            n_samples_best_act: 0,
+            record_verbose_level: config.record_verbose_level,
             phantom: PhantomData,
         }
-    }
-
-    fn sample(&mut self, obs: &E::Obs) -> E::Act {
-        no_grad(|| {
-            let a = self.qnet.forward(&obs.clone().into());
-            let a = if self.train {
-                match &mut self.explorer {
-                    DqnExplorer::Softmax(softmax) => softmax.action(&a),
-                    DqnExplorer::EpsilonGreedy(egreedy) => egreedy.action(&a),
-                }
-            } else {
-                if fastrand::f32() < 0.01 {
-                    let n_actions = a.size()[1] as i32;
-                    let a = fastrand::i32(0..n_actions);
-                    Tensor::from(a)
-                } else {
-                    a.argmax(-1, true)
-                }
-            };
-            a.into()
-        })
     }
 }
 
@@ -209,9 +293,9 @@ where
     E::Obs: Into<Q::Input>,
     E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
+    R::Batch: TransitionBatch,
+    <R::Batch as TransitionBatch>::ObsBatch: Into<Q::Input>,
+    <R::Batch as TransitionBatch>::ActBatch: Into<Tensor>,
 {
     fn train(&mut self) {
         self.train = true;
@@ -225,27 +309,57 @@ where
         self.train
     }
 
-    fn opt(&mut self, buffer: &mut R) -> Option<Record> {
-        if buffer.len() >= self.min_transitions_warmup {
-            Some(self.opt_(buffer))
-        } else {
-            None
-        }
+    fn opt(&mut self, buffer: &mut R) {
+        self.opt_(buffer);
     }
 
-    fn save<T: AsRef<Path>>(&self, path: T) -> Result<()> {
+    fn opt_with_record(&mut self, buffer: &mut R) -> Record {
+        let mut record = {
+            let record = self.opt_(buffer);
+
+            match self.record_verbose_level >= 2 {
+                true => {
+                    let record_weights = self.qnet.param_stats();
+                    let record = record.merge(record_weights);
+                    record
+                }
+                false => record,
+            }
+        };
+
+        // Best action ratio for epsilon greedy
+        if self.record_verbose_level >= 2 {
+            let ratio = match self.n_samples_act == 0 {
+                true => 0f32,
+                false => self.n_samples_best_act as f32 / self.n_samples_act as f32,
+            };
+            record.insert("ratio_best_act", RecordValue::Scalar(ratio));
+            self.n_samples_act = 0;
+            self.n_samples_best_act = 0;
+        }
+
+        record
+    }
+
+    /// Save model parameters in the given directory.
+    /// 
+    /// The parameters of the model are saved as `qnet.pt`.
+    /// The parameters of the target model are saved as `qnet_tgt.pt`.
+    fn save_params<T: AsRef<Path>>(&self, path: T) -> Result<()> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
-        self.qnet.save(&path.as_ref().join("qnet.pt").as_path())?;
+        self.qnet
+            .save(&path.as_ref().join("qnet.pt.tch").as_path())?;
         self.qnet_tgt
-            .save(&path.as_ref().join("qnet_tgt.pt").as_path())?;
+            .save(&path.as_ref().join("qnet_tgt.pt.tch").as_path())?;
         Ok(())
     }
 
-    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
-        self.qnet.load(&path.as_ref().join("qnet.pt").as_path())?;
+    fn load_params<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
+        self.qnet
+            .load(&path.as_ref().join("qnet.pt.tch").as_path())?;
         self.qnet_tgt
-            .load(&path.as_ref().join("qnet_tgt.pt").as_path())?;
+            .load(&path.as_ref().join("qnet_tgt.pt.tch").as_path())?;
         Ok(())
     }
 }
@@ -262,9 +376,9 @@ where
     E::Obs: Into<Q::Input>,
     E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<Q::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
+    R::Batch: TransitionBatch,
+    <R::Batch as TransitionBatch>::ObsBatch: Into<Q::Input>,
+    <R::Batch as TransitionBatch>::ActBatch: Into<Tensor>,
 {
     type ModelInfo = NamedTensors;
 

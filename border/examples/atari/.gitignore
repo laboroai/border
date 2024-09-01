@@ -7,3 +7,4 @@ events*
 *.zip
 *.gz
 dqn_pong_tmp
+**/best

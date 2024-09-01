@@ -1,9 +1,10 @@
 use anyhow::Result;
-use border_core::{DefaultEvaluator, Evaluator as _, Policy};
+use border_core::{Configurable, DefaultEvaluator, Evaluator as _, Policy};
 use border_py_gym_env::{
     ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
 use ndarray::{Array, ArrayD, IxDyn};
+use serde::Deserialize;
 use std::default::Default;
 
 mod obs {
@@ -58,18 +59,12 @@ type ActFilter = ContinuousActFilter<Act>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type Evaluator = DefaultEvaluator<Env, RandomPolicy>;
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize)]
 struct RandomPolicyConfig;
 
 struct RandomPolicy;
 
 impl Policy<Env> for RandomPolicy {
-    type Config = RandomPolicyConfig;
-
-    fn build(_config: Self::Config) -> Self {
-        Self
-    }
-
     fn sample(&mut self, _: &Obs) -> Act {
         Act::new(
             Array::from(
@@ -79,6 +74,14 @@ impl Policy<Env> for RandomPolicy {
             )
             .into_dyn(),
         )
+    }
+}
+
+impl Configurable<Env> for RandomPolicy {
+    type Config = RandomPolicyConfig;
+
+    fn build(_config: Self::Config) -> Self {
+        Self
     }
 }
 

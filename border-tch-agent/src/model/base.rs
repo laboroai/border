@@ -22,6 +22,7 @@ pub trait ModelBase {
 }
 
 /// Neural networks with a single input and a single output.
+#[allow(dead_code)]
 pub trait Model1: ModelBase {
     /// The input of the neural network.
     type Input;
@@ -39,6 +40,7 @@ pub trait Model1: ModelBase {
 }
 
 /// Neural networks with double inputs and a single output.
+#[allow(dead_code)]
 pub trait Model2: ModelBase {
     /// An input of the neural network.
     type Input1;
@@ -51,53 +53,61 @@ pub trait Model2: ModelBase {
     fn forward(&self, x1s: &Self::Input1, x2s: &Self::Input2) -> Self::Output;
 }
 
-/// Neural network model that can be initialized with [VarStore] and configuration.
+/// Neural network model that can be initialized with [`VarStore`] and configuration.
 ///
 /// The purpose of this trait is for modularity of neural network models.
-/// Modules, which consists a neural network, should share [VarStore].
-/// To do this, structs implementing this trait can be initialized with a given [VarStore].
-/// This trait also provide the ability to clone with a given [VarStore].
+/// Modules, which consists a neural network, should share [`VarStore`].
+/// To do this, structs implementing this trait can be initialized with a given [`VarStore`].
+/// This trait also provide the ability to clone with a given [`VarStore`].
 /// The ability is useful when creating a target network, used in recent deep learning algorithms in common.
+/// 
+/// [`VarStore`]: https://docs.rs/tch/0.16.0/tch/nn/struct.VarStore.html
 pub trait SubModel {
-    /// Configuration from which [SubModel] is constructed.
+    /// Configuration from which [`SubModel`] is constructed.
     type Config;
 
-    /// Input of the [SubModel].
+    /// Input of the [`SubModel`].
     type Input;
 
-    /// Output of the [SubModel].
+    /// Output of the [`SubModel`].
     type Output;
 
-    /// Builds [SubModel] with [VarStore] and [SubModel::Config].
+    /// Builds [`SubModel`] with [`VarStore`] and [`SubModel::Config`].
     fn build(var_store: &VarStore, config: Self::Config) -> Self;
 
-    /// Clones [SubModel] with [VarStore].
+    /// Clones [`SubModel`] with [`VarStore`].
+    /// 
+    /// [`VarStore`]: https://docs.rs/tch/0.16.0/tch/nn/struct.VarStore.html
     fn clone_with_var_store(&self, var_store: &VarStore) -> Self;
 
     /// A generalized forward function.
     fn forward(&self, input: &Self::Input) -> Self::Output;
 }
 
-/// Neural network model that can be initialized with [VarStore] and configuration.
+/// Neural network model that can be initialized with [`VarStore`] and configuration.
 ///
-/// The difference from [SubModel] is that this trait takes two inputs.
+/// The difference from [`SubModel`] is that this trait takes two inputs.
+///
+/// [`VarStore`]: https://docs.rs/tch/0.16.0/tch/nn/struct.VarStore.html
 pub trait SubModel2 {
-    /// Configuration from which [SubModel2] is constructed.
+    /// Configuration from which [`SubModel2`] is constructed.
     type Config;
 
-    /// Input of the [SubModel2].
+    /// Input of the [`SubModel2`].
     type Input1;
 
-    /// Input of the [SubModel2].
+    /// Input of the [`SubModel2`].
     type Input2;
 
-    /// Output of the [SubModel2].
+    /// Output of the [`SubModel2`].
     type Output;
 
-    /// Builds [SubModel2] with [VarStore] and [SubModel2::Config].
+    /// Builds [`SubModel2`] with [VarStore] and [SubModel2::Config].
     fn build(var_store: &VarStore, config: Self::Config) -> Self;
 
-    /// Clones [SubModel2] with [VarStore].
+    /// Clones [`SubModel2`] with [`VarStore`].
+    /// 
+    /// [`VarStore`]: https://docs.rs/tch/0.16.0/tch/nn/struct.VarStore.html
     fn clone_with_var_store(&self, var_store: &VarStore) -> Self;
 
     /// A generalized forward function.

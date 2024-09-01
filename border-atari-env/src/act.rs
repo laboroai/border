@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 use std::{default::Default, marker::PhantomData};
 
 #[derive(Debug, Clone)]
-/// Action for [BorderAtariEnv](crate::BorderAtariEnv)
+/// Action for [`BorderAtariEnv`](crate::BorderAtariEnv).
+/// 
+/// This action is a discrete action and denotes pushing a button.
 pub struct BorderAtariAct {
     pub act: u8,
 }
@@ -28,7 +30,7 @@ impl From<u8> for BorderAtariAct {
     }
 }
 
-/// Converts `A` to [BorderAtariAct].
+/// Converts action of type `A` to [`BorderAtariAct`].
 pub trait BorderAtariActFilter<A: Act> {
     /// Configuration of the filter.
     type Config: Clone + Default;
@@ -46,7 +48,7 @@ pub trait BorderAtariActFilter<A: Act> {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-/// Configuration of [BorderAtariActRawFilter].
+/// Configuration of [`BorderAtariActRawFilter`].
 #[derive(Clone)]
 pub struct BorderAtariActRawFilterConfig;
 
@@ -56,7 +58,7 @@ impl Default for BorderAtariActRawFilterConfig {
     }
 }
 
-/// A filter without any processing.
+/// A filter that performs no processing.
 pub struct BorderAtariActRawFilter<A> {
     phantom: PhantomData<A>,
 }

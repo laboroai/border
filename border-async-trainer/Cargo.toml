@@ -1,23 +1,19 @@
 [package]
 name = "border-async-trainer"
-version = "0.0.6"
-authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
-edition = "2018"
-rust-version = "1.68.2"
-
-description = "Atari environment based on gym-rs"
-repository = "https://github.com/taku-y/border"
-keywords = ["rl"]
-categories = ["science"]
-license = "MIT OR Apache-2.0"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
 readme = "README.md"
-autoexamples = false
 
 [dependencies]
 anyhow = { workspace = true }
 aquamarine = { workspace = true }
-border-core = { version = "0.0.6", path = "../border-core" }
-border-tensorboard = { version = "0.0.6", path = "../border-tensorboard" }
+border-core = { version = "0.0.7", path = "../border-core" }
+border-tensorboard = { version = "0.0.7", path = "../border-tensorboard" }
 serde = { workspace = true, features = ["derive"] }
 log = { workspace = true }
 tokio = { version = "1.14.0", features = ["full"] }

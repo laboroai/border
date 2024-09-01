@@ -5,12 +5,11 @@ use syn::{parse_macro_input, DeriveInput};
 
 pub fn derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input);
-    // let opts = Opts::from_derive_input(&input).expect("Wrong options");
     let DeriveInput { ident, data, .. } = input;
     let field_type = get_field_type(data);
     let field_type_str = get_type_str(
         field_type.clone(),
-        "The item for deriving Obs must be a new type like MyObs(PyGymEnvObs)",
+        "The item for deriving Obs must be a new type like MyObs(BorderAtariObs)",
     );
 
     // let output = if field_type_str == "PyGymEnvObs" {
@@ -18,7 +17,10 @@ pub fn derive(input: TokenStream) -> TokenStream {
     let output = if field_type_str == "BorderAtariObs" {
         atari_env_obs(ident, field_type)
     } else {
-        panic!("Deriving Obs supports PyGymEnvObs or BorderAtariObs, given {:?}", field_type_str);
+        panic!(
+            "Deriving Obs supports PyGymEnvObs or BorderAtariObs, given {:?}",
+            field_type_str
+        );
     };
 
     output.into()
@@ -66,16 +68,19 @@ fn atari_env_obs(ident: proc_macro2::Ident, field_type: syn::Type) -> proc_macro
     };
 
     #[cfg(feature = "tch")]
-    output.extend(quote! {
-        use std::convert::TryFrom as _;
+    output.extend(
+        quote! {
+            use std::convert::TryFrom as _;
 
-        impl From<#ident> for tch::Tensor {
-            fn from(obs: #ident) -> tch::Tensor {
-                // `BorderAtariObs` implements Into<Tensor> when feature = "tch"
-                tch::Tensor::try_from(obs.0).unwrap()
+            impl From<#ident> for tch::Tensor {
+                fn from(obs: #ident) -> tch::Tensor {
+                    // `BorderAtariObs` implements Into<Tensor> when feature = "tch"
+                    tch::Tensor::try_from(obs.0).unwrap()
+                }
             }
         }
-    }.into_iter());
+        .into_iter(),
+    );
 
     output
 }

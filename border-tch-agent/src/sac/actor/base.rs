@@ -7,13 +7,10 @@ use crate::{
 use anyhow::{Context, Result};
 use log::{info, trace};
 use serde::{de::DeserializeOwned, Serialize};
-use std::{
-    path::Path,
-};
+use std::path::Path;
 use tch::{nn, Device, Tensor};
 
-#[allow(clippy::upper_case_acronyms)]
-/// Represents a stochastic policy for SAC agents.
+/// Stochastic policy for SAC agents.
 pub struct Actor<P>
 where
     P: SubModel<Output = (Tensor, Tensor)>,
@@ -38,7 +35,7 @@ where
     P: SubModel<Output = (Tensor, Tensor)>,
     P::Config: DeserializeOwned + Serialize + OutDim,
 {
-    /// Constructs [Actor].
+    /// Constructs [`Actor`].
     pub fn build(config: ActorConfig<P::Config>, device: Device) -> Result<Actor<P>> {
         let pi_config = config.pi_config.context("pi_config is not set.")?;
         let out_dim = pi_config.get_out_dim();

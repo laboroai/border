@@ -1,0 +1,27 @@
+[package]
+name = "border-mlflow-tracking"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
+readme = "README.md"
+
+[dependencies]
+border-core = { version = "0.0.7", path = "../border-core" }
+reqwest = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+log = { workspace = true }
+serde_json = { workspace = true }
+flatten-serde-json = "0.1.0"
+chrono = { workspace = true }
+
+[dev-dependencies]
+env_logger = { workspace = true }
+
+[[example]]
+name = "tracking_basic"
+# test = true

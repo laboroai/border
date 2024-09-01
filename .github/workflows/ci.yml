@@ -14,8 +14,8 @@ jobs:
       strategy:
         matrix:
           os: [ubuntu-latest, windows-latest, macOS-latest]
-          rust: [1.68.2]
-          python-version: [3.8]
+          rust: [1.76.0]
+          python-version: ["3.11"]
       steps:
         - uses: actions/checkout@v2
 
@@ -40,16 +40,22 @@ jobs:
         - if: matrix.os == 'ubuntu-latest'
           name: Install gym (Ubuntu)
           run: |
+            pip install --upgrade pip
+            pip install swig==4.2.1
             pip install mujoco==2.3.7
-            pip install gymnasium[box2d]==0.29.0
+            pip install gymnasium==0.29.1
             pip install gymnasium-robotics==1.2.2
             pip install pybullet==3.2.5
+            pip install torch==2.3.0 --index-url https://download.pytorch.org/whl/cpu
 
         - if: matrix.os != 'ubuntu-latest'
           name: Install gym (Windows/Mac)
           run: |
-            pip install gymnasium[box2d]==0.29.0
+            pip install --upgrade pip
+            pip install swig==4.2.1
+            pip install gymnasium==0.29.1
             pip install pybullet==3.2.5
+            pip install torch==2.3.0
 
         - if: matrix.os == 'ubuntu-latest'
           name: Install pybullet-gym
@@ -76,10 +82,28 @@ jobs:
           run: cargo test -p border-py-gym-env
 
         - if: matrix.os == 'ubuntu-latest'
-          name: Test border
+          name: Check env vars
+          run: printenv
+
+        - if: matrix.os == 'ubuntu-latest'
+          name: Test border examples
+          env:
+            LIBTORCH_USE_PYTORCH: 1
           run: |
+            export LD_LIBRARY_PATH=`pip show torch | awk '/Location/ {print $2}'`/torch/lib:$LD_LIBRARY_PATH
+            printenv | grep LD_
             sudo apt-get update
             sudo apt-get install -y --no-install-recommends --fix-missing \
               libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev libsdl2-ttf-dev \
               libsdl2-dev libsdl-image1.2-dev
-            cargo test -p border --features=tch
+            cargo test --example dqn_cartpole_tch --features=tch
+            cargo test --example iqn_cartpole_tch --features=tch
+            cargo test --example sac_pendulum_tch --features=tch
+            cargo test --example dqn_cartpole --features=candle-core
+            cargo test --example sac_pendulum --features=candle-core
+            cd border-async-trainer; cargo test; cd ..
+            cd border-atari-env; cargo test; cd ..
+            cd border-candle-agent; cargo test; cd ..
+            cd border-tch-agent; cargo test; cd ..
+            cd border-policy-no-backend; cargo test --features=border-tch-agent; cd ..
+            cd border-py-gym-env; cargo test; cd ..

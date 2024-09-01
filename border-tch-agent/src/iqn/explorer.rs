@@ -7,28 +7,28 @@ use tch::Tensor;
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 /// Explorers for IQN.
 pub enum IqnExplorer {
-    // /// Softmax action selection.
-    // Softmax(Softmax),
+    /// Softmax action selection.
+    Softmax(Softmax),
     /// Epsilon-greedy action selection.
     EpsilonGreedy(EpsilonGreedy),
 }
 
-// /// Softmax explorer for IQN.
-// pub struct Softmax {}
+/// Softmax explorer for IQN.
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
+pub struct Softmax {}
 
-// #[allow(clippy::new_without_default)]
-// impl Softmax {
-//     /// Constructs softmax explorer.
-//     pub fn new() -> Self { Self {} }
+#[allow(clippy::new_without_default)]
+impl Softmax {
+    /// Constructs softmax explorer.
+    pub fn new() -> Self {
+        Self {}
+    }
 
-//     /// Takes an action based on the observation and the critic.
-//     pub fn action<M>(&mut self, qnet: &M, obs: &Tensor) -> Tensor where
-//         M: Model1<Input=Tensor, Output=Tensor>,
-//     {
-//         let a = qnet.forward(obs);
-//         a.softmax(-1, tch::Kind::Float).multinomial(1, true)
-//     }
-// }
+    /// Takes an action based on the observation and the critic.
+    pub fn action(&mut self, a: &Tensor) -> Tensor {
+        a.softmax(-1, tch::Kind::Float).multinomial(1, true)
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 /// Epsilon-greedy explorer for IQN.
@@ -85,7 +85,7 @@ impl EpsilonGreedy {
         if is_random {
             let batch_size = action_value.size()[0];
             let n_actions = action_value.size()[1] as u32;
-            Tensor::of_slice(
+            Tensor::from_slice(
                 (0..batch_size)
                     .map(|_| fastrand::u32(..n_actions) as i32)
                     .collect::<Vec<_>>()

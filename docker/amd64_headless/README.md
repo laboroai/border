@@ -2,38 +2,32 @@
 
 This directory contains scripts to build and run a docker container for training.
 
-## Build
-
-The following command creates a container image locally, named `border_headless`.
+## Build a Docker image
 
 ```bash
-cd $REPO/docker/aarch64_headless
+# cd $REPO/docker/aarch64_headless
 sh build.sh
 ```
 
-# Build document
-
-The following commands builds the document and places it as `$REPO/doc`.
-
-## Run
+## Run training
 
 The following commands runs a program for training an agent.
-The trained model will be saved in `$REPO/border/examples/model` directory,
-which is mounted in the container.
+The trained model will be saved in `$REPO/border/examples/model` directory.
 
 ### DQN
 
 * Cartpole
 
+  Note that this command starts an MLflow server, accessible via a web browser at $IP:8080 without any authentication.
+
   ```bash
-  cd $REPO/docker/aarch64_headless
-  sh run.sh "source /home/ubuntu/venv/bin/activate && cargo run --example dqn_cartpole --features='tch' -- --train"
+  # cd $REPO/docker/amd64_headless
+  sh dqn_cartpole.sh
   ```
 
-  * Use a directory, not mounted on the host, as a cargo target directory,
-    making compile faster on Mac, where access to mounted directories is slow.
+## Start MLflow server for checking logs
 
-    ```bash
-    cd $REPO/docker/aarch64_headless
-    sh run.sh "source /home/ubuntu/venv/bin/activate && CARGO_TARGET_DIR=/home/ubuntu/target cargo run --example dqn_cartpole --features='tch' -- --train"
-    ```
+```bash
+# cd $REPO/docker/amd64_headless
+sh mlflow.sh
+```

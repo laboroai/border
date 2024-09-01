@@ -14,6 +14,8 @@
 //! Instead, the scaling is applied in CNN model.
 use anyhow::Result;
 use border_core::{record::Record, Obs};
+#[cfg(feature = "candle-core")]
+use candle_core::{Device::Cpu, Tensor};
 use serde::{Deserialize, Serialize};
 use std::{default::Default, marker::PhantomData};
 #[cfg(feature = "tch")]
@@ -53,7 +55,19 @@ impl From<BorderAtariObs> for Tensor {
     }
 }
 
-/// Converts [`BorderAtariObs`] to `O` with an arbitrary processing.
+#[cfg(feature = "candle-core")]
+impl From<BorderAtariObs> for Tensor {
+    fn from(obs: BorderAtariObs) -> Tensor {
+        let tmp = obs.frames;
+        // Assumes the batch size is 1, implying non-vectorized environment
+        Tensor::from_vec(tmp, &[1 * 4 * 1 * 84 * 84], &Cpu)
+            .unwrap()
+            .reshape(&[1, 4, 1, 84, 84])
+            .unwrap()
+    }
+}
+
+/// Converts [`BorderAtariObs`] to observation of type `O` with an arbitrary processing.
 pub trait BorderAtariObsFilter<O: Obs> {
     /// Configuration of the filter.
     type Config: Clone + Default;
@@ -84,7 +98,7 @@ impl Default for BorderAtariObsRawFilterConfig {
     }
 }
 
-/// A filter without any processing.
+/// A filter that performs no processing.
 pub struct BorderAtariObsRawFilter<O> {
     phantom: PhantomData<O>,
 }

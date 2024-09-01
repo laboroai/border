@@ -5,10 +5,11 @@ use crate::{
 };
 use anyhow::Result;
 use border_core::{
+    generic_replay_buffer::{BatchBase, SimpleReplayBuffer},
     record::Record,
-    replay_buffer::{SimpleReplayBuffer, SubBatch},
-    Agent as Agent_, Policy, ReplayBufferBase,
+    Agent as Agent_, Configurable, Policy, ReplayBufferBase,
 };
+use serde::Deserialize;
 use std::ptr::copy;
 
 pub type Obs = BorderAtariObs;
@@ -34,7 +35,7 @@ pub struct ObsBatch {
     pub buf: Vec<u8>,
 }
 
-impl SubBatch for ObsBatch {
+impl BatchBase for ObsBatch {
     fn new(capacity: usize) -> Self {
         let m = 4 * FRAME_IN_BYTES;
         Self {
@@ -45,7 +46,7 @@ impl SubBatch for ObsBatch {
     }
 
     #[inline]
-    fn push(&mut self, i: usize, data: &Self) {
+    fn push(&mut self, i: usize, data: Self) {
         unsafe {
             let src: *const u8 = &data.buf[0];
             let dst: *mut u8 = &mut self.buf[i * self.m];
@@ -89,7 +90,7 @@ pub struct ActBatch {
     pub buf: Vec<u8>,
 }
 
-impl SubBatch for ActBatch {
+impl BatchBase for ActBatch {
     fn new(capacity: usize) -> Self {
         let m = 1;
         Self {
@@ -100,7 +101,7 @@ impl SubBatch for ActBatch {
     }
 
     #[inline]
-    fn push(&mut self, i: usize, data: &Self) {
+    fn push(&mut self, i: usize, data: Self) {
         unsafe {
             let src: *const u8 = &data.buf[0];
             let dst: *mut u8 = &mut self.buf[i * self.m];
@@ -132,8 +133,8 @@ impl From<Act> for ActBatch {
     }
 }
 
-#[derive(Clone)]
-/// Configuration of [RandomAgent].
+#[derive(Clone, Deserialize)]
+/// Configuration of [`RandomAgent``].
 pub struct RandomAgentConfig {
     pub n_acts: usize,
 }
@@ -146,6 +147,12 @@ pub struct RandomAgent {
 }
 
 impl Policy<Env> for RandomAgent {
+    fn sample(&mut self, _: &Obs) -> Act {
+        fastrand::u8(..self.n_acts as u8).into()
+    }
+}
+
+impl Configurable<Env> for RandomAgent {
     type Config = RandomAgentConfig;
 
     fn build(config: Self::Config) -> Self {
@@ -154,10 +161,6 @@ impl Policy<Env> for RandomAgent {
             n_opts_steps: 0,
             train: true,
         }
-    }
-
-    fn sample(&mut self, _: &Obs) -> Act {
-        fastrand::u8(..self.n_acts as u8).into()
     }
 }
 
@@ -174,23 +177,18 @@ impl<R: ReplayBufferBase> Agent_<Env, R> for RandomAgent {
         self.train
     }
 
-    fn opt(&mut self, buffer: &mut R) -> Option<border_core::record::Record> {
-        // Check warmup period
-        if buffer.len() <= 100 {
-            None
-        } else {
+    fn opt_with_record(&mut self, _buffer: &mut R) -> border_core::record::Record {
         // Do nothing
-            self.n_opts_steps += 1;
-            Some(Record::empty())
-        }
+        self.n_opts_steps += 1;
+        Record::empty()
     }
 
-    fn save<T: AsRef<std::path::Path>>(&self, _path: T) -> Result<()> {
+    fn save_params<T: AsRef<std::path::Path>>(&self, _path: T) -> Result<()> {
         println!("save() was invoked");
         Ok(())
     }
 
-    fn load<T: AsRef<std::path::Path>>(&mut self, _path: T) -> Result<()> {
+    fn load_params<T: AsRef<std::path::Path>>(&mut self, _path: T) -> Result<()> {
         println!("load() was invoked");
         Ok(())
     }

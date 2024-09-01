@@ -5,13 +5,18 @@ use crate::{
     util::OutDim,
 };
 use anyhow::Result;
+use border_core::record::Record;
 use log::{info, trace};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{marker::PhantomData, path::Path};
 use tch::{nn, Device, Tensor};
 
-#[allow(clippy::upper_case_acronyms)]
-/// Represents value functions for DQN agents.
+/// Action value function model for DQN.
+/// 
+/// The architecture of the model is defined by the type parameter `Q`,
+/// which should implement [`SubModel`].
+/// This takes [`SubModel::Input`] as input and outputs a tensor.
+/// The output tensor should have the same dimension as the number of actions.
 pub struct DqnModel<Q>
 where
     Q: SubModel<Output = Tensor>,
@@ -74,11 +79,15 @@ where
         }
     }
 
-    /// Outputs the action-value given an observation.
+    /// Outputs the action-value given observation(s).
     pub fn forward(&self, x: &Q::Input) -> Tensor {
         let a = self.q.forward(&x);
         debug_assert_eq!(a.size().as_slice()[1], self.out_dim);
         a
+    }
+
+    pub fn param_stats(&self) -> Record {
+        crate::util::param_stats(&self.var_store)
     }
 }
 

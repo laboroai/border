@@ -18,8 +18,7 @@ use std::{
 };
 use tch::Tensor;
 
-/// Constructs [Sac](super::Sac).
-#[allow(clippy::upper_case_acronyms)]
+/// Configuration of [`Sac`](super::Sac).
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct SacConfig<Q, P>
 where
@@ -28,23 +27,21 @@ where
     P: SubModel<Output = (Tensor, Tensor)>,
     P::Config: DeserializeOwned + Serialize + OutDim + Debug + PartialEq + Clone,
 {
-    pub(super) actor_config: ActorConfig<P::Config>,
-    pub(super) critic_config: CriticConfig<Q::Config>,
-    pub(super) gamma: f64,
-    pub(super) tau: f64,
-    pub(super) ent_coef_mode: EntCoefMode,
-    pub(super) epsilon: f64,
-    pub(super) min_lstd: f64,
-    pub(super) max_lstd: f64,
-    pub(super) n_updates_per_opt: usize,
-    pub(super) min_transitions_warmup: usize,
-    pub(super) batch_size: usize,
-    pub(super) train: bool,
-    pub(super) critic_loss: CriticLoss,
-    pub(super) reward_scale: f32,
-    pub(super) replay_burffer_capacity: usize,
-    pub(super) n_critics: usize,
-    pub(super) seed: Option<i64>,
+    pub actor_config: ActorConfig<P::Config>,
+    pub critic_config: CriticConfig<Q::Config>,
+    pub gamma: f64,
+    pub tau: f64,
+    pub ent_coef_mode: EntCoefMode,
+    pub epsilon: f64,
+    pub min_lstd: f64,
+    pub max_lstd: f64,
+    pub n_updates_per_opt: usize,
+    pub batch_size: usize,
+    pub train: bool,
+    pub critic_loss: CriticLoss,
+    pub reward_scale: f32,
+    pub n_critics: usize,
+    pub seed: Option<i64>,
     pub device: Option<Device>,
     // expr_sampling: ExperienceSampling,
 }
@@ -67,15 +64,13 @@ where
             min_lstd: self.min_lstd.clone(),
             max_lstd: self.max_lstd.clone(),
             n_updates_per_opt: self.n_updates_per_opt.clone(),
-            min_transitions_warmup: self.min_transitions_warmup.clone(),
             batch_size: self.batch_size.clone(),
             train: self.train.clone(),
             critic_loss: self.critic_loss.clone(),
             reward_scale: self.reward_scale.clone(),
-            replay_burffer_capacity: self.replay_burffer_capacity.clone(),
             n_critics: self.n_critics.clone(),
             seed: self.seed.clone(),
-            device: self.device.clone() 
+            device: self.device.clone(),
         }
     }
 }
@@ -98,12 +93,10 @@ where
             min_lstd: -20.0,
             max_lstd: 2.0,
             n_updates_per_opt: 1,
-            min_transitions_warmup: 1,
             batch_size: 1,
             train: false,
-            critic_loss: CriticLoss::MSE,
+            critic_loss: CriticLoss::Mse,
             reward_scale: 1.0,
-            replay_burffer_capacity: 100,
             n_critics: 1,
             seed: None,
             device: None,
@@ -122,12 +115,6 @@ where
     /// Sets the numper of parameter update steps per optimization step.
     pub fn n_updates_per_opt(mut self, v: usize) -> Self {
         self.n_updates_per_opt = v;
-        self
-    }
-
-    /// Interval before starting optimization.
-    pub fn min_transitions_warmup(mut self, v: usize) -> Self {
-        self.min_transitions_warmup = v;
         self
     }
 
@@ -152,12 +139,6 @@ where
     /// SAC-alpha.
     pub fn ent_coef_mode(mut self, v: EntCoefMode) -> Self {
         self.ent_coef_mode = v;
-        self
-    }
-
-    /// Replay buffer capacity.
-    pub fn replay_burffer_capacity(mut self, v: usize) -> Self {
-        self.replay_burffer_capacity = v;
         self
     }
 

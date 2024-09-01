@@ -1,3 +1,10 @@
+The following directories contain example scripts.
+
+* `gym` - Classic control environments in [Gymnasium](https://gymnasium.farama.org) based on [border-py-gym-env](https://crates.io/crates/border-py-gym-env).
+* `gym-robotics` - A robotic environment (fetch-reach) in [Gymnasium-Robotics](https://robotics.farama.org/) based on [border-py-gym-env](https://crates.io/crates/border-py-gym-env).
+* `mujoco` - Mujoco environments in [Gymnasium](https://gymnasium.farama.org) based on [border-py-gym-env](https://crates.io/crates/border-py-gym-env).
+* `atari` - Atari environments based on [border-atari-env](https://crates.io/crates/border-atari-env) is a wrapper of [atari-env](https://crates.io/crates/atari-env), which is a part of [gym-rs](https://crates.io/crates/gym-rs).
+
 ## Gym
 
 You may need to set PYTHONPATH as `PYTHONPATH=./border-py-gym-env/examples`.

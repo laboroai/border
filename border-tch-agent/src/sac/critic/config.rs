@@ -9,10 +9,10 @@ use std::{
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
-/// Configuration of [Critic](super::Critic).
+/// Configuration of [`Critic`](super::Critic).
 pub struct CriticConfig<Q> {
-    pub(super) q_config: Option<Q>,
-    pub(super) opt_config: OptimizerConfig,
+    pub q_config: Option<Q>,
+    pub opt_config: OptimizerConfig,
 }
 
 impl<Q> Default for CriticConfig<Q> {

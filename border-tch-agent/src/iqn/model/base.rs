@@ -330,6 +330,9 @@ pub enum IqnSample {
     /// The precent points are constants.
     Const10,
 
+    /// The precent points are constants.
+    Const32,
+
     /// 10 samples from uniform distribution.
     Uniform10,
 
@@ -350,16 +353,20 @@ impl IqnSample {
     /// Returns samples of percent points.
     pub fn sample(&self, batch_size: i64) -> Tensor {
         match self {
-            Self::Const10 => Tensor::of_slice(&[
+            Self::Const10 => Tensor::from_slice(&[
                 0.05_f32, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95,
             ])
             .unsqueeze(0)
             .repeat(&[batch_size, 1]),
+            Self::Const32 => {
+                let t: Tensor = (1.0 / 32.0) * Tensor::range(0, 32, tch::kind::FLOAT_CPU);
+                t.unsqueeze(0).repeat(&[batch_size, 1])
+            }
             Self::Uniform10 => Tensor::rand(&[batch_size, 10], tch::kind::FLOAT_CPU),
             Self::Uniform8 => Tensor::rand(&[batch_size, 8], tch::kind::FLOAT_CPU),
             Self::Uniform32 => Tensor::rand(&[batch_size, 32], tch::kind::FLOAT_CPU),
             Self::Uniform64 => Tensor::rand(&[batch_size, 64], tch::kind::FLOAT_CPU),
-            Self::Median => Tensor::of_slice(&[0.5_f32])
+            Self::Median => Tensor::from_slice(&[0.5_f32])
                 .unsqueeze(0)
                 .repeat(&[batch_size, 1]),
         }
@@ -369,6 +376,7 @@ impl IqnSample {
     pub fn n_percent_points(&self) -> i64 {
         match self {
             Self::Const10 => 10,
+            Self::Const32 => 32,
             Self::Uniform10 => 10,
             Self::Uniform8 => 8,
             Self::Uniform32 => 32,
@@ -397,7 +405,9 @@ where
     M::Config: DeserializeOwned + Serialize + OutDim,
 {
     let tau = mode.sample(batch_size).to(device);
-    let averaged_action_value = iqn.forward(obs, &tau).mean_dim(&[1], false, Float);
+    let averaged_action_value = iqn
+        .forward(obs, &tau)
+        .mean_dim(Some([1].as_slice()), false, Float);
     let batch_size = averaged_action_value.size()[0];
     let n_action = iqn.out_dim;
     debug_assert_eq!(
@@ -487,7 +497,7 @@ mod test {
             .feature_dim(feature_dim)
             .embed_dim(embed_dim)
             .learning_rate(learning_rate);
-        
+
         IqnModel::build_with_submodel_configs(config, fe_config, m_config, device)
     }
 

@@ -1,17 +1,13 @@
 [package]
 name = "border-derive"
-version = "0.0.6"
-authors = ["Taku Yoshioka <yoshioka@laboro.ai>"]
-edition = "2018"
-rust-version = "1.68.2"
-
-description = "Derive macros for observation and action in RL environments of border"
-repository = "https://github.com/taku-y/border"
-keywords = ["rl"]
-categories = ["science"]
-license = "MIT OR Apache-2.0"
-# readme = "README.md"
-autoexamples = false
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
+readme = "README.md"
 
 [lib]
 proc-macro = true
@@ -22,19 +18,17 @@ proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "1.0", features = ["full"] }
 tch = { workspace = true, optional = true }
+candle-core = { workspace = true, optional = true }
 
 [dev-dependencies]
-border-tch-agent = { version = "0.0.6", path = "../border-tch-agent" }
-border-py-gym-env = { version = "0.0.6", path = "../border-py-gym-env" }
-border-core = { version = "0.0.6", path = "../border-core" }
+border-tch-agent = { version = "0.0.7", path = "../border-tch-agent" }
+border-candle-agent = { version = "0.0.7", path = "../border-candle-agent" }
+border-py-gym-env = { version = "0.0.7", path = "../border-py-gym-env" }
+border-core = { version = "0.0.7", path = "../border-core" }
+border-atari-env = { version = "0.0.7", path = "../border-atari-env" }
 ndarray = { workspace = true }
 tch = { workspace = true }
-
-[features]
-default = ["tch"]
-
-[[example]]
-name = "test1"
+candle-core = { workspace = true }
 
 [package.metadata.docs.rs]
 features = ["doc-only"]

@@ -1,4 +1,4 @@
-use crate::{GymObsFilter, util::pyobj_to_arrayd};
+use crate::{util::pyobj_to_arrayd, GymObsFilter};
 use border_core::{
     record::{Record, RecordValue},
     Obs,
@@ -24,6 +24,8 @@ impl Default for ArrayObsFilterConfig {
 /// An observation filter that convertes PyObject of an numpy array.
 ///
 /// Type parameter `O` must implements [`From`]`<ArrayD>` and [`border_core::Obs`].
+/// 
+/// [`border_core::Obs`]: border_core::Obs
 pub struct ArrayObsFilter<T1, T2, O> {
     /// Marker.
     pub phantom: PhantomData<(T1, T2, O)>,

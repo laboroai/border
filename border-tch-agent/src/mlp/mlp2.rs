@@ -1,6 +1,6 @@
+use super::{mlp, MlpConfig};
 use crate::model::SubModel;
 use tch::{nn, nn::Module, Device, Tensor};
-use super::{MlpConfig, mlp};
 
 #[allow(clippy::clippy::upper_case_acronyms)]
 /// Multilayer perceptron that outputs two tensors of the same size.

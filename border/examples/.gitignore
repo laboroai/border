@@ -1,0 +1,10 @@
+# !.gitignore
+# */*
+# *
+*.pt
+*.pt.tch
+events*
+*.csv
+*.zip
+*.gz
+**/best

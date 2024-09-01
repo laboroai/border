@@ -1,7 +1,7 @@
 //! Configuration of IQN agent.
 use super::{IqnModelConfig, IqnSample};
 use crate::{
-    iqn::{EpsilonGreedy, IqnExplorer},
+    iqn::{IqnExplorer, Softmax},
     model::SubModel,
     util::OutDim,
     Device,
@@ -17,7 +17,7 @@ use std::{
 };
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
-/// Configuration of [Iqn](super::Iqn) agent.
+/// Configuration of [`Iqn`](super::Iqn) agent.
 pub struct IqnConfig<F, M>
 where
     F: SubModel,
@@ -25,18 +25,17 @@ where
     F::Config: DeserializeOwned + Serialize + Clone,
     M::Config: DeserializeOwned + Serialize + Clone + OutDim,
 {
-    pub(super) model_config: IqnModelConfig<F::Config, M::Config>,
-    pub(super) soft_update_interval: usize,
-    pub(super) n_updates_per_opt: usize,
-    pub(super) min_transitions_warmup: usize,
-    pub(super) batch_size: usize,
-    pub(super) discount_factor: f64,
-    pub(super) tau: f64,
-    pub(super) train: bool,
-    pub(super) explorer: IqnExplorer,
-    pub(super) sample_percents_pred: IqnSample,
-    pub(super) sample_percents_tgt: IqnSample,
-    pub(super) sample_percents_act: IqnSample,
+    pub model_config: IqnModelConfig<F::Config, M::Config>,
+    pub soft_update_interval: usize,
+    pub n_updates_per_opt: usize,
+    pub batch_size: usize,
+    pub discount_factor: f64,
+    pub tau: f64,
+    pub train: bool,
+    pub explorer: IqnExplorer,
+    pub sample_percents_pred: IqnSample,
+    pub sample_percents_tgt: IqnSample,
+    pub sample_percents_act: IqnSample,
     pub device: Option<Device>,
     phantom: PhantomData<(F, M)>,
 }
@@ -53,15 +52,15 @@ where
             model_config: Default::default(),
             soft_update_interval: 1,
             n_updates_per_opt: 1,
-            min_transitions_warmup: 1,
             batch_size: 1,
             discount_factor: 0.99,
             tau: 0.005,
-            sample_percents_pred: IqnSample::Uniform64,
-            sample_percents_tgt: IqnSample::Uniform64,
-            sample_percents_act: IqnSample::Uniform32, // Const10,
+            sample_percents_pred: IqnSample::Uniform8,
+            sample_percents_tgt: IqnSample::Uniform8,
+            sample_percents_act: IqnSample::Const32,
             train: false,
-            explorer: IqnExplorer::EpsilonGreedy(EpsilonGreedy::default()),
+            explorer: IqnExplorer::Softmax(Softmax::new()),
+            // explorer: IqnExplorer::EpsilonGreedy(EpsilonGreedy::default()),
             device: None,
             phantom: PhantomData,
         }
@@ -90,12 +89,6 @@ where
     /// Set numper of parameter update steps per optimization step.
     pub fn n_updates_per_opt(mut self, v: usize) -> Self {
         self.n_updates_per_opt = v;
-        self
-    }
-
-    /// Interval before starting optimization.
-    pub fn min_transitions_warmup(mut self, v: usize) -> Self {
-        self.min_transitions_warmup = v;
         self
     }
 
@@ -154,7 +147,7 @@ where
         self
     }
 
-    /// Constructs [IqnConfig] from YAML file.
+    /// Constructs [`IqnConfig`] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let file = File::open(path)?;
         let rdr = BufReader::new(file);
@@ -162,7 +155,7 @@ where
         Ok(b)
     }
 
-    /// Saves [IqnConfig].
+    /// Saves [`IqnConfig`].
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let mut file = File::create(path)?;
         file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;
@@ -226,7 +219,6 @@ where
             model_config: self.model_config.clone(),
             soft_update_interval: self.soft_update_interval,
             n_updates_per_opt: self.n_updates_per_opt,
-            min_transitions_warmup: self.min_transitions_warmup,
             batch_size: self.batch_size,
             discount_factor: self.discount_factor,
             tau: self.tau,

@@ -1,5 +1,5 @@
 //! IQN agent implemented with tch-rs.
-use super::{average, IqnExplorer, IqnConfig, IqnModel, IqnSample};
+use super::{average, IqnConfig, IqnExplorer, IqnModel, IqnSample};
 use crate::{
     model::{ModelBase, SubModel},
     util::{quantile_huber_loss, track, OutDim},
@@ -7,11 +7,11 @@ use crate::{
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue},
-    Agent, StdBatchBase, Env, Policy, ReplayBufferBase,
+    Agent, Configurable, Env, Policy, ReplayBufferBase, TransitionBatch,
 };
 use log::trace;
 use serde::{de::DeserializeOwned, Serialize};
-use std::{fs, marker::PhantomData, path::Path};
+use std::{convert::TryFrom, fs, marker::PhantomData, path::Path};
 use tch::{no_grad, Device, Tensor};
 
 /// IQN agent implemented with tch-rs.
@@ -20,22 +20,14 @@ use tch::{no_grad, Device, Tensor};
 /// `M::Input` and returns feature vectors.
 pub struct Iqn<E, F, M, R>
 where
-    E: Env,
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
-    R: ReplayBufferBase,
-    E::Obs: Into<F::Input>,
-    E::Act: From<Tensor>,
     F::Config: DeserializeOwned + Serialize,
     M::Config: DeserializeOwned + Serialize,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<F::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
 {
     pub(in crate::iqn) soft_update_interval: usize,
     pub(in crate::iqn) soft_update_counter: usize,
     pub(in crate::iqn) n_updates_per_opt: usize,
-    pub(in crate::iqn) min_transitions_warmup: usize,
     pub(in crate::iqn) batch_size: usize,
     pub(in crate::iqn) iqn: IqnModel<F, M>,
     pub(in crate::iqn) iqn_tgt: IqnModel<F, M>,
@@ -57,30 +49,33 @@ where
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
     R: ReplayBufferBase,
-    E::Obs: Into<F::Input>,
-    E::Act: From<Tensor>,
     F::Config: DeserializeOwned + Serialize,
     M::Config: DeserializeOwned + Serialize + OutDim,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<F::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
+    R::Batch: TransitionBatch,
+    <R::Batch as TransitionBatch>::ObsBatch: Into<F::Input>,
+    <R::Batch as TransitionBatch>::ActBatch: Into<Tensor>,
 {
     fn update_critic(&mut self, buffer: &mut R) -> f32 {
         trace!("IQN::update_critic()");
         let batch = buffer.batch(self.batch_size).unwrap();
-        let (obs, act, next_obs, reward, is_done, _ixs, _weight) = batch.unpack();
+        let (obs, act, next_obs, reward, is_terminated, _is_truncated, _ixs, _weight) =
+            batch.unpack();
         let obs = obs.into();
         let act = act.into().to(self.device);
         let next_obs = next_obs.into();
-        let reward = Tensor::of_slice(&reward[..]).to(self.device).unsqueeze(-1);
-        let is_done = Tensor::of_slice(&is_done[..]).to(self.device).unsqueeze(-1);
+        let reward = Tensor::from_slice(&reward[..])
+            .to(self.device)
+            .unsqueeze(-1);
+        let is_terminated = Tensor::from_slice(&is_terminated[..])
+            .to(self.device)
+            .unsqueeze(-1);
 
         let batch_size = self.batch_size as _;
         let n_percent_points_pred = self.sample_percents_pred.n_percent_points();
         let n_percent_points_tgt = self.sample_percents_tgt.n_percent_points();
 
         debug_assert_eq!(reward.size().as_slice(), &[batch_size, 1]);
-        debug_assert_eq!(is_done.size().as_slice(), &[batch_size, 1]);
+        debug_assert_eq!(is_terminated.size().as_slice(), &[batch_size, 1]);
         debug_assert_eq!(act.size().as_slice(), &[batch_size, 1]);
 
         let loss = {
@@ -130,7 +125,9 @@ where
                 );
 
                 // argmax_a z(s,a), where z are averaged over tau
-                let y = z.copy().mean_dim(&[1], false, tch::Kind::Float);
+                let y = z
+                    .copy()
+                    .mean_dim(Some([1].as_slice()), false, tch::Kind::Float);
                 let a = y.argmax(-1, false).unsqueeze(-1).unsqueeze(-1).repeat(&[
                     1,
                     n_percent_points,
@@ -143,7 +140,7 @@ where
                 debug_assert_eq!(z.size().as_slice(), &[batch_size, n_percent_points]);
 
                 // target value
-                let tgt: Tensor = reward + (1 - is_done) * self.discount_factor * z;
+                let tgt: Tensor = reward + (1 - is_terminated) * self.discount_factor * z;
                 debug_assert_eq!(tgt.size().as_slice(), &[batch_size, n_percent_points]);
 
                 tgt.unsqueeze(-1)
@@ -164,7 +161,7 @@ where
 
         self.iqn.backward_step(&loss);
 
-        f32::from(loss)
+        f32::try_from(loss).expect("Failed to convert Tensor to f32")
     }
 
     fn opt_(&mut self, buffer: &mut R) -> Record {
@@ -194,18 +191,51 @@ where
     E: Env,
     F: SubModel<Output = Tensor>,
     M: SubModel<Input = Tensor, Output = Tensor>,
-    R: ReplayBufferBase,
     E::Obs: Into<F::Input>,
     E::Act: From<Tensor>,
     F::Config: DeserializeOwned + Serialize + Clone,
     M::Config: DeserializeOwned + Serialize + Clone + OutDim,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<F::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
+{
+    fn sample(&mut self, obs: &E::Obs) -> E::Act {
+        // Do not support vectorized env
+        let batch_size = 1;
+
+        let a = no_grad(|| {
+            let action_value = average(
+                batch_size,
+                &obs.clone().into(),
+                &self.iqn,
+                &self.sample_percents_act,
+                self.device,
+            );
+
+            if self.train {
+                match &mut self.explorer {
+                    IqnExplorer::Softmax(softmax) => softmax.action(&action_value),
+                    IqnExplorer::EpsilonGreedy(egreedy) => egreedy.action(action_value),
+                }
+            } else {
+                action_value.argmax(-1, true)
+            }
+        });
+
+        a.into()
+    }
+}
+
+impl<E, F, M, R> Configurable<E> for Iqn<E, F, M, R>
+where
+    E: Env,
+    F: SubModel<Output = Tensor>,
+    M: SubModel<Input = Tensor, Output = Tensor>,
+    E::Obs: Into<F::Input>,
+    E::Act: From<Tensor>,
+    F::Config: DeserializeOwned + Serialize + Clone,
+    M::Config: DeserializeOwned + Serialize + Clone + OutDim,
 {
     type Config = IqnConfig<F, M>;
 
-    /// Constructs [Iqn] agent.
+    /// Constructs [`Iqn`] agent.
     fn build(config: Self::Config) -> Self {
         let device = config
             .device
@@ -220,7 +250,6 @@ where
             soft_update_interval: config.soft_update_interval,
             soft_update_counter: 0,
             n_updates_per_opt: config.n_updates_per_opt,
-            min_transitions_warmup: config.min_transitions_warmup,
             batch_size: config.batch_size,
             discount_factor: config.discount_factor,
             tau: config.tau,
@@ -234,32 +263,6 @@ where
             phantom: PhantomData,
         }
     }
-
-    fn sample(&mut self, obs: &E::Obs) -> E::Act {
-        // Do not support vectorized env
-        let batch_size = 1;
-
-        let a = no_grad(|| {
-            let obs = obs.clone().into();
-            let action_value = average(
-                batch_size,
-                &obs,
-                &self.iqn,
-                &self.sample_percents_act,
-                self.device,
-            );
-
-            if self.train {
-                match &mut self.explorer {
-                    IqnExplorer::EpsilonGreedy(egreedy) => egreedy.action(action_value),
-                }
-            } else {
-                action_value.argmax(-1, true)
-            }
-        });
-
-        a.into()
-    }
 }
 
 impl<E, F, M, R> Agent<E, R> for Iqn<E, F, M, R>
@@ -272,9 +275,9 @@ where
     E::Act: From<Tensor>,
     F::Config: DeserializeOwned + Serialize + Clone,
     M::Config: DeserializeOwned + Serialize + Clone + OutDim,
-    R::Batch: StdBatchBase,
-    <R::Batch as StdBatchBase>::ObsBatch: Into<F::Input>,
-    <R::Batch as StdBatchBase>::ActBatch: Into<Tensor>,
+    R::Batch: TransitionBatch,
+    <R::Batch as TransitionBatch>::ObsBatch: Into<F::Input>,
+    <R::Batch as TransitionBatch>::ActBatch: Into<Tensor>,
 {
     fn train(&mut self) {
         self.train = true;
@@ -288,74 +291,23 @@ where
         self.train
     }
 
-    fn opt(&mut self, buffer: &mut R) -> Option<Record> {
-        if buffer.len() >= self.min_transitions_warmup {
-            Some(self.opt_(buffer))
-        } else {
-            None
-        }
+    fn opt_with_record(&mut self, buffer: &mut R) -> Record {
+        self.opt_(buffer)
     }
 
-    // /// Update model parameters.
-    // ///
-    // /// When the return value is `Some(Record)`, it includes:
-    // /// * `loss_critic`: Loss of critic
-    // fn observe(&mut self, step: Step<E>) -> Option<Record> {
-    //     trace!("DQN::observe()");
-
-    //     // Check if doing optimization
-    //     let do_optimize = self.opt_interval_counter.do_optimize(&step.is_done)
-    //         && self.replay_buffer.len() + 1 >= self.min_transitions_warmup;
-
-    //     // Push transition to the replay buffer
-    //     self.push_transition(step);
-    //     trace!("Push transition");
-
-    //     // Do optimization
-    //     if do_optimize {
-    //         let mut loss_critic = 0f32;
-
-    //         for _ in 0..self.n_updates_per_opt {
-    //             let batch = self
-    //                 .replay_buffer
-    //                 .random_batch(self.batch_size, 0f32)
-    //                 .unwrap();
-    //             trace!("Sample random batch");
-
-    //             loss_critic += self.update_critic(batch);
-    //         }
-
-    //         self.soft_update_counter += 1;
-    //         if self.soft_update_counter == self.soft_update_interval {
-    //             self.soft_update_counter = 0;
-    //             self.soft_update();
-    //             trace!("Update target network");
-    //         }
-
-    //         loss_critic /= self.n_updates_per_opt as f32;
-
-    //         Some(Record::from_slice(&[(
-    //             "loss_critic",
-    //             RecordValue::Scalar(loss_critic),
-    //         )]))
-    //     } else {
-    //         None
-    //     }
-    // }
-
-    fn save<T: AsRef<Path>>(&self, path: T) -> Result<()> {
+    fn save_params<T: AsRef<Path>>(&self, path: T) -> Result<()> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
-        self.iqn.save(&path.as_ref().join("iqn.pt").as_path())?;
+        self.iqn.save(&path.as_ref().join("iqn.pt.tch").as_path())?;
         self.iqn_tgt
-            .save(&path.as_ref().join("iqn_tgt.pt").as_path())?;
+            .save(&path.as_ref().join("iqn_tgt.pt.tch").as_path())?;
         Ok(())
     }
 
-    fn load<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
-        self.iqn.load(&path.as_ref().join("iqn.pt").as_path())?;
+    fn load_params<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
+        self.iqn.load(&path.as_ref().join("iqn.pt.tch").as_path())?;
         self.iqn_tgt
-            .load(&path.as_ref().join("iqn_tgt.pt").as_path())?;
+            .load(&path.as_ref().join("iqn_tgt.pt.tch").as_path())?;
         Ok(())
     }
 }
