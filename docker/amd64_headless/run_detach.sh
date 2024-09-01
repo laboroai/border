@@ -1,4 +1,4 @@
-docker run -it --rm \
+docker run -dt --rm \
     --net host \
     --gpus all \
     --name border_headless \

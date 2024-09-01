@@ -35,6 +35,57 @@ pub struct AsyncTrainerConfig {
 }
 
 impl AsyncTrainerConfig {
+    /// Sets the number of optimization steps.
+    pub fn max_opts(mut self, v: usize) -> Result<Self> {
+        self.max_opts = v;
+        Ok(self)
+    }
+
+    /// Sets the interval of evaluation in optimization steps.
+    pub fn eval_interval(mut self, v: usize) -> Result<Self> {
+        self.eval_interval = v;
+        Ok(self)
+    }
+
+    /// Sets the directory the trained model being saved.
+    pub fn model_dir<T: Into<String>>(mut self, model_dir: T) -> Result<Self> {
+        self.model_dir = Some(model_dir.into());
+        Ok(self)
+    }
+
+    /// Sets the interval of computation cost in optimization steps.
+    pub fn record_compute_cost_interval(
+        mut self,
+        record_compute_cost_interval: usize,
+    ) -> Result<Self> {
+        self.record_compute_cost_interval = record_compute_cost_interval;
+        Ok(self)
+    }
+
+    /// Sets the interval of flushing recordd in optimization steps.
+    pub fn flush_record_interval(mut self, flush_record_interval: usize) -> Result<Self> {
+        self.flush_record_interval = flush_record_interval;
+        Ok(self)
+    }
+
+    /// Sets warmup period in environment steps.
+    pub fn warmup_period(mut self, warmup_period: usize) -> Result<Self> {
+        self.warmup_period = warmup_period;
+        Ok(self)
+    }
+
+    /// Sets the interval of saving in optimization steps.
+    pub fn save_interval(mut self, save_interval: usize) -> Result<Self> {
+        self.save_interval = save_interval;
+        Ok(self)
+    }
+
+    /// Sets the interval of synchronizing model parameters in training steps.
+    pub fn sync_interval(mut self, sync_interval: usize) -> Result<Self> {
+        self.sync_interval = sync_interval;
+        Ok(self)
+    }
+
     /// Constructs [AsyncTrainerConfig] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let file = File::open(path)?;
@@ -48,12 +99,6 @@ impl AsyncTrainerConfig {
         let mut file = File::create(path)?;
         file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;
         Ok(())
-    }
-
-    /// Sets the directory the trained model being saved.
-    pub fn model_dir<T: Into<String>>(mut self, model_dir: T) -> Result<Self> {
-        self.model_dir = Some(model_dir.into());
-        Ok(self)
     }
 }
 

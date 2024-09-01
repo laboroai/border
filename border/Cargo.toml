@@ -81,8 +81,8 @@ required-features = ["tch"]
 test = false
 
 [[example]]
-name = "dqn_atari_async"
-path = "examples/atari/dqn_atari_async.rs"
+name = "dqn_atari_async_tch"
+path = "examples/atari/dqn_atari_async_tch.rs"
 required-features = ["tch", "border-async-trainer"]
 test = false
 
@@ -115,11 +115,11 @@ path = "examples/gym/convert_sac_policy_to_edge.rs"
 required-features = ["border-tch-agent", "tch"]
 test = false
 
-# [[example]]
-# name = "sac_ant_async"
-# path = "examples/mujoco/sac_ant_async.rs"
-# required-features = ["tch", "border-async-trainer"]
-# test = false
+[[example]]
+name = "sac_mujoco_async_tch"
+path = "examples/mujoco/sac_mujoco_async_tch.rs"
+required-features = ["tch", "border-async-trainer"]
+test = false
 
 [[example]]
 name = "pendulum_edge"

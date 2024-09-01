@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+FROM --platform=linux/amd64 ubuntu:22.04
 
 ENV DEBIAN_FRONTEND noninteractive
 RUN echo "Set disable_coredump false" >> /etc/sudo.conf
@@ -57,14 +57,13 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 RUN cd /root && python3 -m venv venv
 RUN source /root/venv/bin/activate && pip3 install --upgrade pip
 RUN source /root/venv/bin/activate && pip3 install pyyaml typing-extensions
-RUN source /root/venv/bin/activate && pip3 install torch==2.3.0 --index-url https://download.pytorch.org/whl/test/cu118 --timeout 300
+RUN source /root/venv/bin/activate && pip3 install torch==2.3.0 --index-url https://download.pytorch.org/whl/cpu --timeout 300
 RUN source /root/venv/bin/activate && pip3 install ipython jupyterlab
 RUN source /root/venv/bin/activate && pip3 install numpy==1.21.3
 RUN source /root/venv/bin/activate && pip3 install mujoco==2.3.7
 RUN source /root/venv/bin/activate && pip3 install gymnasium[box2d]==0.29.0
 RUN source /root/venv/bin/activate && pip3 install gymnasium-robotics==1.2.2
 RUN source /root/venv/bin/activate && pip3 install tensorboard==2.16.2
-RUN source /root/venv/bin/activate && pip3 install mlflow==2.11.1
 RUN source /root/venv/bin/activate && pip3 install tabulate==0.9.0
 RUN source /root/venv/bin/activate && pip3 install mlflow-export-import==1.2.0
 # RUN source /home/ubuntu/venv/bin/activate && pip3 install robosuite==1.3.2

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #$-l rt_G.small=1
-#$-l h_rt=24:00:00
+#$-l h_rt=48:00:00
 #$-j y
 #$-cwd
 
@@ -12,4 +12,4 @@ module load singularitypro
 cd $PATH_TO_BORDER/singularity/abci
 sh run.sh "mlflow server --host 127.0.0.1 --port 8080 & \
         sleep 5 && \
-        cargo run --release --example sac_mujoco --features=candle-core,cuda,cudnn -- --train --mlflow --env $1"
+        ATARI_ROM_DIR=$HOME/atari_rom cargo run --release --example dqn_atari_tch --features=candle-tch -- $1 --mlflow"

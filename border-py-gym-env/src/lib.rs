@@ -8,7 +8,7 @@
 //! 
 //! ## Observation
 //! 
-//! Obsservation is created in Python and passed to Rust as a Python object. In order to convert
+//! Observation is created in Python and passed to Rust as a Python object. In order to convert
 //! Python object to Rust object, this crate provides [`GymObsFilter`] trait. This trait has
 //! [`GymObsFilter::filt`] method which converts Python object to Rust object.
 //! The type of the Rust object after conversion corresponds to the type parameter `O` of the trait
