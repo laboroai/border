@@ -20,7 +20,7 @@ edition = "2018"
 rust-version = "1.76"
 description = "Reinforcement learning library"
 repository = "https://github.com/laboroai/border"
-keywords = ["Reinforcement learning"]
+keywords = ["reinforcement", "learning"]
 categories = ["science"]
 license = "MIT OR Apache-2.0"
 

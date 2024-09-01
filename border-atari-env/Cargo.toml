@@ -6,7 +6,7 @@ description.workspace = true
 repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
-package.license = "GPL-2.0-or-later"
+license = "GPL-2.0-or-later"
 readme = "README.md"
 
 [dependencies]
