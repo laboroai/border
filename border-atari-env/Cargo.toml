@@ -14,7 +14,7 @@ anyhow = { workspace = true }
 pixels = { version = "0.2.0", optional = true }
 winit = { version = "0.24.0", optional = true }
 dirs = { workspace = true }
-border-core = { version = "0.0.7", path = "../border-core" }
+border-core = { version = "0.0.8", path = "../border-core" }
 image = { workspace = true }
 tch = { workspace = true, optional = true }
 candle-core = { workspace = true, optional = true }

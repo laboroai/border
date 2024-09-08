@@ -12,8 +12,8 @@ readme = "README.md"
 [dependencies]
 anyhow = { workspace = true }
 aquamarine = { workspace = true }
-border-core = { version = "0.0.7", path = "../border-core" }
-border-tensorboard = { version = "0.0.7", path = "../border-tensorboard" }
+border-core = { version = "0.0.8", path = "../border-core" }
+border-tensorboard = { version = "0.0.8", path = "../border-tensorboard" }
 serde = { workspace = true, features = ["derive"] }
 log = { workspace = true }
 tokio = { version = "1.14.0", features = ["full"] }
