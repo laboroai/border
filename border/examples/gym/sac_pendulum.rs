@@ -4,6 +4,7 @@ use border_candle_agent::{
     opt::OptimizerConfig,
     sac::{ActorConfig, CriticConfig, Sac, SacConfig},
     TensorBatch,
+    util::{arrayd_to_tensor, tensor_to_arrayd},
 };
 use border_core::{
     generic_replay_buffer::{
@@ -16,7 +17,7 @@ use border_core::{
 };
 use border_derive::BatchBase;
 use border_py_gym_env::{
-    util::{arrayd_to_pyobj, arrayd_to_tensor, tensor_to_arrayd},
+    util::arrayd_to_pyobj,
     ArrayObsFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
 use border_tensorboard::TensorboardRecorder;

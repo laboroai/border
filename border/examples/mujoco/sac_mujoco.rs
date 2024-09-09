@@ -5,6 +5,7 @@ use border_candle_agent::{
     opt::OptimizerConfig,
     sac::{ActorConfig, CriticConfig, EntCoefMode, Sac, SacConfig},
     util::CriticLoss,
+    util::{arrayd_to_tensor, tensor_to_arrayd},
     TensorBatch,
 };
 use border_core::{
@@ -19,7 +20,6 @@ use border_core::{
 use border_derive::BatchBase;
 use border_mlflow_tracking::MlflowTrackingClient;
 use border_py_gym_env::{
-    util::{arrayd_to_tensor, tensor_to_arrayd},
     ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
 use border_tensorboard::TensorboardRecorder;
