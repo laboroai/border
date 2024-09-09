@@ -10,13 +10,13 @@ use border_core::{
 };
 use border_mlflow_tracking::MlflowTrackingClient;
 use border_py_gym_env::{
-    util::vec_to_tensor, ArrayObsFilter, DiscreteActFilter, GymActFilter, GymEnv, GymEnvConfig,
+    ArrayObsFilter, DiscreteActFilter, GymActFilter, GymEnv, GymEnvConfig,
     GymObsFilter,
 };
 use border_tch_agent::{
     dqn::{Dqn, DqnConfig, DqnModelConfig},
     mlp::{Mlp, MlpConfig},
-    util::CriticLoss,
+    util::{CriticLoss, vec_to_tensor},
     TensorBatch,
 };
 use border_tensorboard::TensorboardRecorder;

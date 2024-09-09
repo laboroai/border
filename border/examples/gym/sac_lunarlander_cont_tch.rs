@@ -10,13 +10,13 @@ use border_core::{
 };
 use border_derive::BatchBase;
 use border_py_gym_env::{
-    util::{arrayd_to_tensor, tensor_to_arrayd},
     ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
 use border_tch_agent::{
     mlp::{Mlp, Mlp2, MlpConfig},
     opt::OptimizerConfig,
     sac::{ActorConfig, CriticConfig, Sac, SacConfig},
+    util::{arrayd_to_tensor, tensor_to_arrayd},
     TensorBatch,
 };
 use border_tensorboard::TensorboardRecorder;
