@@ -11,7 +11,7 @@ use border_core::{
 use border_derive::BatchBase;
 use border_mlflow_tracking::MlflowTrackingClient;
 use border_py_gym_env::{
-    util::{arrayd_to_pyobj, arrayd_to_tensor, tensor_to_arrayd, ArrayType},
+    util::{arrayd_to_pyobj, ArrayType},
     ArrayDictObsFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
 use border_tch_agent::{
@@ -19,6 +19,7 @@ use border_tch_agent::{
     opt::OptimizerConfig,
     sac::{ActorConfig, CriticConfig, EntCoefMode, Sac, SacConfig},
     util::CriticLoss,
+    util::{arrayd_to_tensor, tensor_to_arrayd},
     TensorBatch,
 };
 use border_tensorboard::TensorboardRecorder;

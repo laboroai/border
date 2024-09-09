@@ -6,9 +6,11 @@ mod named_tensors;
 mod quantile_loss;
 use border_core::record::{Record, RecordValue};
 pub use named_tensors::NamedTensors;
+use ndarray::ArrayD;
+use num_traits::cast::AsPrimitive;
 pub use quantile_loss::quantile_huber_loss;
 use std::convert::TryFrom;
-use tch::nn::VarStore;
+use tch::{nn::VarStore, Tensor};
 
 /// Critic loss type.
 #[allow(clippy::upper_case_acronyms)]
@@ -24,7 +26,7 @@ pub enum CriticLoss {
 /// Apply soft update on variables.
 ///
 /// Variables are identified by their names.
-/// 
+///
 /// dest = tau * src + (1.0 - tau) * dest
 pub fn track<M: ModelBase>(dest: &mut M, src: &mut M, tau: f64) {
     let src = &mut src.get_var_store().variables();
@@ -74,4 +76,52 @@ pub fn param_stats(var_store: &VarStore) -> Record {
     }
 
     record
+}
+
+pub fn vec_to_tensor<T1, T2>(v: Vec<T1>, add_batch_dim: bool) -> Tensor
+where
+    T1: AsPrimitive<T2>,
+    T2: Copy + 'static + tch::kind::Element,
+{
+    let v = v.iter().map(|e| e.as_()).collect::<Vec<_>>();
+    let t: Tensor = TryFrom::<Vec<T2>>::try_from(v).unwrap();
+
+    match add_batch_dim {
+        true => t.unsqueeze(0),
+        false => t,
+    }
+}
+
+/// Converts [`ndarray::ArrayD`] to [`Tensor`].
+pub fn arrayd_to_tensor<T1, T2>(a: ArrayD<T1>, add_batch_dim: bool) -> Tensor
+where
+    T1: AsPrimitive<T2>,
+    T2: Copy + 'static + tch::kind::Element,
+{
+    let v = a.iter().map(|e| e.as_()).collect::<Vec<_>>();
+    let t: Tensor = TryFrom::<Vec<T2>>::try_from(v).unwrap();
+
+    match add_batch_dim {
+        true => t.unsqueeze(0),
+        false => t,
+    }
+}
+
+/// Converts [`Tensor`] to [`ndarray::ArrayD`].
+pub fn tensor_to_arrayd<T>(t: Tensor, delete_batch_dim: bool) -> ArrayD<T>
+where
+    T: tch::kind::Element + Copy,
+{
+    let shape = match delete_batch_dim {
+        false => t.size()[..].iter().map(|x| *x as usize).collect::<Vec<_>>(),
+        true => t.size()[1..]
+            .iter()
+            .map(|x| *x as usize)
+            .collect::<Vec<_>>(),
+    };
+    let v = Vec::<T>::try_from(&t.flatten(0, -1)).expect("Failed to convert from Tensor to Vec");
+
+    ndarray::Array1::<T>::from(v)
+        .into_shape(ndarray::IxDyn(&shape))
+        .unwrap()
 }

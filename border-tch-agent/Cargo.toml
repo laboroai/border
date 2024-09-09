@@ -23,6 +23,8 @@ aquamarine = { workspace = true }
 tch = { workspace = true }
 fastrand = { workspace = true }
 segment-tree = { workspace = true }
+num-traits = { workspace = true }
+ndarray = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
 tempdir = { workspace = true }

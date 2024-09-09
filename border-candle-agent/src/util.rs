@@ -1,7 +1,7 @@
 //! Utilities.
 // use crate::model::ModelBase;
 use anyhow::Result;
-use candle_core::{DType, Tensor};
+use candle_core::{DType, Tensor, WithDType};
 use candle_nn::VarMap;
 use log::trace;
 use serde::{Deserialize, Serialize};
@@ -9,6 +9,8 @@ mod named_tensors;
 mod quantile_loss;
 use border_core::record::{Record, RecordValue};
 pub use named_tensors::NamedTensors;
+use ndarray::ArrayD;
+use num_traits::AsPrimitive;
 pub use quantile_loss::quantile_huber_loss;
 use std::convert::TryFrom;
 
@@ -26,7 +28,7 @@ pub enum CriticLoss {
 /// Apply soft update on variables.
 ///
 /// Variables are identified by their names.
-/// 
+///
 /// dest = tau * src + (1.0 - tau) * dest
 pub fn track(dest: &VarMap, src: &VarMap, tau: f64) -> Result<()> {
     trace!("dest");
@@ -154,4 +156,50 @@ pub fn param_stats(varmap: &VarMap) -> Record {
     }
 
     record
+}
+
+pub fn vec_to_tensor<T1, T2>(v: Vec<T1>, add_batch_dim: bool) -> Result<Tensor>
+where
+    T1: AsPrimitive<T2>,
+    T2: WithDType,
+{
+    let v = v.iter().map(|e| e.as_()).collect::<Vec<_>>();
+    let t: Tensor = TryFrom::<Vec<T2>>::try_from(v).unwrap();
+
+    match add_batch_dim {
+        true => Ok(t.unsqueeze(0)?),
+        false => Ok(t),
+    }
+}
+
+pub fn arrayd_to_tensor<T1, T2>(a: ArrayD<T1>, add_batch_dim: bool) -> Result<Tensor>
+where
+    T1: AsPrimitive<T2>,
+    T2: WithDType,
+{
+    let shape = a.shape();
+    let v = a.iter().map(|e| e.as_()).collect::<Vec<_>>();
+    let t: Tensor = TryFrom::<Vec<T2>>::try_from(v)?;
+    let t = t.reshape(shape)?;
+
+    match add_batch_dim {
+        true => Ok(t.unsqueeze(0)?),
+        false => Ok(t),
+    }
+}
+
+pub fn tensor_to_arrayd<T>(t: Tensor, delete_batch_dim: bool) -> Result<ArrayD<T>>
+where
+    T: WithDType, //tch::kind::Element,
+{
+    let shape = match delete_batch_dim {
+        false => t.dims()[..].iter().map(|x| *x as usize).collect::<Vec<_>>(),
+        true => t.dims()[1..]
+            .iter()
+            .map(|x| *x as usize)
+            .collect::<Vec<_>>(),
+    };
+    let v: Vec<T> = t.flatten_all()?.to_vec1()?;
+
+    Ok(ndarray::Array1::<T>::from(v).into_shape(ndarray::IxDyn(&shape))?)
 }
