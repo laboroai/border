@@ -303,34 +303,6 @@ where
         self.reset(None)
     }
 
-    /// Currently it supports non-vectorized environment.
-    fn step_with_reset(
-        &mut self,
-        a: &Self::Act,
-    ) -> (border_core::Step<Self>, border_core::record::Record)
-    where
-        Self: Sized,
-    {
-        let (step, record) = self.step(a);
-        assert_eq!(step.is_terminated.len(), 1);
-        let step = if step.is_done() {
-            let init_obs = self.reset(None).unwrap();
-            Step {
-                act: step.act,
-                obs: step.obs,
-                reward: step.reward,
-                is_terminated: step.is_terminated,
-                is_truncated: step.is_truncated,
-                info: step.info,
-                init_obs,
-            }
-        } else {
-            step
-        };
-
-        (step, record)
-    }
-
     fn step(&mut self, act: &Self::Act) -> (border_core::Step<Self>, border_core::record::Record)
     where
         Self: Sized,

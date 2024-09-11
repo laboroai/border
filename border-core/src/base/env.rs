@@ -37,7 +37,27 @@ pub trait Env {
     /// Performes an environment step and reset the environment if an episode ends.
     fn step_with_reset(&mut self, a: &Self::Act) -> (Step<Self>, Record)
     where
-        Self: Sized;
+        Self: Sized,
+    {
+        let (step, record) = self.step(a);
+        assert_eq!(step.is_terminated.len(), 1);
+        let step = if step.is_done() {
+            let init_obs = self.reset(None).unwrap();
+            Step {
+                act: step.act,
+                obs: step.obs,
+                reward: step.reward,
+                is_terminated: step.is_terminated,
+                is_truncated: step.is_truncated,
+                info: step.info,
+                init_obs,
+            }
+        } else {
+            step
+        };
+
+        (step, record)
+    }
 
     /// Resets the environment with a given index.
     ///

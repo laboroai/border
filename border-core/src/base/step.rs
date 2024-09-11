@@ -4,6 +4,8 @@ use super::Env;
 /// Additional information to `Obs` and `Act`.
 pub trait Info {}
 
+impl Info for () {}
+
 /// Represents an action, observation and reward tuple `(a_t, o_t+1, r_t)`
 /// with some additional information.
 ///

@@ -108,6 +108,14 @@ where
             sum_tree.add(i, max_p);
         }
     }
+
+    /// Returns the batch of all actions.
+    /// 
+    /// Use caution when calling this method on a large replay buffer.
+    pub fn whole_actions(&self) -> A {
+        let ixs = (0..self.size).collect::<Vec<_>>();
+        self.act.sample(&ixs)
+    }
 }
 
 impl<O, A> ExperienceBufferBase for SimpleReplayBuffer<O, A>
