@@ -313,7 +313,7 @@ pub mod test {
         }
     }
 
-    impl crate::Configurable<TestEnv> for TestAgent {
+    impl crate::Configurable for TestAgent {
         type Config = TestAgentConfig;
 
         fn build(_config: Self::Config) -> Self {

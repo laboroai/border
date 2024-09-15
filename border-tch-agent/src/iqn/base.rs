@@ -223,7 +223,7 @@ where
     }
 }
 
-impl<E, F, M, R> Configurable<E> for Iqn<E, F, M, R>
+impl<E, F, M, R> Configurable for Iqn<E, F, M, R>
 where
     E: Env,
     F: SubModel<Output = Tensor>,

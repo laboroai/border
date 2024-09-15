@@ -37,7 +37,7 @@ use std::{
 /// [`Step`]: border_core::Step
 pub struct Actor<A, E, P, R>
 where
-    A: Agent<E, R> + Configurable<E> + SyncModel,
+    A: Agent<E, R> + Configurable + SyncModel,
     E: Env,
     P: StepProcessor<E>,
     R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
@@ -58,7 +58,7 @@ where
 
 impl<A, E, P, R> Actor<A, E, P, R>
 where
-    A: Agent<E, R> + Configurable<E> + SyncModel,
+    A: Agent<E, R> + Configurable + SyncModel,
     E: Env,
     P: StepProcessor<E>,
     R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,

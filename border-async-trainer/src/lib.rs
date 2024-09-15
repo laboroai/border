@@ -37,7 +37,7 @@
 //! // Create a new agent by wrapping the existing agent in order to implement SyncModel.
 //! struct TestAgent2(TestAgent);
 //! 
-//! impl border_core::Configurable<Env> for TestAgent2 {
+//! impl border_core::Configurable for TestAgent2 {
 //!     type Config = TestAgentConfig;
 //! 
 //!     fn build(config: Self::Config) -> Self {
@@ -366,7 +366,7 @@ pub mod test {
         }
     }
 
-    impl border_core::Configurable<TestEnv> for TestAgent {
+    impl border_core::Configurable for TestAgent {
         type Config = TestAgentConfig;
 
         fn build(_config: Self::Config) -> Self {

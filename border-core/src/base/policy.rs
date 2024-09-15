@@ -13,8 +13,8 @@ pub trait Policy<E: Env> {
     fn sample(&mut self, obs: &E::Obs) -> E::Act;
 }
 
-/// A configurable object, having type parameter.
-pub trait Configurable<E: Env> {
+/// A configurable object.
+pub trait Configurable {
     /// Configuration.
     type Config: Clone + DeserializeOwned;
 

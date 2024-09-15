@@ -22,7 +22,7 @@ use std::{
 /// [`AsyncTrainer`]: crate::AsyncTrainer
 pub struct ActorManager<A, E, R, P>
 where
-    A: Agent<E, R> + Configurable<E> + SyncModel,
+    A: Agent<E, R> + Configurable + SyncModel,
     E: Env,
     P: StepProcessor<E>,
     R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
@@ -69,7 +69,7 @@ where
 
 impl<A, E, R, P> ActorManager<A, E, R, P>
 where
-    A: Agent<E, R> + Configurable<E> + SyncModel,
+    A: Agent<E, R> + Configurable + SyncModel,
     E: Env,
     P: StepProcessor<E>,
     R: ExperienceBufferBase<Item = P::Output> + Send + 'static + ReplayBufferBase,

@@ -55,7 +55,7 @@ use std::{
 /// [`Agent`]: border_core::Agent
 pub struct AsyncTrainer<A, E, R>
 where
-    A: Agent<E, R> + Configurable<E> + SyncModel,
+    A: Agent<E, R> + Configurable + SyncModel,
     E: Env,
     // R: ReplayBufferBase + Sync + Send + 'static,
     R: ExperienceBufferBase + ReplayBufferBase,
@@ -114,7 +114,7 @@ where
 
 impl<A, E, R> AsyncTrainer<A, E, R>
 where
-    A: Agent<E, R> + Configurable<E> + SyncModel,
+    A: Agent<E, R> + Configurable + SyncModel,
     E: Env,
     // R: ReplayBufferBase + Sync + Send + 'static,
     R: ExperienceBufferBase + ReplayBufferBase,

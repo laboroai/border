@@ -152,7 +152,7 @@ impl Policy<Env> for RandomAgent {
     }
 }
 
-impl Configurable<Env> for RandomAgent {
+impl Configurable for RandomAgent {
     type Config = RandomAgentConfig;
 
     fn build(config: Self::Config) -> Self {

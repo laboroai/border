@@ -241,7 +241,7 @@ where
     }
 }
 
-impl<E, Q, R> Configurable<E> for Dqn<E, Q, R>
+impl<E, Q, R> Configurable for Dqn<E, Q, R>
 where
     E: Env,
     Q: SubModel<Output = Tensor>,
