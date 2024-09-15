@@ -44,7 +44,7 @@ jobs:
             pip install swig==4.2.1
             pip install mujoco==2.3.7
             pip install gymnasium==0.29.1
-            pip install gymnasium-robotics==1.2.2
+            pip install gymnasium-robotics==1.2.4
             pip install pybullet==3.2.5
             pip install torch==2.3.0 --index-url https://download.pytorch.org/whl/cpu
 

@@ -48,7 +48,7 @@ source $HOME/venv/bin/activate && pip3 install ipython jupyterlab
 source $HOME/venv/bin/activate && pip3 install numpy==1.21.3
 source $HOME/venv/bin/activate && pip3 install mujoco==2.3.7
 source $HOME/venv/bin/activate && pip3 install gymnasium[box2d]==0.29.0
-source $HOME/venv/bin/activate && pip3 install gymnasium-robotics==1.2.2
+source $HOME/venv/bin/activate && pip3 install gymnasium-robotics==1.2.4
 source $HOME/venv/bin/activate && pip3 install tensorboard==2.16.2
 source $HOME/venv/bin/activate && pip3 install mlflow==2.11.1
 source $HOME/venv/bin/activate && pip3 install tabulate==0.9.0

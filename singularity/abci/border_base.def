@@ -51,7 +51,7 @@ From: nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
     bash -c "source /opt/venv/bin/activate && pip3 install numpy==1.21.3"
     bash -c "source /opt/venv/bin/activate && pip3 install mujoco==2.3.7"
     bash -c "source /opt/venv/bin/activate && pip3 install gymnasium[box2d]==0.29.0"
-    bash -c "source /opt/venv/bin/activate && pip3 install gymnasium-robotics==1.2.2"
+    bash -c "source /opt/venv/bin/activate && pip3 install gymnasium-robotics==1.2.4"
     bash -c "source /opt/venv/bin/activate && pip3 install tensorboard==2.16.2"
     bash -c "source /opt/venv/bin/activate && pip3 install mlflow==2.11.1"
     bash -c "source /opt/venv/bin/activate && pip3 install tabulate==0.9.0"
