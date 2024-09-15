@@ -27,7 +27,7 @@ fn main() -> Result<()> {
     // Apply the actions to the environment
     env.reset(None)?;
 
-    for ix in 220..actions.action.shape()[0] {
+    for ix in 0..actions.action.shape()[0] {
         let act = actions.get(ix);
         let _ = env.step(&act);
     }
