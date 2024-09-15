@@ -5,9 +5,3 @@ nvidia-docker run -it --rm \
     --volume="/home/taku-y:/home/taku-y" \
     --name my_pybullet my_pybullet bash
 
-# podman run -td  \
-#     --name border \
-#     -p 6080:6080 \
-#     --shm-size=512m \
-#     --volume="$(pwd)/../..:/root/border" \
-#     border

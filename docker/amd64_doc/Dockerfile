@@ -21,7 +21,7 @@ RUN apt update -y && \
     DEBIAN_FRONTEND=noninteractive && \
     apt install -y -q --no-install-recommends \
         libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev libsdl2-ttf-dev \
-        libsdl-image1.2-dev libsdl1.2-dev
+        libsdl-image1.2-dev
 
 # zip
 RUN apt install -y zip
@@ -44,6 +44,10 @@ RUN apt install -y llvm libosmesa6-dev
 # Used for Mujoco
 RUN apt install -y patchelf libglfw3 libglfw3-dev
 
+# Used for minari
+RUN apt-get update && \
+    apt install -y libhdf5-serial-dev --fix-missing
+
 # Cleanup
 RUN rm -rf /var/lib/apt/lists/*
 
@@ -57,15 +61,17 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 RUN cd /root && python3 -m venv venv
 RUN source /root/venv/bin/activate && pip3 install --upgrade pip
 RUN source /root/venv/bin/activate && pip3 install pyyaml typing-extensions
-RUN source /root/venv/bin/activate && pip3 install torch==2.3.0 --index-url https://download.pytorch.org/whl/cpu --timeout 300
+RUN source /root/venv/bin/activate && pip3 install torch==2.3.0 --index-url https://download.pytorch.org/whl/cpu
 RUN source /root/venv/bin/activate && pip3 install ipython jupyterlab
 RUN source /root/venv/bin/activate && pip3 install numpy==1.21.3
 RUN source /root/venv/bin/activate && pip3 install mujoco==2.3.7
 RUN source /root/venv/bin/activate && pip3 install gymnasium[box2d]==0.29.0
 RUN source /root/venv/bin/activate && pip3 install gymnasium-robotics==1.2.2
 RUN source /root/venv/bin/activate && pip3 install tensorboard==2.16.2
+RUN source /root/venv/bin/activate && pip3 install mlflow==2.11.1
 RUN source /root/venv/bin/activate && pip3 install tabulate==0.9.0
 RUN source /root/venv/bin/activate && pip3 install mlflow-export-import==1.2.0
+RUN source /root/venv/bin/activate && pip3 install minari[all]==0.5.0
 # RUN source /home/ubuntu/venv/bin/activate && pip3 install robosuite==1.3.2
 # RUN source /home/ubuntu/venv/bin/activate && pip3 install -U 'mujoco-py<2.2,>=2.1'
 # RUN source /home/ubuntu/venv/bin/activate && pip3 install dm-control==1.0.8
@@ -101,10 +107,3 @@ RUN echo 'source $HOME/venv/bin/activate' >> ~/.bashrc
 RUN echo 'export RUSTFLAGS="-C target-feature=+fp16"' >> ~/.bashrc
 
 RUN rm /bin/sh && mv /bin/sh_tmp /bin/sh
-
-# USER root
-# WORKDIR /home/ubuntu/border
-
-# ENV USER ubuntu
-# CMD ["/bin/bash", "-l", "-c"]
-# CMD source /home/ubuntu/.bashrc

@@ -170,31 +170,6 @@ where
     type Info = GymInfo;
     type Config = GymEnvConfig<O, A, OF, AF>;
 
-    /// Currently it supports non-vectorized environment.
-    fn step_with_reset(&mut self, a: &Self::Act) -> (Step<Self>, Record)
-    where
-        Self: Sized,
-    {
-        let (step, record) = self.step(a);
-        assert_eq!(step.is_terminated.len(), 1);
-        let step = if step.is_done() {
-            let init_obs = self.reset(None).unwrap();
-            Step {
-                act: step.act,
-                obs: step.obs,
-                reward: step.reward,
-                is_terminated: step.is_terminated,
-                is_truncated: step.is_truncated,
-                info: step.info,
-                init_obs,
-            }
-        } else {
-            step
-        };
-
-        (step, record)
-    }
-
     /// Resets the environment and returns an observation.
     ///
     /// This method also resets the [`GymObsFilter`] adn [`GymActFilter`].
