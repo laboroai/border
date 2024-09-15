@@ -225,7 +225,7 @@ where
             let msg = receiver.recv();
             if msg.is_ok() {
                 _n_samples += 1;
-                sender.try_send(msg.unwrap()).unwrap();    
+                sender.try_send(msg.unwrap()).unwrap();
             }
 
             // Stop the loop

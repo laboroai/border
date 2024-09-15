@@ -60,7 +60,7 @@ pub trait Model2: ModelBase {
 /// To do this, structs implementing this trait can be initialized with a given [`VarStore`].
 /// This trait also provide the ability to clone with a given [`VarStore`].
 /// The ability is useful when creating a target network, used in recent deep learning algorithms in common.
-/// 
+///
 /// [`VarStore`]: https://docs.rs/tch/0.16.0/tch/nn/struct.VarStore.html
 pub trait SubModel {
     /// Configuration from which [`SubModel`] is constructed.
@@ -76,7 +76,7 @@ pub trait SubModel {
     fn build(var_store: &VarStore, config: Self::Config) -> Self;
 
     /// Clones [`SubModel`] with [`VarStore`].
-    /// 
+    ///
     /// [`VarStore`]: https://docs.rs/tch/0.16.0/tch/nn/struct.VarStore.html
     fn clone_with_var_store(&self, var_store: &VarStore) -> Self;
 
@@ -106,7 +106,7 @@ pub trait SubModel2 {
     fn build(var_store: &VarStore, config: Self::Config) -> Self;
 
     /// Clones [`SubModel2`] with [`VarStore`].
-    /// 
+    ///
     /// [`VarStore`]: https://docs.rs/tch/0.16.0/tch/nn/struct.VarStore.html
     fn clone_with_var_store(&self, var_store: &VarStore) -> Self;
 

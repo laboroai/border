@@ -331,7 +331,7 @@ where
     }
 
     /// Save model parameters in the given directory.
-    /// 
+    ///
     /// The parameters of the model are saved as `qnet.pt`.
     /// The parameters of the target model are saved as `qnet_tgt.pt`.
     fn save_params<T: AsRef<Path>>(&self, path: T) -> Result<()> {

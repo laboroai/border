@@ -8,7 +8,7 @@
 //! #     Env as Env_, Obs as Obs_, Act as Act_, Step, test::{
 //! #         TestAct as TestAct_, TestActBatch as TestActBatch_,
 //! #         TestEnv as TestEnv_,
-//! #         TestObs as TestObs_, TestObsBatch as TestObsBatch_, 
+//! #         TestObs as TestObs_, TestObsBatch as TestObsBatch_,
 //! #     },
 //! #     record::Record,
 //! #     generic_replay_buffer::{SimpleReplayBuffer, BatchBase},
@@ -19,7 +19,7 @@
 //!     mlp::{Mlp, Mlp2, MlpConfig},
 //!     opt::OptimizerConfig
 //! };
-//! 
+//!
 //! # struct TestEnv(TestEnv_);
 //! # #[derive(Clone, Debug)]
 //! # struct TestObs(TestObs_);
@@ -141,16 +141,16 @@
 //! # type ObsBatch = TestObsBatch;
 //! # type ActBatch = TestActBatch;
 //! # type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
-//! # 
+//! #
 //! const DIM_OBS: i64 = 3;
 //! const DIM_ACT: i64 = 1;
 //! const LR_ACTOR: f64 = 1e-3;
 //! const LR_CRITIC: f64 = 1e-3;
 //! const BATCH_SIZE: usize = 256;
-//! 
+//!
 //! fn create_agent(in_dim: i64, out_dim: i64) -> Sac<Env, Mlp, Mlp2, ReplayBuffer> {
 //!     let device = candle_core::Device::cuda_if_available(0).unwrap();
-//! 
+//!
 //!     let actor_config = ActorConfig::default()
 //!         .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
 //!         .out_dim(out_dim)

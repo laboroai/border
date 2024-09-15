@@ -3,9 +3,9 @@
 //! Border consists of the following crates:
 //!
 //! * Core and utility
-//!   * [border-core](https://crates.io/crates/border-core) provides basic traits 
+//!   * [border-core](https://crates.io/crates/border-core) provides basic traits
 //!     and functions generic to environments and reinforcmenet learning (RL) agents.
-//!   * [border-tensorboard](https://crates.io/crates/border-tensorboard) has 
+//!   * [border-tensorboard](https://crates.io/crates/border-tensorboard) has
 //!     `TensorboardRecorder` struct to write records which can be shown in Tensorboard.
 //!     It is based on [tensorboard-rs](https://crates.io/crates/tensorboard-rs).
 //!   * [border-mlflow-tracking](https://crates.io/crates/border-mlflow-tracking)

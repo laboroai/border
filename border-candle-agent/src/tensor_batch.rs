@@ -2,7 +2,7 @@ use border_core::generic_replay_buffer::BatchBase;
 use candle_core::{error::Result, DType, Device, Tensor};
 
 /// Adds capability of constructing [`Tensor`] with a static method.
-/// 
+///
 /// [`Tensor`]: https://docs.rs/candle-core/0.4.1/candle_core/struct.Tensor.html
 pub trait ZeroTensor {
     /// Constructs zero tensor.
@@ -30,7 +30,7 @@ impl ZeroTensor for i64 {
 /// A buffer consisting of a [`Tensor`].
 ///
 /// The internal buffer is `Vec<Tensor>`.
-/// 
+///
 /// [`Tensor`]: https://docs.rs/candle-core/0.4.1/candle_core/struct.Tensor.html
 #[derive(Clone, Debug)]
 pub struct TensorBatch {

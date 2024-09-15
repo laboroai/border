@@ -12,7 +12,7 @@ use std::{marker::PhantomData, path::Path};
 use tch::{nn, Device, Tensor};
 
 /// Action value function model for DQN.
-/// 
+///
 /// The architecture of the model is defined by the type parameter `Q`,
 /// which should implement [`SubModel`].
 /// This takes [`SubModel::Input`] as input and outputs a tensor.

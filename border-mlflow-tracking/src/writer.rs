@@ -1,7 +1,7 @@
 use crate::{system_time_as_millis, Run};
 use anyhow::Result;
 use border_core::record::{AggregateRecorder, RecordStorage, RecordValue, Recorder};
-use chrono::{DateTime, Local, SecondsFormat, Duration};
+use chrono::{DateTime, Duration, Local, SecondsFormat};
 use reqwest::blocking::Client;
 use serde::Serialize;
 use serde_json::Value;
@@ -190,7 +190,8 @@ impl Drop for MlflowTrackingRecorder {
             end_time.to_rfc3339_opts(SecondsFormat::Secs, true),
         )
         .unwrap();
-        self.set_tag("host_duration", format_duration(&duration)).unwrap();
+        self.set_tag("host_duration", format_duration(&duration))
+            .unwrap();
 
         let url = format!("{}/api/2.0/mlflow/runs/update", self.base_url);
         let params = UpdateRunParams {

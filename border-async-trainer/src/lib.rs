@@ -27,24 +27,24 @@
 //! # fn env_config() -> usize {
 //! #     0
 //! # }
-//! 
+//!
 //! type Env = TestEnv;
 //! type ObsBatch = TestObsBatch;
 //! type ActBatch = TestActBatch;
 //! type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
 //! type StepProcessor = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
-//! 
+//!
 //! // Create a new agent by wrapping the existing agent in order to implement SyncModel.
 //! struct TestAgent2(TestAgent);
-//! 
+//!
 //! impl border_core::Configurable for TestAgent2 {
 //!     type Config = TestAgentConfig;
-//! 
+//!
 //!     fn build(config: Self::Config) -> Self {
 //!         Self(TestAgent::build(config))
 //!     }
 //! }
-//! 
+//!
 //! impl border_core::Agent<Env, ReplayBuffer> for TestAgent2 {
 //!     // Boilerplate code to delegate the method calls to the inner agent.
 //!     fn train(&mut self) {
@@ -55,23 +55,23 @@
 //! #     fn is_train(&self) -> bool {
 //! #         self.0.is_train()
 //! #     }
-//! # 
+//! #
 //! #     fn eval(&mut self) {
 //! #         self.0.eval();
 //! #     }
-//! # 
+//! #
 //! #     fn opt_with_record(&mut self, buffer: &mut ReplayBuffer) -> border_core::record::Record {
 //! #         self.0.opt_with_record(buffer)
 //! #     }
-//! # 
+//! #
 //! #     fn save_params<T: AsRef<std::path::Path>>(&self, path: T) -> anyhow::Result<()> {
 //! #         self.0.save_params(path)
 //! #     }
-//! # 
+//! #
 //! #     fn load_params<T: AsRef<std::path::Path>>(&mut self, path: T) -> anyhow::Result<()> {
 //! #         self.0.load_params(path)
 //! #     }
-//! # 
+//! #
 //! #     fn opt(&mut self, buffer: &mut ReplayBuffer) {
 //! #         self.0.opt_with_record(buffer);
 //! #     }
@@ -84,11 +84,11 @@
 //! #         self.0.sample(obs)
 //! #     }
 //! }
-//! 
+//!
 //! impl border_async_trainer::SyncModel for TestAgent2{
 //!     // Self::ModelInfo shold include the model parameters.
 //!     type ModelInfo = usize;
-//! 
+//!
 //!
 //!     fn model_info(&self) -> (usize, Self::ModelInfo) {
 //!         // Extracts the model parameters and returns them as Self::ModelInfo.

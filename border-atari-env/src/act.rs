@@ -6,7 +6,7 @@ use std::{default::Default, marker::PhantomData};
 
 #[derive(Debug, Clone)]
 /// Action for [`BorderAtariEnv`](crate::BorderAtariEnv).
-/// 
+///
 /// This action is a discrete action and denotes pushing a button.
 pub struct BorderAtariAct {
     pub act: u8,

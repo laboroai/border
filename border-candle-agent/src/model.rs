@@ -19,7 +19,7 @@ pub trait SubModel1 {
     type Output;
 
     /// Builds [`SubModel1`] with [`VarBuilder`] and [`SubModel1::Config`].
-    /// 
+    ///
     /// [`VarBuilder`]: https://docs.rs/candle-nn/0.4.1/candle_nn/var_builder/type.VarBuilder.html
     fn build(vb: VarBuilder, config: Self::Config) -> Self;
 

@@ -110,7 +110,7 @@ where
     }
 
     /// Returns the batch of all actions.
-    /// 
+    ///
     /// Use caution when calling this method on a large replay buffer.
     pub fn whole_actions(&self) -> A {
         let ixs = (0..self.size).collect::<Vec<_>>();

@@ -24,7 +24,7 @@ impl Default for ArrayObsFilterConfig {
 /// An observation filter that convertes PyObject of an numpy array.
 ///
 /// Type parameter `O` must implements [`From`]`<ArrayD>` and [`border_core::Obs`].
-/// 
+///
 /// [`border_core::Obs`]: border_core::Obs
 pub struct ArrayObsFilter<T1, T2, O> {
     /// Marker.
