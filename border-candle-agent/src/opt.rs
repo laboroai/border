@@ -113,7 +113,7 @@ impl Default for OptimizerConfig {
 /// Optimizers.
 ///
 /// This is a thin wrapper of [`candle_nn::optim::Optimizer`].
-/// 
+///
 /// [`candle_nn::optim::Optimizer`]: https://docs.rs/candle-nn/0.4.1/candle_nn/optim/trait.Optimizer.html
 pub enum Optimizer {
     /// Adam optimizer.

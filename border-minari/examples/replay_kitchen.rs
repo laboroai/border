@@ -1,8 +1,8 @@
 use anyhow::Result;
 use border_core::Env;
 use border_minari::{d4rl::ndarray::KitchenNdarrayConverter, MinariDataset};
-use numpy::convert;
 use core::panic;
+use numpy::convert;
 use std::num;
 
 fn main() -> Result<()> {

@@ -75,21 +75,21 @@
 //! # Trainer
 //!
 //! [`Trainer`] manages training loop and related objects. The [`Trainer`] object is
-//! built with configurations of training parameters such as the maximum number of 
+//! built with configurations of training parameters such as the maximum number of
 //! optimization steps, model directory to save parameters of the agent during training, etc.
 //! [`Trainer::train`] method executes online training of an agent on an environment.
 //! In the training loop of this method, the agent interacts with the environment to
 //! take samples and perform optimization steps. Some metrices are recorded at the same time.
-//! 
+//!
 //! # Evaluator
-//! 
+//!
 //! [`Evaluator<E, P>`] is used to evaluate the policy's (`P`) performance in the environment (`E`).
 //! The object of this type is given to the [`Trainer`] object to evaluate the policy during training.
 //! [`DefaultEvaluator<E, P>`] is a default implementation of [`Evaluator<E, P>`].
 //! This evaluator runs the policy in the environment for a certain number of episodes.
 //! At the start of each episode, the environment is reset using [`Env::reset_with_index()`]
 //! to control specific conditions for evaluation.
-//! 
+//!
 //! [`SimpleReplayBuffer`]: replay_buffer::SimpleReplayBuffer
 //! [`SimpleReplayBuffer<O, A>`]: generic_replay_buffer::SimpleReplayBuffer
 //! [`BatchBase`]: generic_replay_buffer::BatchBase
@@ -223,10 +223,7 @@ pub mod test {
             Ok(TestObs { obs: self.state })
         }
 
-        fn step_with_reset(
-            &mut self,
-            a: &Self::Act,
-        ) -> (crate::Step<Self>, crate::record::Record)
+        fn step_with_reset(&mut self, a: &Self::Act) -> (crate::Step<Self>, crate::record::Record)
         where
             Self: Sized,
         {
@@ -313,7 +310,7 @@ pub mod test {
         }
     }
 
-    impl crate::Configurable<TestEnv> for TestAgent {
+    impl crate::Configurable for TestAgent {
         type Config = TestAgentConfig;
 
         fn build(_config: Self::Config) -> Self {

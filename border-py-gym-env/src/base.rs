@@ -22,7 +22,7 @@ pub struct GymInfo {}
 impl Info for GymInfo {}
 
 /// Convert [`PyObject`] to [`GymEnv`]::Obs with a preprocessing.
-/// 
+///
 /// [`PyObject`]: https://docs.rs/pyo3/0.14.5/pyo3/type.PyObject.html
 pub trait GymObsFilter<O: Obs> {
     /// Configuration.

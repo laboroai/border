@@ -72,7 +72,7 @@ impl Policy<Env> for RandomPolicy {
     }
 }
 
-impl Configurable<Env> for RandomPolicy {
+impl Configurable for RandomPolicy {
     type Config = RandomPolicyConfig;
 
     fn build(_config: Self::Config) -> Self {

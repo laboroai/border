@@ -23,7 +23,7 @@ use std::{
 ///   C-->|ReplayBufferBase::PushedItem|F[ReplayBufferProxy]
 /// ```
 ///
-/// In [`Actor`], an [`Agent`] runs on an [`Env`] and generates [`Step`] objects. 
+/// In [`Actor`], an [`Agent`] runs on an [`Env`] and generates [`Step`] objects.
 /// These objects are processed with [`StepProcessor`] and sent to [`ReplayBufferProxy`].
 /// The [`Agent`] in the [`Actor`] periodically synchronizes with the [`Agent`] in
 /// [`AsyncTrainer`] via [`SyncModel::ModelInfo`].
@@ -37,7 +37,7 @@ use std::{
 /// [`Step`]: border_core::Step
 pub struct Actor<A, E, P, R>
 where
-    A: Agent<E, R> + Configurable<E> + SyncModel,
+    A: Agent<E, R> + Configurable + SyncModel,
     E: Env,
     P: StepProcessor<E>,
     R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
@@ -58,7 +58,7 @@ where
 
 impl<A, E, P, R> Actor<A, E, P, R>
 where
-    A: Agent<E, R> + Configurable<E> + SyncModel,
+    A: Agent<E, R> + Configurable + SyncModel,
     E: Env,
     P: StepProcessor<E>,
     R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,

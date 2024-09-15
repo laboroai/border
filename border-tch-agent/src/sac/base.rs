@@ -220,7 +220,7 @@ where
     }
 }
 
-impl<E, Q, P, R> Configurable<E> for Sac<E, Q, P, R>
+impl<E, Q, P, R> Configurable for Sac<E, Q, P, R>
 where
     E: Env,
     Q: SubModel2<Output = ActionValue>,

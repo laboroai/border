@@ -60,7 +60,7 @@ impl OptimizerConfig {
 /// Optimizers.
 ///
 /// This is a thin wrapper of [tch::nn::Optimizer].
-/// 
+///
 /// [tch::nn::Optimizer]: https://docs.rs/tch/0.16.0/tch/nn/struct.Optimizer.html
 pub enum Optimizer {
     /// Adam optimizer.

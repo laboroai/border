@@ -80,7 +80,7 @@ where
 }
 
 /// Action value function model for DQN.
-/// 
+///
 /// The architecture of the model is defined by the type parameter `Q`,
 /// which should implement [`SubModel1`].
 /// This takes [`SubModel1::Input`] as input and outputs a tensor.

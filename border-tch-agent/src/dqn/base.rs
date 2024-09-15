@@ -241,7 +241,7 @@ where
     }
 }
 
-impl<E, Q, R> Configurable<E> for Dqn<E, Q, R>
+impl<E, Q, R> Configurable for Dqn<E, Q, R>
 where
     E: Env,
     Q: SubModel<Output = Tensor>,
@@ -342,7 +342,7 @@ where
     }
 
     /// Save model parameters in the given directory.
-    /// 
+    ///
     /// The parameters of the model are saved as `qnet.pt`.
     /// The parameters of the target model are saved as `qnet_tgt.pt`.
     fn save_params<T: AsRef<Path>>(&self, path: T) -> Result<()> {
