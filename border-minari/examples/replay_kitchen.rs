@@ -1,6 +1,6 @@
 use anyhow::Result;
 use border_core::Env;
-use border_minari::{d4rl::ndarray::KitchenNdarrayConverter, MinariDataset};
+use border_minari::{d4rl::kitchen::ndarray::KitchenNdarrayConverter, MinariDataset};
 use core::panic;
 use numpy::convert;
 use std::num;
