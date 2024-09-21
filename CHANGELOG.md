@@ -3,6 +3,7 @@
 ## v0.0.8 (2024-??-??)
 
 * Add crate `border-minari`, which is a wrapper of [Minari](https://minari.farama.org).
+* Bump the version of candle to 0.6.0 (`border-candle-agent`).
 
 ## v0.0.7 (2024-09-01)
 
