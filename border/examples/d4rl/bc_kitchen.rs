@@ -5,6 +5,7 @@ use border_candle_agent::{
 };
 use border_core::{
     Agent, Configurable, DefaultEvaluator, Env, ExperienceBufferBase, Trainer, TrainerConfig,
+    record::AggregateRecorder,
 };
 use border_minari::{d4rl::kitchen::candle::KitchenConverter, MinariDataset, MinariEnv};
 use border_mlflow_tracking::MlflowTrackingClient;
@@ -20,10 +21,10 @@ fn main() -> Result<()> {
     let converter = KitchenConverter {};
 
     // Create replay buffer
-    let replay_buffer = dataset.create_replay_buffer(&converter, None)?;
+    let mut buffer = dataset.create_replay_buffer(&converter, None)?;
     println!(
         "Replay buffer was created with {} transitions.",
-        replay_buffer.len()
+        buffer.len()
     );
 
     // Create environment
@@ -36,7 +37,7 @@ fn main() -> Result<()> {
     let agent_config = {
         let policy_model_config = {
             let policy_model_config = MlpConfig {
-                in_dim: 7,
+                in_dim: 14,
                 out_dim: 9,
                 units: vec![64, 64],
                 activation_out: false,
@@ -51,7 +52,7 @@ fn main() -> Result<()> {
     let mut agent = Bc::build(agent_config.clone());
 
     // Create recorder
-    let recorder = {
+    let mut recorder: Box<dyn AggregateRecorder> = {
         let client =
             MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("D4RL")?;
         let recorder_run = client.create_recorder("")?;
@@ -59,7 +60,7 @@ fn main() -> Result<()> {
         recorder_run.set_tag("env", "kitchen")?;
         recorder_run.set_tag("algo", "bc")?;
         recorder_run.set_tag("backend", "candle")?;
-        Ok(Box::new(recorder_run))
+        Box::new(recorder_run)
     };
 
     // Create evaluator

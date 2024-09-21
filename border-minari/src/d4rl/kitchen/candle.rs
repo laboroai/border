@@ -68,6 +68,16 @@ impl border_core::Obs for KitchenObs {
     }
 }
 
+/// Converts KitchenObs to Tensor by concatenating the achieved goal and the desired goal.
+impl Into<Tensor> for KitchenObs {
+    fn into(self) -> Tensor {
+        let achieved_goal = self.achieved_goal.kettle;
+        let desired_goal = self.desired_goal.kettle;
+        let obs = Tensor::cat(&[achieved_goal, desired_goal], 1).unwrap();
+        obs
+    }
+}
+
 /// Batch of observation.
 #[derive(Debug)]
 pub struct KitchenObsBatch {
@@ -105,6 +115,15 @@ impl From<KitchenObs> for KitchenObsBatch {
     }
 }
 
+impl Into<Tensor> for KitchenObsBatch {
+    fn into(self) -> Tensor {
+        let achieved_goal = self.achieved_goal.kettle;
+        let desired_goal = self.desired_goal.kettle;
+        let obs = Tensor::cat(&[achieved_goal, desired_goal], 1).unwrap();
+        obs
+    }
+}
+
 /// Action of the Kitchen environment represented by ndarray.
 #[derive(Clone, Debug)]
 pub struct KitchenAct {
@@ -112,6 +131,12 @@ pub struct KitchenAct {
 }
 
 impl border_core::Act for KitchenAct {}
+
+impl From<Tensor> for KitchenAct {
+    fn from(action: Tensor) -> Self {
+        Self { action }
+    }
+}
 
 /// Batch of action.
 #[derive(Debug)]
@@ -128,7 +153,7 @@ impl KitchenActBatch {
                 .index_select(&(ix as u32).try_into().unwrap(), 0)
                 .unwrap()
                 .copy()
-                .unwrap()
+                .unwrap(),
         }
     }
 }
@@ -150,7 +175,8 @@ impl BatchBase for KitchenActBatch {
                 ixs.iter().map(|&ix| ix as u32).collect::<Vec<u32>>(),
                 (ixs.len(),),
                 &Device::Cpu,
-            ).unwrap();
+            )
+            .unwrap();
             self.action.index_select(&ixs, 0).unwrap().copy().unwrap()
         };
 
@@ -161,6 +187,12 @@ impl BatchBase for KitchenActBatch {
 impl From<KitchenAct> for KitchenActBatch {
     fn from(act: KitchenAct) -> Self {
         Self { action: act.action }
+    }
+}
+
+impl Into<Tensor> for KitchenActBatch {
+    fn into(self) -> Tensor {
+        self.action
     }
 }
 
@@ -267,8 +299,12 @@ fn arrayd_to_tensor(arr: ArrayD<f32>) -> Result<Tensor> {
 }
 
 /// Converts tensor to ArrayD.
-fn tensor_to_arrayd(tensor: Tensor) -> Result<ArrayD<f32> > {
-    let shape = tensor.dims().iter().map(|&x| x as usize).collect::<Vec<usize>>();
+fn tensor_to_arrayd(tensor: Tensor) -> Result<ArrayD<f32>> {
+    let shape = tensor
+        .dims()
+        .iter()
+        .map(|&x| x as usize)
+        .collect::<Vec<usize>>();
     let arr = ArrayBase::from_vec(tensor.to_vec1()?).into_shape(shape)?;
     Ok(arr)
 }
