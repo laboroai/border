@@ -1,5 +1,5 @@
 use anyhow::Result;
-use border_core::{Configurable, DefaultEvaluator, Evaluator as _, Policy};
+use border_core::{Configurable, DefaultEvaluator, Env as _, Evaluator as _, Policy};
 use border_py_gym_env::{
     util::ArrayType, ArrayDictObsFilter, ArrayDictObsFilterConfig, ContinuousActFilter,
     GymActFilter, GymEnv, GymEnvConfig,
@@ -104,7 +104,11 @@ fn main() -> Result<()> {
         .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default());
     let mut policy = RandomPolicy;
 
-    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
+    let _ = {
+        let env = Env::build(&env_config, 0)?;
+        Evaluator::new(env, 5)?
+    }
+    .evaluate(&mut policy);
 
     Ok(())
 }

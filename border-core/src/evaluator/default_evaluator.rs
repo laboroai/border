@@ -45,14 +45,13 @@ where
 {
     /// Constructs [`DefaultEvaluator`].
     ///
-    /// `config` - Configuration of the environment.
-    /// `seed` - Random seed, which will be used to create the environment.
+    /// `env` - Instance of the environment.
     /// `n_episodes` - The number of episodes for evaluation.
     ///   The evaluator returns the mean value of cumulative reward in each episode.
-    pub fn new(config: &E::Config, seed: i64, n_episodes: usize) -> Result<Self> {
+    pub fn new(env: E, n_episodes: usize) -> Result<Self> {
         Ok(Self {
             n_episodes,
-            env: E::build(config, seed)?,
+            env,
             phantom: PhantomData,
         })
     }

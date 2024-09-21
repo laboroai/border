@@ -121,7 +121,11 @@ fn eval(n_episodes: usize, render: bool) -> Result<()> {
         "./border/examples/gym/model/edge/sac_pendulum/best/mlp.bincode",
     )?;
 
-    let _ = Evaluator::new(&env_config, 0, n_episodes)?.evaluate(&mut policy);
+    let _ = {
+        let env = env_config.build()?;
+        Evaluator::new(env, n_episodes)?
+    }
+    .evaluate(&mut policy);
 
     Ok(())
 }

@@ -8,6 +8,7 @@
 //! #     TestAgent, TestAgentConfig, TestEnv, TestObs, TestObsBatch,
 //! #     TestAct, TestActBatch
 //! # };
+//! # use border_core::Env as _;
 //! # use border_async_trainer::{
 //! #     //test::{TestAgent, TestAgentConfig, TestEnv},
 //! #     ActorManager, ActorManagerConfig, AsyncTrainer, AsyncTrainerConfig,
@@ -109,7 +110,10 @@
 //! let actor_man_config = ActorManagerConfig::default();
 //! let async_trainer_config = AsyncTrainerConfig::default();
 //! let mut recorder: Box<dyn AggregateRecorder> = Box::new(NullRecorder {});
-//! let mut evaluator = DefaultEvaluator::<TestEnv, TestAgent2>::new(&env_config_eval, 0, 1).unwrap();
+//! let mut evaluator = {
+//!     let env = Env::build(&env_config_eval, 0).unwrap();
+//!     DefaultEvaluator::<TestEnv, TestAgent2>::new(env, 1).unwrap()
+//! };
 //!
 //! border_async_trainer::util::train_async::<_, _, _, StepProcessor>(
 //!     &agent_config(),

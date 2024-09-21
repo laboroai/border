@@ -269,7 +269,10 @@ fn train(args: &Args) -> Result<()> {
     let mut agent = Sac::build(agent_config);
     let mut buffer = ReplayBuffer::build(&replay_buffer_config);
     let mut recorder = utils::create_recorder(args, &config)?;
-    let mut evaluator = Evaluator::new(&env_config, 0, N_EPISODES_PER_EVAL)?;
+    let mut evaluator = {
+        let env = Env::build(&env_config, 0)?;
+        Evaluator::new(env, N_EPISODES_PER_EVAL)?
+    };
 
     trainer.train(
         env,
@@ -306,7 +309,11 @@ fn eval(args: &Args, model_dir: &str, render: bool, wait: u64) -> Result<()> {
     };
     // let mut recorder = BufferedRecorder::new();
 
-    let _ = Evaluator::new(&env_config, 0, N_EPISODES_PER_EVAL)?.evaluate(&mut agent);
+    let _ = {
+        let env = Env::build(&env_config, 0)?;
+        Evaluator::new(env, N_EPISODES_PER_EVAL)?
+    }
+    .evaluate(&mut agent);
 
     Ok(())
 }

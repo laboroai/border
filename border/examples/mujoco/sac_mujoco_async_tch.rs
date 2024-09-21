@@ -296,7 +296,10 @@ fn train(args: &Args) -> Result<()> {
             &async_trainer_config,
         );
     } else {
-        let mut evaluator = Evaluator::new(&env_config_eval, 0, 1)?;
+        let mut evaluator = {
+            let env = Env::build(&env_config_eval, 0)?;
+            Evaluator::new(env, 1)?
+        };
         let config = config::SacMujocoAsyncConfig {
             trainer: async_trainer_config.clone(),
             replay_buffer: replay_buffer_config.clone(),

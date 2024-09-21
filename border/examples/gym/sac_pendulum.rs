@@ -270,7 +270,10 @@ fn train(max_opts: usize, model_dir: &str, eval_interval: usize, mlflow: bool) -
     let mut agent = create_agent(DIM_OBS, DIM_ACT)?;
     let mut buffer = ReplayBuffer::build(&replay_buffer_config);
     let mut recorder = create_recorder(model_dir, mlflow, &config)?;
-    let mut evaluator = Evaluator::new(&env_config, 0, N_EPISODES_PER_EVAL)?;
+    let mut evaluator = {
+        let env = Env::build(&env_config, 0)?;
+        Evaluator::new(env, N_EPISODES_PER_EVAL)?
+    };
 
     trainer.train(
         env,
@@ -302,7 +305,11 @@ fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
     };
     // let mut recorder = BufferedRecorder::new();
 
-    let _ = Evaluator::new(&env_config, 0, n_episodes)?.evaluate(&mut agent);
+    let _ = {
+        let env = Env::build(&env_config, 0)?;
+        Evaluator::new(env, n_episodes)?
+    }
+    .evaluate(&mut agent);
 
     // // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
     // let mut wtr = WriterBuilder::new()

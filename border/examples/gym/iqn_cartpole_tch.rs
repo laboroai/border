@@ -291,7 +291,10 @@ fn train(args: &Args, max_opts: usize, model_dir: &str, eval_interval: usize) ->
     let step_proc = StepProc::build(&step_proc_config);
     let mut agent = Iqn::build(config.agent_config);
     let mut buffer = ReplayBuffer::build(&replay_buffer_config);
-    let mut evaluator = Evaluator::new(&config.env_config, 0, N_EPISODES_PER_EVAL)?;
+    let mut evaluator = {
+        let env = Env::build(&config.env_config, 0)?;
+        Evaluator::new(env, N_EPISODES_PER_EVAL)?
+    };
 
     trainer.train(
         env,
@@ -322,7 +325,11 @@ fn eval(model_dir: &str, render: bool) -> Result<()> {
         agent
     };
 
-    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut agent);
+    let _ = {
+        let env = Env::build(&env_config, 0)?;
+        Evaluator::new(env, 5)?
+    }
+    .evaluate(&mut agent);
 
     Ok(())
 }

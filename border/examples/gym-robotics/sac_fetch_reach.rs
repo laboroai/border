@@ -273,7 +273,10 @@ fn train(max_opts: usize, model_dir: &str, mlflow: bool) -> Result<()> {
     let mut trainer = Trainer::build(trainer_config);
     let mut agent = Sac::build(sac_config);
     let mut buffer = ReplayBuffer::build(&replay_buffer_config);
-    let mut evaluator = Evaluator::new(&config::env_config(), 0, N_EPISODES_PER_EVAL)?;
+    let mut evaluator = {
+        let env = Env::build(&env_config, 0)?;
+        Evaluator::new(env, N_EPISODES_PER_EVAL)?
+    };
 
     trainer.train(
         env,
@@ -305,7 +308,11 @@ fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
     };
     // let mut recorder = BufferedRecorder::new();
 
-    let _ = Evaluator::new(&env_config, 0, n_episodes)?.evaluate(&mut agent);
+    let _ = {
+        let env = Env::build(&env_config, 0)?;
+        Evaluator::new(env, n_episodes)?
+    }
+    .evaluate(&mut agent);
 
     Ok(())
 }

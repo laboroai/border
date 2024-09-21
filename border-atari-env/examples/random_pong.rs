@@ -65,7 +65,11 @@ fn main() -> Result<()> {
 
     // Runs evaluation
     let env_config = env_config.render(true);
-    let _ = DefaultEvaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
+    let _ = {
+        let env = Env::build(&env_config, 0)?;
+        DefaultEvaluator::new(env, 5)?
+    }
+    .evaluate(&mut policy);
 
     Ok(())
 }

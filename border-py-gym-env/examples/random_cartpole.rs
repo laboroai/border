@@ -1,5 +1,7 @@
 use anyhow::Result;
-use border_core::{record::Record, Configurable, DefaultEvaluator, Evaluator as _, Policy};
+use border_core::{
+    record::Record, Configurable, DefaultEvaluator, Env as _, Evaluator as _, Policy,
+};
 use border_py_gym_env::{
     ArrayObsFilter, DiscreteActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
@@ -116,7 +118,11 @@ fn main() -> Result<()> {
         .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default());
     let mut policy = RandomPolicy;
 
-    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
+    let _ = {
+        let env = Env::build(&env_config, 0)?;
+        Evaluator::new(env, 5)?
+    }
+    .evaluate(&mut policy);
 
     // let mut wtr = csv::WriterBuilder::new()
     //     .has_headers(false)
@@ -140,7 +146,10 @@ fn test_random_cartpole() {
         .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default());
     let mut policy = RandomPolicy;
 
-    let _ = Evaluator::new(&env_config, 0, 5)
-        .unwrap()
-        .evaluate(&mut policy);
+    let _ = {
+        let env = Env::build(&env_config, 0).unwrap();
+        Evaluator::new(env, 5)
+    }
+    .unwrap()
+    .evaluate(&mut policy);
 }

@@ -281,7 +281,10 @@ fn train(args: &Args) -> Result<()> {
         let mut agent = Dqn::build(agent_config);
         let mut buffer = ReplayBuffer::build(&replay_buffer_config);
         let mut recorder = utils::create_recorder(&args, &model_dir, &config)?;
-        let mut evaluator = Evaluator::new(&env_config_eval, 0, 1)?;
+        let mut evaluator = {
+            let env = Env::build(&env_config_eval, 0)?;
+            Evaluator::new(env, 1)?
+        };
 
         trainer.train(
             env,
@@ -317,7 +320,11 @@ fn eval(args: &Args) -> Result<()> {
     };
     // let mut recorder = BufferedRecorder::new();
 
-    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut agent);
+    let _ = {
+        let env = Env::build(&env_config, 0)?;
+        Evaluator::new(env, 5)?
+    }
+    .evaluate(&mut agent);
 
     Ok(())
 }

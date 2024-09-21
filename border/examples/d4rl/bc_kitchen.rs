@@ -3,7 +3,9 @@ use border_candle_agent::{
     bc::{Bc, BcActionType, BcConfig, BcModelConfig},
     mlp::{Mlp, MlpConfig},
 };
-use border_core::{Agent, Configurable, DefaultEvaluator, Env, ExperienceBufferBase, Trainer, TrainerConfig};
+use border_core::{
+    Agent, Configurable, DefaultEvaluator, Env, ExperienceBufferBase, Trainer, TrainerConfig,
+};
 use border_minari::{d4rl::kitchen::candle::KitchenConverter, MinariDataset, MinariEnv};
 use border_mlflow_tracking::MlflowTrackingClient;
 use candle_core::Device;
@@ -44,7 +46,7 @@ fn main() -> Result<()> {
         BcConfig::<Mlp>::default()
             .policy_model_config(policy_model_config)
             .device(Device::Cpu)
-            .action_type(BcActionType::Continuous)        
+            .action_type(BcActionType::Continuous)
     };
     let mut agent = Bc::build(agent_config.clone());
 
@@ -61,10 +63,10 @@ fn main() -> Result<()> {
     };
 
     // Create evaluator
-    let mut evaluator = DefaultEvaluator::new(config, 0, 5)
+    let mut evaluator = DefaultEvaluator::new(env, 5)?;
 
-    // // Start training
-    // trainer.train_offline(&mut agent, &mut buffer, recorder, evaluator);
+    // Start training
+    trainer.train_offline(&mut agent, &mut buffer, &mut recorder, &mut evaluator);
 
     Ok(())
 }

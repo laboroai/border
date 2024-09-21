@@ -1,5 +1,5 @@
 use anyhow::Result;
-use border_core::{Configurable, DefaultEvaluator, Evaluator as _, Policy};
+use border_core::{Configurable, DefaultEvaluator, Env as _, Evaluator as _, Policy};
 use border_py_gym_env::{
     ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
@@ -96,7 +96,11 @@ fn main() -> Result<()> {
         .render_mode(Some("human".to_string()));
     let mut policy = RandomPolicy;
 
-    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
+    let _ = {
+        let env = Env::build(&env_config, 0)?;
+        Evaluator::new(env, 5)?
+    }
+    .evaluate(&mut policy);
 
     Ok(())
 }
@@ -114,5 +118,9 @@ fn test_random_ant() {
     let mut recorder = BufferedRecorder::new();
     let mut policy = RandomPolicy;
 
-    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
+    let _ = {
+        let env = Env::build(&env_config, 0)?;
+        Evaluator::new(env, 5)?
+    }
+    .evaluate(&mut policy);
 }
