@@ -142,6 +142,12 @@ test = false
 # required-features = ["border-async-trainer"]
 # test = false
 
+[[example]]
+name = "bc_kitchen"
+path = "examples/d4rl/bc_kitchen.rs"
+required-features = ["candle"]
+test = false
+
 [dev-dependencies]
 clap = { workspace = true }
 csv = { workspace = true }
@@ -155,6 +161,7 @@ border-py-gym-env = { version = "0.0.8", path = "../border-py-gym-env" }
 border-atari-env = { version = "0.0.8", path = "../border-atari-env" }
 border-candle-agent = { version = "0.0.8", path = "../border-candle-agent" }
 border-mlflow-tracking = { version = "0.0.8", path = "../border-mlflow-tracking" }
+border-minari = { version = "0.0.8", path = "../border-minari" }
 serde = { workspace = true, features = ["derive"] }
 crossbeam-channel = { workspace = true }
 env_logger = { workspace = true }
@@ -177,3 +184,4 @@ doc-only = ["tch/doc-only"]
 cuda = ["candle-core/cuda"]
 cudnn = ["candle-core/cudnn"]
 border-tch-agent = []
+candle = ["border-minari/candle", "candle-core"]
