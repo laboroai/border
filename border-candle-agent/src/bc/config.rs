@@ -105,6 +105,12 @@ where
         self
     }
 
+    // Sets action type.
+    pub fn action_type(mut self, action_type: BcActionType) -> Self {
+        self.action_type = action_type;
+        self
+    }
+
     /// Loads [`BcConfig`] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let path_ = path.as_ref().to_owned();
