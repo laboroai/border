@@ -1,26 +1,26 @@
 //! Interface to access [Minari](https://minari.farama.org/index.html#) datasets.
-//! 
+//!
 //! [`MinariDataset`] and [`MinariEnv`] provide a common interface to access Minari datasets.
-//! These structs are used with concrete observation and action types. 
+//! These structs are used with concrete observation and action types.
 //! For example, [`border_minari::d4rl::kitchen`] provides observation and action types,
 //! and the corresponding converter for the [Kitchen datasets](https://minari.farama.org/datasets/D4RL/kitchen/).
-//! 
+//!
 //! The implementation of data types and converters depends on the backend for implementing
 //! your agents. In [`border_minari::d4rl::kitchen::ndarray`], the observation and action types are
 //! defined essentially as [`ndarray::ArrayD`]. In [`border_minari::d4rl::kitchen::candle`],
 //! the observation and action types are defined as [`candle_core::Tensor`].
-//! 
+//!
 //! In the below example, we load an episode in the Kitchen dataset and create a replay buffer for that.
 //! Then, we recover the environment from the dataset and apply the actions in the episode.
 //! The observation and action types are implemented with [`ndarray::ArrayD`].
-//! 
+//!
 //! ```no_run
 //! # use anyhow::Result;
 //! use border_core::Env;
 //! use border_minari::{d4rl::kitchen::ndarray::KitchenConverter, MinariDataset};
 //! # use numpy::convert;
 //! # use std::num;
-//! 
+//!
 //! fn main() -> Result<()> {
 //!     let dataset = MinariDataset::load_dataset("D4RL/kitchen/complete-v1", true)?;
 //!

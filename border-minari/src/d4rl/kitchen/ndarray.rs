@@ -11,7 +11,7 @@ use ndarray::{s, ArrayD, Axis, IxDyn, Slice};
 use pyo3::{PyAny, PyObject};
 
 /// State of the Kitchen environment represented by ndarray.
-/// 
+///
 /// It is used to compose the observation in the Kitchen environment.
 /// Currently, it only contains the kettle.
 #[derive(Clone, Debug)]
@@ -40,10 +40,10 @@ impl KitchenState {
 /// Observation of the Kitchen environment stored as ndarray.
 ///
 /// It contains the achieved_goal and the desired_goal, both of which are of type [`KitchenState`].
-/// 
+///
 /// Since the observation of the environment is coming from Python interpreter, this struct
 /// can be converted from [`PyObject`].
-/// 
+///
 /// To create of batch of observations, this struct can be converted into [`KitchenObsBatch`].
 #[derive(Clone, Debug)]
 pub struct KitchenObs {
@@ -65,9 +65,9 @@ impl border_core::Obs for KitchenObs {
 }
 
 /// Batch of observations.
-/// 
+///
 /// It can be converted from an observation, i.e., instance of [`KitchenObs`].
-/// 
+///
 /// It can be converted into an ndarray.
 #[derive(Debug)]
 pub struct KitchenObsBatch {
@@ -106,7 +106,7 @@ impl From<KitchenObs> for KitchenObsBatch {
 }
 
 /// Action of the Kitchen environment stored as ndarray.
-/// 
+///
 /// To create a batch of actions, this struct can be converted into [`KitchenActBatch`].
 #[derive(Clone, Debug)]
 pub struct KitchenAct {

@@ -318,7 +318,8 @@ fn eval(model_dir: &str, render: bool) -> Result<()> {
     let _ = {
         let env = Env::build(&env_config, 0)?;
         Evaluator::new(env, 5)?
-    }.evaluate(&mut agent);
+    }
+    .evaluate(&mut agent);
 
     Ok(())
 }

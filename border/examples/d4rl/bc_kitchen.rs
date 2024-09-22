@@ -4,8 +4,8 @@ use border_candle_agent::{
     mlp::{Mlp, MlpConfig},
 };
 use border_core::{
-    Agent, Configurable, DefaultEvaluator, Env, ExperienceBufferBase, Trainer, TrainerConfig,
-    record::AggregateRecorder,
+    record::AggregateRecorder, Agent, Configurable, DefaultEvaluator, Env, ExperienceBufferBase,
+    Trainer, TrainerConfig,
 };
 use border_minari::{d4rl::kitchen::candle::KitchenConverter, MinariDataset, MinariEnv};
 use border_mlflow_tracking::MlflowTrackingClient;
@@ -33,9 +33,9 @@ fn main() -> Result<()> {
     // Create trainer
     let mut trainer = Trainer::build(
         TrainerConfig::default()
-        .max_opts(1000)
-        .eval_interval(100)
-        .model_dir("border/examples/d4rl/model/candle/bc_kitchen")
+            .max_opts(1000)
+            .eval_interval(100)
+            .model_dir("border/examples/d4rl/model/candle/bc_kitchen"),
     );
 
     // Create behavior cloning agent

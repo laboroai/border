@@ -216,7 +216,7 @@ pub fn derive2(input: TokenStream) -> TokenStream {
 }
 
 /// Implements [`border_core::Act`] for the newtype.
-/// 
+///
 /// [`border_core::Act`]: https://docs.rs/border-core/latest/border_core/trait.Act.html
 #[proc_macro_derive(Act, attributes(my_trait))]
 pub fn derive3(input: TokenStream) -> TokenStream {

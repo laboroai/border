@@ -2,11 +2,11 @@
 pub mod cnn;
 pub mod dqn;
 // pub mod iqn;
+pub mod bc;
 pub mod mlp;
 pub mod model;
 pub mod opt;
 pub mod sac;
-pub mod bc;
 mod tensor_batch;
 pub mod util;
 use candle_core::{backend::BackendDevice, DeviceLocation};

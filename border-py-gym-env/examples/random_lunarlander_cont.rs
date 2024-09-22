@@ -1,5 +1,5 @@
 use anyhow::Result;
-use border_core::{Configurable, DefaultEvaluator, Evaluator as _, Policy, Env as _};
+use border_core::{Configurable, DefaultEvaluator, Env as _, Evaluator as _, Policy};
 use border_py_gym_env::{
     ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
