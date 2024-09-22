@@ -109,6 +109,10 @@ RUN cd $HOME && mkdir -p .border/model
 # RUN sed -i 's/return state, sum(self.rewards), bool(done), {}/return state, sum(self.rewards), bool(done), bool(done), {}/g' /home/ubuntu/pybullet-gym/pybulletgym/envs/roboschool/envs/locomotion/walker_base_env.py
 # RUN sed -i 's/id='\''AntPyBulletEnv-v0'\'',/id='\''AntPyBulletEnv-v0'\'', order_enforce=False,/g' /home/ubuntu/pybullet-gym/pybulletgym/envs/__init__.py
 
+# SSH
+RUN apt update && apt install -y openssh-server
+RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
 # .bashrc
 RUN echo 'export LIBTORCH=$HOME/venv/lib/python3.10/site-packages/torch' >> ~/.bashrc
 RUN echo 'export LD_LIBRARY_PATH=$LIBTORCH/lib' >> ~/.bashrc
@@ -121,6 +125,31 @@ RUN echo 'export MUJOCO_GL=glfw' >> ~/.bashrc
 RUN echo 'source $HOME/venv/bin/activate' >> ~/.bashrc
 RUN echo 'export RUSTFLAGS="-C target-feature=+fp16"' >> ~/.bashrc
 
+# Aliases
+RUN echo "alias gs='git status'" >> ~/.bashrc
+RUN echo "alias gb='git branch'" >> ~/.bashrc
+RUN echo "alias gd='git diff'" >> ~/.bashrc
+RUN echo "alias gd1='git diff HEAD^'" >> ~/.bashrc
+RUN echo "alias gd2='git diff HEAD^^ HEAD^'" >> ~/.bashrc
+RUN echo "alias gd3='git diff HEAD^^^ HEAD^^'" >> ~/.bashrc
+RUN echo "alias gd4='git diff HEAD^^^^ HEAD^^^'" >> ~/.bashrc
+RUN echo "alias gl='git lg -5'" >> ~/.bashrc
+RUN echo "alias gll='git lg -10'" >> ~/.bashrc
+RUN echo "alias glll='git lg'" >> ~/.bashrc
+RUN echo "alias gpo='git push origin'" >> ~/.bashrc
+RUN echo "alias gfo='git fetch origin'" >> ~/.bashrc
+RUN echo "alias hl='highlight -O rtf --style=molokai'" >> ~/.bashrc
+RUN echo "alias cl='clear'" >> ~/.bashrc
+RUN echo "alias hg='history | grep '" >> ~/.bashrc
+RUN echo "alias dps='docker ps'" >> ~/.bashrc
+RUN echo "alias dpa='docker ps -a'" >> ~/.bashrc
+RUN echo "alias tml='tmux list-sessions'" >> ~/.bashrc
+RUN echo "alias tma='tmux a -t'" >> ~/.bashrc
+RUN echo "alias tms='tmux new -s'" >> ~/.bashrc
+RUN echo "alias tr2='tree -L 2'" >> ~/.bashrc
+RUN echo "alias tr3='tree -L 3'" >> ~/.bashrc
+RUN echo "alias tr4='tree -L 4'" >> ~/.bashrc
+
 RUN rm /bin/sh && mv /bin/sh_tmp /bin/sh
 
-CMD bash -c "vncserver -localhost no -SecurityTypes None -geometry 1024x768 --I-KNOW-THIS-IS-INSECURE && openssl req -new -subj "/C=JP" -x509 -days 365 -nodes -out self.pem -keyout self.pem && websockify -D --web=/usr/share/novnc/ --cert=self.pem 6080 localhost:5901 && tail -f /dev/null"
+CMD bash -c "vncserver -localhost no -SecurityTypes None -geometry 1024x768 --I-KNOW-THIS-IS-INSECURE && openssl req -new -subj "/C=JP" -x509 -days 365 -nodes -out self.pem -keyout self.pem && websockify -D --web=/usr/share/novnc/ --cert=self.pem 6080 localhost:5901 && service ssh start && tail -f /dev/null"
