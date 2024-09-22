@@ -1,15 +1,31 @@
-//! Interfaces for Minari datasets.
-//!
+//! Interface to access [Minari](https://minari.farama.org/index.html#) datasets.
+//! 
+//! [`MinariDataset`] and [`MinariEnv`] provide a common interface to access Minari datasets.
+//! These structs are used with concrete observation and action types. 
+//! For example, [`border_minari::d4rl::kitchen`] provides observation and action types,
+//! and the corresponding converter for the [Kitchen datasets](https://minari.farama.org/datasets/D4RL/kitchen/).
+//! 
+//! The implementation of data types and converters depends on the backend for implementing
+//! your agents. In [`border_minari::d4rl::kitchen::ndarray`], the observation and action types are
+//! defined essentially as [`ndarray::ArrayD`]. In [`border_minari::d4rl::kitchen::candle`],
+//! the observation and action types are defined as [`candle_core::Tensor`].
+//! 
+//! In the below example, we load an episode in the Kitchen dataset and create a replay buffer for that.
+//! Then, we recover the environment from the dataset and apply the actions in the episode.
+//! The observation and action types are implemented with [`ndarray::ArrayD`].
+//! 
 //! ```no_run
+//! # use anyhow::Result;
+//! use border_core::Env;
+//! use border_minari::{d4rl::kitchen::ndarray::KitchenNdarrayConverter, MinariDataset};
+//! # use numpy::convert;
+//! # use std::num;
+//! 
 //! fn main() -> Result<()> {
 //!     let dataset = MinariDataset::load_dataset("D4RL/kitchen/complete-v1", true)?;
 //!
-//!     // The number of transitions over all episodes
-//!     let num_transitions = dataset.get_num_transitions(None)?;
-//!     println!("{:?}", num_transitions);
-//!
 //!     // Converter for observation and action
-//!     let converter = KitchenNdarrayConverter {};
+//!     let converter = KitchenConverter {};
 //!
 //!     // Create replay buffer for the sixth episode
 //!     let replay_buffer = dataset.create_replay_buffer(&converter, Some(vec![5]))?;
@@ -30,6 +46,10 @@
 //!     Ok(())
 //! }
 //! ```
+//! [`candle_core::Tensor`]: candle_core::Tensor
+//! [`border_minari::d4rl::kitchen`]: crate::d4rl::kitchen
+//! [`border_minari::d4rl::kitchen::ndarray`]: crate::d4rl::kitchen::ndarray
+//! [`border_minari::d4rl::kitchen::candle`]: crate::d4rl::kitchen::candle
 use anyhow::Result;
 use border_core::{
     generic_replay_buffer::{
@@ -71,12 +91,18 @@ pub trait MinariConverter {
     fn convert_action(&self, act: Self::Act) -> Result<PyObject>;
 
     /// Converts [`PyObject`] of an episode into [`Self::ObsBatch`].
+    ///
+    /// [`PyObject`]: pyo3::PyObject
     fn convert_observation_batch(&self, obj: &PyAny) -> Result<Self::ObsBatch>;
 
     /// Converts [`PyObject`] of an episode into [`Self::ObsBatch`] for `next_obs`.
+    ///
+    /// [`PyObject`]: pyo3::PyObject
     fn convert_observation_batch_next(&self, obj: &PyAny) -> Result<Self::ObsBatch>;
 
     /// Converts [`PyObject`] of an episode into [`Self::ActBatch`].
+    ///
+    /// [`PyObject`]: pyo3::PyObject
     fn convert_action_batch(&self, obj: &PyAny) -> Result<Self::ActBatch>;
 }
 

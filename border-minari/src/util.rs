@@ -1,3 +1,4 @@
+//! Utinity functions for Python and Rust interoperation.
 pub mod ndarray {
     use ndarray::{ArrayD, Axis};
     use num_traits::cast::AsPrimitive;

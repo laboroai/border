@@ -1,3 +1,4 @@
+//! Observation, actiontypes and corresponding converters for the Kitchen environment impmented with candle.
 use std::{
     convert::{TryFrom, TryInto},
     fmt::Debug,
@@ -15,8 +16,9 @@ use numpy::array;
 use pyo3::{PyAny, PyObject};
 
 /// State of the Kitchen environment represented by [`candle_core::Tensor`].
-///
-/// [`candle_core::Tensor`]: candle_core::Tensor
+/// 
+/// It is used to compose the observation in the Kitchen environment.
+/// Currently, it only contains the kettle.
 #[derive(Clone, Debug)]
 pub struct KitchenState {
     pub kettle: Tensor,
@@ -46,9 +48,13 @@ impl KitchenState {
     }
 }
 
-/// Observation of the Kitchen environment represented by [`candle_core::Tensor`].
+/// Observation of the Kitchen environment stored as [`Tensor`].
 ///
-/// [`candle_core::Tensor`]: candle_core::Tensor
+/// It contains the achieved_goal and the desired_goal, both of which are of type [`KitchenState`].
+/// 
+/// To create of batch of observations, this struct can be converted into [`KitchenObsBatch`].
+/// 
+/// [`Tensor`]: candle_core::Tensor
 #[derive(Clone, Debug)]
 pub struct KitchenObs {
     pub achieved_goal: KitchenState,
@@ -78,7 +84,13 @@ impl Into<Tensor> for KitchenObs {
     }
 }
 
-/// Batch of observation.
+/// Batch of observations.
+/// 
+/// It can be converted from an observation, i.e., instance of [`KitchenObs`].
+/// 
+/// It can be converted into [`Tensor`].　This allows a batch of observations to be fed into a neural network.
+/// 
+/// [`Tensor`]: candle_core::Tensor
 #[derive(Debug)]
 pub struct KitchenObsBatch {
     pub achieved_goal: KitchenState,
@@ -124,7 +136,14 @@ impl Into<Tensor> for KitchenObsBatch {
     }
 }
 
-/// Action of the Kitchen environment represented by ndarray.
+/// Action of the Kitchen environment stored as [`Tensor`].
+/// 
+/// It can be converted from a [`Tensor`] and can be converted into a [`PyObject`].
+/// It allows the action to inferred from the neural network and be passed to the Python interpreter.
+/// 
+/// To create a batch of actions, this struct can be converted into [`KitchenActBatch`].
+/// 
+/// [`Tensor`]: candle_core::Tensor
 #[derive(Clone, Debug)]
 pub struct KitchenAct {
     pub action: Tensor,
@@ -138,7 +157,11 @@ impl From<Tensor> for KitchenAct {
     }
 }
 
-/// Batch of action.
+/// Batch of actions.
+/// 
+/// It can be converted into [`Tensor`].　This allows a batch of observations to be fed into a neural network.
+/// 
+/// [`Tensor`]: candle_core::Tensor
 #[derive(Debug)]
 pub struct KitchenActBatch {
     pub action: Tensor,
@@ -196,7 +219,7 @@ impl Into<Tensor> for KitchenActBatch {
     }
 }
 
-// Converter.
+/// Converter for the Kitchen environment implemented with candle.
 pub struct KitchenConverter {}
 
 impl MinariConverter for KitchenConverter {
