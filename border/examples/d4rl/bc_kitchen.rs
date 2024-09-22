@@ -28,10 +28,15 @@ fn main() -> Result<()> {
     );
 
     // Create environment
-    let mut env = dataset.recover_environment(converter, false, None)?;
+    let env = dataset.recover_environment(converter, false, None)?;
 
     // Create trainer
-    let mut trainer = Trainer::build(TrainerConfig::default());
+    let mut trainer = Trainer::build(
+        TrainerConfig::default()
+        .max_opts(1000)
+        .eval_interval(100)
+        .model_dir("border/examples/d4rl/model/candle/bc_kitchen")
+    );
 
     // Create behavior cloning agent
     let agent_config = {

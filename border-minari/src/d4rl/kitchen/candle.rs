@@ -210,14 +210,16 @@ impl MinariConverter for KitchenConverter {
         let desired_goal = obj.get_item("desired_goal")?;
         Ok(KitchenObs {
             achieved_goal: KitchenState {
-                kettle: arrayd_to_tensor(pyobj_to_arrayd::<f64, f32>(
-                    achieved_goal.get_item("kettle")?.extract()?,
-                ))?,
+                kettle: arrayd_to_tensor(
+                    pyobj_to_arrayd::<f64, f32>(achieved_goal.get_item("kettle")?.extract()?),
+                    Some(&[1, 7]),
+                )?,
             },
             desired_goal: KitchenState {
-                kettle: arrayd_to_tensor(pyobj_to_arrayd::<f64, f32>(
-                    desired_goal.get_item("kettle")?.extract()?,
-                ))?,
+                kettle: arrayd_to_tensor(
+                    pyobj_to_arrayd::<f64, f32>(desired_goal.get_item("kettle")?.extract()?),
+                    Some(&[1, 7]),
+                )?,
             },
         })
     }
@@ -261,7 +263,7 @@ impl MinariConverter for KitchenConverter {
         Ok(KitchenActBatch {
             action: {
                 let arr = pyobj_to_arrayd::<f64, f32>(obj.into());
-                arrayd_to_tensor(arr)?
+                arrayd_to_tensor(arr, None)?
             },
         })
     }
@@ -276,7 +278,7 @@ fn pyobj_to_tensor1(obj: &PyAny, name: &str) -> Result<Tensor> {
     let arr = arr.slice_axis(Axis(0), Slice::from(..-1)).to_owned();
 
     // Convert to Tensor
-    Ok(arrayd_to_tensor(arr)?)
+    Ok(arrayd_to_tensor(arr, None)?)
 }
 
 /// Converts PyObject to Tensor and drop the first row.
@@ -288,13 +290,18 @@ fn pyobj_to_tensor2(obj: &PyAny, name: &str) -> Result<Tensor> {
     let arr = arr.slice_axis(Axis(0), Slice::from(1..)).to_owned();
 
     // Convert to Tensor
-    Ok(arrayd_to_tensor(arr)?)
+    Ok(arrayd_to_tensor(arr, None)?)
 }
 
 /// Converts ArrayD to tensor.
-fn arrayd_to_tensor(arr: ArrayD<f32>) -> Result<Tensor> {
-    let tensor =
-        Tensor::try_from(arr.as_slice().expect("Slice of ndarray"))?.reshape(arr.shape())?;
+///
+/// When `shape` is None, its shape will be the result of `arr.shape()`.
+fn arrayd_to_tensor(arr: ArrayD<f32>, shape: Option<&[usize]>) -> Result<Tensor> {
+    let shape = match shape {
+        Some(shape) => shape,
+        None => arr.shape(),
+    };
+    let tensor = Tensor::try_from(arr.as_slice().expect("Slice of ndarray"))?.reshape(shape)?;
     Ok(tensor)
 }
 
@@ -305,6 +312,6 @@ fn tensor_to_arrayd(tensor: Tensor) -> Result<ArrayD<f32>> {
         .iter()
         .map(|&x| x as usize)
         .collect::<Vec<usize>>();
-    let arr = ArrayBase::from_vec(tensor.to_vec1()?).into_shape(shape)?;
+    let arr = ArrayBase::from_vec(tensor.flatten_all()?.to_vec1()?).into_shape(shape)?;
     Ok(arr)
 }

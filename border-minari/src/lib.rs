@@ -398,15 +398,16 @@ where
         })
     }
 
-    fn build(config: &Self::Config, seed: i64) -> Result<Self>
+    fn build(_config: &Self::Config, _seed: i64) -> Result<Self>
     where
         Self: Sized,
     {
         unimplemented!("Use MinariDataset::recover_environment()");
     }
 
-    fn reset_with_index(&mut self, ix: usize) -> Result<Self::Obs> {
-        unimplemented!();
+    /// For this environment, `ix` is ignored for now.
+    fn reset_with_index(&mut self, _ix: usize) -> Result<Self::Obs> {
+        self.reset(None)
     }
 }
 
