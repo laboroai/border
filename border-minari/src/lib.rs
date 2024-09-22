@@ -17,7 +17,7 @@
 //! ```no_run
 //! # use anyhow::Result;
 //! use border_core::Env;
-//! use border_minari::{d4rl::kitchen::ndarray::KitchenNdarrayConverter, MinariDataset};
+//! use border_minari::{d4rl::kitchen::ndarray::KitchenConverter, MinariDataset};
 //! # use numpy::convert;
 //! # use std::num;
 //! 

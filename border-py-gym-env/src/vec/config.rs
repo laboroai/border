@@ -5,7 +5,7 @@ use crate::{GymActFilter, GymObsFilter};
 use border_core::{Act, Obs};
 use std::marker::PhantomData;
 
-/// Constructs [PyVecGymEnv](super::PyVecGymEnv)
+/// Constructs PyVecGymEnv
 pub struct PyVecGymEnvConfig<O, A, OF, AF>
 where
     O: Obs,

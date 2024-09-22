@@ -72,7 +72,7 @@ impl MlflowTrackingRecorder {
     ///
     /// This method adds a tag "host_start_time" with the current time.
     /// This tag is useful when using mlflow-export-import: it losts the original time.
-    /// See https://github.com/mlflow/mlflow-export-import/issues/72
+    /// See <https://github.com/mlflow/mlflow-export-import/issues/72>
     pub fn new(base_url: &String, experiment_id: &String, run: &Run) -> Result<Self> {
         let client = Client::new();
         let start_time = Local::now();

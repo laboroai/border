@@ -1,6 +1,6 @@
 use anyhow::Result;
 use border_core::Env;
-use border_minari::{d4rl::kitchen::ndarray::KitchenNdarrayConverter, MinariDataset};
+use border_minari::{d4rl::kitchen::ndarray::KitchenConverter, MinariDataset};
 use core::panic;
 use numpy::convert;
 use std::num;
@@ -13,7 +13,7 @@ fn main() -> Result<()> {
     println!("{:?}", num_transitions);
 
     // Converter for observation and action
-    let converter = KitchenNdarrayConverter {};
+    let converter = KitchenConverter {};
 
     // Create replay buffer for the sixth episode
     let replay_buffer = dataset.create_replay_buffer(&converter, Some(vec![5]))?;

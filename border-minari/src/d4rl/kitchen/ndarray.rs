@@ -155,9 +155,9 @@ impl From<KitchenAct> for KitchenActBatch {
 }
 
 /// Converter for the Kitchen environment implemented with ndarray.
-pub struct KitchenNdarrayConverter {}
+pub struct KitchenConverter {}
 
-impl MinariConverter for KitchenNdarrayConverter {
+impl MinariConverter for KitchenConverter {
     type Obs = KitchenObs;
     type Act = KitchenAct;
     type ObsBatch = KitchenObsBatch;

@@ -16,7 +16,7 @@ use std::{
 };
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
-/// Configuration of [`BdModel`].
+/// Configuration of [`BcModel`].
 ///
 /// The type parameter `C` should be a configuration of policy model, which should outputs a tensor.
 /// The policy model supports both discrete and continuous action spaces, leaving the interpretation

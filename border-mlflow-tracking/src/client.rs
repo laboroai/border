@@ -121,7 +121,7 @@ impl MlflowTrackingClient {
         // }
     }
 
-    /// Get [`Experiment`] by name from the tracking server.
+    /// Get experiment by name from the tracking server.
     ///
     /// If the experiment with given name does not exist in the trackingserver,
     /// it will be created.
