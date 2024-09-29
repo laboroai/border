@@ -11,76 +11,38 @@ use crate::{
 use anyhow::Result;
 use border_core::generic_replay_buffer::BatchBase;
 use candle_core::{DType, Device, Tensor};
-use ndarray::{s, ArrayBase, ArrayD, Axis, IxDyn, Slice};
-use numpy::array;
+use ndarray::{ArrayBase, ArrayD, Axis, Slice};
 use pyo3::{PyAny, PyObject};
-
-/// State of the Kitchen environment represented by [`candle_core::Tensor`].
-///
-/// It is used to compose the observation in the Kitchen environment.
-/// Currently, it only contains the kettle.
-#[derive(Clone, Debug)]
-pub struct KitchenState {
-    pub kettle: Tensor,
-}
-
-impl KitchenState {
-    pub fn new(capacity: usize) -> Self {
-        Self {
-            kettle: Tensor::zeros((capacity, 7), DType::F32, &Device::Cpu).unwrap(),
-        }
-    }
-
-    pub fn push(&mut self, ix: usize, data: Self) {
-        self.kettle.slice_set(&data.kettle, 0, ix).unwrap();
-    }
-
-    pub fn sample(&self, ixs: &Vec<usize>) -> Self {
-        let ixs = Tensor::from_vec(
-            ixs.iter().map(|&ix| ix as u32).collect::<Vec<u32>>(),
-            (ixs.len(),),
-            &Device::Cpu,
-        )
-        .unwrap();
-        Self {
-            kettle: self.kettle.index_select(&ixs, 0).unwrap(),
-        }
-    }
-}
 
 /// Observation of the Kitchen environment stored as [`Tensor`].
 ///
-/// It contains the achieved_goal and the desired_goal, both of which are of type [`KitchenState`].
+/// It contains a 59-dimensional vector as explained
+/// [here](https://robotics.farama.org/envs/franka_kitchen/franka_kitchen/#observation-space).
 ///
 /// To create of batch of observations, this struct can be converted into [`KitchenObsBatch`].
 ///
 /// [`Tensor`]: candle_core::Tensor
 #[derive(Clone, Debug)]
 pub struct KitchenObs {
-    pub achieved_goal: KitchenState,
-    pub desired_goal: KitchenState,
+    pub obs: Tensor,
 }
 
 impl border_core::Obs for KitchenObs {
     fn dummy(n: usize) -> Self {
         Self {
-            achieved_goal: KitchenState::new(n),
-            desired_goal: KitchenState::new(n),
+            obs: Tensor::zeros((n, 59), DType::F32, &Device::Cpu).unwrap(),
         }
     }
 
     fn len(&self) -> usize {
-        self.achieved_goal.kettle.dims()[0]
+        self.obs.dims()[0]
     }
 }
 
 /// Converts KitchenObs to Tensor by concatenating the achieved goal and the desired goal.
 impl Into<Tensor> for KitchenObs {
     fn into(self) -> Tensor {
-        let achieved_goal = self.achieved_goal.kettle;
-        let desired_goal = self.desired_goal.kettle;
-        let obs = Tensor::cat(&[achieved_goal, desired_goal], 1).unwrap();
-        obs
+        self.obs
     }
 }
 
@@ -93,46 +55,42 @@ impl Into<Tensor> for KitchenObs {
 /// [`Tensor`]: candle_core::Tensor
 #[derive(Debug)]
 pub struct KitchenObsBatch {
-    pub achieved_goal: KitchenState,
-    pub desired_goal: KitchenState,
+    pub obs: Tensor,
 }
 
 impl BatchBase for KitchenObsBatch {
     fn new(capacity: usize) -> Self {
         Self {
-            achieved_goal: KitchenState::new(capacity),
-            desired_goal: KitchenState::new(capacity),
+            obs: Tensor::zeros((capacity, 59), DType::F32, &Device::Cpu).unwrap(),
         }
     }
 
     fn push(&mut self, ix: usize, data: Self) {
-        self.achieved_goal.push(ix, data.achieved_goal);
-        self.desired_goal.push(ix, data.desired_goal);
+        self.obs.slice_set(&data.obs, 0, ix).unwrap();
     }
 
     fn sample(&self, ixs: &Vec<usize>) -> Self {
+        let ixs = Tensor::from_vec(
+            ixs.iter().map(|&ix| ix as u32).collect::<Vec<u32>>(),
+            (ixs.len(),),
+            &Device::Cpu,
+        )
+        .unwrap();
         Self {
-            achieved_goal: self.achieved_goal.sample(ixs),
-            desired_goal: self.desired_goal.sample(ixs),
+            obs: self.obs.index_select(&ixs, 0).unwrap(),
         }
     }
 }
 
 impl From<KitchenObs> for KitchenObsBatch {
     fn from(obs: KitchenObs) -> Self {
-        Self {
-            achieved_goal: obs.achieved_goal,
-            desired_goal: obs.desired_goal,
-        }
+        Self { obs: obs.obs }
     }
 }
 
 impl Into<Tensor> for KitchenObsBatch {
     fn into(self) -> Tensor {
-        let achieved_goal = self.achieved_goal.kettle;
-        let desired_goal = self.desired_goal.kettle;
-        let obs = Tensor::cat(&[achieved_goal, desired_goal], 1).unwrap();
-        obs
+        self.obs
     }
 }
 
@@ -229,21 +187,9 @@ impl MinariConverter for KitchenConverter {
     type ActBatch = KitchenActBatch;
 
     fn convert_observation(&self, obj: &PyAny) -> Result<Self::Obs> {
-        let achieved_goal = obj.get_item("achieved_goal")?;
-        let desired_goal = obj.get_item("desired_goal")?;
+        let obs = obj.get_item("observation")?.extract()?;
         Ok(KitchenObs {
-            achieved_goal: KitchenState {
-                kettle: arrayd_to_tensor(
-                    pyobj_to_arrayd::<f64, f32>(achieved_goal.get_item("kettle")?.extract()?),
-                    Some(&[1, 7]),
-                )?,
-            },
-            desired_goal: KitchenState {
-                kettle: arrayd_to_tensor(
-                    pyobj_to_arrayd::<f64, f32>(desired_goal.get_item("kettle")?.extract()?),
-                    Some(&[1, 7]),
-                )?,
-            },
+            obs: arrayd_to_tensor(pyobj_to_arrayd::<f64, f32>(obs), Some(&[1, 59]))?,
         })
     }
 
@@ -252,33 +198,14 @@ impl MinariConverter for KitchenConverter {
     }
 
     fn convert_observation_batch(&self, obj: &PyAny) -> Result<Self::ObsBatch> {
-        let achieved_goal = obj.get_item("achieved_goal")?;
-        let desired_goal = obj.get_item("desired_goal")?;
         Ok(KitchenObsBatch {
-            achieved_goal: KitchenState {
-                kettle: pyobj_to_tensor1(achieved_goal, "kettle")?,
-            },
-            desired_goal: KitchenState {
-                kettle: pyobj_to_tensor1(desired_goal, "kettle")?,
-            },
+            obs: pyobj_to_tensor1(obj, "observation")?,
         })
     }
 
     fn convert_observation_batch_next(&self, obj: &PyAny) -> Result<Self::ObsBatch> {
-        let achieved_goal = obj.get_item("achieved_goal")?;
-        let desired_goal = obj.get_item("desired_goal")?;
-
-        // // Check the keys in achieved_goal
-        // println!("{:?}", achieved_goal.call_method0("keys")?);
-        // panic!();
-
         Ok(KitchenObsBatch {
-            achieved_goal: KitchenState {
-                kettle: pyobj_to_tensor2(achieved_goal, "kettle")?,
-            },
-            desired_goal: KitchenState {
-                kettle: pyobj_to_tensor2(desired_goal, "kettle")?,
-            },
+            obs: pyobj_to_tensor2(obj, "observation")?,
         })
     }
 

@@ -7,10 +7,8 @@ use border_core::{
     Agent, Configurable, Env, Policy, ReplayBufferBase, TransitionBatch,
 };
 use candle_core::{shape::D, DType, Device, Tensor};
-use candle_nn::{activation, loss::mse};
-use rand::{rngs::SmallRng, Rng, SeedableRng};
+use candle_nn::loss::mse;
 use serde::{de::DeserializeOwned, Serialize};
-use std::convert::TryFrom;
 use std::{fs, marker::PhantomData, path::Path};
 
 #[allow(dead_code)]
@@ -114,7 +112,7 @@ where
     }
 
     fn opt_with_record(&mut self, buffer: &mut R) -> Record {
-        let mut record = {
+        let record = {
             let record = self.opt_(buffer);
 
             match self.record_verbose_level >= 2 {

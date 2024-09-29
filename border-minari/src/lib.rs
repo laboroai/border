@@ -60,7 +60,7 @@ use border_core::{
 };
 use pyo3::{
     types::{IntoPyDict, PyIterator, PyTuple},
-    FromPyObject, PyAny, PyObject, Python, ToPyObject,
+    PyAny, PyObject, Python, ToPyObject,
 };
 use std::marker::PhantomData;
 pub mod d4rl;
@@ -120,7 +120,9 @@ impl MinariDataset {
         Python::with_gil(|py| {
             let minari = py.import("minari").unwrap();
             let dataset = minari
-                .call1("load_dataset", (dataset_id.as_ref(), download))?
+                .getattr("load_dataset")?
+                .call1((dataset_id.as_ref(), download))?
+                // .call1("load_dataset", (dataset_id.as_ref(), download))?
                 .to_object(py);
             Ok(Self { dataset })
         })

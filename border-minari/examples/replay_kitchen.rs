@@ -1,9 +1,6 @@
 use anyhow::Result;
 use border_core::Env;
 use border_minari::{d4rl::kitchen::ndarray::KitchenConverter, MinariDataset};
-use core::panic;
-use numpy::convert;
-use std::num;
 
 fn main() -> Result<()> {
     let dataset = MinariDataset::load_dataset("D4RL/kitchen/complete-v1", true)?;

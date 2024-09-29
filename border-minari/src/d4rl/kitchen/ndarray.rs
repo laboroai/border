@@ -10,36 +10,10 @@ use border_core::generic_replay_buffer::BatchBase;
 use ndarray::{s, ArrayD, Axis, IxDyn, Slice};
 use pyo3::{PyAny, PyObject};
 
-/// State of the Kitchen environment represented by ndarray.
-///
-/// It is used to compose the observation in the Kitchen environment.
-/// Currently, it only contains the kettle.
-#[derive(Clone, Debug)]
-pub struct KitchenState {
-    pub kettle: ArrayD<f32>,
-}
-
-impl KitchenState {
-    pub fn new(capacity: usize) -> Self {
-        Self {
-            kettle: ArrayD::zeros(IxDyn(&[capacity, 7])),
-        }
-    }
-
-    pub fn push(&mut self, ix: usize, data: Self) {
-        self.kettle.slice_mut(s![ix.., ..]).assign(&data.kettle);
-    }
-
-    pub fn sample(&self, ixs: &Vec<usize>) -> Self {
-        Self {
-            kettle: self.kettle.select(Axis(0), ixs),
-        }
-    }
-}
-
 /// Observation of the Kitchen environment stored as ndarray.
 ///
-/// It contains the achieved_goal and the desired_goal, both of which are of type [`KitchenState`].
+/// It contains a 59-dimensional vector as explained
+/// [here](https://robotics.farama.org/envs/franka_kitchen/franka_kitchen/#observation-space).
 ///
 /// Since the observation of the environment is coming from Python interpreter, this struct
 /// can be converted from [`PyObject`].
@@ -47,20 +21,18 @@ impl KitchenState {
 /// To create of batch of observations, this struct can be converted into [`KitchenObsBatch`].
 #[derive(Clone, Debug)]
 pub struct KitchenObs {
-    pub achieved_goal: KitchenState,
-    pub desired_goal: KitchenState,
+    pub obs: ArrayD<f32>,
 }
 
 impl border_core::Obs for KitchenObs {
     fn dummy(n: usize) -> Self {
         Self {
-            achieved_goal: KitchenState::new(n),
-            desired_goal: KitchenState::new(n),
+            obs: ArrayD::zeros(IxDyn(&[n, 59])),
         }
     }
 
     fn len(&self) -> usize {
-        self.achieved_goal.kettle.shape()[0]
+        self.obs.shape()[0]
     }
 }
 
@@ -71,37 +43,30 @@ impl border_core::Obs for KitchenObs {
 /// It can be converted into an ndarray.
 #[derive(Debug)]
 pub struct KitchenObsBatch {
-    pub achieved_goal: KitchenState,
-    pub desired_goal: KitchenState,
+    pub obs: ArrayD<f32>,
 }
 
 impl BatchBase for KitchenObsBatch {
     fn new(capacity: usize) -> Self {
         Self {
-            achieved_goal: KitchenState::new(capacity),
-            desired_goal: KitchenState::new(capacity),
+            obs: ArrayD::zeros(IxDyn(&[capacity, 59])),
         }
     }
 
     fn push(&mut self, ix: usize, data: Self) {
-        self.achieved_goal.push(ix, data.achieved_goal);
-        self.desired_goal.push(ix, data.desired_goal);
+        self.obs.slice_mut(s![ix.., ..]).assign(&data.obs);
     }
 
     fn sample(&self, ixs: &Vec<usize>) -> Self {
         Self {
-            achieved_goal: self.achieved_goal.sample(ixs),
-            desired_goal: self.desired_goal.sample(ixs),
+            obs: self.obs.select(Axis(0), ixs),
         }
     }
 }
 
 impl From<KitchenObs> for KitchenObsBatch {
     fn from(obs: KitchenObs) -> Self {
-        Self {
-            achieved_goal: obs.achieved_goal,
-            desired_goal: obs.desired_goal,
-        }
+        Self { obs: obs.obs }
     }
 }
 
@@ -164,15 +129,9 @@ impl MinariConverter for KitchenConverter {
     type ActBatch = KitchenActBatch;
 
     fn convert_observation(&self, obj: &PyAny) -> Result<Self::Obs> {
-        let achieved_goal = obj.get_item("achieved_goal")?;
-        let desired_goal = obj.get_item("desired_goal")?;
+        let obs = obj.get_item("observation")?;
         Ok(KitchenObs {
-            achieved_goal: KitchenState {
-                kettle: pyobj_to_arrayd::<f64, f32>(achieved_goal.get_item("kettle")?.extract()?),
-            },
-            desired_goal: KitchenState {
-                kettle: pyobj_to_arrayd::<f64, f32>(desired_goal.get_item("kettle")?.extract()?),
-            },
+            obs: pyobj_to_arrayd::<f64, f32>(obs.into()),
         })
     }
 
@@ -181,33 +140,14 @@ impl MinariConverter for KitchenConverter {
     }
 
     fn convert_observation_batch(&self, obj: &PyAny) -> Result<Self::ObsBatch> {
-        let achieved_goal = obj.get_item("achieved_goal")?;
-        let desired_goal = obj.get_item("desired_goal")?;
         Ok(KitchenObsBatch {
-            achieved_goal: KitchenState {
-                kettle: pyobj_to_arrayd1(achieved_goal, "kettle")?,
-            },
-            desired_goal: KitchenState {
-                kettle: pyobj_to_arrayd1(desired_goal, "kettle")?,
-            },
+            obs: pyobj_to_arrayd1(obj, "observation")?,
         })
     }
 
     fn convert_observation_batch_next(&self, obj: &PyAny) -> Result<Self::ObsBatch> {
-        let achieved_goal = obj.get_item("achieved_goal")?;
-        let desired_goal = obj.get_item("desired_goal")?;
-
-        // // Check the keys in achieved_goal
-        // println!("{:?}", achieved_goal.call_method0("keys")?);
-        // panic!();
-
         Ok(KitchenObsBatch {
-            achieved_goal: KitchenState {
-                kettle: pyobj_to_arrayd2(achieved_goal, "kettle")?,
-            },
-            desired_goal: KitchenState {
-                kettle: pyobj_to_arrayd2(desired_goal, "kettle")?,
-            },
+            obs: pyobj_to_arrayd2(obj, "observation")?,
         })
     }
 

@@ -4,15 +4,12 @@ use border_candle_agent::{
     mlp::{Mlp, MlpConfig},
 };
 use border_core::{
-    record::AggregateRecorder, Agent, Configurable, DefaultEvaluator, Env, ExperienceBufferBase,
-    Trainer, TrainerConfig,
+    record::AggregateRecorder, Configurable, DefaultEvaluator, ExperienceBufferBase, Trainer,
+    TrainerConfig,
 };
-use border_minari::{d4rl::kitchen::candle::KitchenConverter, MinariDataset, MinariEnv};
+use border_minari::{d4rl::kitchen::candle::KitchenConverter, MinariDataset};
 use border_mlflow_tracking::MlflowTrackingClient;
 use candle_core::Device;
-use core::panic;
-use numpy::convert;
-use std::num;
 
 fn main() -> Result<()> {
     let dataset = MinariDataset::load_dataset("D4RL/kitchen/complete-v1", true)?;
@@ -42,7 +39,7 @@ fn main() -> Result<()> {
     let agent_config = {
         let policy_model_config = {
             let policy_model_config = MlpConfig {
-                in_dim: 14,
+                in_dim: 59,
                 out_dim: 9,
                 units: vec![64, 64],
                 activation_out: false,
@@ -72,7 +69,7 @@ fn main() -> Result<()> {
     let mut evaluator = DefaultEvaluator::new(env, 5)?;
 
     // Start training
-    trainer.train_offline(&mut agent, &mut buffer, &mut recorder, &mut evaluator);
+    let _ = trainer.train_offline(&mut agent, &mut buffer, &mut recorder, &mut evaluator);
 
     Ok(())
 }
