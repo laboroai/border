@@ -9,6 +9,30 @@ use std::marker::PhantomData;
 /// The code for this method is as follows:
 ///
 /// ```no_run
+/// # use anyhow::Result;
+/// # use border_core::{Env, Policy, Evaluator};
+/// # use std::marker::PhantomData;
+/// # pub struct DefaultEvaluator<E: Env, P: Policy<E>> {
+/// # n_episodes: usize,
+/// # env: E,
+/// # phantom: PhantomData<P>,
+/// # }
+///
+/// # impl<E, P> DefaultEvaluator<E, P>
+/// # where
+/// # E: Env,
+/// # P: Policy<E>,
+/// # {
+/// # fn run_episode(&mut self, policy: &mut P, init_obs: E::Obs) -> Result<f32> {
+/// # unimplemented!();
+/// # }
+/// # }
+/// # impl<E, P> Evaluator<E, P> for DefaultEvaluator<E, P>
+/// # where
+/// # E: Env,
+/// # P: Policy<E>,
+/// # {
+/// # fn evaluate(&mut self, policy: &mut P) -> Result<f32> {
 /// let mut r_total = 0f32;
 ///
 /// for ix in 0..self.n_episodes {
@@ -17,6 +41,8 @@ use std::marker::PhantomData;
 /// }
 ///
 /// Ok(r_total / self.n_episodes as f32)
+/// # }
+/// # }
 /// ```
 pub struct DefaultEvaluator<E: Env, P: Policy<E>> {
     n_episodes: usize,
