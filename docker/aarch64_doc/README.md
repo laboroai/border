@@ -1,7 +1,22 @@
-Run the following command to create docs in border/doc.
+Run the following commands to create docs in border/doc.
+
+## Create image
 
 ```bash
-# in border/aarch64_doc
-sh doc.sh
+# In border/docker/aarch64_headless
+sh build.sh
 ```
 
+## Run container
+
+```bash
+# in border/docker/aarch64_doc
+sh run.sh
+```
+
+## Create docs in the above container
+
+```bash
+# in border/docker/aarch64_doc
+sh doc.sh
+```
