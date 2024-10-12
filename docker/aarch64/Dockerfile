@@ -98,7 +98,7 @@ RUN cd $HOME && mkdir -p .border/model
 
 # # PyBulletGym
 # RUN source /home/ubuntu/venv/bin/activate && pip3 install pybullet==3.2.5
-# # RUN source /home/ubuntu/venv/bin/activate && pip3 install pybullet==2.7.1
+# RUN source /home/ubuntu/venv/bin/activate && pip3 install pybullet==2.7.1
 # RUN cd $HOME && \
 #     git clone https://github.com/benelot/pybullet-gym.git && \
 #     cd pybullet-gym && \
@@ -109,7 +109,7 @@ RUN cd $HOME && mkdir -p .border/model
 # RUN sed -i 's/return state, sum(self.rewards), bool(done), {}/return state, sum(self.rewards), bool(done), bool(done), {}/g' /home/ubuntu/pybullet-gym/pybulletgym/envs/roboschool/envs/locomotion/walker_base_env.py
 # RUN sed -i 's/id='\''AntPyBulletEnv-v0'\'',/id='\''AntPyBulletEnv-v0'\'', order_enforce=False,/g' /home/ubuntu/pybullet-gym/pybulletgym/envs/__init__.py
 
-# SSH
+# SSH, enabling VScode remote development
 RUN apt update && apt install -y openssh-server
 RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 

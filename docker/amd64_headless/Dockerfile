@@ -44,6 +44,10 @@ RUN apt install -y llvm libosmesa6-dev
 # Used for Mujoco
 RUN apt install -y patchelf libglfw3 libglfw3-dev
 
+# Used for minari
+RUN apt-get update && \
+    apt install -y libhdf5-serial-dev --fix-missing
+
 # Cleanup
 RUN rm -rf /var/lib/apt/lists/*
 
@@ -67,6 +71,7 @@ RUN source /root/venv/bin/activate && pip3 install tensorboard==2.16.2
 RUN source /root/venv/bin/activate && pip3 install mlflow==2.11.1
 RUN source /root/venv/bin/activate && pip3 install tabulate==0.9.0
 RUN source /root/venv/bin/activate && pip3 install mlflow-export-import==1.2.0
+RUN source /root/venv/bin/activate && pip3 install minari[all]==0.5.0
 # RUN source /home/ubuntu/venv/bin/activate && pip3 install robosuite==1.3.2
 # RUN source /home/ubuntu/venv/bin/activate && pip3 install -U 'mujoco-py<2.2,>=2.1'
 # RUN source /home/ubuntu/venv/bin/activate && pip3 install dm-control==1.0.8
@@ -99,7 +104,7 @@ RUN echo 'export CARGO_TARGET_DIR=$HOME/target' >> ~/.bashrc
 RUN echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.mujoco/mujoco210/bin' >> ~/.bashrc
 RUN echo 'export MUJOCO_GL=glfw' >> ~/.bashrc
 RUN echo 'source $HOME/venv/bin/activate' >> ~/.bashrc
-RUN echo 'export RUSTFLAGS="-C target-feature=+fp16"' >> ~/.bashrc
+# RUN echo 'export RUSTFLAGS="-C target-feature=+fp16"' >> ~/.bashrc
 
 RUN rm /bin/sh && mv /bin/sh_tmp /bin/sh
 
