@@ -372,6 +372,7 @@ impl Trainer {
 
         loop {
             let record = Record::empty();
+            self.env_steps += 1;
 
             if self.loop_step(agent, buffer, recorder, evaluator, record, fps)? {
                 return Ok(());
