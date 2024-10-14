@@ -1,4 +1,4 @@
-use crate::util::OutDim;
+use crate::{util::OutDim, Activation};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
@@ -7,14 +7,14 @@ pub struct MlpConfig {
     pub in_dim: i64,
     pub units: Vec<i64>,
     pub out_dim: i64,
-    pub activation_out: bool,
+    pub activation_out: Activation,
 }
 
 impl MlpConfig {
     /// Creates configuration of MLP.
     ///
     /// * `activation_out` - If `true`, activation function is added in the final layer.
-    pub fn new(in_dim: i64, units: Vec<i64>, out_dim: i64, activation_out: bool) -> Self {
+    pub fn new(in_dim: i64, units: Vec<i64>, out_dim: i64, activation_out: Activation) -> Self {
         Self {
             in_dim,
             units,

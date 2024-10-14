@@ -4,7 +4,7 @@ use border_candle_agent::{
     mlp::{Mlp, MlpConfig},
     opt::OptimizerConfig,
     util::{arrayd_to_tensor, vec_to_tensor, CriticLoss},
-    TensorBatch,
+    Activation, TensorBatch,
 };
 use border_core::{
     generic_replay_buffer::{
@@ -211,7 +211,7 @@ mod config {
     pub fn create_agent_config(in_dim: i64, out_dim: i64) -> DqnConfig<Mlp> {
         let device = Device::cuda_if_available(0).unwrap();
         let opt_config = OptimizerConfig::default().learning_rate(LR_CRITIC);
-        let mlp_config = MlpConfig::new(in_dim, vec![256, 256], out_dim, false);
+        let mlp_config = MlpConfig::new(in_dim, vec![256, 256], out_dim, Activation::None);
         let model_config = DqnModelConfig::default()
             .q_config(mlp_config)
             .out_dim(out_dim)

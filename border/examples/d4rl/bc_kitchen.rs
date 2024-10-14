@@ -2,12 +2,15 @@ use anyhow::Result;
 use border_candle_agent::{
     bc::{Bc, BcActionType, BcConfig, BcModelConfig},
     mlp::{Mlp, MlpConfig},
+    Activation,
 };
 use border_core::{
-    record::AggregateRecorder, Configurable, DefaultEvaluator, ExperienceBufferBase, Trainer,
-    TrainerConfig,
+    record::AggregateRecorder, Configurable, ExperienceBufferBase, Trainer, TrainerConfig,
 };
-use border_minari::{d4rl::kitchen::candle::KitchenConverter, MinariDataset};
+use border_minari::{
+    d4rl::kitchen::{candle::KitchenConverter, KitchenEvaluator},
+    MinariDataset,
+};
 use border_mlflow_tracking::MlflowTrackingClient;
 use border_tensorboard::TensorboardRecorder;
 use candle_core::Device;
@@ -39,11 +42,11 @@ struct Args {
     mlflow: bool,
 
     /// The number of optimization steps
-    #[arg(long, default_value_t = 1000)]
+    #[arg(long, default_value_t = 1000000)]
     max_opts: usize,
 
     /// Interval of evaluation
-    #[arg(long, default_value_t = 100)]
+    #[arg(long, default_value_t = 100000)]
     eval_interval: usize,
 
     /// The number of evaluation episodes
@@ -51,7 +54,7 @@ struct Args {
     eval_episodes: usize,
 
     /// Batch size
-    #[arg(long, default_value_t = 256)]
+    #[arg(long, default_value_t = 128)]
     batch_size: usize,
 }
 
@@ -91,8 +94,8 @@ fn main() -> Result<()> {
             let policy_model_config = MlpConfig {
                 in_dim: 59,
                 out_dim: 9,
-                units: vec![64, 64],
-                activation_out: false,
+                units: vec![256, 256],
+                activation_out: Activation::Tanh,
             };
             BcModelConfig::default().policy_model_config(policy_model_config)
         };
@@ -122,7 +125,7 @@ fn main() -> Result<()> {
     };
 
     // Create evaluator
-    let mut evaluator = DefaultEvaluator::new(env, args.eval_episodes)?;
+    let mut evaluator = KitchenEvaluator::new(env, args.eval_episodes)?;
 
     // Start training
     let _ = trainer.train_offline(&mut agent, &mut buffer, &mut recorder, &mut evaluator);

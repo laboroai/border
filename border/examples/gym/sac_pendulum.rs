@@ -4,7 +4,7 @@ use border_candle_agent::{
     opt::OptimizerConfig,
     sac::{ActorConfig, CriticConfig, Sac, SacConfig},
     util::{arrayd_to_tensor, tensor_to_arrayd},
-    TensorBatch,
+    Activation, TensorBatch,
 };
 use border_core::{
     generic_replay_buffer::{
@@ -189,10 +189,20 @@ fn create_agent(in_dim: i64, out_dim: i64) -> Result<Sac<Env, Mlp, Mlp2, ReplayB
     let actor_config = ActorConfig::default()
         .opt_config(OptimizerConfig::default().learning_rate(LR_ACTOR))
         .out_dim(out_dim)
-        .pi_config(MlpConfig::new(in_dim, vec![64, 64], out_dim, false));
+        .pi_config(MlpConfig::new(
+            in_dim,
+            vec![64, 64],
+            out_dim,
+            Activation::None,
+        ));
     let critic_config = CriticConfig::default()
         .opt_config(OptimizerConfig::default().learning_rate(LR_CRITIC))
-        .q_config(MlpConfig::new(in_dim + out_dim, vec![64, 64], 1, false));
+        .q_config(MlpConfig::new(
+            in_dim + out_dim,
+            vec![64, 64],
+            1,
+            Activation::None,
+        ));
     let sac_config = SacConfig::default()
         .batch_size(BATCH_SIZE)
         .actor_config(actor_config)

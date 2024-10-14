@@ -6,7 +6,7 @@ use border_candle_agent::{
     sac::{ActorConfig, CriticConfig, EntCoefMode, Sac, SacConfig},
     util::CriticLoss,
     util::{arrayd_to_tensor, tensor_to_arrayd},
-    TensorBatch,
+    Activation, TensorBatch,
 };
 use border_core::{
     generic_replay_buffer::{
@@ -168,10 +168,20 @@ mod config {
         let actor_config = ActorConfig::default()
             .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
             .out_dim(dim_act)
-            .pi_config(MlpConfig::new(dim_obs, vec![400, 300], dim_act, false));
+            .pi_config(MlpConfig::new(
+                dim_obs,
+                vec![400, 300],
+                dim_act,
+                Activation::None,
+            ));
         let critic_config = CriticConfig::default()
             .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
-            .q_config(MlpConfig::new(dim_obs + dim_act, vec![400, 300], 1, false));
+            .q_config(MlpConfig::new(
+                dim_obs + dim_act,
+                vec![400, 300],
+                1,
+                Activation::None,
+            ));
 
         SacConfig::default()
             .batch_size(BATCH_SIZE)

@@ -1,5 +1,6 @@
 use anyhow::Result;
 use border_candle_agent::{
+    Activation,
     mlp::{Mlp, Mlp2, MlpConfig},
     opt::OptimizerConfig,
     sac::{ActorConfig, CriticConfig, Sac, SacConfig},
@@ -165,10 +166,10 @@ mod config {
         let actor_config = ActorConfig::default()
             .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
             .out_dim(out_dim)
-            .pi_config(MlpConfig::new(in_dim, vec![64, 64], out_dim, false));
+            .pi_config(MlpConfig::new(in_dim, vec![64, 64], out_dim, Activation::None));
         let critic_config = CriticConfig::default()
             .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
-            .q_config(MlpConfig::new(in_dim + out_dim, vec![64, 64], 1, false));
+            .q_config(MlpConfig::new(in_dim + out_dim, vec![64, 64], 1, Activation::None))));
 
         SacConfig::default()
             .batch_size(BATCH_SIZE)

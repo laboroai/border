@@ -47,12 +47,7 @@ impl SubModel1 for Mlp {
 
     fn forward(&self, xs: &Self::Input) -> Tensor {
         let xs = xs.to_device(&self.device).unwrap();
-        let xs = mlp_forward(xs, &self.layers);
-
-        match self.config.activation_out {
-            false => xs,
-            true => xs.relu().unwrap(),
-        }
+        mlp_forward(xs, &self.layers, &self.config.activation_out)
     }
 
     fn build(vs: VarBuilder, config: Self::Config) -> Self {
@@ -73,12 +68,7 @@ impl SubModel2 for Mlp {
             .unwrap()
             .to_device(&self.device)
             .unwrap();
-        let xs = mlp_forward(input, &self.layers);
-
-        match self.config.activation_out {
-            false => xs,
-            true => xs.relu().unwrap(),
-        }
+        mlp_forward(input, &self.layers, &self.config.activation_out)
     }
 
     fn build(vs: VarBuilder, config: Self::Config) -> Self {
