@@ -2,3 +2,5 @@
 #[cfg(feature = "candle")]
 pub mod candle;
 pub mod ndarray;
+mod evaluator;
+pub use evaluator::KitchenEvaluator;
