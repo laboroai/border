@@ -176,10 +176,6 @@ pub mod test {
     }
 
     impl border_core::Obs for TestObs {
-        fn dummy(_n: usize) -> Self {
-            Self { obs: 0 }
-        }
-
         fn len(&self) -> usize {
             1
         }
@@ -291,9 +287,9 @@ pub mod test {
                 is_terminated: vec![0],
                 is_truncated: vec![0],
                 info: TestInfo {},
-                init_obs: TestObs {
+                init_obs: Some(TestObs {
                     obs: self.state_init,
-                },
+                }),
             };
             return (step, border_core::record::Record::empty());
         }
@@ -310,9 +306,9 @@ pub mod test {
                 is_terminated: vec![0],
                 is_truncated: vec![0],
                 info: TestInfo {},
-                init_obs: TestObs {
+                init_obs: Some(TestObs {
                     obs: self.state_init,
-                },
+                }),
             };
             return (step, border_core::record::Record::empty());
         }

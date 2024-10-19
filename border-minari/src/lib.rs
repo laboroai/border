@@ -273,32 +273,20 @@ where
     type Info = ();
 
     fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<Self::Obs> {
-        // Reset the environment
-        let reset = match is_done {
-            None => true,
-            // when reset() is called in border_core::util::sample()
-            Some(v) => {
-                debug_assert_eq!(v.len(), 1);
-                v[0] != 0
-            }
-        };
+        assert_eq!(is_done, None);
 
-        if !reset {
-            Ok(O::dummy(1))
-        } else {
-            pyo3::Python::with_gil(|py| {
-                let ret_values = if let Some(seed) = self.initial_seed {
-                    self.initial_seed = None;
-                    let kwargs = Some(vec![("seed", seed)].into_py_dict(py));
-                    self.env.call_method(py, "reset", (), kwargs)?
-                } else {
-                    self.env.call_method0(py, "reset")?
-                };
-                let ret_values_: &PyTuple = ret_values.extract(py)?;
-                self.converter
-                    .convert_observation(ret_values_.get_item(0).extract()?)
-            })
-        }
+        pyo3::Python::with_gil(|py| {
+            let ret_values = if let Some(seed) = self.initial_seed {
+                self.initial_seed = None;
+                let kwargs = Some(vec![("seed", seed)].into_py_dict(py));
+                self.env.call_method(py, "reset", (), kwargs)?
+            } else {
+                self.env.call_method0(py, "reset")?
+            };
+            let ret_values_: &PyTuple = ret_values.extract(py)?;
+            self.converter
+                .convert_observation(ret_values_.get_item(0).extract()?)
+        })
     }
 
     fn step(&mut self, act: &Self::Act) -> (Step<Self>, Record) {
@@ -354,7 +342,7 @@ where
                 let is_terminated = vec![is_terminated];
                 let is_truncated = vec![is_truncated];
                 let info = ();
-                let init_obs = O::dummy(1);
+                let init_obs = None;
                 let act = act.clone();
 
                 (
