@@ -57,10 +57,6 @@ mod obs_act_types {
     pub struct ObsBatch(TensorBatch);
 
     impl border_core::Obs for Obs {
-        fn dummy(_n: usize) -> Self {
-            Self(ArrayD::zeros(IxDyn(&[0])))
-        }
-
         fn len(&self) -> usize {
             self.0.shape()[0]
         }

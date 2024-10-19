@@ -44,13 +44,11 @@ where
 {
     /// Stops sampling process if this field is set to `true`.
     id: usize,
-    // #[allow(dead_code)] // TODO: remove this
     stop: Arc<Mutex<bool>>,
     agent_config: A::Config,
     env_config: E::Config,
     step_proc_config: P::Config,
     replay_buffer_config: ReplayBufferProxyConfig,
-    #[allow(dead_code)] // TODO: remove this
     env_seed: i64,
     stats: Arc<Mutex<Option<ActorStat>>>,
     phantom: PhantomData<(A, E, P, R)>,

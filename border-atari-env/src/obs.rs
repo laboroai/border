@@ -35,12 +35,6 @@ impl From<Vec<u8>> for BorderAtariObs {
 }
 
 impl Obs for BorderAtariObs {
-    fn dummy(_n: usize) -> Self {
-        Self {
-            frames: vec![0; 4 * 84 * 84],
-        }
-    }
-
     fn len(&self) -> usize {
         1
     }

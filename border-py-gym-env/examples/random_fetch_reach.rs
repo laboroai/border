@@ -13,10 +13,6 @@ mod obs {
     pub struct Obs(Vec<(String, Array)>);
 
     impl border_core::Obs for Obs {
-        fn dummy(_n: usize) -> Self {
-            Self(vec![("".to_string(), Array::Empty)])
-        }
-
         fn len(&self) -> usize {
             match self.0.get(0) {
                 None => 0,

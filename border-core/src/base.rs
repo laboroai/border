@@ -20,11 +20,6 @@ pub use step::{Info, Step, StepProcessor};
 /// In the current version, no vectorized environment is implemented.
 /// Thus, [Obs]`::len()` always returns 1.
 pub trait Obs: Clone + Debug {
-    /// Returns a dummy observation.
-    ///
-    /// The observation created with this method is ignored.
-    fn dummy(n: usize) -> Self;
-
     /// Returns the number of observations in the object.
     fn len(&self) -> usize;
 }

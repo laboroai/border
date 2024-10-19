@@ -174,54 +174,42 @@ where
     ///
     /// This method also resets the [`GymObsFilter`] adn [`GymActFilter`].
     ///
-    /// In this environment, the length of `is_done` is assumed to be 1.
+    /// In this environment, `is_done` should be None.
     ///
     /// [`GymObsFilter`]: crate::GymObsFilter
     /// [`GymActFilter`]: crate::GymActFilter
     fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<O> {
         trace!("PyGymEnv::reset()");
+        assert_eq!(is_done, None);
 
         // Reset the action filter, required for stateful filters.
         self.act_filter.reset(&is_done);
 
-        // Reset the environment
-        let reset = match is_done {
-            None => true,
-            // when reset() is called in border_core::util::sample()
-            Some(v) => {
-                debug_assert_eq!(v.len(), 1);
-                v[0] != 0
-            }
-        };
-
-        let ret = if !reset {
-            Ok(O::dummy(1))
-        } else {
-            pyo3::Python::with_gil(|py| {
-                let obs = {
-                    let ret_values = if let Some(seed) = self.initial_seed {
-                        self.initial_seed = None;
-                        let kwargs = match self.pybullet {
-                            true => None,
-                            false => Some(vec![("seed", seed)].into_py_dict(py)),
-                        };
-                        self.env.call_method(py, "reset", (), kwargs)?
-                    } else {
-                        self.env.call_method0(py, "reset")?
+        // Initial observation
+        let ret = pyo3::Python::with_gil(|py| {
+            let obs = {
+                let ret_values = if let Some(seed) = self.initial_seed {
+                    self.initial_seed = None;
+                    let kwargs = match self.pybullet {
+                        true => None,
+                        false => Some(vec![("seed", seed)].into_py_dict(py)),
                     };
-                    let ret_values_: &PyTuple = ret_values.extract(py).unwrap();
-                    ret_values_.get_item(0).extract().unwrap()
+                    self.env.call_method(py, "reset", (), kwargs)?
+                } else {
+                    self.env.call_method0(py, "reset")?
                 };
+                let ret_values_: &PyTuple = ret_values.extract(py).unwrap();
+                ret_values_.get_item(0).extract().unwrap()
+            };
 
-                if self.pybullet && self.render {
-                    let floor: &PyModule =
-                        self.pybullet_state.as_ref().unwrap().extract(py).unwrap();
-                    floor.getattr("add_floor")?.call1((&self.env,)).unwrap();
-                }
-                Ok(self.obs_filter.reset(obs))
-            })
-        };
+            if self.pybullet && self.render {
+                let floor: &PyModule = self.pybullet_state.as_ref().unwrap().extract(py).unwrap();
+                floor.getattr("add_floor")?.call1((&self.env,)).unwrap();
+            }
+            Ok(self.obs_filter.reset(obs))
+        });
 
+        // Rendering
         if self.pybullet && self.render {
             pyo3::Python::with_gil(|py| {
                 // self.env.call_method0(py, "render").unwrap();
@@ -301,7 +289,7 @@ where
                 let is_truncated = vec![is_truncated];
                 let record = record_o.merge(record_a);
                 let info = GymInfo {};
-                let init_obs = O::dummy(1);
+                let init_obs = None;
                 let act = act.clone();
 
                 (

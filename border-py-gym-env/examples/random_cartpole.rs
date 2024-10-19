@@ -20,10 +20,6 @@ mod obs {
         fn len(&self) -> usize {
             self.0.shape()[0]
         }
-
-        fn dummy(_n: usize) -> Self {
-            Self(ArrayD::zeros(IxDyn(&[0])))
-        }
     }
 
     impl From<ArrayD<f32>> for CartPoleObs {

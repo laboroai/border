@@ -30,10 +30,6 @@
 //! # struct TestActBatch(TestActBatch_);
 //! #
 //! # impl Obs_ for TestObs {
-//! #     fn dummy(n: usize) -> Self {
-//! #         Self(TestObs_::dummy(n))
-//! #     }
-//! #
 //! #     fn len(&self) -> usize {
 //! #         self.0.len()
 //! #     }
@@ -110,7 +106,7 @@
 //! #             is_terminated: step.is_terminated,
 //! #             is_truncated: step.is_truncated,
 //! #             info: step.info,
-//! #             init_obs: TestObs(step.init_obs),
+//! #             init_obs: Some(TestObs(step.init_obs.unwrap())),
 //! #         };
 //! #         (step, record)
 //! #     }
@@ -128,7 +124,7 @@
 //! #             is_terminated: step.is_terminated,
 //! #             is_truncated: step.is_truncated,
 //! #             info: step.info,
-//! #             init_obs: TestObs(step.init_obs),
+//! #             init_obs: Some(TestObs(step.init_obs.unwrap())),
 //! #         };
 //! #         (step, record)
 //! #     }

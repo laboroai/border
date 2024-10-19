@@ -25,12 +25,6 @@ pub struct KitchenObs {
 }
 
 impl border_core::Obs for KitchenObs {
-    fn dummy(n: usize) -> Self {
-        Self {
-            obs: ArrayD::zeros(IxDyn(&[n, 59])),
-        }
-    }
-
     fn len(&self) -> usize {
         self.obs.shape()[0]
     }

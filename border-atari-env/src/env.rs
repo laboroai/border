@@ -325,7 +325,7 @@ where
                 is_terminated,
                 is_truncated,
                 NullInfo,
-                Self::Obs::dummy(1),
+                None,
             );
             let record = Record::empty();
 

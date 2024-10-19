@@ -20,10 +20,6 @@ mod dummy {
     pub struct DummyObs;
 
     impl border_core::Obs for DummyObs {
-        fn dummy(_n: usize) -> Self {
-            unimplemented!();
-        }
-
         fn len(&self) -> usize {
             unimplemented!();
         }
