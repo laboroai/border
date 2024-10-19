@@ -98,7 +98,7 @@ where
 
         // Update previouos observation
         self.prev_obs = match is_done {
-            true => Some(step.init_obs.clone()),
+            true => Some(step.init_obs.clone().expect("Failed to unwrap init_obs")),
             false => Some(step.obs.clone()),
         };
 

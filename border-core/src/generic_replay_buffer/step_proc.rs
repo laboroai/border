@@ -59,7 +59,8 @@ where
             let weight = None;
 
             if is_done {
-                self.prev_obs.replace(step.init_obs.into());
+                self.prev_obs
+                    .replace(step.init_obs.expect("Failed to unwrap init_obs").into());
             }
 
             GenericTransitionBatch {

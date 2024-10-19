@@ -235,9 +235,9 @@ pub mod test {
                 is_terminated: vec![0],
                 is_truncated: vec![0],
                 info: TestInfo {},
-                init_obs: TestObs {
+                init_obs: Some(TestObs {
                     obs: self.state_init,
-                },
+                }),
             };
             return (step, crate::record::Record::empty());
         }
@@ -254,9 +254,9 @@ pub mod test {
                 is_terminated: vec![0],
                 is_truncated: vec![0],
                 info: TestInfo {},
-                init_obs: TestObs {
+                init_obs: Some(TestObs {
                     obs: self.state_init,
-                },
+                }),
             };
             return (step, crate::record::Record::empty());
         }

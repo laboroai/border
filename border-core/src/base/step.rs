@@ -31,7 +31,7 @@ pub struct Step<E: Env> {
     pub info: E::Info,
 
     /// Initial observation. If `is_done[i] == 0`, the corresponding element will not be used.
-    pub init_obs: E::Obs,
+    pub init_obs: Option<E::Obs>,
 }
 
 impl<E: Env> Step<E> {
@@ -43,7 +43,7 @@ impl<E: Env> Step<E> {
         is_terminated: Vec<i8>,
         is_truncated: Vec<i8>,
         info: E::Info,
-        init_obs: E::Obs,
+        init_obs: Option<E::Obs>,
     ) -> Self {
         Step {
             act,

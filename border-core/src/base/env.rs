@@ -50,7 +50,7 @@ pub trait Env {
                 is_terminated: step.is_terminated,
                 is_truncated: step.is_truncated,
                 info: step.info,
-                init_obs,
+                init_obs: Some(init_obs),
             }
         } else {
             step
