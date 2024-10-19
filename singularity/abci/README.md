@@ -56,30 +56,33 @@ AutoROM --install-dir atari_rom
 
 ```bash
 cd dqn_cartpole
-qsub -g [group_id] dqn_cartpole.sh
+qsub -g $ABCI_GROUP_ID dqn_cartpole.sh
 ```
 
-## Open MLflow in an interactive note
+## Open MLflow UI in local
 
-### Login to the compute node
+When you would like to see the mlflow log,
+run the following command in an interactive node.
 
 ```bash
-qrsh -g $ABCI_GROUP_NAME -l rt_F=1
+cd mlflow
+qsub -g $ABCI_GROUP_ID mlflow.sh
 ```
 
-### Run MLflow server
+The script submits commands into an compute node. The submitted commands
+are to show the name of host and start a mlflow tracking server. 
+Several seconds after starting the script, a log file will be created
+in `mlflow` directory. In that log file, the name of the host, where the
+server is running, is included. The host name will be used for
+port forwarding.
+
+In another local terminal, run the following commands:
 
 ```bash
-module load python/3.10
-source venv/bin/activate
-cd border
-mlflow server --host 0.0.0.0 --port 8080
+export MLFLOW_HOST_NAME=host_name
+ssh -N -L 8080:$MLFLOW_HOST_NAME:8080 -l $ABCI_USER_NAME -i $ABCI_IDENTITY_FILE -p 10022 localhost
 ```
 
-### Portforward
-
-```bash
-ssh -N -L 8080:host_name:8080 -l $ABCI_USER_NAME -i $ABCI_IDENTITY_FILE -p 10022 localhost
-```
-
-Access `localhost:8080` in your browser to show MLflow UI.
+`host_name` is the name of the host where the mlflow tracking server is
+running. Accessing `localhost:8080` with your browser, you can see the
+mlflow tracking server UI.
