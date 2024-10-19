@@ -41,13 +41,6 @@ pub struct KitchenObs {
 }
 
 impl border_core::Obs for KitchenObs {
-    fn dummy(n: usize) -> Self {
-        Self {
-            achieved_goal: KitchenState::new(n),
-            desired_goal: KitchenState::new(n),
-        }
-    }
-
     fn len(&self) -> usize {
         self.achieved_goal.kettle.shape()[0]
     }

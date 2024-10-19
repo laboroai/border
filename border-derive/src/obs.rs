@@ -51,10 +51,6 @@ fn atari_env_obs(ident: proc_macro2::Ident, field_type: syn::Type) -> proc_macro
     #[allow(unused_mut)]
     let mut output = quote! {
         impl border_core::Obs for #ident {
-            fn dummy(n: usize) -> Self {
-                Obs(BorderAtariObs::dummy(n))
-            }
-
             fn len(&self) -> usize {
                 self.0.len()
             }
@@ -84,23 +80,3 @@ fn atari_env_obs(ident: proc_macro2::Ident, field_type: syn::Type) -> proc_macro
 
     output
 }
-
-// fn common(ident: proc_macro2::Ident, field_type: syn::Type) -> proc_macro2::TokenStream {
-//     quote! {
-//         impl border_core::Obs for #ident {
-//             fn dummy(n: usize) -> Self {
-//                 Obs(PyGymEnvObs::dummy(n))
-//             }
-
-//             fn len(&self) -> usize {
-//                 self.0.len()
-//             }
-//         }
-
-//         impl From<#field_type> for #ident {
-//             fn from(obs: #field_type) -> Self {
-//                 #ident(obs)
-//             }
-//         }
-//     }
-// }

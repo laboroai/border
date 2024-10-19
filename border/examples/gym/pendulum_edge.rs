@@ -18,10 +18,6 @@ mod obs_act_types {
     pub struct Obs(Mat);
 
     impl border_core::Obs for Obs {
-        fn dummy(_n: usize) -> Self {
-            Self(Mat::empty())
-        }
-
         fn len(&self) -> usize {
             self.0.shape()[0] as _
         }

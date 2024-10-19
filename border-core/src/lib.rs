@@ -123,10 +123,6 @@ pub mod test {
     }
 
     impl crate::Obs for TestObs {
-        fn dummy(_n: usize) -> Self {
-            Self { obs: 0 }
-        }
-
         fn len(&self) -> usize {
             1
         }
