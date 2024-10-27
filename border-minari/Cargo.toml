@@ -27,5 +27,10 @@ name = "replay_kitchen"
 path = "examples/replay_kitchen.rs"
 test = false
 
+[[example]]
+name = "replay_antmaze"
+path = "examples/replay_antmaze.rs"
+test = false
+
 [features]
 candle = [ "candle-core" ]

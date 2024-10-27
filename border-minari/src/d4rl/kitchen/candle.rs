@@ -28,12 +28,6 @@ pub struct KitchenObs {
 }
 
 impl border_core::Obs for KitchenObs {
-    fn dummy(n: usize) -> Self {
-        Self {
-            obs: Tensor::zeros((n, 59), DType::F32, &Device::Cpu).unwrap(),
-        }
-    }
-
     fn len(&self) -> usize {
         self.obs.dims()[0]
     }
