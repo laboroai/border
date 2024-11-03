@@ -1,23 +1,20 @@
 use anyhow::Result;
 use border_core::{Env, Evaluator, Policy};
-use std::marker::PhantomData;
 
 /// An evaluator for the Point Maze environment.
-/// 
+///
 /// It returns the mean value of cumulative rewards of all every episodes.
-pub struct PointMazeEvaluator<E: Env, P: Policy<E>> {
+pub struct PointMazeEvaluator<E: Env> {
     n_episodes: usize,
     env: E,
-    phantom: PhantomData<P>,
 }
 
-impl<E, P> Evaluator<E, P> for PointMazeEvaluator<E, P>
+impl<E> Evaluator<E> for PointMazeEvaluator<E>
 where
     E: Env,
-    P: Policy<E>,
 {
     /// Returns the mean value of cumulative rewards of all every episodes.
-    fn evaluate(&mut self, policy: &mut P) -> Result<f32> {
+    fn evaluate<P: Policy<E>>(&mut self, policy: &mut P) -> Result<f32> {
         let mut r_total = 0f32;
 
         for ix in 0..self.n_episodes {
@@ -29,25 +26,20 @@ where
     }
 }
 
-impl<E, P> PointMazeEvaluator<E, P>
+impl<E> PointMazeEvaluator<E>
 where
     E: Env,
-    P: Policy<E>,
 {
     /// Constructs [`PointMazeEvaluator`].
     ///
     /// `env` - Instance of the environment.
     /// `n_episodes` - The number of episodes for evaluation.
     pub fn new(env: E, n_episodes: usize) -> Result<Self> {
-        Ok(Self {
-            n_episodes,
-            env,
-            phantom: PhantomData,
-        })
+        Ok(Self { n_episodes, env })
     }
 
     /// Runs an episode and returns the reward of the last step.
-    fn run_episode(&mut self, policy: &mut P, init_obs: E::Obs) -> Result<f32> {
+    fn run_episode<P: Policy<E>>(&mut self, policy: &mut P, init_obs: E::Obs) -> Result<f32> {
         let mut r_total = 0.0;
         let mut prev_obs = init_obs;
 

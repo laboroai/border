@@ -38,7 +38,7 @@ pub fn train_async<A, E, R, S>(
     actor_man_config: &ActorManagerConfig,
     async_trainer_config: &AsyncTrainerConfig,
     recorder: &mut Box<dyn AggregateRecorder>,
-    evaluator: &mut impl Evaluator<E, A>,
+    evaluator: &mut impl Evaluator<E>,
 ) where
     A: Agent<E, R> + Configurable + SyncModel,
     E: Env,

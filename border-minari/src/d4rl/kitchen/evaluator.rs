@@ -1,6 +1,5 @@
-use border_core::{Evaluator, Env, Policy};
 use anyhow::Result;
-use std::marker::PhantomData;
+use border_core::{Env, Evaluator, Policy};
 
 /// An evaluator for the Kitchen environment.
 ///
@@ -9,18 +8,16 @@ use std::marker::PhantomData;
 /// instead of the cumulative reward used in the `DefaultEvaluator`.
 /// This is because the reward of the Kitchen environment is the number of tasks
 /// completed in the episode. Therefore, the cumulative reward is not a good metric for evaluation.
-pub struct KitchenEvaluator<E: Env, P: Policy<E>> {
+pub struct KitchenEvaluator<E: Env> {
     n_episodes: usize,
     env: E,
-    phantom: PhantomData<P>,
 }
 
-impl<E, P> Evaluator<E, P> for KitchenEvaluator<E, P>
+impl<E> Evaluator<E> for KitchenEvaluator<E>
 where
     E: Env,
-    P: Policy<E>,
 {
-    fn evaluate(&mut self, policy: &mut P) -> Result<f32> {
+    fn evaluate<P: Policy<E>>(&mut self, policy: &mut P) -> Result<f32> {
         let mut r_total = 0f32;
 
         for ix in 0..self.n_episodes {
@@ -32,10 +29,9 @@ where
     }
 }
 
-impl<E, P> KitchenEvaluator<E, P>
+impl<E> KitchenEvaluator<E>
 where
     E: Env,
-    P: Policy<E>,
 {
     /// Constructs [`KitchenEvaluator`].
     ///
@@ -43,15 +39,11 @@ where
     /// `n_episodes` - The number of episodes for evaluation.
     ///   The evaluator returns the mean value of cumulative reward in each episode.
     pub fn new(env: E, n_episodes: usize) -> Result<Self> {
-        Ok(Self {
-            n_episodes,
-            env,
-            phantom: PhantomData,
-        })
+        Ok(Self { n_episodes, env })
     }
 
     /// Runs an episode and returns the reward of the last step.
-    fn run_episode(&mut self, policy: &mut P, init_obs: E::Obs) -> Result<f32> {
+    fn run_episode<P: Policy<E>>(&mut self, policy: &mut P, init_obs: E::Obs) -> Result<f32> {
         let mut r_last;
         let mut prev_obs = init_obs;
 

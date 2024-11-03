@@ -5,7 +5,7 @@ mod default_evaluator;
 pub use default_evaluator::DefaultEvaluator;
 
 /// Evaluate [`Policy`].
-pub trait Evaluator<E: Env, P: Policy<E>> {
+pub trait Evaluator<E: Env> {
     /// Evaluate [`Policy`].
     ///
     /// The caller of this method needs to handle the internal state of `policy`,
@@ -16,5 +16,5 @@ pub trait Evaluator<E: Env, P: Policy<E>> {
     /// optimization steps.
     ///
     /// [`Trainer::train`]: crate::Trainer::train
-    fn evaluate(&mut self, policy: &mut P) -> Result<f32>;
+    fn evaluate<P: Policy<E>>(&mut self, policy: &mut P) -> Result<f32>;
 }

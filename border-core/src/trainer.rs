@@ -241,7 +241,7 @@ impl Trainer {
         E: Env,
         A: Agent<E, R>,
         R: ReplayBufferBase,
-        D: Evaluator<E, A>,
+        D: Evaluator<E>,
     {
         // Add stats wrt computation cost
         if self.opt_steps % self.record_compute_cost_interval == 0 {
@@ -287,7 +287,7 @@ impl Trainer {
         E: Env,
         A: Agent<E, R>,
         R: ReplayBufferBase,
-        D: Evaluator<E, A>,
+        D: Evaluator<E>,
     {
         // Performe optimization step(s)
         let (mut record, is_opt) = {
@@ -333,7 +333,7 @@ impl Trainer {
         A: Agent<E, R>,
         P: StepProcessor<E>,
         R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
-        D: Evaluator<E, A>,
+        D: Evaluator<E>,
     {
         let mut sampler = Sampler::new(env, step_proc);
         sampler.reset_fps_counter();
@@ -362,7 +362,7 @@ impl Trainer {
         E: Env,
         A: Agent<E, R>,
         R: ReplayBufferBase,
-        D: Evaluator<E, A>,
+        D: Evaluator<E>,
     {
         // Return empty record
         self.warmup_period = 0;

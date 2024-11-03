@@ -5,15 +5,23 @@ use border_candle_agent::{
     Activation,
 };
 use border_core::{
-    record::AggregateRecorder, Configurable, ExperienceBufferBase, Trainer, TrainerConfig,
+    record::AggregateRecorder, Configurable, Evaluator, ExperienceBufferBase, Trainer,
+    TrainerConfig,
 };
 use border_minari::{
-    d4rl::kitchen::{candle::KitchenConverter, KitchenEvaluator},
-    MinariDataset,
+    d4rl::kitchen::{
+        candle::{KitchenAct, KitchenConverter, KitchenObs},
+        KitchenEvaluator,
+    },
+    d4rl::pointmaze::{
+        candle::{PointMazeAct, PointMazeConverter, PointMazeConverterConfig, PointMazeObs},
+        PointMazeEvaluator,
+    },
+    MinariConverter, MinariDataset, MinariEnv,
 };
 use border_mlflow_tracking::MlflowTrackingClient;
 use border_tensorboard::TensorboardRecorder;
-use candle_core::Device;
+use candle_core::{Device, Tensor};
 use clap::Parser;
 
 /// Train BC agent in kitchen environment
@@ -60,14 +68,16 @@ struct Args {
 
 const MODEL_DIR: &str = "border/examples/d4rl/model/candle/bc_kitchen";
 
-fn main() -> Result<()> {
-    let args = Args::parse();
-
-    let dataset = MinariDataset::load_dataset("D4RL/kitchen/complete-v1", true)?;
-
-    // Converter for observation and action
-    let converter = KitchenConverter {};
-
+fn train<T, U, D>(args: Args, dataset: MinariDataset, converter: T, evaluator: U) -> Result<()>
+where
+    T: MinariConverter,
+    T::Obs: std::fmt::Debug + Into<Tensor>,
+    T::Act: std::fmt::Debug + From<Tensor>,
+    T::ObsBatch: std::fmt::Debug + Into<Tensor>,
+    T::ActBatch: std::fmt::Debug + Into<Tensor>,
+    U: Fn(MinariEnv<T, T::Obs, T::Act>, Args) -> Result<D>,
+    D: Evaluator<MinariEnv<T, T::Obs, T::Act>>,
+{
     // Create replay buffer
     let mut buffer = dataset.create_replay_buffer(&converter, None)?;
     println!(
@@ -125,10 +135,32 @@ fn main() -> Result<()> {
     };
 
     // Create evaluator
-    let mut evaluator = KitchenEvaluator::new(env, args.eval_episodes)?;
+    // let mut evaluator = KitchenEvaluator::new(env, args.eval_episodes)?;
+    let mut evaluator = evaluator(env, args)?;
 
     // Start training
     let _ = trainer.train_offline(&mut agent, &mut buffer, &mut recorder, &mut evaluator);
 
     Ok(())
+}
+
+fn main() -> Result<()> {
+    let args = Args::parse();
+
+    let dataset = MinariDataset::load_dataset("D4RL/kitchen/complete-v1", true)?;
+    let converter = KitchenConverter {};
+    let evaluator = |env: MinariEnv<KitchenConverter, KitchenObs, KitchenAct>, args: Args| {
+        KitchenEvaluator::new(env, args.eval_episodes)
+    };
+
+    // let dataset = MinariDataset::load_dataset("D4RL/pointmaze/umaze-v2", true)?;
+    // let converter = {
+    //     let config = PointMazeConverterConfig::default();
+    //     PointMazeConverter::new(config)
+    // };
+    // let evaluator = |env: MinariEnv<PointMazeConverter, PointMazeObs, PointMazeAct>, args: Args| {
+    //     PointMazeEvaluator::new(env, args.eval_episodes)
+    // };
+
+    train(args, dataset, converter, evaluator)
 }

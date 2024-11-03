@@ -257,7 +257,7 @@ where
         guard_init_env: Arc<Mutex<bool>>,
     ) -> AsyncTrainStat
     where
-        D: Evaluator<E, A>,
+        D: Evaluator<E>,
     {
         // TODO: error handling
         let _env = {

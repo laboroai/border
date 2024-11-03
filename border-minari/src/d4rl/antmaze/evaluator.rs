@@ -1,22 +1,19 @@
 use anyhow::Result;
 use border_core::{Env, Evaluator, Policy};
-use std::marker::PhantomData;
 
 /// An evaluator for the AntMaze environment.
 ///
 /// It returns the mean value of cumulative rewards of all every episodes.
-pub struct AntMazeEvaluator<E: Env, P: Policy<E>> {
+pub struct AntMazeEvaluator<E: Env> {
     n_episodes: usize,
     env: E,
-    phantom: PhantomData<P>,
 }
 
-impl<E, P> Evaluator<E, P> for AntMazeEvaluator<E, P>
+impl<E> Evaluator<E> for AntMazeEvaluator<E>
 where
     E: Env,
-    P: Policy<E>,
 {
-    fn evaluate(&mut self, policy: &mut P) -> Result<f32> {
+    fn evaluate<P: Policy<E>>(&mut self, policy: &mut P) -> Result<f32> {
         let mut r_total = 0f32;
 
         for ix in 0..self.n_episodes {
@@ -28,25 +25,20 @@ where
     }
 }
 
-impl<E, P> AntMazeEvaluator<E, P>
+impl<E> AntMazeEvaluator<E>
 where
     E: Env,
-    P: Policy<E>,
 {
     /// Constructs [`AntMazeEvaluator`].
     ///
     /// `env` - Instance of the environment.
     /// `n_episodes` - The number of episodes for evaluation.
     pub fn new(env: E, n_episodes: usize) -> Result<Self> {
-        Ok(Self {
-            n_episodes,
-            env,
-            phantom: PhantomData,
-        })
+        Ok(Self { n_episodes, env })
     }
 
     /// Runs an episode and returns the reward of the last step.
-    fn run_episode(&mut self, policy: &mut P, init_obs: E::Obs) -> Result<f32> {
+    fn run_episode<P: Policy<E>>(&mut self, policy: &mut P, init_obs: E::Obs) -> Result<f32> {
         let mut r_total = 0.0;
         let mut prev_obs = init_obs;
 

@@ -168,8 +168,41 @@ impl Into<Tensor> for PointMazeActBatch {
     }
 }
 
+/// Configuration of [`PointMazeConverter`].
+pub struct PointMazeConverterConfig {
+    /// If `true`, the observation vectors will include the x and y positions in the last two dimensions.
+    /// Default is `false`.
+    pub include_goal: bool,
+}
+
+impl Default for PointMazeConverterConfig {
+    fn default() -> Self {
+        Self {
+            include_goal: false,
+        }
+    }
+}
+
+impl PointMazeConverterConfig {
+    pub fn include_goal(self, value: bool) -> Self {
+        let mut config = self;
+        config.include_goal = value;
+        config
+    }
+}
+
 /// Converter for the Point Maze environment implemented with candle.
-pub struct PointMazeConverter {}
+pub struct PointMazeConverter {
+    include_goal: bool,
+}
+
+impl PointMazeConverter {
+    pub fn new(config: PointMazeConverterConfig) -> Self {
+        Self {
+            include_goal: config.include_goal,
+        }
+    }
+}
 
 impl MinariConverter for PointMazeConverter {
     type Obs = PointMazeObs;
@@ -178,10 +211,23 @@ impl MinariConverter for PointMazeConverter {
     type ActBatch = PointMazeActBatch;
 
     fn convert_observation(&self, obj: &PyAny) -> Result<Self::Obs> {
-        let obs = obj.get_item("observation")?.extract()?;
-        Ok(PointMazeObs {
-            obs: arrayd_to_tensor(pyobj_to_arrayd::<f64, f32>(obs), Some(&[1, 59]))?,
-        })
+        match self.include_goal {
+            false => {
+                let obs = obj.get_item("observation")?.extract()?;
+                Ok(PointMazeObs {
+                    obs: arrayd_to_tensor(pyobj_to_arrayd::<f64, f32>(obs), Some(&[1, 4]))?,
+                })
+            }
+            true => {
+                let obs = obj.get_item("observation")?.extract()?;
+                let obs = arrayd_to_tensor(pyobj_to_arrayd::<f64, f32>(obs), Some(&[1, 4]))?;
+                let goal = obj.get_item("desired_goal")?.extract()?;
+                let goal = arrayd_to_tensor(pyobj_to_arrayd::<f64, f32>(goal), Some(&[1, 2]))?;
+                Ok(PointMazeObs {
+                    obs: Tensor::stack(&[obs, goal], candle_core::D::Minus1)?,
+                })
+            }
+        }
     }
 
     fn convert_action(&self, act: Self::Act) -> Result<PyObject> {
@@ -189,15 +235,33 @@ impl MinariConverter for PointMazeConverter {
     }
 
     fn convert_observation_batch(&self, obj: &PyAny) -> Result<Self::ObsBatch> {
-        Ok(PointMazeObsBatch {
-            obs: pyobj_to_tensor1(obj, "observation")?,
-        })
+        match self.include_goal {
+            false => Ok(PointMazeObsBatch {
+                obs: pyobj_to_tensor1(obj, "observation")?,
+            }),
+            true => {
+                let obs = pyobj_to_tensor1(obj, "observation")?;
+                let goal = pyobj_to_tensor1(obj, "desired_goal")?;
+                Ok(PointMazeObsBatch {
+                    obs: Tensor::stack(&[obs, goal], candle_core::D::Minus1)?,
+                })
+            }
+        }
     }
 
     fn convert_observation_batch_next(&self, obj: &PyAny) -> Result<Self::ObsBatch> {
-        Ok(PointMazeObsBatch {
-            obs: pyobj_to_tensor2(obj, "observation")?,
-        })
+        match self.include_goal {
+            false => Ok(PointMazeObsBatch {
+                obs: pyobj_to_tensor2(obj, "observation")?,
+            }),
+            true => {
+                let obs = pyobj_to_tensor2(obj, "observation")?;
+                let goal = pyobj_to_tensor2(obj, "desired_goal")?;
+                Ok(PointMazeObsBatch {
+                    obs: Tensor::stack(&[obs, goal], candle_core::D::Minus1)?,
+                })
+            }
+        }
     }
 
     fn convert_action_batch(&self, obj: &PyAny) -> Result<Self::ActBatch> {

@@ -1,7 +1,6 @@
 use super::Evaluator;
 use crate::{Env, Policy};
 use anyhow::Result;
-use std::marker::PhantomData;
 
 /// A default [`Evaluator`].
 ///
@@ -44,18 +43,16 @@ use std::marker::PhantomData;
 /// # }
 /// # }
 /// ```
-pub struct DefaultEvaluator<E: Env, P: Policy<E>> {
+pub struct DefaultEvaluator<E: Env> {
     n_episodes: usize,
     env: E,
-    phantom: PhantomData<P>,
 }
 
-impl<E, P> Evaluator<E, P> for DefaultEvaluator<E, P>
+impl<E> Evaluator<E> for DefaultEvaluator<E>
 where
     E: Env,
-    P: Policy<E>,
 {
-    fn evaluate(&mut self, policy: &mut P) -> Result<f32> {
+    fn evaluate<P: Policy<E>>(&mut self, policy: &mut P) -> Result<f32> {
         let mut r_total = 0f32;
 
         for ix in 0..self.n_episodes {
@@ -67,10 +64,9 @@ where
     }
 }
 
-impl<E, P> DefaultEvaluator<E, P>
+impl<E> DefaultEvaluator<E>
 where
     E: Env,
-    P: Policy<E>,
 {
     /// Constructs [`DefaultEvaluator`].
     ///
@@ -78,15 +74,11 @@ where
     /// `n_episodes` - The number of episodes for evaluation.
     ///   The evaluator returns the mean value of cumulative reward in each episode.
     pub fn new(env: E, n_episodes: usize) -> Result<Self> {
-        Ok(Self {
-            n_episodes,
-            env,
-            phantom: PhantomData,
-        })
+        Ok(Self { n_episodes, env })
     }
 
     /// Runs an episode and returns the cumulative reward.
-    fn run_episode(&mut self, policy: &mut P, init_obs: E::Obs) -> Result<f32> {
+    fn run_episode<P: Policy<E>>(&mut self, policy: &mut P, init_obs: E::Obs) -> Result<f32> {
         let mut r_total = 0f32;
         let mut prev_obs = init_obs;
 
