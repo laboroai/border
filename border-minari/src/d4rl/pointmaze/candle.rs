@@ -1,4 +1,4 @@
-//! Observation, action types and corresponding converters for the Kitchen environment implemented with candle.
+//! Observation, action types and corresponding converters for the Point Maze environment implemented with candle.
 use std::{
     convert::{TryFrom, TryInto},
     fmt::Debug,
@@ -14,27 +14,24 @@ use candle_core::{DType, Device, Tensor};
 use ndarray::{ArrayBase, ArrayD, Axis, Slice};
 use pyo3::{PyAny, PyObject};
 
-/// Observation of the Kitchen environment stored as [`Tensor`].
+/// Observation of the Point Maze environment stored as [`Tensor`].
 ///
-/// It contains a 59-dimensional vector as explained
-/// [here](https://robotics.farama.org/envs/franka_kitchen/franka_kitchen/#observation-space).
-///
-/// To create of batch of observations, this struct can be converted into [`KitchenObsBatch`].
+/// To create of batch of observations, this struct can be converted into [`PointMazeObsBatch`].
 ///
 /// [`Tensor`]: candle_core::Tensor
 #[derive(Clone, Debug)]
-pub struct KitchenObs {
+pub struct PointMazeObs {
     pub obs: Tensor,
 }
 
-impl border_core::Obs for KitchenObs {
+impl border_core::Obs for PointMazeObs {
     fn len(&self) -> usize {
         self.obs.dims()[0]
     }
 }
 
-/// Converts [`KitchenObs`] to Tensor.
-impl Into<Tensor> for KitchenObs {
+/// Converts [`PointMazeObs`] to Tensor.
+impl Into<Tensor> for PointMazeObs {
     fn into(self) -> Tensor {
         self.obs
     }
@@ -42,17 +39,17 @@ impl Into<Tensor> for KitchenObs {
 
 /// Batch of observations.
 ///
-/// It can be converted from an observation, i.e., instance of [`KitchenObs`].
+/// It can be converted from [`PointMazeObs`].
 ///
 /// It can be converted into [`Tensor`].　This allows a batch of observations to be fed into a neural network.
 ///
 /// [`Tensor`]: candle_core::Tensor
 #[derive(Debug)]
-pub struct KitchenObsBatch {
+pub struct PointMazeObsBatch {
     pub obs: Tensor,
 }
 
-impl BatchBase for KitchenObsBatch {
+impl BatchBase for PointMazeObsBatch {
     fn new(capacity: usize) -> Self {
         Self {
             obs: Tensor::zeros((capacity, 59), DType::F32, &Device::Cpu).unwrap(),
@@ -76,34 +73,34 @@ impl BatchBase for KitchenObsBatch {
     }
 }
 
-impl From<KitchenObs> for KitchenObsBatch {
-    fn from(obs: KitchenObs) -> Self {
+impl From<PointMazeObs> for PointMazeObsBatch {
+    fn from(obs: PointMazeObs) -> Self {
         Self { obs: obs.obs }
     }
 }
 
-impl Into<Tensor> for KitchenObsBatch {
+impl Into<Tensor> for PointMazeObsBatch {
     fn into(self) -> Tensor {
         self.obs
     }
 }
 
-/// Action of the Kitchen environment stored as [`Tensor`].
+/// Action of the Point Maze environment stored as [`Tensor`].
 ///
 /// It can be converted from a [`Tensor`] and can be converted into a [`PyObject`].
 /// It allows the action to inferred from the neural network and be passed to the Python interpreter.
 ///
-/// To create a batch of actions, this struct can be converted into [`KitchenActBatch`].
+/// To create a batch of actions, this struct can be converted into [`PointMazeActBatch`].
 ///
 /// [`Tensor`]: candle_core::Tensor
 #[derive(Clone, Debug)]
-pub struct KitchenAct {
+pub struct PointMazeAct {
     pub action: Tensor,
 }
 
-impl border_core::Act for KitchenAct {}
+impl border_core::Act for PointMazeAct {}
 
-impl From<Tensor> for KitchenAct {
+impl From<Tensor> for PointMazeAct {
     fn from(action: Tensor) -> Self {
         Self { action }
     }
@@ -111,18 +108,18 @@ impl From<Tensor> for KitchenAct {
 
 /// Batch of actions.
 ///
-/// It can be converted into [`Tensor`].　This allows a batch of observations to be fed into a neural network.
+/// It can be converted into [`Tensor`] for handling with neural networks.
 ///
 /// [`Tensor`]: candle_core::Tensor
 #[derive(Debug)]
-pub struct KitchenActBatch {
+pub struct PointMazeActBatch {
     pub action: Tensor,
 }
 
-impl KitchenActBatch {
+impl PointMazeActBatch {
     /// Returns an action at the specified index in the batch.
-    pub fn get(&self, ix: usize) -> KitchenAct {
-        KitchenAct {
+    pub fn get(&self, ix: usize) -> PointMazeAct {
+        PointMazeAct {
             action: self
                 .action
                 .index_select(&(ix as u32).try_into().unwrap(), 0)
@@ -133,7 +130,7 @@ impl KitchenActBatch {
     }
 }
 
-impl BatchBase for KitchenActBatch {
+impl BatchBase for PointMazeActBatch {
     fn new(capacity: usize) -> Self {
         Self {
             action: Tensor::zeros((capacity, 9), DType::F32, &Device::Cpu).unwrap(),
@@ -159,30 +156,30 @@ impl BatchBase for KitchenActBatch {
     }
 }
 
-impl From<KitchenAct> for KitchenActBatch {
-    fn from(act: KitchenAct) -> Self {
+impl From<PointMazeAct> for PointMazeActBatch {
+    fn from(act: PointMazeAct) -> Self {
         Self { action: act.action }
     }
 }
 
-impl Into<Tensor> for KitchenActBatch {
+impl Into<Tensor> for PointMazeActBatch {
     fn into(self) -> Tensor {
         self.action
     }
 }
 
-/// Converter for the Kitchen environment implemented with candle.
-pub struct KitchenConverter {}
+/// Converter for the Point Maze environment implemented with candle.
+pub struct PointMazeConverter {}
 
-impl MinariConverter for KitchenConverter {
-    type Obs = KitchenObs;
-    type Act = KitchenAct;
-    type ObsBatch = KitchenObsBatch;
-    type ActBatch = KitchenActBatch;
+impl MinariConverter for PointMazeConverter {
+    type Obs = PointMazeObs;
+    type Act = PointMazeAct;
+    type ObsBatch = PointMazeObsBatch;
+    type ActBatch = PointMazeActBatch;
 
     fn convert_observation(&self, obj: &PyAny) -> Result<Self::Obs> {
         let obs = obj.get_item("observation")?.extract()?;
-        Ok(KitchenObs {
+        Ok(PointMazeObs {
             obs: arrayd_to_tensor(pyobj_to_arrayd::<f64, f32>(obs), Some(&[1, 59]))?,
         })
     }
@@ -192,19 +189,19 @@ impl MinariConverter for KitchenConverter {
     }
 
     fn convert_observation_batch(&self, obj: &PyAny) -> Result<Self::ObsBatch> {
-        Ok(KitchenObsBatch {
+        Ok(PointMazeObsBatch {
             obs: pyobj_to_tensor1(obj, "observation")?,
         })
     }
 
     fn convert_observation_batch_next(&self, obj: &PyAny) -> Result<Self::ObsBatch> {
-        Ok(KitchenObsBatch {
+        Ok(PointMazeObsBatch {
             obs: pyobj_to_tensor2(obj, "observation")?,
         })
     }
 
     fn convert_action_batch(&self, obj: &PyAny) -> Result<Self::ActBatch> {
-        Ok(KitchenActBatch {
+        Ok(PointMazeActBatch {
             action: {
                 let arr = pyobj_to_arrayd::<f64, f32>(obj.into());
                 arrayd_to_tensor(arr, None)?

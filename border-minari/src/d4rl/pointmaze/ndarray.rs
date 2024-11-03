@@ -1,4 +1,4 @@
-//! Observation, action types and corresponding converters for the AntMaze environment implemented with ndarray.
+//! Observation, actiontypes and corresponding converters for the Point Maze environment implemented with ndarray.
 use std::fmt::Debug;
 
 use crate::{
@@ -10,24 +10,24 @@ use border_core::generic_replay_buffer::BatchBase;
 use ndarray::{s, ArrayD, Axis, IxDyn, Slice};
 use pyo3::{PyAny, PyObject};
 
-const DIM_OBS: usize = 27;
-const DIM_ACT: usize = 8;
+const DIM_OBS: usize = 4;
+const DIM_ACT: usize = 2;
 
-/// Observation of the AntMaze environment stored as ndarray.
+/// Observation of the Point Maze environment stored as ndarray.
 ///
 /// It contains a 27-dimensional vector as explained
-/// [here](https://robotics.farama.org/envs/maze/ant_maze/).
+/// [here](https://robotics.farama.org/envs/maze/point_maze/).
 ///
 /// Since the observation of the environment is coming from Python interpreter, this struct
 /// can be converted from [`PyObject`].
 ///
-/// To create of batch of observations, this struct can be converted into [`AntMazeObsBatch`].
+/// To create of batch of observations, this struct can be converted into [`PointMazeObsBatch`].
 #[derive(Clone, Debug)]
-pub struct AntMazeObs {
+pub struct PointMazeObs {
     pub obs: ArrayD<f32>,
 }
 
-impl border_core::Obs for AntMazeObs {
+impl border_core::Obs for PointMazeObs {
     fn len(&self) -> usize {
         self.obs.shape()[0]
     }
@@ -35,15 +35,15 @@ impl border_core::Obs for AntMazeObs {
 
 /// Batch of observations.
 ///
-/// It can be converted from an observation, i.e., instance of [`AntMazeObs`].
+/// It can be converted from an observation, i.e., instance of [`PointMazeObs`].
 ///
 /// It can be converted into an ndarray.
 #[derive(Debug)]
-pub struct AntMazeObsBatch {
+pub struct PointMazeObsBatch {
     pub obs: ArrayD<f32>,
 }
 
-impl BatchBase for AntMazeObsBatch {
+impl BatchBase for PointMazeObsBatch {
     fn new(capacity: usize) -> Self {
         Self {
             obs: ArrayD::zeros(IxDyn(&[capacity, DIM_OBS])),
@@ -61,38 +61,38 @@ impl BatchBase for AntMazeObsBatch {
     }
 }
 
-impl From<AntMazeObs> for AntMazeObsBatch {
-    fn from(obs: AntMazeObs) -> Self {
+impl From<PointMazeObs> for PointMazeObsBatch {
+    fn from(obs: PointMazeObs) -> Self {
         Self { obs: obs.obs }
     }
 }
 
-/// Action of the AntMaze environment stored as ndarray.
+/// Action of the PointMaze environment stored as ndarray.
 ///
-/// To create a batch of actions, this struct can be converted into [`AntMazeActBatch`].
+/// To create a batch of actions, this struct can be converted into [`PointMazeActBatch`].
 #[derive(Clone, Debug)]
-pub struct AntMazeAct {
+pub struct PointMazeAct {
     pub action: ArrayD<f32>,
 }
 
-impl border_core::Act for AntMazeAct {}
+impl border_core::Act for PointMazeAct {}
 
 /// Batch of actions.
 #[derive(Debug)]
-pub struct AntMazeActBatch {
+pub struct PointMazeActBatch {
     pub action: ArrayD<f32>,
 }
 
-impl AntMazeActBatch {
+impl PointMazeActBatch {
     /// Returns an action at the specified index in the batch.
-    pub fn get(&self, ix: usize) -> AntMazeAct {
-        AntMazeAct {
+    pub fn get(&self, ix: usize) -> PointMazeAct {
+        PointMazeAct {
             action: self.action.select(Axis(0), &[ix]).to_owned(),
         }
     }
 }
 
-impl BatchBase for AntMazeActBatch {
+impl BatchBase for PointMazeActBatch {
     fn new(capacity: usize) -> Self {
         Self {
             action: ArrayD::zeros(IxDyn(&[capacity, DIM_ACT])),
@@ -110,24 +110,24 @@ impl BatchBase for AntMazeActBatch {
     }
 }
 
-impl From<AntMazeAct> for AntMazeActBatch {
-    fn from(act: AntMazeAct) -> Self {
+impl From<PointMazeAct> for PointMazeActBatch {
+    fn from(act: PointMazeAct) -> Self {
         Self { action: act.action }
     }
 }
 
-/// Converter for the AntMaze environment implemented with ndarray.
-pub struct AntMazeConverter {}
+/// Converter for the Point Maze environment implemented with ndarray.
+pub struct PointMazeConverter {}
 
-impl MinariConverter for AntMazeConverter {
-    type Obs = AntMazeObs;
-    type Act = AntMazeAct;
-    type ObsBatch = AntMazeObsBatch;
-    type ActBatch = AntMazeActBatch;
+impl MinariConverter for PointMazeConverter {
+    type Obs = PointMazeObs;
+    type Act = PointMazeAct;
+    type ObsBatch = PointMazeObsBatch;
+    type ActBatch = PointMazeActBatch;
 
     fn convert_observation(&self, obj: &PyAny) -> Result<Self::Obs> {
         let obs = obj.get_item("observation")?;
-        Ok(AntMazeObs {
+        Ok(PointMazeObs {
             obs: pyobj_to_arrayd::<f64, f32>(obs.into()),
         })
     }
@@ -137,19 +137,19 @@ impl MinariConverter for AntMazeConverter {
     }
 
     fn convert_observation_batch(&self, obj: &PyAny) -> Result<Self::ObsBatch> {
-        Ok(AntMazeObsBatch {
+        Ok(PointMazeObsBatch {
             obs: pyobj_to_arrayd1(obj, "observation")?,
         })
     }
 
     fn convert_observation_batch_next(&self, obj: &PyAny) -> Result<Self::ObsBatch> {
-        Ok(AntMazeObsBatch {
+        Ok(PointMazeObsBatch {
             obs: pyobj_to_arrayd2(obj, "observation")?,
         })
     }
 
     fn convert_action_batch(&self, obj: &PyAny) -> Result<Self::ActBatch> {
-        Ok(AntMazeActBatch {
+        Ok(PointMazeActBatch {
             action: { pyobj_to_arrayd::<f32, f32>(obj.into()) },
         })
     }

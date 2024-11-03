@@ -1,4 +1,4 @@
-//! Observation, actiontypes and corresponding converters for the Kitchen environment impmented with ndarray.
+//! Observation, action types and corresponding converters for the Kitchen environment implemented with ndarray.
 use std::fmt::Debug;
 
 use crate::{

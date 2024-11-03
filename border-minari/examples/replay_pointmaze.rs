@@ -1,22 +1,22 @@
 use anyhow::Result;
 use border_core::Env;
-use border_minari::{d4rl::antmaze::ndarray::AntMazeConverter, MinariDataset};
+use border_minari::{d4rl::pointmaze::ndarray::PointMazeConverter, MinariDataset};
 
 fn main() -> Result<()> {
-    let dataset = MinariDataset::load_dataset("D4RL/antmaze/umaze-v1", true)?;
+    let dataset = MinariDataset::load_dataset("D4RL/pointmaze/umaze-v2", true)?;
 
     // The number of transitions over all episodes
     let num_transitions = dataset.get_num_transitions(None)?;
     println!("{:?}", num_transitions);
 
     // Converter for observation and action
-    let converter = AntMazeConverter {};
+    let converter = PointMazeConverter {};
 
     // Create replay buffer for the sixth episode
-    let replay_buffer = dataset.create_replay_buffer(&converter, Some(vec![0]))?;
+    let replay_buffer = dataset.create_replay_buffer(&converter, Some(vec![1]))?;
 
     // Recover the environment from the dataset
-    let mut env = dataset.recover_environment(converter, false, "human")?;
+    let mut env = dataset.recover_environment(converter, true, "human")?;
 
     // Sequence of actions in the episode
     let actions = replay_buffer.whole_actions();

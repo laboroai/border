@@ -2,20 +2,21 @@ use anyhow::Result;
 use border_core::{Env, Evaluator, Policy};
 use std::marker::PhantomData;
 
-/// An evaluator for the AntMaze environment.
-///
+/// An evaluator for the Point Maze environment.
+/// 
 /// It returns the mean value of cumulative rewards of all every episodes.
-pub struct AntMazeEvaluator<E: Env, P: Policy<E>> {
+pub struct PointMazeEvaluator<E: Env, P: Policy<E>> {
     n_episodes: usize,
     env: E,
     phantom: PhantomData<P>,
 }
 
-impl<E, P> Evaluator<E, P> for AntMazeEvaluator<E, P>
+impl<E, P> Evaluator<E, P> for PointMazeEvaluator<E, P>
 where
     E: Env,
     P: Policy<E>,
 {
+    /// Returns the mean value of cumulative rewards of all every episodes.
     fn evaluate(&mut self, policy: &mut P) -> Result<f32> {
         let mut r_total = 0f32;
 
@@ -28,12 +29,12 @@ where
     }
 }
 
-impl<E, P> AntMazeEvaluator<E, P>
+impl<E, P> PointMazeEvaluator<E, P>
 where
     E: Env,
     P: Policy<E>,
 {
-    /// Constructs [`AntMazeEvaluator`].
+    /// Constructs [`PointMazeEvaluator`].
     ///
     /// `env` - Instance of the environment.
     /// `n_episodes` - The number of episodes for evaluation.
