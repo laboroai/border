@@ -60,7 +60,7 @@ fn main() -> Result<()> {
                 n_acts: n_acts as _,
             }
         };
-        RandomPolicy::build(policy_config)
+        Box::new(RandomPolicy::build(policy_config))
     };
 
     // Runs evaluation

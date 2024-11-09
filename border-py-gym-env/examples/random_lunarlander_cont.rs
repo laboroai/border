@@ -84,7 +84,7 @@ fn main() -> Result<()> {
         .obs_filter_config(<ObsFilter as GymObsFilter<Obs>>::Config::default())
         .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default())
         .render_mode(Some("human".to_string()));
-    let mut policy = RandomPolicy;
+    let mut policy = Box::new(RandomPolicy);
 
     let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
 
@@ -99,7 +99,7 @@ fn test_lunalander_cont() {
         .name("LunarLanderContinuous-v2".to_string())
         .obs_filter_config(<ObsFilter as GymObsFilter<Obs>>::Config::default())
         .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default());
-    let mut policy = RandomPolicy;
+    let mut policy = Box::new(RandomPolicy);
 
     let _ = Evaluator::new(&env_config, 0, 5)
         .unwrap()

@@ -305,37 +305,25 @@ where
         self.opt_(buffer)
     }
 
-    fn save_params<T: AsRef<Path>>(&self, path: T) -> Result<()> {
+    fn save_params(&self, path: &Path) -> Result<()> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
         for (i, (qnet, qnet_tgt)) in self.qnets.iter().zip(&self.qnets_tgt).enumerate() {
-            qnet.save(&path.as_ref().join(format!("qnet_{}.pt.tch", i)).as_path())?;
-            qnet_tgt.save(
-                &path
-                    .as_ref()
-                    .join(format!("qnet_tgt_{}.pt.tch", i))
-                    .as_path(),
-            )?;
+            qnet.save(path.join(format!("qnet_{}.pt.tch", i)).as_path())?;
+            qnet_tgt.save(path.join(format!("qnet_tgt_{}.pt.tch", i)).as_path())?;
         }
-        self.pi.save(&path.as_ref().join("pi.pt.tch").as_path())?;
-        self.ent_coef
-            .save(&path.as_ref().join("ent_coef.pt.tch").as_path())?;
+        self.pi.save(path.join("pi.pt.tch").as_path())?;
+        self.ent_coef.save(path.join("ent_coef.pt.tch").as_path())?;
         Ok(())
     }
 
-    fn load_params<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
+    fn load_params(&mut self, path: &Path) -> Result<()> {
         for (i, (qnet, qnet_tgt)) in self.qnets.iter_mut().zip(&mut self.qnets_tgt).enumerate() {
-            qnet.load(&path.as_ref().join(format!("qnet_{}.pt.tch", i)).as_path())?;
-            qnet_tgt.load(
-                &path
-                    .as_ref()
-                    .join(format!("qnet_tgt_{}.pt.tch", i))
-                    .as_path(),
-            )?;
+            qnet.load(path.join(format!("qnet_{}.pt.tch", i)).as_path())?;
+            qnet_tgt.load(path.join(format!("qnet_tgt_{}.pt.tch", i)).as_path())?;
         }
-        self.pi.load(&path.as_ref().join("pi.pt.tch").as_path())?;
-        self.ent_coef
-            .load(&path.as_ref().join("ent_coef.pt.tch").as_path())?;
+        self.pi.load(path.join("pi.pt.tch").as_path())?;
+        self.ent_coef.load(path.join("ent_coef.pt.tch").as_path())?;
         Ok(())
     }
 }

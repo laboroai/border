@@ -294,7 +294,7 @@ fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
         let mut agent = create_agent(DIM_OBS, DIM_ACT)?;
         agent.load_params(model_dir)?;
         agent.eval();
-        agent
+        Box::new(agent)
     };
     // let mut recorder = BufferedRecorder::new();
 

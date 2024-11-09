@@ -315,7 +315,7 @@ fn eval(model_dir: &str, render: bool) -> Result<()> {
         let mut agent = Iqn::build(config::agent_config(DIM_OBS, DIM_ACT));
         agent.load_params(model_dir)?;
         agent.eval();
-        agent
+        Box::new(agent)
     };
 
     let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut agent);

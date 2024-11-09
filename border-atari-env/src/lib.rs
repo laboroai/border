@@ -71,7 +71,7 @@
 //!
 //!     // Creates a random policy
 //!     let n_acts = 4;
-//!     let mut policy = RandomPolicy::build(n_acts);
+//!     let mut policy = Box::new(RandomPolicy::build(n_acts));
 //!
 //!     // Runs evaluation
 //!     let env_config = env_config.render(true);

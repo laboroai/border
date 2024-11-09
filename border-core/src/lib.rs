@@ -291,11 +291,11 @@ pub mod test {
             crate::record::Record::empty()
         }
 
-        fn save_params<T: AsRef<std::path::Path>>(&self, _path: T) -> anyhow::Result<()> {
+        fn save_params(&self, _path: &std::path::Path) -> anyhow::Result<()> {
             Ok(())
         }
 
-        fn load_params<T: AsRef<std::path::Path>>(&mut self, _path: T) -> anyhow::Result<()> {
+        fn load_params(&mut self, _path: &std::path::Path) -> anyhow::Result<()> {
             Ok(())
         }
     }

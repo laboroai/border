@@ -345,21 +345,17 @@ where
     ///
     /// The parameters of the model are saved as `qnet.pt`.
     /// The parameters of the target model are saved as `qnet_tgt.pt`.
-    fn save_params<T: AsRef<Path>>(&self, path: T) -> Result<()> {
+    fn save_params(&self, path: &Path) -> Result<()> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
-        self.qnet
-            .save(&path.as_ref().join("qnet.pt.tch").as_path())?;
-        self.qnet_tgt
-            .save(&path.as_ref().join("qnet_tgt.pt.tch").as_path())?;
+        self.qnet.save(path.join("qnet.pt.tch").as_path())?;
+        self.qnet_tgt.save(path.join("qnet_tgt.pt.tch").as_path())?;
         Ok(())
     }
 
-    fn load_params<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
-        self.qnet
-            .load(&path.as_ref().join("qnet.pt.tch").as_path())?;
-        self.qnet_tgt
-            .load(&path.as_ref().join("qnet_tgt.pt.tch").as_path())?;
+    fn load_params(&mut self, path: &Path) -> Result<()> {
+        self.qnet.load(path.join("qnet.pt.tch").as_path())?;
+        self.qnet_tgt.load(path.join("qnet_tgt.pt.tch").as_path())?;
         Ok(())
     }
 }

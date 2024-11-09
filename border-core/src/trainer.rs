@@ -151,32 +151,29 @@ impl Trainer {
         }
     }
 
-    fn save_model<E, A, R>(agent: &A, model_dir: String)
+    fn save_model<E, R>(agent: &Box<dyn Agent<E, R>>, model_dir: String)
     where
         E: Env,
-        A: Agent<E, R>,
         R: ReplayBufferBase,
     {
-        match agent.save_params(&model_dir) {
+        match agent.save_params(&model_dir.as_ref()) {
             Ok(()) => info!("Saved the model in {:?}.", &model_dir),
             Err(_) => info!("Failed to save model in {:?}.", &model_dir),
         }
     }
 
-    fn save_best_model<E, A, R>(agent: &A, model_dir: String)
+    fn save_best_model<E, R>(agent: &Box<dyn Agent<E, R>>, model_dir: String)
     where
         E: Env,
-        A: Agent<E, R>,
         R: ReplayBufferBase,
     {
         let model_dir = model_dir + "/best";
         Self::save_model(agent, model_dir);
     }
 
-    fn save_model_with_steps<E, A, R>(agent: &A, model_dir: String, steps: usize)
+    fn save_model_with_steps<E, R>(agent: &Box<dyn Agent<E, R>>, model_dir: String, steps: usize)
     where
         E: Env,
-        A: Agent<E, R>,
         R: ReplayBufferBase,
     {
         let model_dir = model_dir + format!("/{}", steps).as_str();
@@ -200,10 +197,13 @@ impl Trainer {
     ///
     /// The second return value in the tuple is if an optimization step is done (`true`).
     // pub fn train_step<E, A, P, R>(
-    pub fn train_step<E, A, R>(&mut self, agent: &mut A, buffer: &mut R) -> Result<(Record, bool)>
+    pub fn train_step<E, R>(
+        &mut self,
+        agent: &mut Box<dyn Agent<E, R>>,
+        buffer: &mut R,
+    ) -> Result<(Record, bool)>
     where
         E: Env,
-        A: Agent<E, R>,
         R: ReplayBufferBase,
     {
         if self.env_steps < self.warmup_period {
@@ -230,18 +230,17 @@ impl Trainer {
         }
     }
 
-    fn post_process<E, A, R, D>(
+    fn post_process<E, R, D>(
         &mut self,
-        agent: &mut A,
+        agent: &mut Box<dyn Agent<E, R>>,
         evaluator: &mut D,
         record: &mut Record,
         fps: f32,
     ) -> Result<()>
     where
         E: Env,
-        A: Agent<E, R>,
         R: ReplayBufferBase,
-        D: Evaluator<E, A>,
+        D: Evaluator<E>,
     {
         // Add stats wrt computation cost
         if self.opt_steps % self.record_compute_cost_interval == 0 {
@@ -274,9 +273,9 @@ impl Trainer {
         Ok(())
     }
 
-    fn loop_step<E, A, R, D>(
+    fn loop_step<E, R, D>(
         &mut self,
-        agent: &mut A,
+        agent: &mut Box<dyn Agent<E, R>>,
         buffer: &mut R,
         recorder: &mut Box<dyn AggregateRecorder>,
         evaluator: &mut D,
@@ -285,9 +284,8 @@ impl Trainer {
     ) -> Result<bool>
     where
         E: Env,
-        A: Agent<E, R>,
         R: ReplayBufferBase,
-        D: Evaluator<E, A>,
+        D: Evaluator<E>,
     {
         // Performe optimization step(s)
         let (mut record, is_opt) = {
@@ -319,21 +317,20 @@ impl Trainer {
     }
 
     /// Train the agent online.
-    pub fn train<E, A, P, R, D>(
+    pub fn train<E, P, R, D>(
         &mut self,
         env: E,
         step_proc: P,
-        agent: &mut A,
+        agent: &mut Box<dyn Agent<E, R>>,
         buffer: &mut R,
         recorder: &mut Box<dyn AggregateRecorder>,
         evaluator: &mut D,
     ) -> Result<()>
     where
         E: Env,
-        A: Agent<E, R>,
         P: StepProcessor<E>,
         R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
-        D: Evaluator<E, A>,
+        D: Evaluator<E>,
     {
         let mut sampler = Sampler::new(env, step_proc);
         sampler.reset_fps_counter();
@@ -351,18 +348,17 @@ impl Trainer {
     }
 
     /// Train the agent offline.
-    pub fn train_offline<E, A, R, D>(
+    pub fn train_offline<E, R, D>(
         &mut self,
-        agent: &mut A,
+        agent: &mut Box<dyn Agent<E, R>>,
         buffer: &mut R,
         recorder: &mut Box<dyn AggregateRecorder>,
         evaluator: &mut D,
     ) -> Result<()>
     where
         E: Env,
-        A: Agent<E, R>,
         R: ReplayBufferBase,
-        D: Evaluator<E, A>,
+        D: Evaluator<E>,
     {
         // Return empty record
         self.warmup_period = 0;

@@ -62,9 +62,12 @@ where
     ///
     /// The replay buffer `R_`, to which samples will be pushed, has to accept
     /// `Item` that are the same with `Agent::R`.
-    pub fn sample_and_push<A, R, R_>(&mut self, agent: &mut A, buffer: &mut R_) -> Result<Record>
+    pub fn sample_and_push<R, R_>(
+        &mut self,
+        agent: &mut Box<dyn Agent<E, R>>,
+        buffer: &mut R_,
+    ) -> Result<Record>
     where
-        A: Agent<E, R>,
         R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
         R_: ExperienceBufferBase<Item = R::Item>,
     {

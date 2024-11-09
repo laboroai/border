@@ -215,7 +215,7 @@ fn play(matches: ArgMatches) -> Result<()> {
         let mut agent = Iqn::build(agent_config);
         agent.load_params(model_dir + "/best")?;
         agent.eval();
-        agent
+        Box::new(agent)
     };
     // let mut recorder = BufferedRecorder::new();
 

@@ -295,19 +295,17 @@ where
         self.opt_(buffer)
     }
 
-    fn save_params<T: AsRef<Path>>(&self, path: T) -> Result<()> {
+    fn save_params(&self, path: &Path) -> Result<()> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
-        self.iqn.save(&path.as_ref().join("iqn.pt.tch").as_path())?;
-        self.iqn_tgt
-            .save(&path.as_ref().join("iqn_tgt.pt.tch").as_path())?;
+        self.iqn.save(path.join("iqn.pt.tch").as_path())?;
+        self.iqn_tgt.save(path.join("iqn_tgt.pt.tch").as_path())?;
         Ok(())
     }
 
-    fn load_params<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
-        self.iqn.load(&path.as_ref().join("iqn.pt.tch").as_path())?;
-        self.iqn_tgt
-            .load(&path.as_ref().join("iqn_tgt.pt.tch").as_path())?;
+    fn load_params(&mut self, path: &Path) -> Result<()> {
+        self.iqn.load(path.join("iqn.pt.tch").as_path())?;
+        self.iqn_tgt.load(path.join("iqn_tgt.pt.tch").as_path())?;
         Ok(())
     }
 }
