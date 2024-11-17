@@ -148,6 +148,12 @@ path = "examples/d4rl/bc_kitchen.rs"
 required-features = ["candle"]
 test = false
 
+[[example]]
+name = "bc_maze2d"
+path = "examples/d4rl/bc_maze2d.rs"
+required-features = ["candle"]
+test = false
+
 [dev-dependencies]
 clap = { workspace = true }
 csv = { workspace = true }

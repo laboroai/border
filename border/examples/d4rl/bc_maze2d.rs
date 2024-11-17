@@ -9,9 +9,9 @@ use border_core::{
     TrainerConfig,
 };
 use border_minari::{
-    d4rl::kitchen::{
-        candle::{KitchenAct, KitchenConverter, KitchenObs},
-        KitchenEvaluator,
+    d4rl::pointmaze::{
+        candle::{PointMazeAct, PointMazeConverter, PointMazeConverterConfig, PointMazeObs},
+        PointMazeEvaluator,
     },
     MinariConverter, MinariDataset, MinariEnv,
 };
@@ -20,7 +20,7 @@ use border_tensorboard::TensorboardRecorder;
 use candle_core::{Device, Tensor};
 use clap::Parser;
 
-/// Train BC agent in kitchen environment
+/// Train BC agent in maze2d environment
 #[derive(Parser, Debug)]
 #[command(version, about)]
 struct Args {
@@ -57,12 +57,16 @@ struct Args {
     #[arg(long, default_value_t = 5)]
     eval_episodes: usize,
 
+    /// If true, goal position is included in observation
+    #[arg(long, default_value_t = true)]
+    include_goal: bool,
+
     /// Batch size
     #[arg(long, default_value_t = 128)]
     batch_size: usize,
 }
 
-const MODEL_DIR: &str = "border/examples/d4rl/model/candle/bc_kitchen";
+const MODEL_DIR: &str = "border/examples/d4rl/model/candle/bc_maze2d";
 
 fn train<T, U, D>(args: Args, dataset: MinariDataset, converter: T, evaluator: U) -> Result<()>
 where
@@ -74,10 +78,17 @@ where
     U: Fn(MinariEnv<T, T::Obs, T::Act>, Args) -> Result<D>,
     D: Evaluator<MinariEnv<T, T::Obs, T::Act>>,
 {
+    // Dimensions of observation and action
+    let dim_obs = match args.include_goal {
+        true => 6,
+        false => 4,
+    };
+    let dim_act = 2;
+
     // Create replay buffer
     log::info!("Create replay buffer");
     let mut buffer = dataset.create_replay_buffer(&converter, None)?;
-    log::info!("{} transitions", buffer.len());
+    log::info!("{} samples", buffer.len());
 
     // Create environment
     log::info!("Create environment");
@@ -99,8 +110,8 @@ where
     let agent_config = {
         let policy_model_config = {
             let policy_model_config = MlpConfig {
-                in_dim: 59,
-                out_dim: 9,
+                in_dim: dim_obs,
+                out_dim: dim_act,
                 units: vec![256, 256],
                 activation_out: Activation::Tanh,
             };
@@ -123,7 +134,7 @@ where
                     MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("D4RL")?;
                 let recorder_run = client.create_recorder("")?;
                 recorder_run.log_params(&agent_config)?;
-                recorder_run.set_tag("env", "kitchen")?;
+                recorder_run.set_tag("env", "maze2d")?;
                 recorder_run.set_tag("algo", "bc")?;
                 recorder_run.set_tag("backend", "candle")?;
                 Box::new(recorder_run)
@@ -144,22 +155,17 @@ where
 }
 
 fn main() -> Result<()> {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     let args = Args::parse();
 
-    let dataset = MinariDataset::load_dataset("D4RL/kitchen/complete-v1", true)?;
-    let converter = KitchenConverter {};
-    let evaluator = |env: MinariEnv<KitchenConverter, KitchenObs, KitchenAct>, args: Args| {
-        KitchenEvaluator::new(env, args.eval_episodes)
+    let dataset = MinariDataset::load_dataset("D4RL/pointmaze/umaze-v2", true)?;
+    let converter = PointMazeConverter::new(PointMazeConverterConfig {
+        // Include goal position in observation
+        include_goal: args.include_goal,
+    });
+    let evaluator = |env: MinariEnv<PointMazeConverter, PointMazeObs, PointMazeAct>, args: Args| {
+        PointMazeEvaluator::new(env, args.eval_episodes)
     };
-
-    // let dataset = MinariDataset::load_dataset("D4RL/pointmaze/umaze-v2", true)?;
-    // let converter = {
-    //     let config = PointMazeConverterConfig::default();
-    //     PointMazeConverter::new(config)
-    // };
-    // let evaluator = |env: MinariEnv<PointMazeConverter, PointMazeObs, PointMazeAct>, args: Args| {
-    //     PointMazeEvaluator::new(env, args.eval_episodes)
-    // };
 
     train(args, dataset, converter, evaluator)
 }

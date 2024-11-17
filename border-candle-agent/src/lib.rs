@@ -9,7 +9,7 @@ pub mod opt;
 pub mod sac;
 mod tensor_batch;
 pub mod util;
-use candle_core::{DeviceLocation, Module, backend::BackendDevice};
+use candle_core::{backend::BackendDevice, DeviceLocation, Module};
 use serde::{Deserialize, Serialize};
 pub use tensor_batch::{TensorBatch, ZeroTensor};
 
