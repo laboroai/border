@@ -85,15 +85,6 @@ where
     };
     let dim_act = 2;
 
-    // Create replay buffer
-    log::info!("Create replay buffer");
-    let mut buffer = dataset.create_replay_buffer(&converter, None)?;
-    log::info!("{} samples", buffer.len());
-
-    // Create environment
-    log::info!("Create environment");
-    let env = dataset.recover_environment(converter, false, None)?;
-
     // Create trainer
     log::info!("Create trainer");
     let mut trainer = Trainer::build(
@@ -125,6 +116,11 @@ where
     };
     let mut agent = Bc::build(agent_config.clone());
 
+    // Create replay buffer
+    log::info!("Create replay buffer");
+    let mut buffer = dataset.create_replay_buffer(&converter, None)?;
+    log::info!("{} samples", buffer.len());
+
     // Create recorder
     log::info!("Create recorder");
     let mut recorder: Box<dyn AggregateRecorder> = {
@@ -145,7 +141,10 @@ where
 
     // Create evaluator
     log::info!("Create evaluator");
-    let mut evaluator = evaluator(env, args)?;
+    let mut evaluator = {
+        let env = dataset.recover_environment(converter, true, None)?;
+        evaluator(env, args)?
+    };
 
     // Start training
     log::info!("Start training");
