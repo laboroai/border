@@ -153,6 +153,10 @@ impl MinariConverter for AntMazeConverter {
             action: { pyobj_to_arrayd::<f32, f32>(obj.into()) },
         })
     }
+
+    fn env_params(&self) -> Vec<(&str, Option<&str>)> {
+        vec![]
+    }
 }
 
 /// Converts PyObject to ArrayD and drop the last row.

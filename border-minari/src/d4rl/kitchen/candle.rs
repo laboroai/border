@@ -211,6 +211,10 @@ impl MinariConverter for KitchenConverter {
             },
         })
     }
+
+    fn env_params(&self) -> Vec<(&str, Option<&str>)> {
+        vec![]
+    }
 }
 
 /// Converts PyObject to [`candle_core::Tensor`] and drop the last row.

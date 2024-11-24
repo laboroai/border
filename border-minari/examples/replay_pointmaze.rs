@@ -3,6 +3,8 @@ use border_core::Env;
 use border_minari::{d4rl::pointmaze::ndarray::PointMazeConverter, MinariDataset};
 
 fn main() -> Result<()> {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+
     let dataset = MinariDataset::load_dataset("D4RL/pointmaze/umaze-v2", true)?;
 
     // The number of transitions over all episodes

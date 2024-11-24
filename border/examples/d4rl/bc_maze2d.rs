@@ -10,7 +10,7 @@ use border_core::{
 };
 use border_minari::{
     d4rl::pointmaze::{
-        candle::{PointMazeAct, PointMazeConverter, PointMazeConverterConfig, PointMazeObs},
+        candle::{PointMazeConverter, PointMazeConverterConfig},
         PointMazeEvaluator,
     },
     MinariConverter, MinariDataset, MinariEnv,
@@ -58,7 +58,7 @@ struct Args {
     eval_episodes: usize,
 
     /// If true, goal position is included in observation
-    #[arg(long, default_value_t = true)]
+    #[arg(long, default_value_t = false)]
     include_goal: bool,
 
     /// Batch size
@@ -75,8 +75,8 @@ where
     T::Act: std::fmt::Debug + From<Tensor>,
     T::ObsBatch: std::fmt::Debug + Into<Tensor>,
     T::ActBatch: std::fmt::Debug + Into<Tensor>,
-    U: Fn(MinariEnv<T, T::Obs, T::Act>, Args) -> Result<D>,
-    D: Evaluator<MinariEnv<T, T::Obs, T::Act>>,
+    U: Fn(MinariEnv<T>, Args) -> Result<D>,
+    D: Evaluator<MinariEnv<T>>,
 {
     // Dimensions of observation and action
     let dim_obs = match args.include_goal {
@@ -162,7 +162,7 @@ fn main() -> Result<()> {
         // Include goal position in observation
         include_goal: args.include_goal,
     });
-    let evaluator = |env: MinariEnv<PointMazeConverter, PointMazeObs, PointMazeAct>, args: Args| {
+    let evaluator = |env: MinariEnv<PointMazeConverter>, args: Args| {
         PointMazeEvaluator::new(env, args.eval_episodes)
     };
 

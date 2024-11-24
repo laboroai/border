@@ -62,7 +62,6 @@ use pyo3::{
     types::{IntoPyDict, PyIterator, PyTuple},
     PyAny, PyObject, Python, ToPyObject,
 };
-use std::marker::PhantomData;
 pub mod d4rl;
 pub mod util;
 
@@ -104,6 +103,9 @@ pub trait MinariConverter {
     ///
     /// [`PyObject`]: pyo3::PyObject
     fn convert_action_batch(&self, obj: &PyAny) -> Result<Self::ActBatch>;
+
+    /// Returns optional parameters when recovering the environment for evaluation from the dataset.
+    fn env_params(&self) -> Vec<(&str, Option<&str>)>;
 }
 
 /// Common interface for Minari datasets.
@@ -241,20 +243,17 @@ impl MinariDataset {
     /// * `eval_env`: if `true`, the environment is for evaluation.
     ///   See [Minari API documentation](https://minari.farama.org/api/minari_dataset/minari_dataset/#minari.MinariDataset.recover_environment).
     /// * `render_mode`: render mode for the environment.
-    pub fn recover_environment<'a, T, O, A>(
+    pub fn recover_environment<'a, T: MinariConverter>(
         &self,
         converter: T,
         eval_env: bool,
         render_mode: impl Into<Option<&'a str>>,
-    ) -> Result<MinariEnv<T, O, A>>
-    where
-        T: MinariConverter<Obs = O, Act = A>,
-        O: Obs,
-        A: Act,
-    {
+    ) -> Result<MinariEnv<T>> {
         let env = {
             Python::with_gil(|py| {
-                let kwargs = [("render_mode", render_mode.into())].into_py_dict(py);
+                let mut kwargs = vec![("render_mode", render_mode.into())];
+                kwargs.extend(converter.env_params());
+                let kwargs = kwargs.into_py_dict(py);
                 let env =
                     self.dataset
                         .call_method(py, "recover_environment", (eval_env,), Some(&kwargs));
@@ -263,40 +262,69 @@ impl MinariDataset {
             })?
         };
 
+        let ref_score_minmax = Python::with_gil(|py| {
+            let min = self
+                .dataset
+                .getattr(py, "storage")
+                .unwrap()
+                .getattr(py, "metadata")
+                .unwrap()
+                .call_method1(py, "get", ("ref_min_score",));
+            let max = self
+                .dataset
+                .getattr(py, "storage")
+                .unwrap()
+                .getattr(py, "metadata")
+                .unwrap()
+                .call_method1(py, "get", ("ref_max_score",));
+
+            if min.is_err() || max.is_err() {
+                log::info!("Either ref_min_score or ref_max_score is missing. Normalized score cannot be calculated.");
+                None
+            } else {
+                let min = min.unwrap().extract(py);
+                let max = max.unwrap().extract(py);
+                if min.is_ok() && max.is_ok() {
+                    let min = min.unwrap();
+                    let max = max.unwrap();
+                    log::info!("ref_min_score = {min}");
+                    log::info!("ref_max_score = {max}");
+                    Some((min, max))
+                } else {
+                    log::info!("Either ref_min_score or ref_max_score could not be converted to f32. Normalized score cannot be calculated.");
+                    None
+                }
+            }
+        });
+
         Ok(MinariEnv {
             converter,
             env,
             initial_seed: None,
             count_steps: 0,
             max_steps: None,
-            phantom: PhantomData,
+            ref_score_minmax,
+            // dataset: self.dataset.clone(),
         })
     }
 }
 
 /// Environment interface for Minari datasets.
-pub struct MinariEnv<T, O, A>
-where
-    T: MinariConverter<Obs = O, Act = A>,
-    O: Obs,
-    A: Act,
-{
+pub struct MinariEnv<T: MinariConverter> {
     converter: T,
     env: PyObject,
     initial_seed: Option<i64>,
     count_steps: usize,
     max_steps: Option<usize>,
-    phantom: PhantomData<(O, A)>,
+    ref_score_minmax: Option<(f32, f32)>,
+    // will be used to get the normalized score via python method
+    // https://minari.farama.org/api/minari_functions/#normalize-score
+    // dataset: PyObject,
 }
 
-impl<T, O, A> Env for MinariEnv<T, O, A>
-where
-    T: MinariConverter<Obs = O, Act = A>,
-    O: Obs,
-    A: Act,
-{
-    type Obs = O;
-    type Act = A;
+impl<T: MinariConverter> Env for MinariEnv<T> {
+    type Obs = T::Obs;
+    type Act = T::Act;
     type Config = ();
     type Info = ();
 
@@ -427,17 +455,22 @@ where
     }
 }
 
-impl<T, O, A> Drop for MinariEnv<T, O, A>
-where
-    T: MinariConverter<Obs = O, Act = A>,
-    O: Obs,
-    A: Act,
-{
+impl<T: MinariConverter> Drop for MinariEnv<T> {
     fn drop(&mut self) {
         // Call closd()
         // See https://gymnasium.farama.org/api/env/#gymnasium.Env.close
         Python::with_gil(|py| {
             self.env.call_method0(py, "close").unwrap();
         })
+    }
+}
+
+impl<T: MinariConverter> MinariEnv<T> {
+    pub fn get_normalized_score(&self, raw_score: f32) -> Option<f32> {
+        if let Some((min, max)) = self.ref_score_minmax {
+            Some((raw_score - min) / (max - min))
+        } else {
+            None
+        }
     }
 }
