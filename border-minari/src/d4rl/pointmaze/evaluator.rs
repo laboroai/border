@@ -29,7 +29,7 @@ impl<T: MinariConverter> Evaluator<MinariEnv<T>> for PointMazeEvaluator<T> {
         let score = r_total / self.n_episodes as f32;
         let score = match self.env.get_normalized_score(score) {
             Some(score) => Ok(score),
-            None => Ok(score)
+            None => Ok(score),
         };
         log::info!("Average return: {:?}", (r_total / self.n_episodes as f32));
         log::info!("Score         : {:?}", score);

@@ -1,6 +1,6 @@
 //! Configuration of behavior cloning (BC) agent.
 use super::BcModelConfig;
-use crate::{model::SubModel1, util::OutDim, Device};
+use crate::{model::SubModel1, opt::OptimizerConfig, util::OutDim, Device};
 use anyhow::Result;
 use candle_core::Tensor;
 use log::info;
@@ -108,6 +108,12 @@ where
     // Sets action type.
     pub fn action_type(mut self, action_type: BcActionType) -> Self {
         self.action_type = action_type;
+        self
+    }
+
+    /// Sets optimizer.
+    pub fn optimizer(mut self, opt_config: OptimizerConfig) -> Self {
+        self.policy_model_config.opt_config = opt_config;
         self
     }
 

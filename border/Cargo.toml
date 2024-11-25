@@ -13,6 +13,7 @@ readme = "README.md"
 aquamarine = { workspace = true }
 tch = { workspace = true, optional = true }
 candle-core = { workspace = true, optional = true }
+candle-nn = { workspace = true, optional = true }
 border-async-trainer = { version = "0.0.8", path = "../border-async-trainer", optional = true }
 anyhow = { workspace = true }
 log = { workspace = true }
@@ -190,4 +191,4 @@ doc-only = ["tch/doc-only"]
 cuda = ["candle-core/cuda"]
 cudnn = ["candle-core/cudnn"]
 border-tch-agent = []
-candle = ["border-minari/candle", "candle-core"]
+candle = ["border-minari/candle", "candle-core", "candle-nn"]

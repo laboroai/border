@@ -62,7 +62,7 @@ struct Args {
     include_goal: bool,
 
     /// Batch size
-    #[arg(long, default_value_t = 128)]
+    #[arg(long, default_value_t = 256)]
     batch_size: usize,
 }
 
@@ -113,6 +113,13 @@ where
             .batch_size(args.batch_size)
             .device(Device::Cpu)
             .action_type(BcActionType::Continuous)
+            .optimizer(border_candle_agent::opt::OptimizerConfig::AdamW {
+                lr: 0.0003,
+                beta1: candle_nn::ParamsAdamW::default().beta1,
+                beta2: candle_nn::ParamsAdamW::default().beta2,
+                eps: candle_nn::ParamsAdamW::default().eps,
+                weight_decay: candle_nn::ParamsAdamW::default().weight_decay,
+            })
     };
     let mut agent = Bc::build(agent_config.clone());
 

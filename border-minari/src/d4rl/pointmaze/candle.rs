@@ -354,7 +354,7 @@ impl MinariConverter for PointMazeConverter {
         // https://github.com/Farama-Foundation/minari-dataset-generation-scripts/blob/cc54b71147650b310f5a84c642dd6dc127f333a1/scripts/pointmaze/create_pointmaze_dataset.py#L157-L159
         vec![]
 
-        // When want to override, comment in the following code:
+        // When want to override the parameters, comment in the following code:
         // vec![
         //     ("continuing_task", Some("True")),
         //     ("reset_target", Some("True")),
