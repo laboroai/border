@@ -103,8 +103,8 @@ pub mod record;
 
 mod base;
 pub use base::{
-    Act, Agent, Configurable, Env, ExperienceBufferBase, Info, Obs, Policy, ReplayBufferBase, Step,
-    StepProcessor, TransitionBatch,
+    Act, Agent, Configurable, Env, ExperienceBufferBase, Info, NullReplayBuffer, Obs, Policy,
+    ReplayBufferBase, Step, StepProcessor, TransitionBatch,
 };
 
 mod trainer;

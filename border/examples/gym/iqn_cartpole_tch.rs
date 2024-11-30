@@ -20,7 +20,7 @@ use border_tch_agent::{
 };
 use border_tensorboard::TensorboardRecorder;
 use clap::Parser;
-use ndarray::{ArrayD, IxDyn};
+use ndarray::ArrayD;
 use serde::Serialize;
 use std::convert::TryFrom;
 use tch::Tensor;
@@ -160,7 +160,7 @@ mod obs_act_types {
     pub type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
     pub type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
     pub type Iqn = Iqn_<Env, Mlp, Mlp, ReplayBuffer>;
-    pub type Evaluator = DefaultEvaluator<Env, Iqn>;
+    pub type Evaluator = DefaultEvaluator<Env>;
 }
 
 use obs_act_types::*;
@@ -285,7 +285,7 @@ fn train(args: &Args, max_opts: usize, model_dir: &str, eval_interval: usize) ->
 
     let env = Env::build(&config.env_config, 0)?;
     let step_proc = StepProc::build(&step_proc_config);
-    let mut agent = Iqn::build(config.agent_config);
+    let mut agent = Box::new(Iqn::build(config.agent_config)) as _;
     let mut buffer = ReplayBuffer::build(&replay_buffer_config);
     let mut evaluator = Evaluator::new(&config.env_config, 0, N_EPISODES_PER_EVAL)?;
 
@@ -311,9 +311,9 @@ fn eval(model_dir: &str, render: bool) -> Result<()> {
         }
         env_config
     };
-    let mut agent = {
+    let mut agent: Box<dyn Agent<_, ReplayBuffer>> = {
         let mut agent = Iqn::build(config::agent_config(DIM_OBS, DIM_ACT));
-        agent.load_params(model_dir)?;
+        agent.load_params(model_dir.as_ref())?;
         agent.eval();
         Box::new(agent)
     };

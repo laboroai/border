@@ -1,9 +1,11 @@
 use anyhow::Result;
-use border_core::{Configurable, DefaultEvaluator, Evaluator as _, Policy};
+use border_core::{
+    Agent, Configurable, DefaultEvaluator, Evaluator as _, NullReplayBuffer, Policy,
+};
 use border_py_gym_env::{
     ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
-use ndarray::{Array, ArrayD, IxDyn};
+use ndarray::{Array, ArrayD};
 
 mod obs {
     use super::*;
@@ -52,7 +54,7 @@ use serde::Deserialize;
 type ObsFilter = ArrayObsFilter<f32, f32, Obs>;
 type ActFilter = ContinuousActFilter<Act>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
-type Evaluator = DefaultEvaluator<Env, RandomPolicy>;
+type Evaluator = DefaultEvaluator<Env>;
 
 #[derive(Clone, Deserialize)]
 struct RandomPolicyConfig;
@@ -75,6 +77,8 @@ impl Configurable for RandomPolicy {
     }
 }
 
+impl Agent<Env, NullReplayBuffer> for RandomPolicy {}
+
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     fastrand::seed(42);
@@ -84,7 +88,7 @@ fn main() -> Result<()> {
         .obs_filter_config(<ObsFilter as GymObsFilter<Obs>>::Config::default())
         .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default())
         .render_mode(Some("human".to_string()));
-    let mut policy = Box::new(RandomPolicy);
+    let mut policy = Box::new(RandomPolicy) as _;
 
     let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
 
@@ -99,7 +103,7 @@ fn test_lunalander_cont() {
         .name("LunarLanderContinuous-v2".to_string())
         .obs_filter_config(<ObsFilter as GymObsFilter<Obs>>::Config::default())
         .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default());
-    let mut policy = Box::new(RandomPolicy);
+    let mut policy = Box::new(RandomPolicy) as _;
 
     let _ = Evaluator::new(&env_config, 0, 5)
         .unwrap()

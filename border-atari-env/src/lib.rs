@@ -28,7 +28,7 @@
 //!     BorderAtariAct, BorderAtariActRawFilter, BorderAtariEnv, BorderAtariEnvConfig,
 //!     BorderAtariObs, BorderAtariObsRawFilter,
 //! };
-//! use border_core::{Env as _, Policy, DefaultEvaluator, Evaluator as _};
+//! use border_core::{Env as _, Policy, DefaultEvaluator, Evaluator as _, NullReplayBuffer, Agent};
 //!
 //! # type Obs = BorderAtariObs;
 //! # type Act = BorderAtariAct;
@@ -58,6 +58,8 @@
 //! #     }
 //! # }
 //! #
+//! # impl Agent<Env, NullReplayBuffer> for RandomPolicy {}
+//! #
 //! # fn env_config(name: String) -> EnvConfig {
 //! #     EnvConfig::default().name(name)
 //! # }
@@ -71,7 +73,7 @@
 //!
 //!     // Creates a random policy
 //!     let n_acts = 4;
-//!     let mut policy = Box::new(RandomPolicy::build(n_acts));
+//!     let mut policy = Box::new(RandomPolicy::build(n_acts)) as _;
 //!
 //!     // Runs evaluation
 //!     let env_config = env_config.render(true);

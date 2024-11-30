@@ -1,5 +1,7 @@
 use anyhow::Result;
-use border_core::{record::Record, Configurable, DefaultEvaluator, Evaluator as _, Policy};
+use border_core::{
+    record::Record, Agent, Configurable, DefaultEvaluator, Evaluator as _, NullReplayBuffer, Policy,
+};
 use border_py_gym_env::{
     ArrayObsFilter, DiscreteActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
@@ -9,7 +11,7 @@ use std::convert::TryFrom;
 type PyObsDtype = f32;
 
 mod obs {
-    use ndarray::{ArrayD, IxDyn};
+    use ndarray::ArrayD;
 
     #[derive(Clone, Debug)]
     pub struct CartPoleObs(ArrayD<f32>);
@@ -54,7 +56,7 @@ type Act = CartPoleAct;
 type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
 type ActFilter = DiscreteActFilter<Act>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
-type Evaluator = DefaultEvaluator<Env, RandomPolicy>;
+type Evaluator = DefaultEvaluator<Env>;
 
 #[derive(Clone, Deserialize)]
 struct RandomPolicyConfig;
@@ -75,6 +77,8 @@ impl Configurable for RandomPolicy {
         Self
     }
 }
+
+impl Agent<Env, NullReplayBuffer> for RandomPolicy {}
 
 #[derive(Debug, Serialize)]
 struct CartpoleRecord {
@@ -110,7 +114,7 @@ fn main() -> Result<()> {
         .render_mode(Some("human".to_string()))
         .obs_filter_config(<ObsFilter as GymObsFilter<Obs>>::Config::default())
         .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default());
-    let mut policy = Box::new(RandomPolicy);
+    let mut policy = Box::new(RandomPolicy) as _;
 
     let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
 
@@ -134,7 +138,7 @@ fn test_random_cartpole() {
         .name("CartPole-v1".to_string())
         .obs_filter_config(<ObsFilter as GymObsFilter<Obs>>::Config::default())
         .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default());
-    let mut policy = Box::new(RandomPolicy);
+    let mut policy = Box::new(RandomPolicy) as _;
 
     let _ = Evaluator::new(&env_config, 0, 5)
         .unwrap()

@@ -24,7 +24,7 @@ use clap::Parser;
 // use csv::WriterBuilder;
 use border_mlflow_tracking::MlflowTrackingClient;
 use candle_core::{Device, Tensor};
-use ndarray::{ArrayD, IxDyn};
+use ndarray::ArrayD;
 use pyo3::PyObject;
 use serde::Serialize;
 use std::convert::TryFrom;
@@ -153,7 +153,7 @@ type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
 type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
-type Evaluator = DefaultEvaluator<Env, Sac<Env, Mlp, Mlp2, ReplayBuffer>>;
+type Evaluator = DefaultEvaluator<Env>;
 
 #[derive(Debug, Serialize)]
 struct PendulumRecord {
@@ -263,7 +263,7 @@ fn train(max_opts: usize, model_dir: &str, eval_interval: usize, mlflow: bool) -
     };
     let env = Env::build(&env_config, 0)?;
     let step_proc = StepProc::build(&step_proc_config);
-    let mut agent = create_agent(DIM_OBS, DIM_ACT)?;
+    let mut agent = Box::new(create_agent(DIM_OBS, DIM_ACT)?) as _;
     let mut buffer = ReplayBuffer::build(&replay_buffer_config);
     let mut recorder = create_recorder(model_dir, mlflow, &config)?;
     let mut evaluator = Evaluator::new(&env_config, 0, N_EPISODES_PER_EVAL)?;
@@ -290,9 +290,9 @@ fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
         };
         env_config
     };
-    let mut agent = {
+    let mut agent: Box<dyn Agent<_, ReplayBuffer>> = {
         let mut agent = create_agent(DIM_OBS, DIM_ACT)?;
-        agent.load_params(model_dir)?;
+        agent.load_params(model_dir.as_ref())?;
         agent.eval();
         Box::new(agent)
     };
