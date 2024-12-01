@@ -278,9 +278,9 @@ where
 
 impl<E, Q, R> Agent<E, R> for Dqn<E, Q, R>
 where
-    E: Env,
-    Q: SubModel1<Output = Tensor>,
-    R: ReplayBufferBase,
+    E: Env + 'static,
+    Q: SubModel1<Output = Tensor> + 'static,
+    R: ReplayBufferBase + 'static,
     E::Obs: Into<Q::Input>,
     E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
@@ -346,6 +346,14 @@ where
         self.qnet.load(path.join("qnet.pt").as_path())?;
         self.qnet_tgt.load(path.join("qnet_tgt.pt").as_path())?;
         Ok(())
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn as_any_ref(&self) -> &dyn std::any::Any {
+        self
     }
 }
 

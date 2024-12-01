@@ -20,6 +20,8 @@
 //! #     record::{AggregateRecorder, NullRecorder}, DefaultEvaluator,
 //! # };
 //! #
+//! # use std::path::Path;
+//! #
 //! # fn agent_config() -> TestAgentConfig {
 //! #     TestAgentConfig
 //! # }
@@ -64,16 +66,24 @@
 //! #         self.0.opt_with_record(buffer)
 //! #     }
 //! #
-//! #     fn save_params<T: AsRef<std::path::Path>>(&self, path: T) -> anyhow::Result<()> {
+//! #     fn save_params(&self, path: &Path) -> anyhow::Result<()> {
 //! #         self.0.save_params(path)
 //! #     }
 //! #
-//! #     fn load_params<T: AsRef<std::path::Path>>(&mut self, path: T) -> anyhow::Result<()> {
+//! #     fn load_params(&mut self, path: &Path) -> anyhow::Result<()> {
 //! #         self.0.load_params(path)
 //! #     }
 //! #
 //! #     fn opt(&mut self, buffer: &mut ReplayBuffer) {
 //! #         self.0.opt_with_record(buffer);
+//! #     }
+//! #
+//! #     fn as_any_ref(&self) -> &dyn std::any::Any {
+//! #         self
+//! #     }
+//! #
+//! #     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+//! #         self
 //! #     }
 //! }
 //!
@@ -109,9 +119,9 @@
 //! let actor_man_config = ActorManagerConfig::default();
 //! let async_trainer_config = AsyncTrainerConfig::default();
 //! let mut recorder: Box<dyn AggregateRecorder> = Box::new(NullRecorder {});
-//! let mut evaluator = DefaultEvaluator::<TestEnv, TestAgent2>::new(&env_config_eval, 0, 1).unwrap();
+//! let mut evaluator = DefaultEvaluator::<TestEnv>::new(&env_config_eval, 0, 1).unwrap();
 //!
-//! border_async_trainer::util::train_async::<_, _, _, StepProcessor>(
+//! border_async_trainer::util::train_async::<TestAgent2, _, _, StepProcessor>(
 //!     &agent_config(),
 //!     &agent_configs,
 //!     &env_config_train,
@@ -168,6 +178,7 @@ pub use sync_model::SyncModel;
 #[cfg(test)]
 pub mod test {
     use serde::{Deserialize, Serialize};
+    use std::path::Path;
 
     /// Obs for testing.
     #[derive(Clone, Debug)]
@@ -347,12 +358,20 @@ pub mod test {
             border_core::record::Record::empty()
         }
 
-        fn save_params<T: AsRef<std::path::Path>>(&self, _path: T) -> anyhow::Result<()> {
+        fn save_params(&self, _path: &Path) -> anyhow::Result<()> {
             Ok(())
         }
 
-        fn load_params<T: AsRef<std::path::Path>>(&mut self, _path: T) -> anyhow::Result<()> {
+        fn load_params(&mut self, _path: &Path) -> anyhow::Result<()> {
             Ok(())
+        }
+
+        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+            self
+        }
+
+        fn as_any_ref(&self) -> &dyn std::any::Any {
+            self
         }
     }
 

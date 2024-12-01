@@ -192,6 +192,14 @@ impl<R: ReplayBufferBase> Agent_<Env, R> for RandomAgent {
         println!("load() was invoked");
         Ok(())
     }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn as_any_ref(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 impl RandomAgent {

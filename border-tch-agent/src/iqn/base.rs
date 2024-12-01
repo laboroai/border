@@ -267,10 +267,10 @@ where
 
 impl<E, F, M, R> Agent<E, R> for Iqn<E, F, M, R>
 where
-    E: Env,
-    F: SubModel<Output = Tensor>,
-    M: SubModel<Input = Tensor, Output = Tensor>,
-    R: ReplayBufferBase,
+    E: Env + 'static,
+    F: SubModel<Output = Tensor> + 'static,
+    M: SubModel<Input = Tensor, Output = Tensor> + 'static,
+    R: ReplayBufferBase + 'static,
     E::Obs: Into<F::Input>,
     E::Act: From<Tensor>,
     F::Config: DeserializeOwned + Serialize + Clone,
@@ -307,5 +307,13 @@ where
         self.iqn.load(path.join("iqn.pt.tch").as_path())?;
         self.iqn_tgt.load(path.join("iqn_tgt.pt.tch").as_path())?;
         Ok(())
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn as_any_ref(&self) -> &dyn std::any::Any {
+        self
     }
 }

@@ -69,7 +69,7 @@ where
 
 impl<A, E, R, P> ActorManager<A, E, R, P>
 where
-    A: Agent<E, R> + Configurable + SyncModel,
+    A: Agent<E, R> + Configurable + SyncModel + 'static,
     E: Env,
     P: StepProcessor<E>,
     R: ExperienceBufferBase<Item = P::Output> + Send + 'static + ReplayBufferBase,

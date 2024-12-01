@@ -49,4 +49,14 @@ pub trait Agent<E: Env, R: ReplayBufferBase>: Policy<E> {
     fn load_params(&mut self, path: &Path) -> Result<()> {
         unimplemented!();
     }
+
+    #[allow(missing_docs)]
+    fn as_any_ref(&self) -> &dyn std::any::Any {
+        unimplemented!("as_any_ref() must be implemented for train_async()");
+    }
+
+    #[allow(missing_docs)]
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        unimplemented!("as_any_mut() must be implemented for train_async()");
+    }
 }

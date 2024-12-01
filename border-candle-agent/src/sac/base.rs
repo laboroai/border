@@ -293,10 +293,10 @@ where
 
 impl<E, Q, P, R> Agent<E, R> for Sac<E, Q, P, R>
 where
-    E: Env,
-    Q: SubModel2<Output = ActionValue>,
-    P: SubModel1<Output = (ActMean, ActStd)>,
-    R: ReplayBufferBase,
+    E: Env + 'static,
+    Q: SubModel2<Output = ActionValue> + 'static,
+    P: SubModel1<Output = (ActMean, ActStd)> + 'static,
+    R: ReplayBufferBase + 'static,
     E::Obs: Into<Q::Input1> + Into<P::Input>,
     E::Act: Into<Q::Input2> + From<Tensor>,
     Q::Input2: From<ActMean>,
@@ -342,6 +342,14 @@ where
         self.pi.load(path.join("pi.pt").as_path())?;
         self.ent_coef.load(path.join("ent_coef.pt").as_path())?;
         Ok(())
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn as_any_ref(&self) -> &dyn std::any::Any {
+        self
     }
 }
 

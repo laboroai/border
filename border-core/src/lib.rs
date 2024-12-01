@@ -298,6 +298,14 @@ pub mod test {
         fn load_params(&mut self, _path: &std::path::Path) -> anyhow::Result<()> {
             Ok(())
         }
+
+        fn as_any_ref(&self) -> &dyn std::any::Any {
+            self
+        }
+
+        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+            self
+        }
     }
 
     impl crate::Policy<TestEnv> for TestAgent {
