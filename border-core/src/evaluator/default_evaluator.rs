@@ -1,5 +1,5 @@
 use super::Evaluator;
-use crate::{Agent, Env, ReplayBufferBase};
+use crate::{Agent, Env, ReplayBufferBase, record::Record};
 use anyhow::Result;
 
 /// A default [`Evaluator`].
@@ -11,7 +11,7 @@ pub struct DefaultEvaluator<E: Env> {
 }
 
 impl<E: Env> Evaluator<E> for DefaultEvaluator<E> {
-    fn evaluate<R>(&mut self, policy: &mut Box<dyn Agent<E, R>>) -> Result<f32>
+    fn evaluate<R>(&mut self, policy: &mut Box<dyn Agent<E, R>>) -> Result<Record>
     where
         R: ReplayBufferBase,
     {
@@ -31,7 +31,8 @@ impl<E: Env> Evaluator<E> for DefaultEvaluator<E> {
             }
         }
 
-        Ok(r_total / self.n_episodes as f32)
+        let name = format!("Average return over {} episodes", self.n_episodes);
+        Ok(Record::from_scalar(name, r_total / self.n_episodes as f32))
     }
 }
 

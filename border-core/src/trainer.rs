@@ -253,14 +253,17 @@ impl Trainer {
             info!("Starts evaluation of the trained model");
             agent.eval();
             let eval_reward = evaluator.evaluate(agent)?;
+            let eval_reward_value = eval_reward.get_scalar_without_key();
             agent.train();
-            record.insert("eval_reward", Scalar(eval_reward));
+            record.merge_inplace(eval_reward);
 
             // Save the best model up to the current iteration
-            if eval_reward > self.max_eval_reward {
-                self.max_eval_reward = eval_reward;
-                let model_dir = self.model_dir.as_ref().unwrap().clone();
-                Self::save_best_model(agent, model_dir)
+            if let Some(eval_reward) = eval_reward_value {
+                if eval_reward > self.max_eval_reward {
+                    self.max_eval_reward = eval_reward;
+                    let model_dir = self.model_dir.as_ref().unwrap().clone();
+                    Self::save_best_model(agent, model_dir)
+                }    
             }
         };
 
