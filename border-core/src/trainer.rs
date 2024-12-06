@@ -263,7 +263,7 @@ impl Trainer {
                     self.max_eval_reward = eval_reward;
                     let model_dir = self.model_dir.as_ref().unwrap().clone();
                     Self::save_best_model(agent, model_dir)
-                }    
+                }
             }
         };
 

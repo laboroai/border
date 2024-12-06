@@ -1,5 +1,5 @@
 //! Evaluate [`Agent`].
-use crate::{Agent, Env, ReplayBufferBase, record::Record};
+use crate::{record::Record, Agent, Env, ReplayBufferBase};
 use anyhow::Result;
 mod default_evaluator;
 pub use default_evaluator::DefaultEvaluator;

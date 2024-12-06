@@ -1,5 +1,5 @@
 use super::Evaluator;
-use crate::{Agent, Env, ReplayBufferBase, record::Record};
+use crate::{record::Record, Agent, Env, ReplayBufferBase};
 use anyhow::Result;
 
 /// A default [`Evaluator`].

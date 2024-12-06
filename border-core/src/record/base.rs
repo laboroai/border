@@ -162,12 +162,12 @@ impl Record {
     }
 
     /// Gets a scalar value without specifying a key.
-    /// 
+    ///
     /// It works if the record has a single element of a [`RecordValue::Scalar`].
     /// Otherwise returns `None`.
     pub fn get_scalar_without_key(&self) -> Option<f32> {
         if self.0.len() != 1 {
-            return None
+            return None;
         } else {
             let key = self.0.keys().next().unwrap();
             match self.0.get(key) {
