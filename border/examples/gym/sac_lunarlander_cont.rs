@@ -288,7 +288,7 @@ fn eval(render: bool) -> Result<()> {
         let mut agent = Sac::build(config::agent_config(DIM_OBS, DIM_ACT));
         agent.load_params(model_dir)?;
         agent.eval();
-        agent
+        Box::new(agent)
     };
 
     let _ = {

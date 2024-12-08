@@ -151,32 +151,29 @@ impl Trainer {
         }
     }
 
-    fn save_model<E, A, R>(agent: &A, model_dir: String)
+    fn save_model<E, R>(agent: &Box<dyn Agent<E, R>>, model_dir: String)
     where
         E: Env,
-        A: Agent<E, R>,
         R: ReplayBufferBase,
     {
-        match agent.save_params(&model_dir) {
+        match agent.save_params(&model_dir.as_ref()) {
             Ok(()) => info!("Saved the model in {:?}.", &model_dir),
             Err(_) => info!("Failed to save model in {:?}.", &model_dir),
         }
     }
 
-    fn save_best_model<E, A, R>(agent: &A, model_dir: String)
+    fn save_best_model<E, R>(agent: &Box<dyn Agent<E, R>>, model_dir: String)
     where
         E: Env,
-        A: Agent<E, R>,
         R: ReplayBufferBase,
     {
         let model_dir = model_dir + "/best";
         Self::save_model(agent, model_dir);
     }
 
-    fn save_model_with_steps<E, A, R>(agent: &A, model_dir: String, steps: usize)
+    fn save_model_with_steps<E, R>(agent: &Box<dyn Agent<E, R>>, model_dir: String, steps: usize)
     where
         E: Env,
-        A: Agent<E, R>,
         R: ReplayBufferBase,
     {
         let model_dir = model_dir + format!("/{}", steps).as_str();
@@ -200,10 +197,13 @@ impl Trainer {
     ///
     /// The second return value in the tuple is if an optimization step is done (`true`).
     // pub fn train_step<E, A, P, R>(
-    pub fn train_step<E, A, R>(&mut self, agent: &mut A, buffer: &mut R) -> Result<(Record, bool)>
+    pub fn train_step<E, R>(
+        &mut self,
+        agent: &mut Box<dyn Agent<E, R>>,
+        buffer: &mut R,
+    ) -> Result<(Record, bool)>
     where
         E: Env,
-        A: Agent<E, R>,
         R: ReplayBufferBase,
     {
         if self.env_steps < self.warmup_period {
@@ -230,16 +230,15 @@ impl Trainer {
         }
     }
 
-    fn post_process<E, A, R, D>(
+    fn post_process<E, R, D>(
         &mut self,
-        agent: &mut A,
+        agent: &mut Box<dyn Agent<E, R>>,
         evaluator: &mut D,
         record: &mut Record,
         fps: f32,
     ) -> Result<()>
     where
         E: Env,
-        A: Agent<E, R>,
         R: ReplayBufferBase,
         D: Evaluator<E>,
     {
@@ -254,14 +253,17 @@ impl Trainer {
             info!("Starts evaluation of the trained model");
             agent.eval();
             let eval_reward = evaluator.evaluate(agent)?;
+            let eval_reward_value = eval_reward.get_scalar_without_key();
             agent.train();
-            record.insert("eval_reward", Scalar(eval_reward));
+            record.merge_inplace(eval_reward);
 
             // Save the best model up to the current iteration
-            if eval_reward > self.max_eval_reward {
-                self.max_eval_reward = eval_reward;
-                let model_dir = self.model_dir.as_ref().unwrap().clone();
-                Self::save_best_model(agent, model_dir)
+            if let Some(eval_reward) = eval_reward_value {
+                if eval_reward > self.max_eval_reward {
+                    self.max_eval_reward = eval_reward;
+                    let model_dir = self.model_dir.as_ref().unwrap().clone();
+                    Self::save_best_model(agent, model_dir)
+                }
             }
         };
 
@@ -274,9 +276,9 @@ impl Trainer {
         Ok(())
     }
 
-    fn loop_step<E, A, R, D>(
+    fn loop_step<E, R, D>(
         &mut self,
-        agent: &mut A,
+        agent: &mut Box<dyn Agent<E, R>>,
         buffer: &mut R,
         recorder: &mut Box<dyn AggregateRecorder>,
         evaluator: &mut D,
@@ -285,7 +287,6 @@ impl Trainer {
     ) -> Result<bool>
     where
         E: Env,
-        A: Agent<E, R>,
         R: ReplayBufferBase,
         D: Evaluator<E>,
     {
@@ -319,18 +320,17 @@ impl Trainer {
     }
 
     /// Train the agent online.
-    pub fn train<E, A, P, R, D>(
+    pub fn train<E, P, R, D>(
         &mut self,
         env: E,
         step_proc: P,
-        agent: &mut A,
+        agent: &mut Box<dyn Agent<E, R>>,
         buffer: &mut R,
         recorder: &mut Box<dyn AggregateRecorder>,
         evaluator: &mut D,
     ) -> Result<()>
     where
         E: Env,
-        A: Agent<E, R>,
         P: StepProcessor<E>,
         R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
         D: Evaluator<E>,
@@ -351,16 +351,15 @@ impl Trainer {
     }
 
     /// Train the agent offline.
-    pub fn train_offline<E, A, R, D>(
+    pub fn train_offline<E, R, D>(
         &mut self,
-        agent: &mut A,
+        agent: &mut Box<dyn Agent<E, R>>,
         buffer: &mut R,
         recorder: &mut Box<dyn AggregateRecorder>,
         evaluator: &mut D,
     ) -> Result<()>
     where
         E: Env,
-        A: Agent<E, R>,
         R: ReplayBufferBase,
         D: Evaluator<E>,
     {

@@ -1,9 +1,11 @@
 use anyhow::Result;
-use border_core::{Configurable, DefaultEvaluator, Env as _, Evaluator as _, Policy};
+use border_core::{
+    Agent, Configurable, DefaultEvaluator, Evaluator as _, NullReplayBuffer, Policy,
+};
 use border_py_gym_env::{
     ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
-use ndarray::{Array, ArrayD, IxDyn};
+use ndarray::{Array, ArrayD};
 use serde::Deserialize;
 use std::default::Default;
 
@@ -53,7 +55,7 @@ use obs::Obs;
 type ObsFilter = ArrayObsFilter<f32, f32, Obs>;
 type ActFilter = ContinuousActFilter<Act>;
 type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
-type Evaluator = DefaultEvaluator<Env, RandomPolicy>;
+type Evaluator = DefaultEvaluator<Env>;
 
 #[derive(Clone, Deserialize)]
 struct RandomPolicyConfig;
@@ -81,6 +83,8 @@ impl Configurable for RandomPolicy {
     }
 }
 
+impl Agent<Env, NullReplayBuffer> for RandomPolicy {}
+
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     fastrand::seed(42);
@@ -90,13 +94,9 @@ fn main() -> Result<()> {
         .obs_filter_config(<ObsFilter as GymObsFilter<Obs>>::Config::default())
         .act_filter_config(<ActFilter as GymActFilter<Act>>::Config::default())
         .render_mode(Some("human".to_string()));
-    let mut policy = RandomPolicy;
+    let mut policy = Box::new(RandomPolicy) as _;
 
-    let _ = {
-        let env = Env::build(&env_config, 0)?;
-        Evaluator::new(env, 5)?
-    }
-    .evaluate(&mut policy);
+    let _ = Evaluator::new(&env_config, 42, 5)?.evaluate(&mut policy);
 
     Ok(())
 }
@@ -112,11 +112,7 @@ fn test_random_ant() {
         .pybullet(true);
     // let mut env = Env::build(&env_config, 0).unwrap();
     let mut recorder = BufferedRecorder::new();
-    let mut policy = RandomPolicy;
+    let mut policy = Box::new(RandomPolicy);
 
-    let _ = {
-        let env = Env::build(&env_config, 0)?;
-        Evaluator::new(env, 5)?
-    }
-    .evaluate(&mut policy);
+    let _ = Evaluator::new(&env_config, 42, 5)?.evaluate(&mut policy);
 }

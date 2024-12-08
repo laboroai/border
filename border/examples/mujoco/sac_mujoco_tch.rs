@@ -301,7 +301,7 @@ fn eval(args: &Args, model_dir: &str, render: bool, wait: u64) -> Result<()> {
             Err(_) => println!("Failed to load model parameters from {:?}", model_dir),
         }
         agent.eval();
-        agent
+        Box::new(agent)
     };
     // let mut recorder = BufferedRecorder::new();
 

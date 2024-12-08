@@ -1,6 +1,6 @@
 use crate::{MinariConverter, MinariEnv};
 use anyhow::Result;
-use border_core::{Env, Evaluator, Policy};
+use border_core::{record::Record, Agent, Env, Evaluator, ReplayBufferBase};
 
 /// An evaluator for the Point Maze environment.
 ///
@@ -14,27 +14,41 @@ impl<T: MinariConverter> Evaluator<MinariEnv<T>> for PointMazeEvaluator<T> {
     /// Returns the normalized score, i.e., normalized average return over episodes,
     /// if the environment has ref_min_score and ref_max_score.
     /// If not, returns the average return over episodes.
-    fn evaluate<P: Policy<MinariEnv<T>>>(&mut self, policy: &mut P) -> Result<f32> {
+    fn evaluate<R: ReplayBufferBase>(
+        &mut self,
+        policy: &mut Box<dyn Agent<MinariEnv<T>, R>>,
+    ) -> Result<Record> {
         log::debug!("Evaluation");
         let mut r_total = 0f32;
 
+        // Episode loop
         for ix in 0..self.n_episodes {
             log::trace!("Episode: {:?}", ix);
-            let init_obs = self.env.reset_with_index(ix)?;
-            let r = self.run_episode(policy, init_obs)?;
-            log::trace!("Return : {:?}", r);
-            r_total += r;
+            let mut prev_obs = self.env.reset_with_index(ix)?;
+
+            // Environment loop
+            loop {
+                let act = policy.sample(&prev_obs);
+                let (step, _) = self.env.step(&act);
+                r_total += step.reward[0];
+                if step.is_done() {
+                    break;
+                }
+                prev_obs = step.obs;
+            }
         }
 
+        // Average return
+        let name = format!("Average return over {} episodes", self.n_episodes);
         let score = r_total / self.n_episodes as f32;
-        let score = match self.env.get_normalized_score(score) {
-            Some(score) => Ok(score),
-            None => Ok(score),
-        };
-        log::info!("Average return: {:?}", (r_total / self.n_episodes as f32));
-        log::info!("Score         : {:?}", score);
+        let mut record = Record::from_scalar(name, score);
 
-        score
+        // Normalized score
+        if let Some(score) = self.env.get_normalized_score(score) {
+            record = record.merge(Record::from_scalar("Nomalized score", score));
+        }
+
+        Ok(record)
     }
 }
 
@@ -45,33 +59,5 @@ impl<T: MinariConverter> PointMazeEvaluator<T> {
     /// `n_episodes` - The number of episodes for evaluation.
     pub fn new(env: MinariEnv<T>, n_episodes: usize) -> Result<Self> {
         Ok(Self { n_episodes, env })
-    }
-
-    /// Runs an episode and returns the reward of the last step.
-    fn run_episode<P: Policy<MinariEnv<T>>>(
-        &mut self,
-        policy: &mut P,
-        init_obs: T::Obs,
-    ) -> Result<f32> {
-        let mut r_total = 0.0;
-        let mut prev_obs = init_obs;
-        let mut rewards = vec![];
-
-        loop {
-            let act = policy.sample(&prev_obs);
-            let (step, _) = self.env.step(&act);
-            r_total += step.reward[0];
-            rewards.push(step.reward[0]);
-            if step.is_done() {
-                break;
-            }
-            prev_obs = step.obs;
-        }
-
-        log::trace!("Rewards: {:?}", rewards);
-        log::debug!("Episode length: {:?}", rewards.len());
-        log::debug!("Episode return: {:?}", r_total);
-
-        Ok(r_total)
     }
 }

@@ -36,12 +36,19 @@ pub enum RecordValue {
 pub struct Record(HashMap<String, RecordValue>);
 
 impl Record {
-    /// Construct empty record.
+    /// Creates empty record.
     pub fn empty() -> Self {
         Self { 0: HashMap::new() }
     }
 
-    /// Create `Record` from slice of `(Into<String>, RecordValue)`.
+    /// Creates a record from a scalar.
+    pub fn from_scalar(name: impl Into<String>, value: f32) -> Self {
+        Self {
+            0: HashMap::from([(name.into(), RecordValue::Scalar(value))]),
+        }
+    }
+
+    /// Creates `Record` from slice of `(Into<String>, RecordValue)`.
     pub fn from_slice<K: Into<String> + Clone>(s: &[(K, RecordValue)]) -> Self {
         Self(
             s.iter()
@@ -50,37 +57,44 @@ impl Record {
         )
     }
 
-    /// Get keys.
+    /// Gets keys.
     pub fn keys(&self) -> Keys<String, RecordValue> {
         self.0.keys()
     }
 
-    /// Insert a key-value pair into the record.
+    /// Inserts a key-value pair into the record.
     pub fn insert(&mut self, k: impl Into<String>, v: RecordValue) {
         self.0.insert(k.into(), v);
     }
 
-    /// Return an iterator over key-value pairs in the record.
+    /// Returns an iterator over key-value pairs in the record.
     pub fn iter(&self) -> Iter<'_, String, RecordValue> {
         self.0.iter()
     }
 
-    /// Return an iterator over key-value pairs in the record.
+    /// Returns an iterator over key-value pairs in the record.
     pub fn into_iter_in_record(self) -> IntoIter<String, RecordValue> {
         self.0.into_iter()
     }
 
-    /// Get the value of the given key.
+    /// Gets the value of the given key.
     pub fn get(&self, k: &str) -> Option<&RecordValue> {
         self.0.get(k)
     }
 
-    /// Merge records.
+    /// Merges records.
     pub fn merge(self, record: Record) -> Self {
         Record(self.0.into_iter().chain(record.0).collect())
     }
 
-    /// Get scalar value.
+    /// Merges records.
+    pub fn merge_inplace(&mut self, record: Record) {
+        for (k, v) in record.iter() {
+            self.0.insert(k.clone(), v.clone());
+        }
+    }
+
+    /// Gets scalar value.
     ///
     /// * `key` - The key of an entry in the record.
     pub fn get_scalar(&self, k: &str) -> Result<f32, LrrError> {
@@ -94,7 +108,7 @@ impl Record {
         }
     }
 
-    /// Get Array1 value.
+    /// Gets Array1 value.
     pub fn get_array1(&self, k: &str) -> Result<Vec<f32>, LrrError> {
         if let Some(v) = self.0.get(k) {
             match v {
@@ -106,7 +120,7 @@ impl Record {
         }
     }
 
-    /// Get Array2 value.
+    /// Gets Array2 value.
     pub fn get_array2(&self, k: &str) -> Result<(Vec<f32>, [usize; 2]), LrrError> {
         if let Some(v) = self.0.get(k) {
             match v {
@@ -118,7 +132,7 @@ impl Record {
         }
     }
 
-    /// Get Array3 value.
+    /// Gets Array3 value.
     pub fn get_array3(&self, k: &str) -> Result<(Vec<f32>, [usize; 3]), LrrError> {
         if let Some(v) = self.0.get(k) {
             match v {
@@ -130,7 +144,7 @@ impl Record {
         }
     }
 
-    /// Get String value.
+    /// Gets String value.
     pub fn get_string(&self, k: &str) -> Result<String, LrrError> {
         if let Some(v) = self.0.get(k) {
             match v {
@@ -145,5 +159,21 @@ impl Record {
     /// Returns true if the record is empty.
     pub fn is_empty(&self) -> bool {
         self.0.len() == 0
+    }
+
+    /// Gets a scalar value without specifying a key.
+    ///
+    /// It works if the record has a single element of a [`RecordValue::Scalar`].
+    /// Otherwise returns `None`.
+    pub fn get_scalar_without_key(&self) -> Option<f32> {
+        if self.0.len() != 1 {
+            return None;
+        } else {
+            let key = self.0.keys().next().unwrap();
+            match self.0.get(key) {
+                Some(RecordValue::Scalar(value)) => Some(*value),
+                _ => None,
+            }
+        }
     }
 }

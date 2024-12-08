@@ -316,7 +316,7 @@ fn eval(args: &Args) -> Result<()> {
         let mut agent = Dqn::build(agent_config);
         agent.load_params(model_dir + "/best")?;
         agent.eval();
-        agent
+        Box::new(agent)
     };
     // let mut recorder = BufferedRecorder::new();
 

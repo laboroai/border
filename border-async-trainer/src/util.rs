@@ -40,7 +40,7 @@ pub fn train_async<A, E, R, S>(
     recorder: &mut Box<dyn AggregateRecorder>,
     evaluator: &mut impl Evaluator<E>,
 ) where
-    A: Agent<E, R> + Configurable + SyncModel,
+    A: Agent<E, R> + Configurable + SyncModel + 'static,
     E: Env,
     R: ExperienceBufferBase<Item = S::Output> + Send + 'static + ReplayBufferBase,
     S: StepProcessor<E>,

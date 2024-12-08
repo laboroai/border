@@ -43,3 +43,31 @@ pub trait ReplayBufferBase {
     /// There are cases where prioritization is not required.
     fn update_priority(&mut self, ixs: &Option<Vec<usize>>, td_err: &Option<Vec<f32>>);
 }
+
+/// A dummy replay buffer.
+///
+/// This struct is used to wrap a [`Policy`] with an [`Agent`].
+///
+/// [`Policy`]: crate::Policy
+/// [`Agent`]: crate::Agent
+pub struct NullReplayBuffer;
+
+impl ReplayBufferBase for NullReplayBuffer {
+    type Batch = ();
+    type Config = ();
+
+    #[allow(unused_variables)]
+    fn build(config: &Self::Config) -> Self {
+        Self
+    }
+
+    #[allow(unused_variables)]
+    fn batch(&mut self, size: usize) -> Result<Self::Batch> {
+        unimplemented!();
+    }
+
+    #[allow(unused_variables)]
+    fn update_priority(&mut self, ixs: &Option<Vec<usize>>, td_err: &Option<Vec<f32>>) {
+        unimplemented!();
+    }
+}

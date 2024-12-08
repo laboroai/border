@@ -9,16 +9,16 @@ pub use agent::Agent;
 pub use batch::TransitionBatch;
 pub use env::Env;
 pub use policy::{Configurable, Policy};
-pub use replay_buffer::{ExperienceBufferBase, ReplayBufferBase};
+pub use replay_buffer::{ExperienceBufferBase, NullReplayBuffer, ReplayBufferBase};
 use std::fmt::Debug;
 pub use step::{Info, Step, StepProcessor};
 
 /// A set of observations of an environment.
 ///
 /// Old versions of the library support vectorized environment and
-/// [Obs] was able to handle multiple observations.
+/// [`Obs`] was able to handle multiple observations.
 /// In the current version, no vectorized environment is implemented.
-/// Thus, [Obs]`::len()` always returns 1.
+/// Thus, [`Obs`]`::len()` always returns 1.
 pub trait Obs: Clone + Debug {
     /// Returns the number of observations in the object.
     fn len(&self) -> usize;

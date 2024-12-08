@@ -2,8 +2,15 @@
 
 ## v0.0.8 (2024-??-??)
 
+### Added
+
 * Add crate `border-minari`, which is a wrapper of [Minari](https://minari.farama.org).
+
+### Changed
+
 * Bump the version of candle to 0.6.0 (`border-candle-agent`).
+* `Trainer` takes `Agent`s as trait object (#111).
+* Evaluator returns `Record` object (#111).
 
 ## v0.0.7 (2024-09-01)
 

@@ -113,9 +113,9 @@ fn eval(n_episodes: usize, render: bool) -> Result<()> {
         };
         env_config
     };
-    let mut policy = MlpPolicy::from_serialized_path(
+    let mut policy = Box::new(MlpPolicy::from_serialized_path(
         "./border/examples/gym/model/edge/sac_pendulum/best/mlp.bincode",
-    )?;
+    )?);
 
     let _ = {
         let env = env_config.build()?;

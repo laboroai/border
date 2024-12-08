@@ -7,6 +7,7 @@ use crossbeam_channel::{Receiver, Sender};
 use log::info;
 use std::{
     marker::PhantomData,
+    ops::{Deref, DerefMut},
     sync::{Arc, Mutex},
     time::{Duration, SystemTime},
 };
@@ -114,7 +115,7 @@ where
 
 impl<A, E, R> AsyncTrainer<A, E, R>
 where
-    A: Agent<E, R> + Configurable + SyncModel,
+    A: Agent<E, R> + Configurable + SyncModel + 'static,
     E: Env,
     // R: ReplayBufferBase + Sync + Send + 'static,
     R: ExperienceBufferBase + ReplayBufferBase,
@@ -152,7 +153,7 @@ where
     }
 
     fn save_model(agent: &A, model_dir: String) {
-        match agent.save_params(&model_dir) {
+        match agent.save_params(&model_dir.as_ref()) {
             Ok(()) => info!("Saved the model in {:?}.", &model_dir),
             Err(_) => info!("Failed to save model in {:?}.", &model_dir),
         }
@@ -175,6 +176,16 @@ where
         self.opt_steps_for_ops = 0;
         self.timer_for_ops = Duration::new(0, 0);
         osps
+    }
+
+    #[inline]
+    fn downcast_ref(agent: &Box<dyn Agent<E, R>>) -> &A {
+        agent.deref().as_any_ref().downcast_ref::<A>().unwrap()
+    }
+
+    #[inline]
+    fn downcast_mut(agent: &mut Box<dyn Agent<E, R>>) -> &mut A {
+        agent.deref_mut().as_any_mut().downcast_mut::<A>().unwrap()
     }
 
     // /// Record.
@@ -204,7 +215,7 @@ where
     // }
 
     #[inline]
-    fn train_step(&mut self, agent: &mut A, buffer: &mut R) -> Record {
+    fn train_step(&mut self, agent: &mut Box<dyn Agent<E, R>>, buffer: &mut R) -> Record {
         let timer = SystemTime::now();
         let record = agent.opt_with_record(buffer);
         self.opt_steps_for_ops += 1;
@@ -265,7 +276,7 @@ where
             *tmp = true;
             E::build(&self.env_config, 0).unwrap()
         };
-        let mut agent = A::build(self.agent_config.clone());
+        let mut agent: Box<dyn Agent<E, R>> = Box::new(A::build(self.agent_config.clone()));
         let mut buffer = R::build(&self.replay_buffer_config);
         agent.train();
 
@@ -276,7 +287,7 @@ where
         let mut samples_total = 0;
 
         info!("Send model info first in AsyncTrainer");
-        self.sync(&mut agent);
+        self.sync(Self::downcast_ref(&agent));
 
         info!("Starts training loop");
         loop {
@@ -300,21 +311,24 @@ where
                 info!("Starts evaluation of the trained model");
                 agent.eval();
                 let eval_reward = evaluator.evaluate(&mut agent).unwrap();
+                let eval_reward_value = eval_reward.get_scalar_without_key();
                 agent.train();
-                record.insert("eval_reward", Scalar(eval_reward));
+                record.merge_inplace(eval_reward);
 
                 // Save the best model up to the current iteration
-                if eval_reward > max_eval_reward {
-                    max_eval_reward = eval_reward;
-                    let model_dir = self.model_dir.as_ref().unwrap().clone();
-                    Self::save_best_model(&agent, model_dir)
+                if let Some(eval_reward) = eval_reward_value {
+                    if eval_reward > max_eval_reward {
+                        max_eval_reward = eval_reward;
+                        let model_dir = self.model_dir.as_ref().unwrap().clone();
+                        Self::save_best_model(Self::downcast_ref(&agent), model_dir)
+                    }
                 }
             }
 
             // Save the current model
             if (self.save_interval > 0) && (opt_steps % self.save_interval == 0) {
                 let model_dir = self.model_dir.as_ref().unwrap().clone();
-                Self::save_model_with_steps(&agent, model_dir, opt_steps);
+                Self::save_model_with_steps(Self::downcast_ref(&agent), model_dir, opt_steps);
             }
 
             // Finish the training loop
@@ -322,14 +336,14 @@ where
                 // Flush channels
                 *self.stop.lock().unwrap() = true;
                 let _: Vec<_> = self.r_bulk_pushed_item.try_iter().collect();
-                self.sync(&agent);
+                self.sync(Self::downcast_mut(&mut agent));
                 break;
             }
 
             // Sync the current model
             if opt_steps % self.sync_interval == 0 {
                 info!("Sends the trained model info to ActorManager");
-                self.sync(&agent);
+                self.sync(Self::downcast_mut(&mut agent));
             }
 
             // Store record to the recorder

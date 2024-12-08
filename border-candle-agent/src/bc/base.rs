@@ -131,20 +131,20 @@ where
     /// Save model parameters in the given directory.
     ///
     /// The parameters of the policy_model are saved as `policy_model.pt`.
-    fn save_params<T: AsRef<Path>>(&self, path: T) -> Result<()> {
+    fn save_params(&self, path: &Path) -> Result<()> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
         self.policy_model
-            .save(&path.as_ref().join("policy_model.pt").as_path())?;
+            .save(&path.join("policy_model.pt").as_path())?;
         Ok(())
     }
 
     /// Load model parameters in the given directory.
     ///
     /// The parameters of the policy_model are loaded from `policy_model.pt`.
-    fn load_params<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
+    fn load_params(&mut self, path: &Path) -> Result<()> {
         self.policy_model
-            .load(&path.as_ref().join("policy_model.pt").as_path())?;
+            .load(&path.join("policy_model.pt").as_path())?;
         Ok(())
     }
 }

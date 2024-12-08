@@ -1,20 +1,16 @@
-//! Evaluate [`Policy`].
-use crate::{Env, Policy};
+//! Evaluate [`Agent`].
+use crate::{record::Record, Agent, Env, ReplayBufferBase};
 use anyhow::Result;
 mod default_evaluator;
 pub use default_evaluator::DefaultEvaluator;
 
-/// Evaluate [`Policy`].
+/// Evaluate [`Agent`].
 pub trait Evaluator<E: Env> {
-    /// Evaluate [`Policy`].
+    /// Evaluate [`Agent`].
     ///
-    /// The caller of this method needs to handle the internal state of `policy`,
+    /// The caller of this method needs to handle the internal state of `agent`,
     /// like training/evaluation mode.
-    ///
-    /// To evaluate the policy during training with [`Trainer::train`],
-    /// this method is called at regular intervals based on the number of
-    /// optimization steps.
-    ///
-    /// [`Trainer::train`]: crate::Trainer::train
-    fn evaluate<P: Policy<E>>(&mut self, policy: &mut P) -> Result<f32>;
+    fn evaluate<R>(&mut self, agent: &mut Box<dyn Agent<E, R>>) -> Result<Record>
+    where
+        R: ReplayBufferBase;
 }
