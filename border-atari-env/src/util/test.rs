@@ -183,14 +183,22 @@ impl<R: ReplayBufferBase> Agent_<Env, R> for RandomAgent {
         Record::empty()
     }
 
-    fn save_params<T: AsRef<std::path::Path>>(&self, _path: T) -> Result<()> {
+    fn save_params(&self, _path: &std::path::Path) -> Result<()> {
         println!("save() was invoked");
         Ok(())
     }
 
-    fn load_params<T: AsRef<std::path::Path>>(&mut self, _path: T) -> Result<()> {
+    fn load_params(&mut self, _path: &std::path::Path) -> Result<()> {
         println!("load() was invoked");
         Ok(())
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn as_any_ref(&self) -> &dyn std::any::Any {
+        self
     }
 }
 

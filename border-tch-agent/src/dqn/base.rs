@@ -287,9 +287,9 @@ where
 
 impl<E, Q, R> Agent<E, R> for Dqn<E, Q, R>
 where
-    E: Env,
-    Q: SubModel<Output = Tensor>,
-    R: ReplayBufferBase,
+    E: Env + 'static,
+    Q: SubModel<Output = Tensor> + 'static,
+    R: ReplayBufferBase + 'static,
     E::Obs: Into<Q::Input>,
     E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
@@ -345,22 +345,26 @@ where
     ///
     /// The parameters of the model are saved as `qnet.pt`.
     /// The parameters of the target model are saved as `qnet_tgt.pt`.
-    fn save_params<T: AsRef<Path>>(&self, path: T) -> Result<()> {
+    fn save_params(&self, path: &Path) -> Result<()> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
-        self.qnet
-            .save(&path.as_ref().join("qnet.pt.tch").as_path())?;
-        self.qnet_tgt
-            .save(&path.as_ref().join("qnet_tgt.pt.tch").as_path())?;
+        self.qnet.save(path.join("qnet.pt.tch").as_path())?;
+        self.qnet_tgt.save(path.join("qnet_tgt.pt.tch").as_path())?;
         Ok(())
     }
 
-    fn load_params<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
-        self.qnet
-            .load(&path.as_ref().join("qnet.pt.tch").as_path())?;
-        self.qnet_tgt
-            .load(&path.as_ref().join("qnet_tgt.pt.tch").as_path())?;
+    fn load_params(&mut self, path: &Path) -> Result<()> {
+        self.qnet.load(path.join("qnet.pt.tch").as_path())?;
+        self.qnet_tgt.load(path.join("qnet_tgt.pt.tch").as_path())?;
         Ok(())
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn as_any_ref(&self) -> &dyn std::any::Any {
+        self
     }
 }
 

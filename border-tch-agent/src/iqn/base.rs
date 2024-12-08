@@ -267,10 +267,10 @@ where
 
 impl<E, F, M, R> Agent<E, R> for Iqn<E, F, M, R>
 where
-    E: Env,
-    F: SubModel<Output = Tensor>,
-    M: SubModel<Input = Tensor, Output = Tensor>,
-    R: ReplayBufferBase,
+    E: Env + 'static,
+    F: SubModel<Output = Tensor> + 'static,
+    M: SubModel<Input = Tensor, Output = Tensor> + 'static,
+    R: ReplayBufferBase + 'static,
     E::Obs: Into<F::Input>,
     E::Act: From<Tensor>,
     F::Config: DeserializeOwned + Serialize + Clone,
@@ -295,19 +295,25 @@ where
         self.opt_(buffer)
     }
 
-    fn save_params<T: AsRef<Path>>(&self, path: T) -> Result<()> {
+    fn save_params(&self, path: &Path) -> Result<()> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
-        self.iqn.save(&path.as_ref().join("iqn.pt.tch").as_path())?;
-        self.iqn_tgt
-            .save(&path.as_ref().join("iqn_tgt.pt.tch").as_path())?;
+        self.iqn.save(path.join("iqn.pt.tch").as_path())?;
+        self.iqn_tgt.save(path.join("iqn_tgt.pt.tch").as_path())?;
         Ok(())
     }
 
-    fn load_params<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
-        self.iqn.load(&path.as_ref().join("iqn.pt.tch").as_path())?;
-        self.iqn_tgt
-            .load(&path.as_ref().join("iqn_tgt.pt.tch").as_path())?;
+    fn load_params(&mut self, path: &Path) -> Result<()> {
+        self.iqn.load(path.join("iqn.pt.tch").as_path())?;
+        self.iqn_tgt.load(path.join("iqn_tgt.pt.tch").as_path())?;
         Ok(())
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn as_any_ref(&self) -> &dyn std::any::Any {
+        self
     }
 }

@@ -1,5 +1,5 @@
 pub mod ndarray {
-    use ndarray::{ArrayD, Axis};
+    use ndarray::ArrayD;
     use num_traits::cast::AsPrimitive;
     use numpy::{Element, PyArrayDyn};
     use pyo3::{IntoPy, PyObject};

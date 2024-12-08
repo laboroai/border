@@ -1,3 +1,4 @@
+//! aaa
 mod util_dqn_atari;
 use anyhow::Result;
 use border_async_trainer::{
@@ -64,7 +65,7 @@ mod obs_act_types {
     pub type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
     pub type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
     pub type Agent = Dqn<Env, Cnn, ReplayBuffer>;
-    pub type Evaluator = DefaultEvaluator<Env, Agent>;
+    pub type Evaluator = DefaultEvaluator<Env>;
 }
 
 use config::DqnAtariAsyncConfig;
@@ -85,14 +86,21 @@ mod config {
 
     pub fn show_config(
         env_config: &EnvConfig,
+        replay_buffer_config: &SimpleReplayBufferConfig,
         agent_config: &DqnConfig<Cnn>,
         actor_man_config: &ActorManagerConfig,
         trainer_config: &AsyncTrainerConfig,
     ) {
         println!("Device: {:?}", tch::Device::cuda_if_available());
+        println!("### env_config");
         println!("{}", serde_yaml::to_string(&env_config).unwrap());
+        println!("### replay_buffer_config");
+        println!("{}", serde_yaml::to_string(&replay_buffer_config).unwrap());
+        println!("### agent_config");
         println!("{}", serde_yaml::to_string(&agent_config).unwrap());
+        println!("### actor_man_config");
         println!("{}", serde_yaml::to_string(&actor_man_config).unwrap());
+        println!("### trainer_config");
         println!("{}", serde_yaml::to_string(&trainer_config).unwrap());
     }
 
@@ -295,6 +303,7 @@ fn train(args: &Args) -> Result<()> {
     if args.show_config {
         config::show_config(
             &env_config_train,
+            &replay_buffer_config,
             &agent_config,
             &actor_man_config,
             &async_trainer_config,

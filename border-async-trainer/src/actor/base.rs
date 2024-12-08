@@ -6,6 +6,7 @@ use crossbeam_channel::Sender;
 use log::info;
 use std::{
     marker::PhantomData,
+    ops::DerefMut,
     sync::{Arc, Mutex},
 };
 
@@ -37,7 +38,7 @@ use std::{
 /// [`Step`]: border_core::Step
 pub struct Actor<A, E, P, R>
 where
-    A: Agent<E, R> + Configurable + SyncModel,
+    A: Agent<E, R> + Configurable + SyncModel + 'static,
     E: Env,
     P: StepProcessor<E>,
     R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
@@ -56,7 +57,7 @@ where
 
 impl<A, E, P, R> Actor<A, E, P, R>
 where
-    A: Agent<E, R> + Configurable + SyncModel,
+    A: Agent<E, R> + Configurable + SyncModel + 'static,
     E: Env,
     P: StepProcessor<E>,
     R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
@@ -108,6 +109,11 @@ where
         }
     }
 
+    #[inline]
+    fn downcast_mut(agent: &mut Box<dyn Agent<E, R>>) -> &mut A {
+        agent.deref_mut().as_any_mut().downcast_mut::<A>().unwrap()
+    }
+
     /// Runs sampling loop until `self.stop` becomes `true`.
     ///
     /// When finishes, this method sets [ActorStat].
@@ -118,7 +124,7 @@ where
         guard: Arc<Mutex<bool>>,
         guard_init_model: Arc<Mutex<bool>>,
     ) {
-        let mut agent = A::build(self.agent_config.clone());
+        let mut agent: Box<dyn Agent<E, R>> = Box::new(A::build(self.agent_config.clone()));
         let mut buffer =
             ReplayBufferProxy::<R>::build_with_sender(self.id, &self.replay_buffer_config, sender);
         let mut sampler = {
@@ -137,7 +143,7 @@ where
         // Waits and syncs the initial model
         {
             let mut guard_init_model = guard_init_model.lock().unwrap();
-            Self::sync_model_first(&mut agent, &model_info, self.id);
+            Self::sync_model_first(Self::downcast_mut(&mut agent), &model_info, self.id);
             *guard_init_model = true;
         }
 
@@ -148,7 +154,12 @@ where
         info!("Starts sampling loop in actor {}", self.id);
         loop {
             // Check model update and synchronize
-            Self::sync_model(&mut agent, &mut n_opt_steps, &model_info, self.id);
+            Self::sync_model(
+                Self::downcast_mut(&mut agent),
+                &mut n_opt_steps,
+                &model_info,
+                self.id,
+            );
 
             // TODO: error handling
             let _record = sampler.sample_and_push(&mut agent, &mut buffer).unwrap();

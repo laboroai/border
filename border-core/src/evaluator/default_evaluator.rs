@@ -1,23 +1,20 @@
 use super::Evaluator;
-use crate::{Env, Policy};
+use crate::{record::Record, Agent, Env, ReplayBufferBase};
 use anyhow::Result;
-use std::marker::PhantomData;
 
 /// A default [`Evaluator`].
 ///
 /// This struct runs episodes of the given number of times.
-pub struct DefaultEvaluator<E: Env, P: Policy<E>> {
+pub struct DefaultEvaluator<E: Env> {
     n_episodes: usize,
     env: E,
-    phantom: PhantomData<P>,
 }
 
-impl<E, P> Evaluator<E, P> for DefaultEvaluator<E, P>
-where
-    E: Env,
-    P: Policy<E>,
-{
-    fn evaluate(&mut self, policy: &mut P) -> Result<f32> {
+impl<E: Env> Evaluator<E> for DefaultEvaluator<E> {
+    fn evaluate<R>(&mut self, policy: &mut Box<dyn Agent<E, R>>) -> Result<Record>
+    where
+        R: ReplayBufferBase,
+    {
         let mut r_total = 0f32;
 
         for ix in 0..self.n_episodes {
@@ -34,14 +31,14 @@ where
             }
         }
 
-        Ok(r_total / self.n_episodes as f32)
+        let name = format!("Average return over {} episodes", self.n_episodes);
+        Ok(Record::from_scalar(name, r_total / self.n_episodes as f32))
     }
 }
 
-impl<E, P> DefaultEvaluator<E, P>
+impl<E: Env> DefaultEvaluator<E>
 where
     E: Env,
-    P: Policy<E>,
 {
     /// Constructs [`DefaultEvaluator`].
     ///
@@ -53,7 +50,6 @@ where
         Ok(Self {
             n_episodes,
             env: E::build(config, seed)?,
-            phantom: PhantomData,
         })
     }
 }

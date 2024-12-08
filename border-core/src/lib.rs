@@ -103,8 +103,8 @@ pub mod record;
 
 mod base;
 pub use base::{
-    Act, Agent, Configurable, Env, ExperienceBufferBase, Info, Obs, Policy, ReplayBufferBase, Step,
-    StepProcessor, TransitionBatch,
+    Act, Agent, Configurable, Env, ExperienceBufferBase, Info, NullReplayBuffer, Obs, Policy,
+    ReplayBufferBase, Step, StepProcessor, TransitionBatch,
 };
 
 mod trainer;
@@ -291,12 +291,20 @@ pub mod test {
             crate::record::Record::empty()
         }
 
-        fn save_params<T: AsRef<std::path::Path>>(&self, _path: T) -> anyhow::Result<()> {
+        fn save_params(&self, _path: &std::path::Path) -> anyhow::Result<()> {
             Ok(())
         }
 
-        fn load_params<T: AsRef<std::path::Path>>(&mut self, _path: T) -> anyhow::Result<()> {
+        fn load_params(&mut self, _path: &std::path::Path) -> anyhow::Result<()> {
             Ok(())
+        }
+
+        fn as_any_ref(&self) -> &dyn std::any::Any {
+            self
+        }
+
+        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+            self
         }
     }
 
