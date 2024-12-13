@@ -2,6 +2,7 @@
 pub mod cnn;
 pub mod dqn;
 // pub mod iqn;
+pub mod awac;
 pub mod bc;
 pub mod mlp;
 pub mod model;

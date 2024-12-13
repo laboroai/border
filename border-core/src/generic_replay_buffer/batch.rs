@@ -83,6 +83,10 @@ where
     fn obs(&self) -> &Self::ObsBatch {
         &self.obs
     }
+
+    fn act(&self) -> &Self::ActBatch {
+        &self.act
+    }
 }
 
 impl<O, A> GenericTransitionBatch<O, A>

@@ -1,11 +1,10 @@
 use anyhow::Result;
 use border_candle_agent::{
-    Activation,
     mlp::{Mlp, Mlp2, MlpConfig},
     opt::OptimizerConfig,
     sac::{ActorConfig, CriticConfig, Sac, SacConfig},
     util::{arrayd_to_tensor, tensor_to_arrayd},
-    TensorBatch,
+    Activation, TensorBatch,
 };
 use border_core::{
     generic_replay_buffer::{
@@ -162,10 +161,20 @@ mod config {
         let actor_config = ActorConfig::default()
             .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
             .out_dim(out_dim)
-            .pi_config(MlpConfig::new(in_dim, vec![64, 64], out_dim, Activation::None));
+            .pi_config(MlpConfig::new(
+                in_dim,
+                vec![64, 64],
+                out_dim,
+                Activation::None,
+            ));
         let critic_config = CriticConfig::default()
             .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
-            .q_config(MlpConfig::new(in_dim + out_dim, vec![64, 64], 1, Activation::None))));
+            .q_config(MlpConfig::new(
+                in_dim + out_dim,
+                vec![64, 64],
+                1,
+                Activation::None,
+            ));
 
         SacConfig::default()
             .batch_size(BATCH_SIZE)
@@ -258,7 +267,7 @@ fn train(args: &Args, max_opts: usize) -> Result<()> {
     let mut buffer = ReplayBuffer::build(&replay_buffer_config);
     let mut evaluator = {
         let env = Env::build(config, 0)?;
-        Evaluator::new(env, N_EPISODES_PER_EVAL)?
+        Evaluator::new(env, 42, N_EPISODES_PER_EVAL)?
     };
 
     trainer.train(
@@ -293,7 +302,7 @@ fn eval(render: bool) -> Result<()> {
 
     let _ = {
         let env = Env::build(&env_config, 0)?;
-        Evaluator::new(env, 5)?
+        Evaluator::new(env, 42, 5)?
     }
     .evaluate(&mut agent);
 
