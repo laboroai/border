@@ -1,14 +1,12 @@
 use anyhow::Result;
 use border_candle_agent::{
-    bc::{Bc, BcActionType, BcConfig, BcModelConfig},
+    awac::{Awac, AwacConfig, BcModelConfig},
     mlp::{Mlp, MlpConfig},
     Activation,
 };
 use border_core::{
-    generic_replay_buffer::{BatchBase, SimpleReplayBuffer},
-    record::AggregateRecorder,
-    Agent, Configurable, Env, Evaluator, ExperienceBufferBase, ReplayBufferBase, Trainer,
-    TrainerConfig, TransitionBatch,
+    record::AggregateRecorder, Configurable, Evaluator, ExperienceBufferBase, Trainer,
+    TrainerConfig,
 };
 use border_minari::{
     d4rl::pointmaze::{
@@ -21,8 +19,6 @@ use border_mlflow_tracking::MlflowTrackingClient;
 use border_tensorboard::TensorboardRecorder;
 use candle_core::{Device, Tensor};
 use clap::Parser;
-use serde::Serialize;
-use std::fmt::Debug;
 
 /// Train BC agent in maze2d environment
 #[derive(Parser, Debug)]
@@ -72,27 +68,15 @@ struct Args {
 
 const MODEL_DIR: &str = "border/examples/d4rl/model/candle/bc_maze2d";
 
-fn create_trainer(args: &Args) -> Trainer {
-    log::info!("Create trainer");
-    Trainer::build(
-        TrainerConfig::default()
-            .max_opts(args.max_opts)
-            .eval_interval(args.eval_interval)
-            .flush_record_interval(args.max_opts / 50)
-            .record_agent_info_interval(args.max_opts / 50)
-            .model_dir(MODEL_DIR),
-    )
-}
-
-fn create_agent<E, R>(args: &Args) -> (Box<dyn Agent<E, R>>, impl Serialize)
+fn train<T, U, D>(args: Args, dataset: MinariDataset, converter: T, evaluator: U) -> Result<()>
 where
-    E: Env + 'static,
-    E::Obs: Into<Tensor>,
-    E::Act: From<Tensor> + Into<Tensor>,
-    R: ReplayBufferBase + 'static,
-    R::Batch: TransitionBatch,
-    <R::Batch as TransitionBatch>::ObsBatch: Into<Tensor>,
-    <R::Batch as TransitionBatch>::ActBatch: Into<Tensor>,
+    T: MinariConverter,
+    T::Obs: std::fmt::Debug + Into<Tensor>,
+    T::Act: std::fmt::Debug + From<Tensor>,
+    T::ObsBatch: std::fmt::Debug + Into<Tensor>,
+    T::ActBatch: std::fmt::Debug + Into<Tensor>,
+    U: Fn(MinariEnv<T>, Args) -> Result<D>,
+    D: Evaluator<MinariEnv<T>>,
 {
     // Dimensions of observation and action
     let dim_obs = match args.include_goal {
@@ -101,6 +85,18 @@ where
     };
     let dim_act = 2;
 
+    // Create trainer
+    log::info!("Create trainer");
+    let mut trainer = Trainer::build(
+        TrainerConfig::default()
+            .max_opts(args.max_opts)
+            .eval_interval(args.eval_interval)
+            .flush_record_interval(args.max_opts / 50)
+            .record_agent_info_interval(args.max_opts / 50)
+            .model_dir(MODEL_DIR),
+    );
+
+    // Create behavior cloning agent
     log::info!("Create agent");
     let agent_config = {
         let policy_model_config = {
@@ -125,73 +121,39 @@ where
                 weight_decay: candle_nn::ParamsAdamW::default().weight_decay,
             })
     };
+    let mut agent = Bc::build(agent_config.clone());
 
-    (Box::new(Bc::build(agent_config.clone())), agent_config)
-}
-
-fn create_replay_buffer<T>(
-    converter: &T,
-    dataset: &MinariDataset,
-) -> Result<SimpleReplayBuffer<T::ObsBatch, T::ActBatch>>
-where
-    T: MinariConverter,
-    T::ObsBatch: BatchBase + Debug + Into<Tensor>,
-    T::ActBatch: BatchBase + Debug + Into<Tensor>,
-{
+    // Create replay buffer
     log::info!("Create replay buffer");
-    let buffer = dataset.create_replay_buffer(converter, None)?;
+    let mut buffer = dataset.create_replay_buffer(&converter, None)?;
     log::info!("{} samples", buffer.len());
-    Ok(buffer)
-}
 
-fn create_recorder(
-    args: &Args,
-    agent_config: &impl Serialize,
-) -> Result<Box<dyn AggregateRecorder>> {
+    // Create recorder
     log::info!("Create recorder");
-    match args.mlflow {
-        true => {
-            let client =
-                MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("D4RL")?;
-            let recorder_run = client.create_recorder("")?;
-            recorder_run.log_params(&agent_config)?;
-            recorder_run.set_tag("env", "maze2d")?;
-            recorder_run.set_tag("algo", "bc")?;
-            recorder_run.set_tag("backend", "candle")?;
-            Ok(Box::new(recorder_run))
+    let mut recorder: Box<dyn AggregateRecorder> = {
+        match args.mlflow {
+            true => {
+                let client =
+                    MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("D4RL")?;
+                let recorder_run = client.create_recorder("")?;
+                recorder_run.log_params(&agent_config)?;
+                recorder_run.set_tag("env", "maze2d")?;
+                recorder_run.set_tag("algo", "bc")?;
+                recorder_run.set_tag("backend", "candle")?;
+                Box::new(recorder_run)
+            }
+            false => Box::new(TensorboardRecorder::new(MODEL_DIR)),
         }
-        false => Ok(Box::new(TensorboardRecorder::new(MODEL_DIR))),
-    }
-}
+    };
 
-fn create_evaluator<T>(
-    args: &Args,
-    converter: T,
-    dataset: &MinariDataset,
-) -> Result<impl Evaluator<MinariEnv<T>>>
-where
-    T: MinariConverter,
-{
     // Create evaluator
     log::info!("Create evaluator");
-    let env = dataset.recover_environment(converter, true, None)?;
-    PointMazeEvaluator::new(env, args.eval_episodes)
-}
+    let mut evaluator = {
+        let env = dataset.recover_environment(converter, true, None)?;
+        evaluator(env, args)?
+    };
 
-fn train<T>(args: Args, dataset: MinariDataset, converter: T) -> Result<()>
-where
-    T: MinariConverter + 'static,
-    T::Obs: std::fmt::Debug + Into<Tensor>,
-    T::Act: std::fmt::Debug + From<Tensor> + Into<Tensor>,
-    T::ObsBatch: std::fmt::Debug + Into<Tensor> + 'static,
-    T::ActBatch: std::fmt::Debug + Into<Tensor> + 'static,
-{
-    let mut trainer = create_trainer(&args);
-    let (mut agent, agent_config) = create_agent(&args);
-    let mut buffer = create_replay_buffer(&converter, &dataset)?;
-    let mut recorder = create_recorder(&args, &agent_config)?;
-    let mut evaluator = create_evaluator(&args, converter, &dataset)?;
-
+    // Start training
     log::info!("Start training");
     let _ = trainer.train_offline(&mut agent, &mut buffer, &mut recorder, &mut evaluator);
 
@@ -207,6 +169,9 @@ fn main() -> Result<()> {
         // Include goal position in observation
         include_goal: args.include_goal,
     });
+    let evaluator = |env: MinariEnv<PointMazeConverter>, args: Args| {
+        PointMazeEvaluator::new(env, args.eval_episodes)
+    };
 
-    train(args, dataset, converter)
+    train(args, dataset, converter, evaluator)
 }

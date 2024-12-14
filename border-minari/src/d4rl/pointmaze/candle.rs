@@ -136,6 +136,12 @@ mod act {
             Self { action }
         }
     }
+
+    impl Into<Tensor> for PointMazeAct {
+        fn into(self) -> Tensor {
+            self.action
+        }
+    }
 }
 
 mod act_batch {
