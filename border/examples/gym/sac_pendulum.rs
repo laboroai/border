@@ -11,7 +11,7 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    record::{AggregateRecorder, Record, RecordValue},
+    record::{Record, RecordValue, Recorder},
     Agent, Configurable, DefaultEvaluator, Env as _, Evaluator as _, ReplayBufferBase,
     StepProcessor, Trainer, TrainerConfig,
 };
@@ -208,7 +208,7 @@ fn create_recorder(
     model_dir: &str,
     mlflow: bool,
     config: &TrainerConfig,
-) -> Result<Box<dyn AggregateRecorder>> {
+) -> Result<Box<dyn Recorder>> {
     match mlflow {
         true => {
             let client = MlflowTrackingClient::new("http://localhost:8080")

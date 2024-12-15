@@ -26,4 +26,12 @@ impl Recorder for BufferedRecorder {
     fn write(&mut self, record: Record) {
         self.0.push(record);
     }
+
+    fn flush(&mut self, _step: i64) {
+        unimplemented!();
+    }
+
+    fn store(&mut self, _record: Record) {
+        unimplemented!();
+    }
 }

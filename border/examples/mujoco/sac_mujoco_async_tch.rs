@@ -8,7 +8,7 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    record::AggregateRecorder,
+    record::Recorder,
     DefaultEvaluator,
 };
 use border_derive::BatchBase;
@@ -205,7 +205,7 @@ mod utils {
     pub fn create_recorder(
         args: &Args,
         config: &config::SacMujocoAsyncConfig,
-    ) -> Result<Box<dyn AggregateRecorder>> {
+    ) -> Result<Box<dyn Recorder>> {
         let env_name = &args.env;
         let (_, _, _, _, model_dir) = env_params(&args);
         match args.mlflow {

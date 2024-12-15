@@ -5,7 +5,7 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    record::AggregateRecorder,
+    record::Recorder,
     Agent, Configurable, DefaultEvaluator, Env as _, Evaluator as _, ReplayBufferBase,
     StepProcessor, Trainer, TrainerConfig,
 };
@@ -188,7 +188,7 @@ mod utils {
     pub fn create_recorder(
         args: &Args,
         config: &config::SacAntConfig,
-    ) -> Result<Box<dyn AggregateRecorder>> {
+    ) -> Result<Box<dyn Recorder>> {
         let env_name = &args.env;
         let (_, _, _, _, model_dir) = env_params(&args);
         match args.mlflow {

@@ -11,7 +11,7 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    record::{AggregateRecorder, Record},
+    record::{Record, Recorder},
     Agent, Configurable, DefaultEvaluator, Env as _, Evaluator as _, ReplayBufferBase,
     StepProcessor, Trainer, TrainerConfig,
 };
@@ -203,7 +203,7 @@ mod utils {
     pub fn create_recorder(
         args: &Args,
         config: &config::SacLunarLanderConfig,
-    ) -> Result<Box<dyn AggregateRecorder>> {
+    ) -> Result<Box<dyn Recorder>> {
         match args.mlflow {
             true => {
                 let client =

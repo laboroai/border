@@ -1,6 +1,6 @@
 use crate::{system_time_as_millis, Run};
 use anyhow::Result;
-use border_core::record::{AggregateRecorder, RecordStorage, RecordValue, Recorder};
+use border_core::record::{RecordStorage, RecordValue, Recorder};
 use chrono::{DateTime, Duration, Local, SecondsFormat};
 use reqwest::blocking::Client;
 use serde::Serialize;
@@ -176,6 +176,16 @@ impl Recorder for MlflowTrackingRecorder {
             }
         }
     }
+
+    fn flush(&mut self, step: i64) {
+        let mut record = self.storage.aggregate();
+        record.insert("opt_steps", RecordValue::Scalar(step as _));
+        self.write(record);
+    }
+
+    fn store(&mut self, record: border_core::record::Record) {
+        self.storage.store(record);
+    }
 }
 
 impl Drop for MlflowTrackingRecorder {
@@ -208,18 +218,6 @@ impl Drop for MlflowTrackingRecorder {
             .send()
             .unwrap();
         // TODO: error handling caused by API call
-    }
-}
-
-impl AggregateRecorder for MlflowTrackingRecorder {
-    fn flush(&mut self, step: i64) {
-        let mut record = self.storage.aggregate();
-        record.insert("opt_steps", RecordValue::Scalar(step as _));
-        self.write(record);
-    }
-
-    fn store(&mut self, record: border_core::record::Record) {
-        self.storage.store(record);
     }
 }
 

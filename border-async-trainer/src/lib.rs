@@ -17,7 +17,7 @@
 //! #         SimpleReplayBuffer, SimpleReplayBufferConfig,
 //! #         SimpleStepProcessorConfig, SimpleStepProcessor
 //! #     },
-//! #     record::{AggregateRecorder, NullRecorder}, DefaultEvaluator,
+//! #     record::{Recorder, NullRecorder}, DefaultEvaluator,
 //! # };
 //! #
 //! # use std::path::Path;
@@ -118,7 +118,7 @@
 //! let step_proc_config = SimpleStepProcessorConfig::default();
 //! let actor_man_config = ActorManagerConfig::default();
 //! let async_trainer_config = AsyncTrainerConfig::default();
-//! let mut recorder: Box<dyn AggregateRecorder> = Box::new(NullRecorder {});
+//! let mut recorder: Box<dyn Recorder> = Box::new(NullRecorder {});
 //! let mut evaluator = DefaultEvaluator::<TestEnv>::new(&env_config_eval, 0, 1).unwrap();
 //!
 //! border_async_trainer::util::train_async::<TestAgent2, _, _, StepProcessor>(

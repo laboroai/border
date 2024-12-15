@@ -1,4 +1,4 @@
-use border_core::record::{AggregateRecorder, Record, RecordValue, Recorder};
+use border_core::record::{Record, RecordValue, Recorder};
 use std::path::Path;
 use tensorboard_rs::summary_writer::SummaryWriter;
 
@@ -77,9 +77,7 @@ impl Recorder for TensorboardRecorder {
             }
         }
     }
-}
 
-impl AggregateRecorder for TensorboardRecorder {
     fn store(&mut self, record: Record) {
         self.latest_record = Some(record);
     }

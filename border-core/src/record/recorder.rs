@@ -4,10 +4,7 @@ use super::Record;
 pub trait Recorder {
     /// Write a record to the [`Recorder`].
     fn write(&mut self, record: Record);
-}
 
-/// Stores records, then aggregates them and writes to an output destination.
-pub trait AggregateRecorder {
     /// Store the record.
     fn store(&mut self, record: Record);
 

@@ -1,6 +1,6 @@
 use crate::{AsyncTrainStat, AsyncTrainerConfig, PushedItemMessage, SyncModel};
 use border_core::{
-    record::{AggregateRecorder, Record, RecordValue::Scalar},
+    record::{Record, RecordValue::Scalar, Recorder},
     Agent, Configurable, Env, Evaluator, ExperienceBufferBase, ReplayBufferBase,
 };
 use crossbeam_channel::{Receiver, Sender};
@@ -263,7 +263,7 @@ where
     /// [`ExperienceBufferBase::Item`]: border_core::ExperienceBufferBase::Item
     pub fn train<D>(
         &mut self,
-        recorder: &mut Box<dyn AggregateRecorder>,
+        recorder: &mut Box<dyn Recorder>,
         evaluator: &mut D,
         guard_init_env: Arc<Mutex<bool>>,
     ) -> AsyncTrainStat

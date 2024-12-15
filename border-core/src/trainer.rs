@@ -4,7 +4,7 @@ mod sampler;
 use std::time::{Duration, SystemTime};
 
 use crate::{
-    record::{AggregateRecorder, Record, RecordValue::Scalar},
+    record::{Record, RecordValue::Scalar, Recorder},
     Agent, Env, Evaluator, ExperienceBufferBase, ReplayBufferBase, StepProcessor,
 };
 use anyhow::Result;
@@ -280,7 +280,7 @@ impl Trainer {
         &mut self,
         agent: &mut Box<dyn Agent<E, R>>,
         buffer: &mut R,
-        recorder: &mut Box<dyn AggregateRecorder>,
+        recorder: &mut Box<dyn Recorder>,
         evaluator: &mut D,
         record: Record,
         fps: f32,
@@ -326,7 +326,7 @@ impl Trainer {
         step_proc: P,
         agent: &mut Box<dyn Agent<E, R>>,
         buffer: &mut R,
-        recorder: &mut Box<dyn AggregateRecorder>,
+        recorder: &mut Box<dyn Recorder>,
         evaluator: &mut D,
     ) -> Result<()>
     where
@@ -355,7 +355,7 @@ impl Trainer {
         &mut self,
         agent: &mut Box<dyn Agent<E, R>>,
         buffer: &mut R,
-        recorder: &mut Box<dyn AggregateRecorder>,
+        recorder: &mut Box<dyn Recorder>,
         evaluator: &mut D,
     ) -> Result<()>
     where

@@ -14,7 +14,7 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    record::AggregateRecorder,
+    record::Recorder,
     DefaultEvaluator, Env as _,
 };
 use border_derive::{Act, BatchBase};
@@ -211,7 +211,7 @@ mod utils {
         args: &Args,
         model_dir: &str,
         config: &DqnAtariAsyncConfig,
-    ) -> Result<Box<dyn AggregateRecorder>> {
+    ) -> Result<Box<dyn Recorder>> {
         match args.mlflow {
             true => {
                 let name = &args.name;
