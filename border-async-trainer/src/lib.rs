@@ -20,7 +20,7 @@
 //! #     record::{Recorder, NullRecorder}, DefaultEvaluator,
 //! # };
 //! #
-//! # use std::path::Path;
+//! # use std::path::{Path, PathBuf};
 //! #
 //! # fn agent_config() -> TestAgentConfig {
 //! #     TestAgentConfig
@@ -66,7 +66,7 @@
 //! #         self.0.opt_with_record(buffer)
 //! #     }
 //! #
-//! #     fn save_params(&self, path: &Path) -> anyhow::Result<()> {
+//! #     fn save_params(&self, path: &Path) -> anyhow::Result<Vec<PathBuf>> {
 //! #         self.0.save_params(path)
 //! #     }
 //! #
@@ -178,7 +178,7 @@ pub use sync_model::SyncModel;
 #[cfg(test)]
 pub mod test {
     use serde::{Deserialize, Serialize};
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     /// Obs for testing.
     #[derive(Clone, Debug)]
@@ -358,8 +358,8 @@ pub mod test {
             border_core::record::Record::empty()
         }
 
-        fn save_params(&self, _path: &Path) -> anyhow::Result<()> {
-            Ok(())
+        fn save_params(&self, _path: &Path) -> anyhow::Result<Vec<PathBuf>> {
+            Ok(vec![])
         }
 
         fn load_params(&mut self, _path: &Path) -> anyhow::Result<()> {

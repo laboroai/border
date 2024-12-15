@@ -11,7 +11,12 @@ use border_core::{
 };
 use log::trace;
 use serde::{de::DeserializeOwned, Serialize};
-use std::{convert::TryFrom, fs, marker::PhantomData, path::Path};
+use std::{
+    convert::TryFrom,
+    fs,
+    marker::PhantomData,
+    path::{Path, PathBuf},
+};
 use tch::{no_grad, Device, Tensor};
 
 /// IQN agent implemented with tch-rs.
@@ -295,12 +300,14 @@ where
         self.opt_(buffer)
     }
 
-    fn save_params(&self, path: &Path) -> Result<()> {
+    fn save_params(&self, path: &Path) -> Result<Vec<PathBuf>> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
-        self.iqn.save(path.join("iqn.pt.tch").as_path())?;
-        self.iqn_tgt.save(path.join("iqn_tgt.pt.tch").as_path())?;
-        Ok(())
+        let path1 = path.join("iqn.pt.tch").to_path_buf();
+        let path2 = path.join("iqn_tgt.pt.tch").to_path_buf();
+        self.iqn.save(&path1)?;
+        self.iqn_tgt.save(&path2)?;
+        Ok(vec![path1, path2])
     }
 
     fn load_params(&mut self, path: &Path) -> Result<()> {

@@ -157,7 +157,7 @@ impl Trainer {
         R: ReplayBufferBase,
     {
         match agent.save_params(&model_dir.as_ref()) {
-            Ok(()) => info!("Saved the model in {:?}.", &model_dir),
+            Ok(_) => info!("Saved the model in {:?}.", &model_dir),
             Err(_) => info!("Failed to save model in {:?}.", &model_dir),
         }
     }
