@@ -1,8 +1,12 @@
+use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue, Recorder},
     Env, ReplayBufferBase,
 };
-use std::{marker::PhantomData, path::Path};
+use std::{
+    marker::PhantomData,
+    path::{Path, PathBuf},
+};
 use tensorboard_rs::summary_writer::SummaryWriter;
 
 /// Write records to TFRecord.
@@ -11,6 +15,7 @@ where
     E: Env,
     R: ReplayBufferBase,
 {
+    model_dir: PathBuf,
     writer: SummaryWriter,
     step_key: String,
     latest_record: Option<Record>,
@@ -25,25 +30,19 @@ where
 {
     /// Construct a [`TensorboardRecorder`].
     ///
-    /// TFRecord will be stored in `logdir`.
-    pub fn new<P: AsRef<Path>>(logdir: P) -> Self {
+    /// * `log_dir` - Directory in which TFRecords will be stored.
+    /// * `model_dir` - Directory in which the trained model will be saved.
+    /// * `check_unsupported_value` - If true, check unsupported record value in the write() method.
+    pub fn new(
+        log_dir: impl AsRef<Path>,
+        model_dir: impl AsRef<Path>,
+        check_unsupported_value: bool,
+    ) -> Self {
         Self {
-            writer: SummaryWriter::new(logdir),
+            model_dir: model_dir.as_ref().to_path_buf(),
+            writer: SummaryWriter::new(log_dir),
             step_key: "opt_steps".to_string(),
-            ignore_unsupported_value: true,
-            latest_record: None,
-            phantom: PhantomData,
-        }
-    }
-
-    /// Construct a [`TensorboardRecorder`] with checking unsupported record value.
-    ///
-    /// TFRecord will be stored in `logdir`.
-    pub fn new_with_check_unsupported_value<P: AsRef<Path>>(logdir: P) -> Self {
-        Self {
-            writer: SummaryWriter::new(logdir),
-            step_key: "opt_steps".to_string(),
-            ignore_unsupported_value: false,
+            ignore_unsupported_value: !check_unsupported_value,
             latest_record: None,
             phantom: PhantomData,
         }
@@ -57,7 +56,7 @@ where
 {
     /// Write a given [`Record`] into a TFRecord.
     ///
-    /// This method handles [RecordValue::Scalar] and [RecordValue::DateTime] in the [Record].
+    /// This method handles [RecordValue::Scalar] and [RecordValue::DateTime] in the [`Record`].
     /// Other variants will be ignored.
     fn write(&mut self, record: Record) {
         // TODO: handle error
@@ -106,5 +105,12 @@ where
             record.insert("opt_steps", RecordValue::Scalar(step as _));
             self.write(record);
         }
+    }
+
+    /// Save the model parameters in the local file system.
+    fn save_model(&self, base: &Path, agent: &Box<dyn border_core::Agent<E, R>>) -> Result<()> {
+        let path = self.model_dir.join(base);
+        let _ = agent.save_params(&path)?;
+        Ok(())
     }
 }

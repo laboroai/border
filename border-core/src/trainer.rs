@@ -151,35 +151,6 @@ impl Trainer {
         }
     }
 
-    fn save_model<E, R>(agent: &Box<dyn Agent<E, R>>, model_dir: String)
-    where
-        E: Env,
-        R: ReplayBufferBase,
-    {
-        match agent.save_params(&model_dir.as_ref()) {
-            Ok(_) => info!("Saved the model in {:?}.", &model_dir),
-            Err(_) => info!("Failed to save model in {:?}.", &model_dir),
-        }
-    }
-
-    fn save_best_model<E, R>(agent: &Box<dyn Agent<E, R>>, model_dir: String)
-    where
-        E: Env,
-        R: ReplayBufferBase,
-    {
-        let model_dir = model_dir + "/best";
-        Self::save_model(agent, model_dir);
-    }
-
-    fn save_model_with_steps<E, R>(agent: &Box<dyn Agent<E, R>>, model_dir: String, steps: usize)
-    where
-        E: Env,
-        R: ReplayBufferBase,
-    {
-        let model_dir = model_dir + format!("/{}", steps).as_str();
-        Self::save_model(agent, model_dir);
-    }
-
     /// Returns optimization steps per second, then reset the internal counter.
     fn opt_steps_per_sec(&mut self) -> f32 {
         let osps = 1000. * self.opt_steps_for_ops as f32 / (self.timer_for_ops.as_millis() as f32);
@@ -234,6 +205,7 @@ impl Trainer {
         &mut self,
         agent: &mut Box<dyn Agent<E, R>>,
         evaluator: &mut D,
+        recorder: &mut Box<dyn Recorder<E, R>>,
         record: &mut Record,
         fps: f32,
     ) -> Result<()>
@@ -261,16 +233,14 @@ impl Trainer {
             if let Some(eval_reward) = eval_reward_value {
                 if eval_reward > self.max_eval_reward {
                     self.max_eval_reward = eval_reward;
-                    let model_dir = self.model_dir.as_ref().unwrap().clone();
-                    Self::save_best_model(agent, model_dir)
+                    recorder.save_model("best".as_ref(), agent)?;
                 }
             }
         };
 
         // Save the current model
         if (self.save_interval > 0) && (self.opt_steps % self.save_interval == 0) {
-            let model_dir = self.model_dir.as_ref().unwrap().clone();
-            Self::save_model_with_steps(agent, model_dir, self.opt_steps);
+            recorder.save_model(format!("{}", self.opt_steps).as_ref(), agent)?;
         }
 
         Ok(())
@@ -298,7 +268,7 @@ impl Trainer {
 
         // Postprocessing after each training step
         if is_opt {
-            self.post_process(agent, evaluator, &mut record, fps)?;
+            self.post_process(agent, evaluator, recorder, &mut record, fps)?;
 
             // End loop
             if self.opt_steps == self.max_opts {

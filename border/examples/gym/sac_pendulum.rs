@@ -221,7 +221,9 @@ fn create_recorder(
             recorder_run.set_tag("backend", "candle")?;
             Ok(Box::new(recorder_run))
         }
-        false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
+        false => Ok(Box::new(TensorboardRecorder::new(
+            model_dir, model_dir, false,
+        ))),
     }
 }
 

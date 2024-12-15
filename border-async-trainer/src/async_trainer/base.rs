@@ -152,24 +152,6 @@ where
         }
     }
 
-    fn save_model(agent: &A, model_dir: String) {
-        match agent.save_params(&model_dir.as_ref()) {
-            Ok(_) => info!("Saved the model in {:?}.", &model_dir),
-            Err(_) => info!("Failed to save model in {:?}.", &model_dir),
-        }
-    }
-
-    fn save_best_model(agent: &A, model_dir: String) {
-        let model_dir = model_dir + "/best";
-        Self::save_model(agent, model_dir);
-    }
-
-    /// Save model.
-    fn save_model_with_steps(agent: &A, model_dir: String, steps: usize) {
-        let model_dir = model_dir + format!("/{}", steps).as_str();
-        Self::save_model(agent, model_dir);
-    }
-
     /// Returns optimization steps per second, then reset the internal counter.
     fn opt_steps_per_sec(&mut self) -> f32 {
         let osps = 1000. * self.opt_steps_for_ops as f32 / (self.timer_for_ops.as_millis() as f32);
@@ -187,32 +169,6 @@ where
     fn downcast_mut(agent: &mut Box<dyn Agent<E, R>>) -> &mut A {
         agent.deref_mut().as_any_mut().downcast_mut::<A>().unwrap()
     }
-
-    // /// Record.
-    // #[inline]
-    // fn record(
-    //     &mut self,
-    //     record: &mut Record,
-    //     opt_steps_: &mut usize,
-    //     samples: &mut usize,
-    //     time: &mut SystemTime,
-    //     samples_total: usize,
-    // ) {
-    //     let duration = time.elapsed().unwrap().as_secs_f32();
-    //     let ops = (*opt_steps_ as f32) / duration;
-    //     let sps = (*samples as f32) / duration;
-    //     let spo = (*samples as f32) / (*opt_steps_ as f32);
-    //     record.insert("samples_total", Scalar(samples_total as _));
-    //     record.insert("opt_steps_per_sec", Scalar(ops));
-    //     record.insert("samples_per_sec", Scalar(sps));
-    //     record.insert("samples_per_opt_steps", Scalar(spo));
-    //     // info!("Collected samples per optimization step = {}", spo);
-
-    //     // Reset counter
-    //     *opt_steps_ = 0;
-    //     *samples = 0;
-    //     *time = SystemTime::now();
-    // }
 
     #[inline]
     fn train_step(&mut self, agent: &mut Box<dyn Agent<E, R>>, buffer: &mut R) -> Record {
@@ -319,16 +275,18 @@ where
                 if let Some(eval_reward) = eval_reward_value {
                     if eval_reward > max_eval_reward {
                         max_eval_reward = eval_reward;
-                        let model_dir = self.model_dir.as_ref().unwrap().clone();
-                        Self::save_best_model(Self::downcast_ref(&agent), model_dir)
+                        recorder
+                            .save_model("best".as_ref(), &mut agent)
+                            .expect("Failed to save model");
                     }
                 }
             }
 
             // Save the current model
             if (self.save_interval > 0) && (opt_steps % self.save_interval == 0) {
-                let model_dir = self.model_dir.as_ref().unwrap().clone();
-                Self::save_model_with_steps(Self::downcast_ref(&agent), model_dir, opt_steps);
+                recorder
+                    .save_model(format!("{}", opt_steps).as_ref(), &mut agent)
+                    .expect("Failed to save model");
             }
 
             // Finish the training loop
