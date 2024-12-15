@@ -208,7 +208,7 @@ fn create_recorder(
     model_dir: &str,
     mlflow: bool,
     config: &TrainerConfig,
-) -> Result<Box<dyn Recorder>> {
+) -> Result<Box<dyn Recorder<Env, ReplayBuffer>>> {
     match mlflow {
         true => {
             let client = MlflowTrackingClient::new("http://localhost:8080")

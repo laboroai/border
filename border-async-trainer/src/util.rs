@@ -37,7 +37,7 @@ pub fn train_async<A, E, R, S>(
     replay_buffer_config: &R::Config,
     actor_man_config: &ActorManagerConfig,
     async_trainer_config: &AsyncTrainerConfig,
-    recorder: &mut Box<dyn Recorder>,
+    recorder: &mut Box<dyn Recorder<E, R>>,
     evaluator: &mut impl Evaluator<E>,
 ) where
     A: Agent<E, R> + Configurable + SyncModel + 'static,

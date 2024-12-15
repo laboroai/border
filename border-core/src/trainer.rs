@@ -280,7 +280,7 @@ impl Trainer {
         &mut self,
         agent: &mut Box<dyn Agent<E, R>>,
         buffer: &mut R,
-        recorder: &mut Box<dyn Recorder>,
+        recorder: &mut Box<dyn Recorder<E, R>>,
         evaluator: &mut D,
         record: Record,
         fps: f32,
@@ -326,7 +326,7 @@ impl Trainer {
         step_proc: P,
         agent: &mut Box<dyn Agent<E, R>>,
         buffer: &mut R,
-        recorder: &mut Box<dyn Recorder>,
+        recorder: &mut Box<dyn Recorder<E, R>>,
         evaluator: &mut D,
     ) -> Result<()>
     where
@@ -355,7 +355,7 @@ impl Trainer {
         &mut self,
         agent: &mut Box<dyn Agent<E, R>>,
         buffer: &mut R,
-        recorder: &mut Box<dyn Recorder>,
+        recorder: &mut Box<dyn Recorder<E, R>>,
         evaluator: &mut D,
     ) -> Result<()>
     where

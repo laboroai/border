@@ -1,16 +1,28 @@
-use border_core::record::{Record, RecordValue, Recorder};
-use std::path::Path;
+use border_core::{
+    record::{Record, RecordValue, Recorder},
+    Env, ReplayBufferBase,
+};
+use std::{marker::PhantomData, path::Path};
 use tensorboard_rs::summary_writer::SummaryWriter;
 
 /// Write records to TFRecord.
-pub struct TensorboardRecorder {
+pub struct TensorboardRecorder<E, R>
+where
+    E: Env,
+    R: ReplayBufferBase,
+{
     writer: SummaryWriter,
     step_key: String,
     latest_record: Option<Record>,
     ignore_unsupported_value: bool,
+    phantom: PhantomData<(E, R)>,
 }
 
-impl TensorboardRecorder {
+impl<E, R> TensorboardRecorder<E, R>
+where
+    E: Env,
+    R: ReplayBufferBase,
+{
     /// Construct a [`TensorboardRecorder`].
     ///
     /// TFRecord will be stored in `logdir`.
@@ -20,6 +32,7 @@ impl TensorboardRecorder {
             step_key: "opt_steps".to_string(),
             ignore_unsupported_value: true,
             latest_record: None,
+            phantom: PhantomData,
         }
     }
 
@@ -32,12 +45,17 @@ impl TensorboardRecorder {
             step_key: "opt_steps".to_string(),
             ignore_unsupported_value: false,
             latest_record: None,
+            phantom: PhantomData,
         }
     }
 }
 
-impl Recorder for TensorboardRecorder {
-    /// Write a given [Record] into a TFRecord.
+impl<E, R> Recorder<E, R> for TensorboardRecorder<E, R>
+where
+    E: Env,
+    R: ReplayBufferBase,
+{
+    /// Write a given [`Record`] into a TFRecord.
     ///
     /// This method handles [RecordValue::Scalar] and [RecordValue::DateTime] in the [Record].
     /// Other variants will be ignored.

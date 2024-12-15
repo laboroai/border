@@ -263,7 +263,7 @@ where
     /// [`ExperienceBufferBase::Item`]: border_core::ExperienceBufferBase::Item
     pub fn train<D>(
         &mut self,
-        recorder: &mut Box<dyn Recorder>,
+        recorder: &mut Box<dyn Recorder<E, R>>,
         evaluator: &mut D,
         guard_init_env: Arc<Mutex<bool>>,
     ) -> AsyncTrainStat

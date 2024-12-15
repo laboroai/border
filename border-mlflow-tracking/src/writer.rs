@@ -1,6 +1,11 @@
+use std::marker::PhantomData;
+
 use crate::{system_time_as_millis, Run};
 use anyhow::Result;
-use border_core::record::{RecordStorage, RecordValue, Recorder};
+use border_core::{
+    record::{RecordStorage, RecordValue, Recorder},
+    Env, ReplayBufferBase,
+};
 use chrono::{DateTime, Duration, Local, SecondsFormat};
 use reqwest::blocking::Client;
 use serde::Serialize;
@@ -55,7 +60,11 @@ struct SetTagParams<'a> {
 ///
 /// [`RecordValue::Scalar`]: border_core::record::RecordValue::Scalar
 /// [`RecordValue::Array1`]: border_core::record::RecordValue::Array1
-pub struct MlflowTrackingRecorder {
+pub struct MlflowTrackingRecorder<E, R>
+where
+    E: Env,
+    R: ReplayBufferBase,
+{
     client: Client,
     base_url: String,
     experiment_id: String,
@@ -65,9 +74,14 @@ pub struct MlflowTrackingRecorder {
     storage: RecordStorage,
     password: String,
     start_time: DateTime<Local>,
+    phantom: PhantomData<(E, R)>,
 }
 
-impl MlflowTrackingRecorder {
+impl<E, R> MlflowTrackingRecorder<E, R>
+where
+    E: Env,
+    R: ReplayBufferBase,
+{
     /// Create a new instance of `MlflowTrackingRecorder`.
     ///
     /// This method adds a tag "host_start_time" with the current time.
@@ -86,6 +100,7 @@ impl MlflowTrackingRecorder {
             password: "".to_string(),
             storage: RecordStorage::new(),
             start_time: start_time.clone(),
+            phantom: PhantomData,
         };
 
         // Record current time as tag "host_start_time"
@@ -144,7 +159,11 @@ impl MlflowTrackingRecorder {
     }
 }
 
-impl Recorder for MlflowTrackingRecorder {
+impl<E, R> Recorder<E, R> for MlflowTrackingRecorder<E, R>
+where
+    E: Env,
+    R: ReplayBufferBase,
+{
     fn write(&mut self, record: border_core::record::Record) {
         let url = format!("{}/api/2.0/mlflow/runs/log-metric", self.base_url);
         let timestamp = system_time_as_millis() as i64;
@@ -188,7 +207,11 @@ impl Recorder for MlflowTrackingRecorder {
     }
 }
 
-impl Drop for MlflowTrackingRecorder {
+impl<E, R> Drop for MlflowTrackingRecorder<E, R>
+where
+    E: Env,
+    R: ReplayBufferBase,
+{
     /// Update run's status to "FINISHED" when dropped.
     ///
     /// It also adds tags "host_end_time" and "host_duration" with the current time and duration.

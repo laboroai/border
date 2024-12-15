@@ -241,7 +241,7 @@ mod utils {
         args: &Args,
         model_dir: &str,
         config: &config::IqnCartpoleConfig,
-    ) -> Result<Box<dyn Recorder>> {
+    ) -> Result<Box<dyn Recorder<Env, ReplayBuffer>>> {
         match args.mlflow {
             true => {
                 let client =
