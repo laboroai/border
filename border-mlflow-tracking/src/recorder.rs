@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use crate::{system_time_as_millis, Run};
 use anyhow::Result;
 use border_core::{
@@ -10,6 +8,9 @@ use chrono::{DateTime, Duration, Local, SecondsFormat};
 use reqwest::blocking::Client;
 use serde::Serialize;
 use serde_json::Value;
+use std::marker::PhantomData;
+use std::path::{Path, PathBuf};
+use tempdir::TempDir;
 
 #[derive(Debug, Serialize)]
 struct LogParamParams<'a> {
@@ -74,6 +75,7 @@ where
     storage: RecordStorage,
     password: String,
     start_time: DateTime<Local>,
+    artifact_base: PathBuf,
     phantom: PhantomData<(E, R)>,
 }
 
@@ -84,10 +86,19 @@ where
 {
     /// Create a new instance of `MlflowTrackingRecorder`.
     ///
+    /// This method is used in [`MlflowTrackingClient::create_recorder()`].
+    ///
     /// This method adds a tag "host_start_time" with the current time.
     /// This tag is useful when using mlflow-export-import: it losts the original time.
     /// See https://github.com/mlflow/mlflow-export-import/issues/72
-    pub fn new(base_url: &String, experiment_id: &String, run: &Run) -> Result<Self> {
+    ///
+    /// [`MlflowTrackingClient::create_recorder()`]: crate::MlflowTrackingClient::create_recorder
+    pub fn new(
+        base_url: &String,
+        experiment_id: &String,
+        run: &Run,
+        artifact_base: PathBuf,
+    ) -> Result<Self> {
         let client = Client::new();
         let start_time = Local::now();
         let recorder = Self {
@@ -100,6 +111,7 @@ where
             password: "".to_string(),
             storage: RecordStorage::new(),
             start_time: start_time.clone(),
+            artifact_base,
             phantom: PhantomData,
         };
 
@@ -204,6 +216,37 @@ where
 
     fn store(&mut self, record: border_core::record::Record) {
         self.storage.store(record);
+    }
+
+    /// Save the model parameters as artifacts of MLflow.
+    ///
+    /// MLflow server is assumed to be running on the same host as the program using this struct.
+    /// Under this condition, this method saves model parameters under the `mlruns` directory managed by
+    /// the MLflow server. This method recognizes the environment variable `MLFLOW_DEFAULT_ARTIFACT_ROOT`
+    /// as the location of the `mlruns` directory.
+    fn save_model(&self, base: &Path, agent: &Box<dyn border_core::Agent<E, R>>) -> Result<()> {
+        // Saves the artifacts in the temporary directory
+        let tmp = TempDir::new("mlflow")?;
+        let srcs = agent.save_params(&tmp.path())?;
+
+        // Copies the artifacts
+        for src in srcs.iter() {
+            let dest = {
+                // Create subdirectory
+                let path = self.artifact_base.join(base);
+                if !path.exists() {
+                    let _ = std::fs::create_dir(&path)?;
+                }
+
+                // Create destination file path
+                let file = src.strip_prefix(tmp.path())?;
+                path.join(file)
+            };
+            let bytes = std::fs::copy(src, &dest)?;
+            log::info!("Save {:?}", &src);
+            log::info!("Copy {:?}, {:.2}MB", &dest, bytes as f32 / (1024. * 1024.));
+        }
+        Ok(())
     }
 }
 
