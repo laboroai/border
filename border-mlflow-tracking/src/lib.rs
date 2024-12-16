@@ -106,12 +106,12 @@
 mod client;
 mod experiment;
 mod run;
-mod writer;
+mod recorder;
 pub use client::{GetExperimentIdError, MlflowTrackingClient};
 use experiment::Experiment;
 pub use run::Run;
 use std::time::{SystemTime, UNIX_EPOCH};
-pub use writer::MlflowTrackingRecorder;
+pub use recorder::MlflowTrackingRecorder;
 
 /// Code adapted from <https://stackoverflow.com/questions/26593387>.
 fn system_time_as_millis() -> u128 {
