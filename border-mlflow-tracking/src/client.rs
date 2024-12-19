@@ -1,13 +1,13 @@
-// use anyhow::Result;
 use crate::{system_time_as_millis, Experiment, MlflowTrackingRecorder, Run};
 use anyhow::Result;
-use border_core::{Env, ReplayBufferBase};
+use border_core::{Agent, Env, ReplayBufferBase};
 use log::info;
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt::Display;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::{fs, io};
 
 #[derive(Debug, Deserialize)]
 /// Internally used.
@@ -111,16 +111,6 @@ impl MlflowTrackingClient {
             user_name: self.user_name,
             password: self.password,
         })
-
-        // let experiment_id = self.get_experiment_id(&name);
-        // match experiment_id {
-        //     None => Err(GetExperimentIdError),
-        //     Some(experiment_id) => Ok(Self {
-        //         client: self.client,
-        //         base_url: self.base_url,
-        //         experiment_id: Some(experiment_id),
-        //     }),
-        // }
     }
 
     /// Get [`Experiment`] by name from the tracking server.
@@ -209,6 +199,70 @@ impl MlflowTrackingClient {
         R: ReplayBufferBase,
     {
         let not_given_name = run_name.as_ref().len() == 0;
+        let run = self.get_run_info(run_name)?;
+        // let resp = self
+        //     .post(
+        //         self.url("runs/create"),
+        //         &CreateRunParams {
+        //             experiment_id: experiment_id.to_string(),
+        //             start_time: system_time_as_millis() as i64,
+        //             run_name: run_name.as_ref().to_string(),
+        //         },
+        //     )
+        //     .unwrap();
+        // // TODO: Check the response from the tracking server here
+
+        // let run = {
+        //     let run: Run_ =
+        //         serde_json::from_str(&resp.text().unwrap()).expect("Failed to deserialize Run");
+        //     run.run
+        // };
+        if not_given_name {
+            info!(
+                "Run name '{}' has been automatically generated",
+                run.info.run_name
+            );
+        }
+
+        // Get the directory to which artifacts will be saved
+        let artifact_base = get_artifact_base(run.clone())?;
+
+        // Return a recorder
+        let experiment_id = self.experiment_id.as_ref().expect("Needs experiment_id");
+        MlflowTrackingRecorder::new(&self.base_url, &experiment_id, &run, artifact_base)
+    }
+
+    /// Loads model parameters previously saved as MLflow artifacts.
+    ///
+    /// You need to set the experiment ID before executing this method.
+    ///
+    /// This method uses `MLFLOW_DEFAULT_ARTIFACT_ROOT` environment variable as the directory
+    /// where artifacts, like model parameters, will be saved. It is recommended to set this
+    /// environment variable `mlruns` directory to which the tracking server persists experiment
+    /// and run data.
+    pub fn load_model<E, R>(
+        &self,
+        run_name: impl AsRef<str>,
+        base: &Path,
+        agent: &mut Box<dyn Agent<E, R>>,
+    ) -> Result<()>
+    where
+        E: Env,
+        R: ReplayBufferBase,
+    {
+        // Get Run info
+        let run = self.get_run_info(run_name)?;
+
+        // Get the directory to which artifacts will be saved
+        let artifact_base = get_artifact_base(run.clone())?;
+
+        // Load model parameters from the artifact directory
+        let path = &artifact_base.join(base);
+        agent.load_params(path)
+    }
+
+    /// Get Run info.
+    fn get_run_info(&self, run_name: impl AsRef<str>) -> Result<Run> {
         let experiment_id = self.experiment_id.as_ref().expect("Needs experiment_id");
         let resp = self
             .post(
@@ -227,28 +281,36 @@ impl MlflowTrackingClient {
                 serde_json::from_str(&resp.text().unwrap()).expect("Failed to deserialize Run");
             run.run
         };
-        if not_given_name {
-            info!(
-                "Run name '{}' has been automatically generated",
-                run.info.run_name
-            );
-        }
-
-        // Directory to which artifacts will be saved
-        let artifact_uri: PathBuf = run
-            .clone()
-            .info
-            .artifact_uri
-            .expect("Failed to get artifact_uri")
-            .into();
-        let artifact_uri = artifact_uri.strip_prefix("mlflow-artifacts:/")?;
-        let artifact_base = {
-            let path: PathBuf = std::env::var("MLFLOW_DEFAULT_ARTIFACT_ROOT")
-                .expect("MLFLOW_DEFAULT_ARTIFACT_ROOT must be set")
-                .into();
-            path.join(artifact_uri)
-        };
-
-        MlflowTrackingRecorder::new(&self.base_url, &experiment_id, &run, artifact_base)
+        Ok(run)
     }
+}
+
+// /// https://stackoverflow.com/questions/26958489/how-to-copy-a-folder-recursively-in-rust
+// fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
+//     fs::create_dir_all(&dst)?;
+//     for entry in fs::read_dir(src)? {
+//         let entry = entry?;
+//         let ty = entry.file_type()?;
+//         if ty.is_dir() {
+//             copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
+//         } else {
+//             fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
+//         }
+//     }
+//     Ok(())
+// }
+
+/// Get the directory to which artifacts will be saved.
+fn get_artifact_base(run: Run) -> Result<PathBuf> {
+    let artifact_uri: PathBuf = run
+        .clone()
+        .info
+        .artifact_uri
+        .expect("Failed to get artifact_uri")
+        .into();
+    let artifact_uri = artifact_uri.strip_prefix("mlflow-artifacts:/")?;
+    let path: PathBuf = std::env::var("MLFLOW_DEFAULT_ARTIFACT_ROOT")
+        .expect("MLFLOW_DEFAULT_ARTIFACT_ROOT must be set")
+        .into();
+    Ok(path.join(artifact_uri))
 }

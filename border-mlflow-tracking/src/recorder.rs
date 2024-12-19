@@ -218,7 +218,7 @@ where
         self.storage.store(record);
     }
 
-    /// Save the model parameters as artifacts of MLflow.
+    /// Save model parameters as MLflow artifacts.
     ///
     /// MLflow server is assumed to be running on the same host as the program using this struct.
     /// Under this condition, this method saves model parameters under the `mlruns` directory managed by
