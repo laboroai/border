@@ -34,12 +34,16 @@ const WARMUP_PERIOD: usize = 100;
 const N_UPDATES_PER_OPT: usize = 1;
 const TAU: f64 = 0.01;
 const OPT_INTERVAL: usize = 1;
-const MAX_OPTS: usize = 30000;
+const MAX_OPTS: usize = 10000;
 const EVAL_INTERVAL: usize = 1000;
 const REPLAY_BUFFER_CAPACITY: usize = 10000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const CRITIC_LOSS: CriticLoss = CriticLoss::Mse;
+const ENV_NAME: &str = "CartPole-v0";
 const MODEL_DIR: &str = "./border/examples/gym/model/tch/dqn_cartpole";
+const MLFLOW_EXPERIMENT_NAME: &str = "Gym";
+const MLFLOW_RUN_NAME: &str = "dqn_cartpole_tch";
+const MLFLOW_TAGS: &[(&str, &str)] = &[("env", "cartpole"), ("algo", "dqn"), ("backend", "tch")];
 
 mod obs_act_types {
     use super::*;
@@ -177,7 +181,7 @@ mod config {
             model_dir: &str,
             eval_interval: usize,
         ) -> Self {
-            let env_config = create_env_config();
+            let env_config = create_env_config(false);
             let agent_config = create_agent_config(in_dim, out_dim);
             let trainer_config = TrainerConfig::default()
                 .max_opts(max_opts)
@@ -197,11 +201,18 @@ mod config {
         }
     }
 
-    pub fn create_env_config() -> EnvConfig {
-        EnvConfig::default()
-            .name("CartPole-v0".to_string())
+    pub fn create_env_config(render: bool) -> EnvConfig {
+        let mut env_config = EnvConfig::default()
+            .name(ENV_NAME.to_string())
             .obs_filter_config(ObsFilter::default_config())
-            .act_filter_config(ActFilter::default_config())
+            .act_filter_config(ActFilter::default_config());
+
+        if render {
+            env_config = env_config
+                .render_mode(Some("human".to_string()))
+                .set_wait_in_millis(10);
+        }
+        env_config
     }
 
     pub fn create_agent_config(in_dim: i64, out_dim: i64) -> DqnConfig<Mlp> {
@@ -225,29 +236,29 @@ mod config {
 
 use config::{create_agent_config, create_env_config, DqnCartpoleConfig};
 
-mod utils {
-    use super::*;
-
-    pub fn create_recorder(
-        args: &Args,
-        model_dir: &str,
-        config: &DqnCartpoleConfig,
-    ) -> Result<Box<dyn Recorder<Env, ReplayBuffer>>> {
-        match args.mlflow {
-            true => {
-                let client =
-                    MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Gym")?;
-                let recorder_run = client.create_recorder("")?;
-                recorder_run.log_params(&config)?;
-                recorder_run.set_tag("env", "cartpole")?;
-                recorder_run.set_tag("algo", "dqn")?;
-                recorder_run.set_tag("backend", "tch")?;
-                Ok(Box::new(recorder_run))
+/// `model_dir` - Directory where TFRecord and model parameters are saved with
+///               [`TensorboardRecorder`].
+/// `config` - Configuration parameters for a run of MLflow. These are used for
+///            recording purpose only when a new run is created.
+fn create_recorder(
+    args: &Args,
+    model_dir: &str,
+    config: Option<&DqnCartpoleConfig>,
+) -> Result<Box<dyn Recorder<Env, ReplayBuffer>>> {
+    match args.mlflow {
+        true => {
+            let client = MlflowTrackingClient::new("http://localhost:8080")
+                .set_experiment(MLFLOW_EXPERIMENT_NAME)?;
+            let recorder_run = client.create_recorder(MLFLOW_RUN_NAME)?;
+            if let Some(config) = config {
+                recorder_run.log_params(config)?;
+                recorder_run.set_tags(MLFLOW_TAGS)?;
             }
-            false => Ok(Box::new(TensorboardRecorder::new(
-                model_dir, model_dir, false,
-            ))),
+            Ok(Box::new(recorder_run))
         }
+        false => Ok(Box::new(TensorboardRecorder::new(
+            model_dir, model_dir, false,
+        ))),
     }
 }
 
@@ -272,7 +283,7 @@ fn train(args: &Args, max_opts: usize, model_dir: &str, eval_interval: usize) ->
     let config = DqnCartpoleConfig::new(DIM_OBS, DIM_ACT, max_opts, model_dir, eval_interval);
     let step_proc_config = SimpleStepProcessorConfig {};
     let replay_buffer_config = SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
-    let mut recorder = utils::create_recorder(&args, model_dir, &config)?;
+    let mut recorder = create_recorder(&args, model_dir, Some(&config))?;
     let mut trainer = Trainer::build(config.trainer_config.clone());
 
     let env = Env::build(&config.env_config, 0)?;
@@ -293,23 +304,15 @@ fn train(args: &Args, max_opts: usize, model_dir: &str, eval_interval: usize) ->
     Ok(())
 }
 
-fn eval(model_dir: &str, render: bool) -> Result<()> {
-    let env_config = {
-        let mut env_config = create_env_config();
-        if render {
-            env_config = env_config
-                .render_mode(Some("human".to_string()))
-                .set_wait_in_millis(10);
-        }
-        env_config
-    };
+fn eval(args: &Args, model_dir: &str, render: bool) -> Result<()> {
+    let env_config = create_env_config(render);
     let mut agent: Box<dyn Agent<_, ReplayBuffer>> = {
-        let mut agent = Dqn::build(create_agent_config(DIM_OBS, DIM_ACT));
-        agent.load_params(model_dir.as_ref())?;
+        let mut agent = Box::new(Dqn::build(create_agent_config(DIM_OBS, DIM_ACT))) as _;
+        let recorder = create_recorder(&args, model_dir, None)?;
+        recorder.load_model("best".as_ref(), &mut agent)?;
         agent.eval();
-        Box::new(agent)
+        agent
     };
-
     let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut agent);
 
     Ok(())
@@ -324,10 +327,10 @@ fn main() -> Result<()> {
     if args.train {
         train(&args, MAX_OPTS, MODEL_DIR, EVAL_INTERVAL)?;
     } else if args.eval {
-        eval(&(MODEL_DIR.to_owned() + "/best"), true)?;
+        eval(&args, MODEL_DIR, true)?;
     } else {
         train(&args, MAX_OPTS, MODEL_DIR, EVAL_INTERVAL)?;
-        eval(&(MODEL_DIR.to_owned() + "/best"), true)?;
+        eval(&args, MODEL_DIR, true)?;
     }
 
     Ok(())
@@ -352,7 +355,7 @@ mod tests {
             mlflow: false,
         };
         train(&args, 100, model_dir, 100)?;
-        eval(&(model_dir.to_owned() + "/best"), false)?;
+        eval(&args, model_dir, false)?;
         Ok(())
     }
 }

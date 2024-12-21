@@ -225,8 +225,8 @@ mod utils {
     ) -> Result<Box<dyn Recorder>> {
         match mlflow {
             true => {
-                let client = MlflowTrackingClient::new("http://localhost:8080")
-                    .set_experiment_id("Fetch")?;
+                let client =
+                    MlflowTrackingClient::new("http://localhost:8080").set_experiment("Fetch")?;
                 let recorder_run = client.create_recorder("")?;
                 recorder_run.log_params(&config)?;
                 recorder_run.set_tag("env", "reach")?;

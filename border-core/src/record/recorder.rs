@@ -22,9 +22,21 @@ where
     ///
     /// `base` is the base of the path where the model is saved.
     /// For example, at the 100th iteration of training,
-    /// `base` may be `100/`.
+    /// `base` may be `100/`. It depends on the agent's implementation
+    /// how to save the model.
     #[allow(unused_variables)]
     fn save_model(&self, base: &Path, agent: &Box<dyn Agent<E, R>>) -> Result<()> {
+        unimplemented!();
+    }
+
+    /// Loads the model of the given agent.
+    ///
+    /// `base` is the base of the path where the model has been saved.
+    /// For example, at the 100th iteration of training,
+    /// `base` may be `100/`. It depends on the agent's implementation
+    /// how to save the model.
+    #[allow(unused_variables)]
+    fn load_model(&self, base: &Path, agent: &mut Box<dyn Agent<E, R>>) -> Result<()> {
         unimplemented!();
     }
 }

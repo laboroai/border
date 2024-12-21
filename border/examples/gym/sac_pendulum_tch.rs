@@ -40,10 +40,13 @@ const MAX_OPTS: usize = 40_000;
 const EVAL_INTERVAL: usize = 2_000;
 const REPLAY_BUFFER_CAPACITY: usize = 100_000;
 const N_EPISODES_PER_EVAL: usize = 5;
+const ENV_NAME: &str = "Pendulum-v1";
+const MODEL_DIR: &str = "./border/examples/gym/model/tch/sac_pendulum";
+const MLFLOW_EXPERIMENT_NAME: &str = "Gym";
+const MLFLOW_RUN_NAME: &str = "sac_pendulum_tch";
+const MLFLOW_TAGS: &[(&str, &str)] = &[("env", "pendulum"), ("algo", "sac"), ("backend", "tch")];
 
-type PyObsDtype = f32;
-
-mod obs {
+mod obs_act_types {
     use super::*;
 
     #[derive(Clone, Debug)]
@@ -76,10 +79,6 @@ mod obs {
             Self(TensorBatch::from_tensor(tensor))
         }
     }
-}
-
-mod act {
-    use super::*;
 
     #[derive(Clone, Debug)]
     pub struct Act(ArrayD<f32>);
@@ -144,16 +143,17 @@ mod act {
             (arrayd_to_pyobj(act_filt), record)
         }
     }
+
+    type PyObsDtype = f32;
+    pub type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
+    pub type EnvConfig = GymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
+    pub type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
+    pub type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
+    pub type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
+    pub type Evaluator = DefaultEvaluator<Env>;
 }
 
-use act::{Act, ActBatch, ActFilter};
-use obs::{Obs, ObsBatch};
-
-type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
-type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
-type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
-type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
-type Evaluator = DefaultEvaluator<Env>;
+use obs_act_types::*;
 
 #[derive(Debug, Serialize)]
 struct PendulumRecord {
@@ -180,119 +180,101 @@ impl TryFrom<&Record> for PendulumRecord {
     }
 }
 
-fn create_agent(in_dim: i64, out_dim: i64) -> Sac<Env, Mlp, Mlp2, ReplayBuffer> {
-    let device = tch::Device::cuda_if_available();
-    let actor_config = ActorConfig::default()
-        .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
-        .out_dim(out_dim)
-        .pi_config(MlpConfig::new(in_dim, vec![64, 64], out_dim, false));
-    let critic_config = CriticConfig::default()
-        .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
-        .q_config(MlpConfig::new(in_dim + out_dim, vec![64, 64], 1, false));
-    let sac_config = SacConfig::default()
-        .batch_size(BATCH_SIZE)
-        .actor_config(actor_config)
-        .critic_config(critic_config)
-        .device(device);
-    Sac::build(sac_config)
+mod config {
+    use super::*;
+
+    #[derive(Serialize)]
+    pub struct SacPendulumConfig {
+        pub env_config: EnvConfig,
+        pub agent_config: SacConfig<Mlp, Mlp2>,
+        pub trainer_config: TrainerConfig,
+    }
+
+    impl SacPendulumConfig {
+        pub fn new(
+            in_dim: i64,
+            out_dim: i64,
+            max_opts: usize,
+            model_dir: &str,
+            eval_interval: usize,
+        ) -> Self {
+            let env_config = create_env_config(false);
+            let agent_config = create_agent_config(in_dim, out_dim);
+            let trainer_config = TrainerConfig::default()
+                .max_opts(max_opts)
+                .opt_interval(OPT_INTERVAL)
+                .eval_interval(eval_interval)
+                .record_agent_info_interval(EVAL_INTERVAL)
+                .record_compute_cost_interval(EVAL_INTERVAL)
+                .flush_record_interval(EVAL_INTERVAL)
+                .save_interval(EVAL_INTERVAL)
+                .warmup_period(WARMUP_PERIOD)
+                .model_dir(model_dir);
+            Self {
+                env_config,
+                agent_config,
+                trainer_config,
+            }
+        }
+    }
+
+    pub fn create_env_config(render: bool) -> EnvConfig {
+        let mut env_config = EnvConfig::default()
+            .name(ENV_NAME.to_string())
+            .obs_filter_config(ObsFilter::default_config())
+            .act_filter_config(ActFilter::default_config());
+
+        if render {
+            env_config = env_config
+                .render_mode(Some("human".to_string()))
+                .set_wait_in_millis(10);
+        }
+        env_config
+    }
+
+    pub fn create_agent_config(in_dim: i64, out_dim: i64) -> SacConfig<Mlp, Mlp2> {
+        let device = tch::Device::cuda_if_available();
+        let actor_config = ActorConfig::default()
+            .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
+            .out_dim(out_dim)
+            .pi_config(MlpConfig::new(in_dim, vec![64, 64], out_dim, false));
+        let critic_config = CriticConfig::default()
+            .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
+            .q_config(MlpConfig::new(in_dim + out_dim, vec![64, 64], 1, false));
+        SacConfig::default()
+            .batch_size(BATCH_SIZE)
+            .actor_config(actor_config)
+            .critic_config(critic_config)
+            .device(device)
+    }
 }
 
-fn env_config() -> GymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
-    GymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
-        .name("Pendulum-v1".to_string())
-        .obs_filter_config(ObsFilter::default_config())
-        .act_filter_config(ActFilter::default_config())
-}
+use config::{create_agent_config, create_env_config, SacPendulumConfig};
 
+/// `model_dir` - Directory where TFRecord and model parameters are saved with
+///               [`TensorboardRecorder`].
+/// `config` - Configuration parameters for a run of MLflow. These are used for
+///            recording purpose only when a new run is created.
 fn create_recorder(
+    args: &Args,
     model_dir: &str,
-    mlflow: bool,
-    config: &TrainerConfig,
+    config: Option<&SacPendulumConfig>,
 ) -> Result<Box<dyn Recorder<Env, ReplayBuffer>>> {
-    match mlflow {
+    match args.mlflow {
         true => {
-            let client =
-                MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Gym")?;
-            let recorder_run = client.create_recorder("")?;
-            recorder_run.log_params(&config)?;
-            recorder_run.set_tag("env", "pendulum")?;
-            recorder_run.set_tag("algo", "sac")?;
-            recorder_run.set_tag("backend", "tch")?;
+            let client = MlflowTrackingClient::new("http://localhost:8080")
+                .set_experiment(MLFLOW_EXPERIMENT_NAME)?;
+            let recorder_run = client.create_recorder(MLFLOW_RUN_NAME)?;
+            if let Some(config) = config {
+                recorder_run.log_params(config)?;
+                recorder_run.set_tags(MLFLOW_TAGS)?;
+            }
             Ok(Box::new(recorder_run))
         }
         false => Ok(Box::new(TensorboardRecorder::new(
             model_dir, model_dir, false,
         ))),
     }
-}
-
-fn train(max_opts: usize, model_dir: &str, eval_interval: usize, mlflow: bool) -> Result<()> {
-    let env_config = env_config();
-    let step_proc_config = SimpleStepProcessorConfig {};
-    let replay_buffer_config = SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
-    let (mut trainer, config) = {
-        let config = TrainerConfig::default()
-            .max_opts(max_opts)
-            .opt_interval(OPT_INTERVAL)
-            .eval_interval(eval_interval)
-            .record_agent_info_interval(EVAL_INTERVAL)
-            .record_compute_cost_interval(EVAL_INTERVAL)
-            .flush_record_interval(EVAL_INTERVAL)
-            .save_interval(EVAL_INTERVAL)
-            .warmup_period(WARMUP_PERIOD)
-            .model_dir(model_dir);
-        let trainer = Trainer::build(config.clone());
-
-        (trainer, config)
-    };
-    let env = Env::build(&env_config, 0)?;
-    let step_proc = StepProc::build(&step_proc_config);
-    let mut agent = Box::new(create_agent(DIM_OBS, DIM_ACT)) as _;
-    let mut buffer = ReplayBuffer::build(&replay_buffer_config);
-    let mut recorder = create_recorder(model_dir, mlflow, &config)?;
-    let mut evaluator = Evaluator::new(&env_config, 0, N_EPISODES_PER_EVAL)?;
-
-    trainer.train(
-        env,
-        step_proc,
-        &mut agent,
-        &mut buffer,
-        &mut recorder,
-        &mut evaluator,
-    )?;
-
-    Ok(())
-}
-
-fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
-    let env_config = {
-        let mut env_config = env_config();
-        if render {
-            env_config = env_config
-                .render_mode(Some("human".to_string()))
-                .set_wait_in_millis(10);
-        };
-        env_config
-    };
-    let mut agent: Box<dyn Agent<_, ReplayBuffer>> = {
-        let mut agent = create_agent(DIM_OBS, DIM_ACT);
-        agent.load_params(model_dir.as_ref())?;
-        agent.eval();
-        Box::new(agent)
-    };
-    // let mut recorder = BufferedRecorder::new();
-
-    let _ = Evaluator::new(&env_config, 0, n_episodes)?.evaluate(&mut agent);
-
-    // // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
-    // let mut wtr = WriterBuilder::new()
-    //     .has_headers(false)
-    //     .from_writer(File::create(model_dir.to_string() + "/eval.csv")?);
-    // for record in recorder.iter() {
-    //     wtr.serialize(PendulumRecord::try_from(record)?)?;
-    // }
-
-    Ok(())
 }
 
 /// Train/eval SAC agent in pendulum environment
@@ -312,6 +294,54 @@ struct Args {
     mlflow: bool,
 }
 
+fn train(args: &Args, max_opts: usize, model_dir: &str, eval_interval: usize) -> Result<()> {
+    let config = SacPendulumConfig::new(DIM_OBS, DIM_ACT, max_opts, model_dir, eval_interval);
+    let step_proc_config = SimpleStepProcessorConfig {};
+    let replay_buffer_config = SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
+    let mut recorder = create_recorder(&args, model_dir, Some(&config))?;
+    let mut trainer = Trainer::build(config.trainer_config.clone());
+
+    let env = Env::build(&config.env_config, 0)?;
+    let step_proc = StepProc::build(&step_proc_config);
+    let mut agent = Box::new(Sac::build(config.agent_config)) as _;
+    let mut buffer = ReplayBuffer::build(&replay_buffer_config);
+    let mut evaluator = Evaluator::new(&config.env_config, 0, N_EPISODES_PER_EVAL)?;
+
+    trainer.train(
+        env,
+        step_proc,
+        &mut agent,
+        &mut buffer,
+        &mut recorder,
+        &mut evaluator,
+    )?;
+
+    Ok(())
+}
+
+fn eval(args: &Args, model_dir: &str, render: bool) -> Result<()> {
+    let env_config = create_env_config(render);
+    let mut agent: Box<dyn Agent<_, ReplayBuffer>> = {
+        let agent_config = create_agent_config(DIM_OBS, DIM_ACT);
+        let mut agent = Box::new(Sac::build(agent_config)) as _;
+        let recorder = create_recorder(&args, model_dir, None)?;
+        recorder.load_model("best".as_ref(), &mut agent)?;
+        agent.eval();
+        agent
+    };
+    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut agent);
+
+    // // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.
+    // let mut wtr = WriterBuilder::new()
+    //     .has_headers(false)
+    //     .from_writer(File::create(model_dir.to_string() + "/eval.csv")?);
+    // for record in recorder.iter() {
+    //     wtr.serialize(PendulumRecord::try_from(record)?)?;
+    // }
+
+    Ok(())
+}
+
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     tch::manual_seed(42);
@@ -319,22 +349,12 @@ fn main() -> Result<()> {
     let args = Args::parse();
 
     if args.train {
-        train(
-            MAX_OPTS,
-            "./border/examples/gym/model/tch/sac_pendulum",
-            EVAL_INTERVAL,
-            args.mlflow,
-        )?;
+        train(&args, MAX_OPTS, MODEL_DIR, EVAL_INTERVAL)?;
     } else if args.eval {
-        eval(5, true, "./border/examples/gym/model/tch/sac_pendulum/best")?;
+        eval(&args, MODEL_DIR, true)?;
     } else {
-        train(
-            MAX_OPTS,
-            "./border/examples/gym/model/tch/sac_pendulum",
-            EVAL_INTERVAL,
-            args.mlflow,
-        )?;
-        eval(5, true, "./border/examples/gym/model/tch/sac_pendulum/best")?;
+        train(&args, MAX_OPTS, MODEL_DIR, EVAL_INTERVAL)?;
+        eval(&args, MODEL_DIR, true)?;
     }
 
     Ok(())
@@ -347,13 +367,18 @@ mod test {
 
     #[test]
     fn test_sac_pendulum() -> Result<()> {
-        tch::manual_seed(42);
-
-        let model_dir = TempDir::new("sac_pendulum_tch")?;
-        let model_dir = model_dir.path().to_str().unwrap();
-        train(100, model_dir, 100, false)?;
-        eval(1, false, (model_dir.to_string() + "/best").as_str())?;
-
+        let tmp_dir = TempDir::new("sac_pendulum")?;
+        let model_dir = match tmp_dir.as_ref().to_str() {
+            Some(s) => s,
+            None => panic!("Failed to get string of temporary directory"),
+        };
+        let args = Args {
+            train: false,
+            eval: false,
+            mlflow: false,
+        };
+        train(&args, 100, model_dir, 100)?;
+        eval(&args, model_dir, false)?;
         Ok(())
     }
 }

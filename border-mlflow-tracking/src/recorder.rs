@@ -2,7 +2,7 @@ use crate::{system_time_as_millis, Run};
 use anyhow::Result;
 use border_core::{
     record::{RecordStorage, RecordValue, Recorder},
-    Env, ReplayBufferBase,
+    Agent, Env, ReplayBufferBase,
 };
 use chrono::{DateTime, Duration, Local, SecondsFormat};
 use reqwest::blocking::Client;
@@ -69,8 +69,7 @@ where
     client: Client,
     base_url: String,
     experiment_id: String,
-    run_id: String,
-    run_name: String,
+    run: Run,
     user_name: String,
     storage: RecordStorage,
     password: String,
@@ -96,7 +95,7 @@ where
     pub fn new(
         base_url: &String,
         experiment_id: &String,
-        run: &Run,
+        run: Run,
         artifact_base: PathBuf,
     ) -> Result<Self> {
         let client = Client::new();
@@ -105,8 +104,7 @@ where
             client,
             base_url: base_url.clone(),
             experiment_id: experiment_id.to_string(),
-            run_id: run.info.run_id.clone(),
-            run_name: run.info.run_name.clone(),
+            run,
             user_name: "".to_string(),
             password: "".to_string(),
             storage: RecordStorage::new(),
@@ -135,7 +133,7 @@ where
         };
         for (key, value) in flatten_map.iter() {
             let params = LogParamParams {
-                run_id: &self.run_id,
+                run_id: &self.run.info.run_id,
                 key,
                 value: value.to_string(),
             };
@@ -155,7 +153,7 @@ where
     pub fn set_tag(&self, key: impl AsRef<str>, value: impl AsRef<str>) -> Result<()> {
         let url = format!("{}/api/2.0/mlflow/runs/set-tag", self.base_url);
         let params = SetTagParams {
-            run_id: &self.run_id,
+            run_id: &self.run.info.run_id,
             key: &key.as_ref().to_string(),
             value: &value.as_ref().to_string(),
         };
@@ -167,6 +165,16 @@ where
             .send()
             .unwrap();
 
+        Ok(())
+    }
+
+    pub fn set_tags<'a, T: AsRef<str> + std::fmt::Debug + 'a>(
+        &self,
+        tags: impl Into<&'a [(T, T)]>,
+    ) -> Result<()> {
+        for tag in tags.into().iter() {
+            self.set_tag(&tag.0, &tag.1)?;
+        }
         Ok(())
     }
 }
@@ -187,7 +195,7 @@ where
                     RecordValue::Scalar(v) => {
                         let value = *v as f64;
                         let params = LogMetricParams {
-                            run_id: &self.run_id,
+                            run_id: &self.run.info.run_id,
                             key,
                             value,
                             timestamp,
@@ -248,6 +256,21 @@ where
         }
         Ok(())
     }
+
+    /// Loads model parameters previously saved as MLflow artifacts.
+    ///
+    /// This method uses `MLFLOW_DEFAULT_ARTIFACT_ROOT` environment variable as the directory
+    /// where artifacts, like model parameters, will be saved. It is recommended to set this
+    /// environment variable `mlruns` directory to which the tracking server persists experiment
+    /// and run data.
+    fn load_model(&self, base: &Path, agent: &mut Box<dyn Agent<E, R>>) -> Result<()> {
+        // Get the directory to which artifacts will be saved
+        let artifact_base = crate::get_artifact_base(self.run.clone())?;
+
+        // Load model parameters from the artifact directory
+        let path = &artifact_base.join(base);
+        agent.load_params(path)
+    }
 }
 
 impl<E, R> Drop for MlflowTrackingRecorder<E, R>
@@ -271,10 +294,10 @@ where
 
         let url = format!("{}/api/2.0/mlflow/runs/update", self.base_url);
         let params = UpdateRunParams {
-            run_id: &self.run_id,
+            run_id: &self.run.info.run_id,
             status: "FINISHED".to_string(),
             end_time: end_time.timestamp_millis(),
-            run_name: &self.run_name,
+            run_name: &self.run.info.run_name,
         };
         let _resp = self
             .client

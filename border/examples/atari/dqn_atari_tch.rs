@@ -202,8 +202,8 @@ mod utils {
         match args.mlflow {
             true => {
                 let name = &args.name;
-                let client = MlflowTrackingClient::new("http://localhost:8080")
-                    .set_experiment_id("Atari")?;
+                let client =
+                    MlflowTrackingClient::new("http://localhost:8080").set_experiment("Atari")?;
                 let recorder_run = client.create_recorder("")?;
                 recorder_run.log_params(&config)?;
                 recorder_run.set_tag("env", name)?;

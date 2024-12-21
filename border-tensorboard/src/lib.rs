@@ -54,7 +54,7 @@ where
     E: Env,
     R: ReplayBufferBase,
 {
-    /// Write a given [`Record`] into a TFRecord.
+    /// Writes a given [`Record`] into a TFRecord.
     ///
     /// This method handles [RecordValue::Scalar] and [RecordValue::DateTime] in the [`Record`].
     /// Other variants will be ignored.
@@ -107,10 +107,16 @@ where
         }
     }
 
-    /// Save the model parameters in the local file system.
+    /// Saves the model parameters in the local file system.
     fn save_model(&self, base: &Path, agent: &Box<dyn border_core::Agent<E, R>>) -> Result<()> {
         let path = self.model_dir.join(base);
         let _ = agent.save_params(&path)?;
         Ok(())
+    }
+
+    /// Loads the model parameters from the local file system.
+    fn load_model(&self, base: &Path, agent: &mut Box<dyn border_core::Agent<E, R>>) -> Result<()> {
+        let path = self.model_dir.join(base);
+        agent.load_params(&path)
     }
 }

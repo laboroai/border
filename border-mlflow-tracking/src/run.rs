@@ -52,7 +52,7 @@ struct Param {
 #[derive(Clone, Debug, Deserialize)]
 struct Metric {
     key: String,
-    value: String,
+    value: f64,
     timestamp: i64,
     step: i64,
 }

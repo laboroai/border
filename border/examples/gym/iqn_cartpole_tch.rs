@@ -245,7 +245,7 @@ mod utils {
         match args.mlflow {
             true => {
                 let client =
-                    MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Gym")?;
+                    MlflowTrackingClient::new("http://localhost:8080").set_experiment("Gym")?;
                 let recorder_run = client.create_recorder("")?;
                 recorder_run.log_params(&config)?;
                 recorder_run.set_tag("env", "cartpole")?;
