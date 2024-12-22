@@ -1,4 +1,5 @@
 import gymnasium as gym
+import gymnasium_robotics
 import numpy as np
 import inspect
 
