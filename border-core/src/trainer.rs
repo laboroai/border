@@ -85,9 +85,6 @@ pub use sampler::Sampler;
 /// [`BatchBase`]: crate::BatchBase
 /// [`Step<E: Env>`]: crate::Step
 pub struct Trainer {
-    /// Where to save the trained model.
-    model_dir: Option<String>,
-
     /// Interval of optimization in environment steps.
     /// This is ignored for offline training.
     opt_interval: usize,
@@ -134,7 +131,6 @@ impl Trainer {
     /// Constructs a trainer.
     pub fn build(config: TrainerConfig) -> Self {
         Self {
-            model_dir: config.model_dir,
             opt_interval: config.opt_interval,
             record_compute_cost_interval: config.record_compute_cost_interval,
             record_agent_info_interval: config.record_agent_info_interval,

@@ -176,13 +176,7 @@ mod config {
     }
 
     impl IqnCartpoleConfig {
-        pub fn new(
-            in_dim: i64,
-            out_dim: i64,
-            max_opts: usize,
-            model_dir: &str,
-            eval_interval: usize,
-        ) -> Self {
+        pub fn new(in_dim: i64, out_dim: i64, max_opts: usize, eval_interval: usize) -> Self {
             let env_config = env_config();
             let agent_config = agent_config(in_dim, out_dim);
             let trainer_config = TrainerConfig::default()
@@ -193,8 +187,7 @@ mod config {
                 .record_compute_cost_interval(EVAL_INTERVAL)
                 .flush_record_interval(EVAL_INTERVAL)
                 .save_interval(EVAL_INTERVAL)
-                .warmup_period(WARMUP_PERIOD)
-                .model_dir(model_dir);
+                .warmup_period(WARMUP_PERIOD);
             Self {
                 env_config,
                 agent_config,
@@ -278,8 +271,7 @@ struct Args {
 }
 
 fn train(args: &Args, max_opts: usize, model_dir: &str, eval_interval: usize) -> Result<()> {
-    let config =
-        config::IqnCartpoleConfig::new(DIM_OBS, DIM_ACT, max_opts, model_dir, eval_interval);
+    let config = config::IqnCartpoleConfig::new(DIM_OBS, DIM_ACT, max_opts, eval_interval);
     let step_proc_config = SimpleStepProcessorConfig {};
     let replay_buffer_config = SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
     let mut recorder = utils::create_recorder(args, model_dir, &config)?;

@@ -183,13 +183,7 @@ mod config {
     }
 
     impl SacFetchReachConfig {
-        pub fn new(
-            in_dim: i64,
-            out_dim: i64,
-            max_opts: usize,
-            model_dir: &str,
-            eval_interval: usize,
-        ) -> Self {
+        pub fn new(in_dim: i64, out_dim: i64, max_opts: usize, eval_interval: usize) -> Self {
             let env_config = create_env_config(false);
             let agent_config = create_agent_config(in_dim, out_dim, TARGET_ENTROPY);
             let trainer_config = {
@@ -202,7 +196,6 @@ mod config {
                     .flush_record_interval(eval_interval)
                     .save_interval(eval_interval)
                     .warmup_period(N_TRANSITIONS_WARMUP)
-                    .model_dir(model_dir)
             };
             Self {
                 env_config,
@@ -307,7 +300,7 @@ struct Args {
 }
 
 fn train(args: &Args, max_opts: usize, model_dir: &str, eval_interval: usize) -> Result<()> {
-    let config = SacFetchReachConfig::new(DIM_OBS, DIM_ACT, max_opts, model_dir, eval_interval);
+    let config = SacFetchReachConfig::new(DIM_OBS, DIM_ACT, max_opts, eval_interval);
     let step_proc_config = SimpleStepProcessorConfig {};
     let replay_buffer_config = SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
     let mut recorder = create_recorder(&args, model_dir, Some(&config))?;
