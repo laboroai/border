@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.0.8 (2024-??-??)
+## v0.0.8 (2025-??-??)
 
 ### Added
 
@@ -11,6 +11,7 @@
 * Bump the version of candle to 0.6.0 (`border-candle-agent`).
 * `Trainer` takes `Agent`s as trait object (#111).
 * Evaluator returns `Record` object (#111).
+* `border_core::record::Recorder` is used to save and load model parameters.
 
 ## v0.0.7 (2024-09-01)
 

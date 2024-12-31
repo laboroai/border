@@ -110,15 +110,15 @@ required-features = ["tch"]
 test = false
 
 [[example]]
-name = "convert_sac_policy_to_edge"
-path = "examples/gym/convert_sac_policy_to_edge.rs"
-required-features = ["border-tch-agent", "tch"]
-test = false
-
-[[example]]
 name = "sac_mujoco_async_tch"
 path = "examples/mujoco/sac_mujoco_async_tch.rs"
 required-features = ["tch", "border-async-trainer"]
+test = false
+
+[[example]]
+name = "convert_sac_policy_to_edge"
+path = "examples/gym/convert_sac_policy_to_edge.rs"
+required-features = ["border-tch-agent", "tch"]
 test = false
 
 [[example]]

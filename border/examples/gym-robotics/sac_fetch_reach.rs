@@ -4,7 +4,7 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    record::{AggregateRecorder, Record, RecordValue},
+    record::{Record, RecordValue, Recorder},
     Agent, Configurable, DefaultEvaluator, Env as _, Evaluator as _, ReplayBufferBase,
     StepProcessor, Trainer, TrainerConfig,
 };
@@ -27,6 +27,7 @@ use clap::Parser;
 // use csv::WriterBuilder;
 use ndarray::ArrayD;
 use pyo3::PyObject;
+use serde::Serialize;
 // use serde::Serialize;
 use std::convert::TryFrom;
 use tch::Tensor;
@@ -35,19 +36,23 @@ const DIM_OBS: i64 = 16;
 const DIM_ACT: i64 = 4;
 const LR_ACTOR: f64 = 3e-4;
 const LR_CRITIC: f64 = 3e-4;
-const BATCH_SIZE: usize = 128;
+const BATCH_SIZE: usize = 256;
 const N_TRANSITIONS_WARMUP: usize = 1000;
 const OPT_INTERVAL: usize = 1;
 const MAX_OPTS: usize = 20_000_000;
-const EVAL_INTERVAL: usize = 2_000;
-const REPLAY_BUFFER_CAPACITY: usize = 100_000;
+const EVAL_INTERVAL: usize = 20_000;
+const REPLAY_BUFFER_CAPACITY: usize = 131_072;
 const N_EPISODES_PER_EVAL: usize = 5;
 const N_CRITICS: usize = 2;
-const TAU: f64 = 0.02;
+const TAU: f64 = 0.05;
 const TARGET_ENTROPY: f64 = -(DIM_ACT as f64);
 const LR_ENT_COEF: f64 = 3e-4;
 const CRITIC_LOSS: CriticLoss = CriticLoss::SmoothL1;
+const ENV_NAME: &str = "FetchReach-v3";
 const MODEL_DIR: &str = "./border/examples/gym-robotics/model/tch/sac_fetch_reach/";
+const MLFLOW_EXPERIMENT_NAME: &str = "Fetch";
+const MLFLOW_RUN_NAME: &str = "sac_fetch_reach";
+const MLFLOW_TAGS: &[(&str, &str)] = &[("env", "reach"), ("algo", "sac"), ("backend", "tch")];
 
 fn cuda_if_available() -> tch::Device {
     tch::Device::cuda_if_available()
@@ -158,10 +163,11 @@ mod obs_act_types {
     }
 
     pub type ObsFilter = ArrayDictObsFilter<Obs>;
+    pub type EnvConfig = GymEnvConfig<Obs, Act, ObsFilter, ActFilter>;
     pub type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
     pub type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
     pub type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
-    pub type Evaluator = DefaultEvaluator<Env, Sac<Env, Mlp, Mlp2, ReplayBuffer>>;
+    pub type Evaluator = DefaultEvaluator<Env>;
 }
 
 use obs_act_types::*;
@@ -169,39 +175,72 @@ use obs_act_types::*;
 mod config {
     use super::*;
 
-    pub fn env_config() -> GymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
-        GymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
-            .name("FetchReach-v2".to_string())
+    #[derive(Serialize)]
+    pub struct SacFetchReachConfig {
+        pub env_config: EnvConfig,
+        pub agent_config: SacConfig<Mlp, Mlp2>,
+        pub trainer_config: TrainerConfig,
+    }
+
+    impl SacFetchReachConfig {
+        pub fn new(in_dim: i64, out_dim: i64, max_opts: usize, eval_interval: usize) -> Self {
+            let env_config = create_env_config(false);
+            let agent_config = create_agent_config(in_dim, out_dim, TARGET_ENTROPY);
+            let trainer_config = {
+                TrainerConfig::default()
+                    .max_opts(max_opts)
+                    .opt_interval(OPT_INTERVAL)
+                    .eval_interval(eval_interval)
+                    .record_agent_info_interval(eval_interval)
+                    .record_compute_cost_interval(eval_interval)
+                    .flush_record_interval(eval_interval)
+                    .save_interval(eval_interval)
+                    .warmup_period(N_TRANSITIONS_WARMUP)
+            };
+            Self {
+                env_config,
+                agent_config,
+                trainer_config,
+            }
+        }
+    }
+
+    pub fn create_env_config(render: bool) -> GymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
+        let mut env_config = GymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
+            .name(ENV_NAME.to_string())
             .obs_filter_config(ObsFilter::default_config().add_key_and_types(vec![
                 ("observation", ArrayType::F32Array),
                 ("desired_goal", ArrayType::F32Array),
                 ("achieved_goal", ArrayType::F32Array),
             ]))
-            .act_filter_config(ActFilter::default_config())
+            .act_filter_config(ActFilter::default_config());
+
+        if render {
+            env_config = env_config
+                .render_mode(Some("human".to_string()))
+                .set_wait_in_millis(10);
+        };
+        env_config
     }
 
-    pub fn create_trainer_config(max_opts: usize, model_dir: &str) -> TrainerConfig {
-        TrainerConfig::default()
-            .max_opts(max_opts)
-            .opt_interval(OPT_INTERVAL)
-            .eval_interval(EVAL_INTERVAL)
-            .record_agent_info_interval(EVAL_INTERVAL)
-            .record_compute_cost_interval(EVAL_INTERVAL)
-            .flush_record_interval(EVAL_INTERVAL)
-            .save_interval(EVAL_INTERVAL)
-            .warmup_period(N_TRANSITIONS_WARMUP)
-            .model_dir(model_dir)
-    }
-
-    pub fn create_sac_config(dim_obs: i64, dim_act: i64, target_ent: f64) -> SacConfig<Mlp, Mlp2> {
+    pub fn create_agent_config(
+        dim_obs: i64,
+        dim_act: i64,
+        target_ent: f64,
+    ) -> SacConfig<Mlp, Mlp2> {
         let device = cuda_if_available();
         let actor_config = ActorConfig::default()
             .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
             .out_dim(dim_act)
-            .pi_config(MlpConfig::new(dim_obs, vec![64, 64], dim_act, false));
+            .pi_config(MlpConfig::new(dim_obs, vec![256, 256, 256], dim_act, false));
         let critic_config = CriticConfig::default()
             .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
-            .q_config(MlpConfig::new(dim_obs + dim_act, vec![64, 64], 1, false));
+            .q_config(MlpConfig::new(
+                dim_obs + dim_act,
+                vec![256, 256, 256],
+                1,
+                false,
+            ));
 
         SacConfig::default()
             .batch_size(BATCH_SIZE)
@@ -215,27 +254,31 @@ mod config {
     }
 }
 
-mod utils {
-    use super::*;
+use config::{create_agent_config, create_env_config, SacFetchReachConfig};
 
-    pub fn create_recorder(
-        model_dir: &str,
-        mlflow: bool,
-        config: &TrainerConfig,
-    ) -> Result<Box<dyn AggregateRecorder>> {
-        match mlflow {
-            true => {
-                let client = MlflowTrackingClient::new("http://localhost:8080")
-                    .set_experiment_id("Fetch")?;
-                let recorder_run = client.create_recorder("")?;
-                recorder_run.log_params(&config)?;
-                recorder_run.set_tag("env", "reach")?;
-                recorder_run.set_tag("algo", "sac")?;
-                recorder_run.set_tag("backend", "tch")?;
-                Ok(Box::new(recorder_run))
+/// `model_dir` - Directory where TFRecord and model parameters are saved with
+///               [`TensorboardRecorder`].
+/// `config` - Configuration parameters for a run of MLflow. These are used for
+///            recording purpose only when a new run is created.
+fn create_recorder<T: Serialize>(
+    args: &Args,
+    model_dir: &str,
+    config: Option<&T>,
+) -> Result<Box<dyn Recorder<Env, ReplayBuffer>>> {
+    match args.mlflow {
+        true => {
+            let client = MlflowTrackingClient::new("http://localhost:8080")
+                .set_experiment(MLFLOW_EXPERIMENT_NAME)?;
+            let recorder_run = client.create_recorder(MLFLOW_RUN_NAME)?;
+            if let Some(config) = config {
+                recorder_run.log_params(config)?;
+                recorder_run.set_tags(MLFLOW_TAGS)?;
             }
-            false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
+            Ok(Box::new(recorder_run))
         }
+        false => Ok(Box::new(TensorboardRecorder::new(
+            model_dir, model_dir, false,
+        ))),
     }
 }
 
@@ -256,20 +299,18 @@ struct Args {
     mlflow: bool,
 }
 
-fn train(max_opts: usize, model_dir: &str, mlflow: bool) -> Result<()> {
-    let trainer_config = config::create_trainer_config(max_opts, model_dir);
-    let env_config = config::env_config();
+fn train(args: &Args, max_opts: usize, model_dir: &str, eval_interval: usize) -> Result<()> {
+    let config = SacFetchReachConfig::new(DIM_OBS, DIM_ACT, max_opts, eval_interval);
     let step_proc_config = SimpleStepProcessorConfig {};
-    let sac_config = config::create_sac_config(DIM_OBS, DIM_ACT, TARGET_ENTROPY);
     let replay_buffer_config = SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
+    let mut recorder = create_recorder(&args, model_dir, Some(&config))?;
+    let mut trainer = Trainer::build(config.trainer_config.clone());
 
-    let env = Env::build(&env_config, 0)?;
+    let env = Env::build(&config.env_config, 0)?;
     let step_proc = StepProc::build(&step_proc_config);
-    let mut recorder = utils::create_recorder(model_dir, mlflow, &trainer_config)?;
-    let mut trainer = Trainer::build(trainer_config);
-    let mut agent = Sac::build(sac_config);
+    let mut agent = Box::new(Sac::build(config.agent_config)) as _;
     let mut buffer = ReplayBuffer::build(&replay_buffer_config);
-    let mut evaluator = Evaluator::new(&config::env_config(), 0, N_EPISODES_PER_EVAL)?;
+    let mut evaluator = Evaluator::new(&config.env_config, 0, N_EPISODES_PER_EVAL)?;
 
     trainer.train(
         env,
@@ -283,25 +324,17 @@ fn train(max_opts: usize, model_dir: &str, mlflow: bool) -> Result<()> {
     Ok(())
 }
 
-fn eval(n_episodes: usize, render: bool, model_dir: &str) -> Result<()> {
-    let env_config = {
-        let mut env_config = config::env_config();
-        if render {
-            env_config = env_config
-                .render_mode(Some("human".to_string()))
-                .set_wait_in_millis(10);
-        };
-        env_config
-    };
-    let mut agent = {
-        let mut agent = Sac::build(config::create_sac_config(DIM_OBS, DIM_ACT, TARGET_ENTROPY));
-        agent.load_params(model_dir)?;
+fn eval(args: &Args, model_dir: &str, render: bool) -> Result<()> {
+    let env_config = create_env_config(render);
+    let mut agent: Box<dyn Agent<_, ReplayBuffer>> = {
+        let agent_config = create_agent_config(DIM_OBS, DIM_ACT, TARGET_ENTROPY);
+        let mut agent = Box::new(Sac::build(agent_config)) as _;
+        let recorder = create_recorder::<()>(&args, model_dir, None)?;
+        recorder.load_model("best".as_ref(), &mut agent)?;
         agent.eval();
-        Box::new(agent)
+        agent
     };
-    // let mut recorder = BufferedRecorder::new();
-
-    let _ = Evaluator::new(&env_config, 0, n_episodes)?.evaluate(&mut agent);
+    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut agent);
 
     Ok(())
 }
@@ -313,12 +346,12 @@ fn main() -> Result<()> {
     let args = Args::parse();
 
     if args.train {
-        train(MAX_OPTS, MODEL_DIR, args.mlflow)?;
+        train(&args, MAX_OPTS, MODEL_DIR, EVAL_INTERVAL)?;
     } else if args.eval {
-        eval(5, true, format!("{}/best", MODEL_DIR).as_str())?;
+        eval(&args, MODEL_DIR, true)?;
     } else {
-        train(MAX_OPTS, MODEL_DIR, args.mlflow)?;
-        eval(5, true, format!("{}/best", MODEL_DIR).as_str())?;
+        train(&args, MAX_OPTS, MODEL_DIR, EVAL_INTERVAL)?;
+        eval(&args, MODEL_DIR, true)?;
     }
 
     Ok(())
@@ -333,11 +366,21 @@ mod test {
     fn test_sac_fetch_reach() -> Result<()> {
         tch::manual_seed(42);
 
+        let tmp_dir = TempDir::new("sac_fetch_reach")?;
+        let model_dir = match tmp_dir.as_ref().to_str() {
+            Some(s) => s,
+            None => panic!("Failed to get string of temporary directory"),
+        };
+        let args = Args {
+            train: false,
+            eval: false,
+            mlflow: false,
+        };
+
         let model_dir = TempDir::new("sac_fetch_reach")?;
         let model_dir = model_dir.path().to_str().unwrap();
-        train(100, model_dir, false)?;
-        eval(1, false, (model_dir.to_string() + "/best").as_str())?;
-
+        train(100, model_dir, false, 100)?;
+        eval(&args, model_dir, false)?;
         Ok(())
     }
 }

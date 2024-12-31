@@ -12,3 +12,4 @@ readme = "README.md"
 [dependencies]
 border-core = { version = "0.0.8", path = "../border-core" }
 tensorboard-rs = { workspace = true }
+anyhow = { workspace = true }

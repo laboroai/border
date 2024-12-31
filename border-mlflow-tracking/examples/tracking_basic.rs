@@ -53,7 +53,7 @@ fn main() -> Result<()> {
     };
 
     // Set experiment for runs
-    let client = MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Default")?;
+    let client = MlflowTrackingClient::new("http://localhost:8080").set_experiment("Default")?;
 
     // Create recorders for logging
     let mut recorder_run1 = client.create_recorder("")?;

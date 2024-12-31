@@ -1,3 +1,7 @@
+//! Converts SAC policy for an agent without any backend (tch or candle).
+//!
+//! You need to prepare the model parameter files by `sac_pendulum_tch.rs` in advance.
+//!
 use anyhow::Result;
 use border_core::{Agent, Configurable};
 use border_policy_no_backend::Mlp;
@@ -179,33 +183,49 @@ fn create_sac_config() -> SacConfig<mlp::Mlp, mlp::Mlp2> {
         .device(tch::Device::Cpu)
 }
 
+fn load_sac_model(src_path: &str) -> Result<Sac> {
+    let config = create_sac_config();
+    let mut sac = Sac::build(config);
+    sac.load_params(src_path.as_ref())?;
+    Ok(sac)
+}
+
+fn create_mlp(sac: &Sac) -> Mlp {
+    let vs = sac.get_policy_net().get_var_store();
+    let w_names = ["mlp.al0.weight", "mlp.al1.weight", "ml.weight"];
+    let b_names = ["mlp.al0.bias", "mlp.al1.bias", "ml.bias"];
+    Mlp::from_varstore(vs, &w_names, &b_names)
+}
+
+fn serialize_to_file(mlp: &Mlp, dest_path: &str) -> Result<()> {
+    let encoded = bincode::serialize(mlp)?;
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(dest_path)?;
+    file.write_all(&encoded)?;
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let src_path = "./border/examples/gym/model/tch/sac_pendulum/best";
     let dest_path = "./border/examples/gym/model/edge/sac_pendulum/best/mlp.bincode";
 
-    // Load Sac model
-    let sac = {
-        let config = create_sac_config();
-        let mut sac = Sac::build(config);
-        sac.load_params(src_path)?;
-        sac
-    };
+    let sac = load_sac_model(src_path)?;
+    let mlp = create_mlp(&sac);
+    serialize_to_file(&mlp, dest_path)?;
 
-    // Create Mlp
-    let mlp = {
-        let vs = sac.get_policy_net().get_var_store();
-        let w_names = ["mlp.al0.weight", "mlp.al1.weight", "ml.weight"];
-        let b_names = ["mlp.al0.bias", "mlp.al1.bias", "ml.bias"];
-        Mlp::from_varstore(vs, &w_names, &b_names)
-    };
+    Ok(())
+}
 
-    // Serialize to file
-    let encoded = bincode::serialize(&mlp)?;
-    let mut file = fs::OpenOptions::new()
-        .create(true)
-        .write(true)
-        .open(&dest_path)?;
-    file.write_all(&encoded)?;
+#[test]
+fn test() -> Result<()> {
+    let src_path = "/root/border/border/examples/gym/model/tch/sac_pendulum/best";
+    let dest_path = "/root/border/border/examples/gym/model/edge/sac_pendulum/best/mlp.bincode";
+
+    let sac = load_sac_model(src_path)?;
+    let mlp = create_mlp(&sac);
+    serialize_to_file(&mlp, dest_path)?;
 
     Ok(())
 }

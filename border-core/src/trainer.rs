@@ -4,7 +4,7 @@ mod sampler;
 use std::time::{Duration, SystemTime};
 
 use crate::{
-    record::{AggregateRecorder, Record, RecordValue::Scalar},
+    record::{Record, RecordValue::Scalar, Recorder},
     Agent, Env, Evaluator, ExperienceBufferBase, ReplayBufferBase, StepProcessor,
 };
 use anyhow::Result;
@@ -85,9 +85,6 @@ pub use sampler::Sampler;
 /// [`BatchBase`]: crate::BatchBase
 /// [`Step<E: Env>`]: crate::Step
 pub struct Trainer {
-    /// Where to save the trained model.
-    model_dir: Option<String>,
-
     /// Interval of optimization in environment steps.
     /// This is ignored for offline training.
     opt_interval: usize,
@@ -134,7 +131,6 @@ impl Trainer {
     /// Constructs a trainer.
     pub fn build(config: TrainerConfig) -> Self {
         Self {
-            model_dir: config.model_dir,
             opt_interval: config.opt_interval,
             record_compute_cost_interval: config.record_compute_cost_interval,
             record_agent_info_interval: config.record_agent_info_interval,
@@ -149,35 +145,6 @@ impl Trainer {
             env_steps: 0,
             opt_steps: 0,
         }
-    }
-
-    fn save_model<E, R>(agent: &Box<dyn Agent<E, R>>, model_dir: String)
-    where
-        E: Env,
-        R: ReplayBufferBase,
-    {
-        match agent.save_params(&model_dir.as_ref()) {
-            Ok(()) => info!("Saved the model in {:?}.", &model_dir),
-            Err(_) => info!("Failed to save model in {:?}.", &model_dir),
-        }
-    }
-
-    fn save_best_model<E, R>(agent: &Box<dyn Agent<E, R>>, model_dir: String)
-    where
-        E: Env,
-        R: ReplayBufferBase,
-    {
-        let model_dir = model_dir + "/best";
-        Self::save_model(agent, model_dir);
-    }
-
-    fn save_model_with_steps<E, R>(agent: &Box<dyn Agent<E, R>>, model_dir: String, steps: usize)
-    where
-        E: Env,
-        R: ReplayBufferBase,
-    {
-        let model_dir = model_dir + format!("/{}", steps).as_str();
-        Self::save_model(agent, model_dir);
     }
 
     /// Returns optimization steps per second, then reset the internal counter.
@@ -234,6 +201,7 @@ impl Trainer {
         &mut self,
         agent: &mut Box<dyn Agent<E, R>>,
         evaluator: &mut D,
+        recorder: &mut Box<dyn Recorder<E, R>>,
         record: &mut Record,
         fps: f32,
     ) -> Result<()>
@@ -261,16 +229,14 @@ impl Trainer {
             if let Some(eval_reward) = eval_reward_value {
                 if eval_reward > self.max_eval_reward {
                     self.max_eval_reward = eval_reward;
-                    let model_dir = self.model_dir.as_ref().unwrap().clone();
-                    Self::save_best_model(agent, model_dir)
+                    recorder.save_model("best".as_ref(), agent)?;
                 }
             }
         };
 
         // Save the current model
         if (self.save_interval > 0) && (self.opt_steps % self.save_interval == 0) {
-            let model_dir = self.model_dir.as_ref().unwrap().clone();
-            Self::save_model_with_steps(agent, model_dir, self.opt_steps);
+            recorder.save_model(format!("{}", self.opt_steps).as_ref(), agent)?;
         }
 
         Ok(())
@@ -280,7 +246,7 @@ impl Trainer {
         &mut self,
         agent: &mut Box<dyn Agent<E, R>>,
         buffer: &mut R,
-        recorder: &mut Box<dyn AggregateRecorder>,
+        recorder: &mut Box<dyn Recorder<E, R>>,
         evaluator: &mut D,
         record: Record,
         fps: f32,
@@ -298,7 +264,7 @@ impl Trainer {
 
         // Postprocessing after each training step
         if is_opt {
-            self.post_process(agent, evaluator, &mut record, fps)?;
+            self.post_process(agent, evaluator, recorder, &mut record, fps)?;
 
             // End loop
             if self.opt_steps == self.max_opts {
@@ -326,7 +292,7 @@ impl Trainer {
         step_proc: P,
         agent: &mut Box<dyn Agent<E, R>>,
         buffer: &mut R,
-        recorder: &mut Box<dyn AggregateRecorder>,
+        recorder: &mut Box<dyn Recorder<E, R>>,
         evaluator: &mut D,
     ) -> Result<()>
     where
@@ -355,7 +321,7 @@ impl Trainer {
         &mut self,
         agent: &mut Box<dyn Agent<E, R>>,
         buffer: &mut R,
-        recorder: &mut Box<dyn AggregateRecorder>,
+        recorder: &mut Box<dyn Recorder<E, R>>,
         evaluator: &mut D,
     ) -> Result<()>
     where

@@ -291,8 +291,8 @@ pub mod test {
             crate::record::Record::empty()
         }
 
-        fn save_params(&self, _path: &std::path::Path) -> anyhow::Result<()> {
-            Ok(())
+        fn save_params(&self, _path: &std::path::Path) -> anyhow::Result<Vec<std::path::PathBuf>> {
+            Ok(vec![])
         }
 
         fn load_params(&mut self, _path: &std::path::Path) -> anyhow::Result<()> {

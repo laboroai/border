@@ -148,7 +148,6 @@ mod trainer_config {
     impl Into<TrainerConfig> for DqnAtariTrainerConfig {
         fn into(self) -> TrainerConfig {
             TrainerConfig {
-                model_dir: Some(self.model_dir),
                 max_opts: self.max_opts,
                 opt_interval: self.opt_interval,
                 eval_interval: self.eval_interval,
@@ -288,7 +287,6 @@ mod async_trainer_config {
     impl Into<AsyncTrainerConfig> for DqnAtariAsyncTrainerConfig {
         fn into(self) -> AsyncTrainerConfig {
             AsyncTrainerConfig {
-                model_dir: self.model_dir,
                 max_opts: self.max_opts,
                 eval_interval: self.eval_interval,
                 flush_record_interval: self.flush_record_interval,

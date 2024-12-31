@@ -5,6 +5,8 @@ cargo test --example iqn_cartpole_tch --features=tch
 cargo test --example sac_pendulum_tch --features=tch
 cargo test --example dqn_cartpole --features=candle-core
 cargo test --example sac_pendulum --features=candle-core
+cargo test --example convert_sac_policy_to_edge --features="border-tch-agent tch"
+cargo test --example pendulum_edge
 cd border-async-trainer; cargo test; cd ..
 cd border-atari-env; cargo test; cd ..
 cd border-candle-agent; cargo test; cd ..

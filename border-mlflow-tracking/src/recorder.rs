@@ -1,10 +1,16 @@
 use crate::{system_time_as_millis, Run};
 use anyhow::Result;
-use border_core::record::{AggregateRecorder, RecordStorage, RecordValue, Recorder};
+use border_core::{
+    record::{RecordStorage, RecordValue, Recorder},
+    Agent, Env, ReplayBufferBase,
+};
 use chrono::{DateTime, Duration, Local, SecondsFormat};
 use reqwest::blocking::Client;
 use serde::Serialize;
 use serde_json::Value;
+use std::marker::PhantomData;
+use std::path::{Path, PathBuf};
+use tempdir::TempDir;
 
 #[derive(Debug, Serialize)]
 struct LogParamParams<'a> {
@@ -55,37 +61,56 @@ struct SetTagParams<'a> {
 ///
 /// [`RecordValue::Scalar`]: border_core::record::RecordValue::Scalar
 /// [`RecordValue::Array1`]: border_core::record::RecordValue::Array1
-pub struct MlflowTrackingRecorder {
+pub struct MlflowTrackingRecorder<E, R>
+where
+    E: Env,
+    R: ReplayBufferBase,
+{
     client: Client,
     base_url: String,
     experiment_id: String,
-    run_id: String,
-    run_name: String,
+    run: Run,
     user_name: String,
     storage: RecordStorage,
     password: String,
     start_time: DateTime<Local>,
+    artifact_base: PathBuf,
+    phantom: PhantomData<(E, R)>,
 }
 
-impl MlflowTrackingRecorder {
+impl<E, R> MlflowTrackingRecorder<E, R>
+where
+    E: Env,
+    R: ReplayBufferBase,
+{
     /// Create a new instance of `MlflowTrackingRecorder`.
+    ///
+    /// This method is used in [`MlflowTrackingClient::create_recorder()`].
     ///
     /// This method adds a tag "host_start_time" with the current time.
     /// This tag is useful when using mlflow-export-import: it losts the original time.
     /// See https://github.com/mlflow/mlflow-export-import/issues/72
-    pub fn new(base_url: &String, experiment_id: &String, run: &Run) -> Result<Self> {
+    ///
+    /// [`MlflowTrackingClient::create_recorder()`]: crate::MlflowTrackingClient::create_recorder
+    pub fn new(
+        base_url: &String,
+        experiment_id: &String,
+        run: Run,
+        artifact_base: PathBuf,
+    ) -> Result<Self> {
         let client = Client::new();
         let start_time = Local::now();
         let recorder = Self {
             client,
             base_url: base_url.clone(),
             experiment_id: experiment_id.to_string(),
-            run_id: run.info.run_id.clone(),
-            run_name: run.info.run_name.clone(),
+            run,
             user_name: "".to_string(),
             password: "".to_string(),
             storage: RecordStorage::new(),
             start_time: start_time.clone(),
+            artifact_base,
+            phantom: PhantomData,
         };
 
         // Record current time as tag "host_start_time"
@@ -108,7 +133,7 @@ impl MlflowTrackingRecorder {
         };
         for (key, value) in flatten_map.iter() {
             let params = LogParamParams {
-                run_id: &self.run_id,
+                run_id: &self.run.info.run_id,
                 key,
                 value: value.to_string(),
             };
@@ -128,7 +153,7 @@ impl MlflowTrackingRecorder {
     pub fn set_tag(&self, key: impl AsRef<str>, value: impl AsRef<str>) -> Result<()> {
         let url = format!("{}/api/2.0/mlflow/runs/set-tag", self.base_url);
         let params = SetTagParams {
-            run_id: &self.run_id,
+            run_id: &self.run.info.run_id,
             key: &key.as_ref().to_string(),
             value: &value.as_ref().to_string(),
         };
@@ -142,9 +167,23 @@ impl MlflowTrackingRecorder {
 
         Ok(())
     }
+
+    pub fn set_tags<'a, T: AsRef<str> + std::fmt::Debug + 'a>(
+        &self,
+        tags: impl Into<&'a [(T, T)]>,
+    ) -> Result<()> {
+        for tag in tags.into().iter() {
+            self.set_tag(&tag.0, &tag.1)?;
+        }
+        Ok(())
+    }
 }
 
-impl Recorder for MlflowTrackingRecorder {
+impl<E, R> Recorder<E, R> for MlflowTrackingRecorder<E, R>
+where
+    E: Env,
+    R: ReplayBufferBase,
+{
     fn write(&mut self, record: border_core::record::Record) {
         let url = format!("{}/api/2.0/mlflow/runs/log-metric", self.base_url);
         let timestamp = system_time_as_millis() as i64;
@@ -156,7 +195,7 @@ impl Recorder for MlflowTrackingRecorder {
                     RecordValue::Scalar(v) => {
                         let value = *v as f64;
                         let params = LogMetricParams {
-                            run_id: &self.run_id,
+                            run_id: &self.run.info.run_id,
                             key,
                             value,
                             timestamp,
@@ -176,9 +215,69 @@ impl Recorder for MlflowTrackingRecorder {
             }
         }
     }
+
+    fn flush(&mut self, step: i64) {
+        let mut record = self.storage.aggregate();
+        record.insert("opt_steps", RecordValue::Scalar(step as _));
+        self.write(record);
+    }
+
+    fn store(&mut self, record: border_core::record::Record) {
+        self.storage.store(record);
+    }
+
+    /// Save model parameters as MLflow artifacts.
+    ///
+    /// MLflow server is assumed to be running on the same host as the program using this struct.
+    /// Under this condition, this method saves model parameters under the `mlruns` directory managed by
+    /// the MLflow server. This method recognizes the environment variable `MLFLOW_DEFAULT_ARTIFACT_ROOT`
+    /// as the location of the `mlruns` directory.
+    fn save_model(&self, base: &Path, agent: &Box<dyn border_core::Agent<E, R>>) -> Result<()> {
+        // Saves the artifacts in the temporary directory
+        let tmp = TempDir::new("mlflow")?;
+        let srcs = agent.save_params(&tmp.path())?;
+
+        // Copies the artifacts
+        for src in srcs.iter() {
+            let dest = {
+                // Create subdirectory
+                let path = self.artifact_base.join(base);
+                if !path.exists() {
+                    let _ = std::fs::create_dir(&path)?;
+                }
+
+                // Create destination file path
+                let file = src.strip_prefix(tmp.path())?;
+                path.join(file)
+            };
+            let bytes = std::fs::copy(src, &dest)?;
+            log::info!("Save {:?}", &src);
+            log::info!("Copy {:?}, {:.2}MB", &dest, bytes as f32 / (1024. * 1024.));
+        }
+        Ok(())
+    }
+
+    /// Loads model parameters previously saved as MLflow artifacts.
+    ///
+    /// This method uses `MLFLOW_DEFAULT_ARTIFACT_ROOT` environment variable as the directory
+    /// where artifacts, like model parameters, will be saved. It is recommended to set this
+    /// environment variable `mlruns` directory to which the tracking server persists experiment
+    /// and run data.
+    fn load_model(&self, base: &Path, agent: &mut Box<dyn Agent<E, R>>) -> Result<()> {
+        // Get the directory to which artifacts will be saved
+        let artifact_base = crate::get_artifact_base(self.run.clone())?;
+
+        // Load model parameters from the artifact directory
+        let path = &artifact_base.join(base);
+        agent.load_params(path)
+    }
 }
 
-impl Drop for MlflowTrackingRecorder {
+impl<E, R> Drop for MlflowTrackingRecorder<E, R>
+where
+    E: Env,
+    R: ReplayBufferBase,
+{
     /// Update run's status to "FINISHED" when dropped.
     ///
     /// It also adds tags "host_end_time" and "host_duration" with the current time and duration.
@@ -195,10 +294,10 @@ impl Drop for MlflowTrackingRecorder {
 
         let url = format!("{}/api/2.0/mlflow/runs/update", self.base_url);
         let params = UpdateRunParams {
-            run_id: &self.run_id,
+            run_id: &self.run.info.run_id,
             status: "FINISHED".to_string(),
             end_time: end_time.timestamp_millis(),
-            run_name: &self.run_name,
+            run_name: &self.run.info.run_name,
         };
         let _resp = self
             .client
@@ -208,18 +307,6 @@ impl Drop for MlflowTrackingRecorder {
             .send()
             .unwrap();
         // TODO: error handling caused by API call
-    }
-}
-
-impl AggregateRecorder for MlflowTrackingRecorder {
-    fn flush(&mut self, step: i64) {
-        let mut record = self.storage.aggregate();
-        record.insert("opt_steps", RecordValue::Scalar(step as _));
-        self.write(record);
-    }
-
-    fn store(&mut self, record: border_core::record::Record) {
-        self.storage.store(record);
     }
 }
 

@@ -13,7 +13,7 @@ use candle_core::{shape::D, DType, Device, Tensor};
 use candle_nn::loss::mse;
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use serde::{de::DeserializeOwned, Serialize};
-use std::convert::TryFrom;
+use std::{convert::TryFrom, path::PathBuf};
 use std::{fs, marker::PhantomData, path::Path};
 
 #[allow(clippy::upper_case_acronyms, dead_code)]
@@ -334,12 +334,14 @@ where
     ///
     /// The parameters of the model are saved as `qnet.pt`.
     /// The parameters of the target model are saved as `qnet_tgt.pt`.
-    fn save_params(&self, path: &Path) -> Result<()> {
+    fn save_params(&self, path: &Path) -> Result<Vec<PathBuf>> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
-        self.qnet.save(path.join("qnet.pt").as_path())?;
-        self.qnet_tgt.save(path.join("qnet_tgt.pt").as_path())?;
-        Ok(())
+        let path1 = path.join("qnet.pt").to_path_buf();
+        let path2 = path.join("qnet_tgt.pt").to_path_buf();
+        self.qnet.save(&path1)?;
+        self.qnet_tgt.save(&path2)?;
+        Ok(vec![path1, path2])
     }
 
     fn load_params(&mut self, path: &Path) -> Result<()> {

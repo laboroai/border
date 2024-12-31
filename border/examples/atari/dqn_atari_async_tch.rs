@@ -1,10 +1,6 @@
-//! aaa
 mod util_dqn_atari;
 use anyhow::Result;
-use border_async_trainer::{
-    util::train_async, /*ActorManager as ActorManager_,*/ ActorManagerConfig,
-    /*AsyncTrainer as AsyncTrainer_,*/ AsyncTrainerConfig,
-};
+use border_async_trainer::{util::train_async, ActorManagerConfig, AsyncTrainerConfig};
 use border_atari_env::{
     BorderAtariAct, BorderAtariActRawFilter, BorderAtariEnv, BorderAtariEnvConfig, BorderAtariObs,
     BorderAtariObsRawFilter,
@@ -14,7 +10,7 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    record::AggregateRecorder,
+    record::Recorder,
     DefaultEvaluator, Env as _,
 };
 use border_derive::{Act, BatchBase};
@@ -179,28 +175,6 @@ mod utils {
     pub fn model_dir(args: &Args) -> String {
         let name = &args.name;
         format!("./border/examples/atari/model/tch/dqn_{}_async", name)
-
-        // let name = matches
-        //     .value_of("name")
-        //     .expect("The name of the environment was not given")
-        //     .to_string();
-        // let mut params = Params::default();
-
-        // if matches.is_present("ddqn") {
-        //     params = params.ddqn();
-        // }
-
-        // if matches.is_present("per") {
-        //     params = params.per();
-        // }
-
-        // if matches.is_present("debug") {
-        //     params = params.debug();
-        // }
-
-        // let model_dir = model_dir_async_(name, &params)?;
-
-        // Ok(model_dir)
     }
 
     pub fn n_actions(env_config: &EnvConfig) -> Result<usize> {
@@ -211,13 +185,13 @@ mod utils {
         args: &Args,
         model_dir: &str,
         config: &DqnAtariAsyncConfig,
-    ) -> Result<Box<dyn AggregateRecorder>> {
+    ) -> Result<Box<dyn Recorder<Env, ReplayBuffer>>> {
         match args.mlflow {
             true => {
                 let name = &args.name;
-                let client = MlflowTrackingClient::new("http://localhost:8080")
-                    .set_experiment_id("Atari")?;
-                let recorder_run = client.create_recorder("")?;
+                let client =
+                    MlflowTrackingClient::new("http://localhost:8080").set_experiment("Atari")?;
+                let recorder_run = client.create_recorder(format!("{}_async_tch", name))?;
                 recorder_run.log_params(&config)?;
                 recorder_run.set_tag("env", name)?;
                 recorder_run.set_tag("algo", "dqn_async")?;
@@ -225,7 +199,9 @@ mod utils {
                 recorder_run.set_tag("n_actors", args.n_actors.to_string())?;
                 Ok(Box::new(recorder_run))
             }
-            false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
+            false => Ok(Box::new(TensorboardRecorder::new(
+                model_dir, model_dir, false,
+            ))),
         }
     }
 }
@@ -297,8 +273,7 @@ fn train(args: &Args) -> Result<()> {
     let replay_buffer_config = config::load_replay_buffer_config(model_dir.as_str())?;
     let step_proc_config = SimpleStepProcessorConfig::default();
     let actor_man_config = ActorManagerConfig::default();
-    let async_trainer_config =
-        config::load_async_trainer_config(model_dir.as_str())?.model_dir(model_dir.as_str())?;
+    let async_trainer_config = config::load_async_trainer_config(model_dir.as_str())?;
 
     if args.show_config {
         config::show_config(

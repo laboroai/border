@@ -183,9 +183,9 @@ impl<R: ReplayBufferBase> Agent_<Env, R> for RandomAgent {
         Record::empty()
     }
 
-    fn save_params(&self, _path: &std::path::Path) -> Result<()> {
+    fn save_params(&self, _path: &std::path::Path) -> Result<Vec<std::path::PathBuf>> {
         println!("save() was invoked");
-        Ok(())
+        Ok(vec![])
     }
 
     fn load_params(&mut self, _path: &std::path::Path) -> Result<()> {
