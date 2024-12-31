@@ -68,9 +68,6 @@ where
     /// Configuration of the replay buffer.
     replay_buffer_config: R::Config,
 
-    /// Where to save the trained model.
-    model_dir: Option<String>,
-
     /// Interval of recording computational cost in optimization steps.
     record_compute_cost_interval: usize,
 
@@ -132,7 +129,6 @@ where
         stop: Arc<Mutex<bool>>,
     ) -> Self {
         Self {
-            model_dir: config.model_dir.clone(),
             eval_interval: config.eval_interval,
             max_opts: config.max_opts,
             record_compute_cost_interval: config.record_compute_cost_interval,

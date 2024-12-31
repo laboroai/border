@@ -168,22 +168,6 @@ mod utils {
     pub fn model_dir(args: &Args) -> String {
         let name = &args.name;
         format!("./border/examples/atari/model/tch/dqn_{}", name)
-
-        // let mut params = Params::default();
-
-        // if matches.is_present("ddqn") {
-        //     params = params.ddqn();
-        // }
-
-        // if matches.is_present("per") {
-        //     params = params.per();
-        // }
-
-        // if matches.is_present("debug") {
-        //     params = params.debug();
-        // }
-
-        // model_dir_(name, &params)
     }
 
     pub fn model_dir_for_eval(args: &Args) -> String {

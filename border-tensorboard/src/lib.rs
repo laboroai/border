@@ -1,3 +1,7 @@
+//! A logger for border-core crate.
+//!
+//! [`TensorboardRecorder`] saves TFRecord files and model parameters to a directory
+//! in the local file system during training.
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue, Recorder},

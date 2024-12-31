@@ -1,4 +1,6 @@
-//! Support [MLflow](https://mlflow.org) tracking to manage experiments.
+//! A logger for border-core crate.
+//!
+//! This crate is based on [MLflow](https://mlflow.org) tracking.
 //!
 //! Before running the program using this crate, run a tracking server with the following command:
 //!
@@ -103,6 +105,14 @@
 //!     Ok(())
 //! }
 //! ```
+//!
+//! ## Save model parameters during training
+//!
+//! [`MlflowTrackingClient`] relies on the `MLFLOW_DEFAULT_ARTIFACT_ROOT` environment variable
+//! to locate where model parameters are saved during training. Note that this environment variable
+//! should be set for the program using this crate, not for the tracking server program.
+//! Currently, only saving to the local file system is supported.
+//!
 mod client;
 mod experiment;
 mod recorder;
