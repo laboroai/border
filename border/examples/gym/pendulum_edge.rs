@@ -4,7 +4,6 @@ use border_policy_no_backend::{Mat, Mlp};
 use border_py_gym_env::{
     ArrayObsFilter, ContinuousActFilter, GymActFilter, GymEnv, GymEnvConfig, GymObsFilter,
 };
-use clap::Parser;
 use ndarray::ArrayD;
 use std::fs;
 
@@ -59,25 +58,32 @@ mod obs_act_types {
             Act(self)
         }
     }
+
+    pub type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
+    pub type ActFilter = ContinuousActFilter<Act>;
+    pub type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
+    pub type Evaluator = DefaultEvaluator<Env>;
 }
 
-mod policy {
+use obs_act_types::*;
+
+mod agent {
     use std::{io::Read, path::Path};
 
     use super::*;
-    use border_core::Policy;
+    use border_core::{Agent, NullReplayBuffer, Policy};
 
-    pub struct MlpPolicy {
+    pub struct MlpAgent {
         mlp: Mlp,
     }
 
-    impl Policy<Env> for MlpPolicy {
+    impl Policy<Env> for MlpAgent {
         fn sample(&mut self, obs: &Obs) -> Act {
             self.mlp.forward(&obs.clone().into()).into()
         }
     }
 
-    impl MlpPolicy {
+    impl MlpAgent {
         pub fn from_serialized_path(path: impl AsRef<Path>) -> Result<Self> {
             let mut file = fs::OpenOptions::new().read(true).open(&path)?;
             let mut buf = Vec::<u8>::new();
@@ -86,105 +92,45 @@ mod policy {
             Ok(Self { mlp })
         }
     }
+
+    impl Agent<Env, NullReplayBuffer> for MlpAgent {}
 }
 
-use obs_act_types::*;
-use policy::*;
+use agent::*;
 
-type ObsFilter = ArrayObsFilter<PyObsDtype, f32, Obs>;
-type ActFilter = ContinuousActFilter<Act>;
-type Env = GymEnv<Obs, Act, ObsFilter, ActFilter>;
-type Evaluator = DefaultEvaluator<Env, MlpPolicy>;
-
-fn env_config() -> GymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
-    GymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
+fn create_env_config(render: bool) -> GymEnvConfig<Obs, Act, ObsFilter, ActFilter> {
+    let mut env_config = GymEnvConfig::<Obs, Act, ObsFilter, ActFilter>::default()
         .name("Pendulum-v1".to_string())
         .obs_filter_config(ObsFilter::default_config())
-        .act_filter_config(ActFilter::default_config())
+        .act_filter_config(ActFilter::default_config());
+
+    if render {
+        env_config = env_config
+            .render_mode(Some("human".to_string()))
+            .set_wait_in_millis(10);
+    };
+    env_config
 }
 
-fn eval(n_episodes: usize, render: bool) -> Result<()> {
-    let env_config = {
-        let mut env_config = env_config();
-        if render {
-            env_config = env_config
-                .render_mode(Some("human".to_string()))
-                .set_wait_in_millis(10);
-        };
-        env_config
-    };
-    let mut policy = Box::new(MlpPolicy::from_serialized_path(
-        "./border/examples/gym/model/edge/sac_pendulum/best/mlp.bincode",
-    )?);
-
-    let _ = {
-        let env = env_config.build()?;
-        Evaluator::new(env, n_episodes)?
-    }
-    .evaluate(&mut policy);
+fn eval(path: &str, n_episodes: usize, render: bool) -> Result<()> {
+    let env_config = create_env_config(render);
+    let mut policy = Box::new(MlpAgent::from_serialized_path(path)?) as _;
+    let _ = Evaluator::new(&env_config, 0, n_episodes)?.evaluate(&mut policy);
 
     Ok(())
-}
-
-/// Train/eval SAC agent in pendulum environment
-#[derive(Parser, Debug)]
-#[command(version, about)]
-struct Args {
-    /// Train SAC agent, not evaluate
-    #[arg(short, long, default_value_t = false)]
-    train: bool,
-
-    /// Evaluate SAC agent, not train
-    #[arg(short, long, default_value_t = false)]
-    eval: bool,
-
-    /// Log metrics with MLflow
-    #[arg(short, long, default_value_t = false)]
-    mlflow: bool,
 }
 
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-    let _ = eval(5, true)?;
-
-    // let args = Args::parse();
-
-    // if args.train {
-    //     train(
-    //         MAX_OPTS,
-    //         "./border/examples/gym/model/tch/sac_pendulum",
-    //         EVAL_INTERVAL,
-    //         args.mlflow,
-    //     )?;
-    // } else if args.eval {
-    //     eval(5, true, "./border/examples/gym/model/tch/sac_pendulum/best")?;
-    // } else {
-    //     train(
-    //         MAX_OPTS,
-    //         "./border/examples/gym/model/tch/sac_pendulum",
-    //         EVAL_INTERVAL,
-    //         args.mlflow,
-    //     )?;
-    //     eval(5, true, "./border/examples/gym/model/tch/sac_pendulum/best")?;
-    // }
-
+    let path = "./border/examples/gym/model/edge/sac_pendulum/best/mlp.bincode";
+    let _ = eval(path, 5, true)?;
     Ok(())
 }
 
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//     use tempdir::TempDir;
-
-//     #[test]
-//     fn test_sac_pendulum() -> Result<()> {
-//         tch::manual_seed(42);
-
-//         let model_dir = TempDir::new("sac_pendulum_tch")?;
-//         let model_dir = model_dir.path().to_str().unwrap();
-//         train(100, model_dir, 100, false)?;
-//         eval(1, false, (model_dir.to_string() + "/best").as_str())?;
-
-//         Ok(())
-//     }
-// }
+#[test]
+fn test_pendulum_edge() -> Result<()> {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    let path = "/root/border/border/examples/gym/model/edge/sac_pendulum/best/mlp.bincode";
+    let _ = eval(path, 1, false)?;
+    Ok(())
+}

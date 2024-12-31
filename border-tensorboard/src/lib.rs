@@ -1,45 +1,66 @@
-use border_core::record::{AggregateRecorder, Record, RecordValue, Recorder};
-use std::path::Path;
+//! A logger for border-core crate.
+//!
+//! [`TensorboardRecorder`] saves TFRecord files and model parameters to a directory
+//! in the local file system during training.
+use anyhow::Result;
+use border_core::{
+    record::{Record, RecordValue, Recorder},
+    Env, ReplayBufferBase,
+};
+use std::{
+    marker::PhantomData,
+    path::{Path, PathBuf},
+};
 use tensorboard_rs::summary_writer::SummaryWriter;
 
 /// Write records to TFRecord.
-pub struct TensorboardRecorder {
+pub struct TensorboardRecorder<E, R>
+where
+    E: Env,
+    R: ReplayBufferBase,
+{
+    model_dir: PathBuf,
     writer: SummaryWriter,
     step_key: String,
     latest_record: Option<Record>,
     ignore_unsupported_value: bool,
+    phantom: PhantomData<(E, R)>,
 }
 
-impl TensorboardRecorder {
+impl<E, R> TensorboardRecorder<E, R>
+where
+    E: Env,
+    R: ReplayBufferBase,
+{
     /// Construct a [`TensorboardRecorder`].
     ///
-    /// TFRecord will be stored in `logdir`.
-    pub fn new<P: AsRef<Path>>(logdir: P) -> Self {
+    /// * `log_dir` - Directory in which TFRecords will be stored.
+    /// * `model_dir` - Directory in which the trained model will be saved.
+    /// * `check_unsupported_value` - If true, check unsupported record value in the write() method.
+    pub fn new(
+        log_dir: impl AsRef<Path>,
+        model_dir: impl AsRef<Path>,
+        check_unsupported_value: bool,
+    ) -> Self {
         Self {
-            writer: SummaryWriter::new(logdir),
+            model_dir: model_dir.as_ref().to_path_buf(),
+            writer: SummaryWriter::new(log_dir),
             step_key: "opt_steps".to_string(),
-            ignore_unsupported_value: true,
+            ignore_unsupported_value: !check_unsupported_value,
             latest_record: None,
-        }
-    }
-
-    /// Construct a [`TensorboardRecorder`] with checking unsupported record value.
-    ///
-    /// TFRecord will be stored in `logdir`.
-    pub fn new_with_check_unsupported_value<P: AsRef<Path>>(logdir: P) -> Self {
-        Self {
-            writer: SummaryWriter::new(logdir),
-            step_key: "opt_steps".to_string(),
-            ignore_unsupported_value: false,
-            latest_record: None,
+            phantom: PhantomData,
         }
     }
 }
 
-impl Recorder for TensorboardRecorder {
-    /// Write a given [Record] into a TFRecord.
+impl<E, R> Recorder<E, R> for TensorboardRecorder<E, R>
+where
+    E: Env,
+    R: ReplayBufferBase,
+{
+    /// Writes a given [`Record`] into a TFRecord.
     ///
-    /// This method handles [RecordValue::Scalar] and [RecordValue::DateTime] in the [Record].
+    /// This method handles [RecordValue::Scalar] and [RecordValue::DateTime] in the [`Record`].
     /// Other variants will be ignored.
     fn write(&mut self, record: Record) {
         // TODO: handle error
@@ -77,9 +98,7 @@ impl Recorder for TensorboardRecorder {
             }
         }
     }
-}
 
-impl AggregateRecorder for TensorboardRecorder {
     fn store(&mut self, record: Record) {
         self.latest_record = Some(record);
     }
@@ -90,5 +109,18 @@ impl AggregateRecorder for TensorboardRecorder {
             record.insert("opt_steps", RecordValue::Scalar(step as _));
             self.write(record);
         }
+    }
+
+    /// Saves the model parameters in the local file system.
+    fn save_model(&self, base: &Path, agent: &Box<dyn border_core::Agent<E, R>>) -> Result<()> {
+        let path = self.model_dir.join(base);
+        let _ = agent.save_params(&path)?;
+        Ok(())
+    }
+
+    /// Loads the model parameters from the local file system.
+    fn load_model(&self, base: &Path, agent: &mut Box<dyn border_core::Agent<E, R>>) -> Result<()> {
+        let path = self.model_dir.join(base);
+        agent.load_params(&path)
     }
 }

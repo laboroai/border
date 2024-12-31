@@ -2,7 +2,7 @@
 use super::{Env, Policy, ReplayBufferBase};
 use crate::record::Record;
 use anyhow::Result;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Represents a trainable policy on an environment.
 pub trait Agent<E: Env, R: ReplayBufferBase>: Policy<E> {
@@ -39,8 +39,10 @@ pub trait Agent<E: Env, R: ReplayBufferBase>: Policy<E> {
     /// This method commonly creates a number of files consisting the agent
     /// in the directory. For example, the DQN agent in `border_tch_agent` crate saves
     /// two Q-networks corresponding to the original and target networks.
+    ///
+    /// This function returns the paths where the parameters has been saved.
     #[allow(unused_variables)]
-    fn save_params(&self, path: &Path) -> Result<()> {
+    fn save_params(&self, path: &Path) -> Result<Vec<PathBuf>> {
         unimplemented!();
     }
 

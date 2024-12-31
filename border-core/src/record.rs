@@ -31,5 +31,5 @@ mod storage;
 pub use base::{Record, RecordValue};
 pub use buffered_recorder::BufferedRecorder;
 pub use null_recorder::NullRecorder;
-pub use recorder::{AggregateRecorder, Recorder};
+pub use recorder::Recorder;
 pub use storage::RecordStorage;

@@ -18,10 +18,10 @@
 //! #         SimpleReplayBuffer, SimpleReplayBufferConfig,
 //! #         SimpleStepProcessorConfig, SimpleStepProcessor
 //! #     },
-//! #     record::{AggregateRecorder, NullRecorder}, DefaultEvaluator,
+//! #     record::{Recorder, NullRecorder}, DefaultEvaluator,
 //! # };
 //! #
-//! # use std::path::Path;
+//! # use std::path::{Path, PathBuf};
 //! #
 //! # fn agent_config() -> TestAgentConfig {
 //! #     TestAgentConfig
@@ -67,7 +67,7 @@
 //! #         self.0.opt_with_record(buffer)
 //! #     }
 //! #
-//! #     fn save_params(&self, path: &Path) -> anyhow::Result<()> {
+//! #     fn save_params(&self, path: &Path) -> anyhow::Result<Vec<PathBuf>> {
 //! #         self.0.save_params(path)
 //! #     }
 //! #
@@ -119,7 +119,7 @@
 //! let step_proc_config = SimpleStepProcessorConfig::default();
 //! let actor_man_config = ActorManagerConfig::default();
 //! let async_trainer_config = AsyncTrainerConfig::default();
-//! let mut recorder: Box<dyn AggregateRecorder> = Box::new(NullRecorder {});
+//! let mut recorder: Box<dyn Recorder<_, _>> = Box::new(NullRecorder::new());
 //! let mut evaluator = DefaultEvaluator::<TestEnv>::new(&env_config_eval, 0, 1).unwrap();
 //!
 //! border_async_trainer::util::train_async::<TestAgent2, _, _, StepProcessor>(
@@ -179,7 +179,7 @@ pub use sync_model::SyncModel;
 #[cfg(test)]
 pub mod test {
     use serde::{Deserialize, Serialize};
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     /// Obs for testing.
     #[derive(Clone, Debug)]
@@ -359,8 +359,8 @@ pub mod test {
             border_core::record::Record::empty()
         }
 
-        fn save_params(&self, _path: &Path) -> anyhow::Result<()> {
-            Ok(())
+        fn save_params(&self, _path: &Path) -> anyhow::Result<Vec<PathBuf>> {
+            Ok(vec![])
         }
 
         fn load_params(&mut self, _path: &Path) -> anyhow::Result<()> {

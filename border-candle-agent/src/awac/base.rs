@@ -12,7 +12,12 @@ use candle_core::{Device, Tensor, D};
 use candle_nn::loss::mse;
 use log::trace;
 use serde::{de::DeserializeOwned, Serialize};
-use std::{convert::TryInto, fs, marker::PhantomData, path::Path};
+use std::{
+    convert::TryInto,
+    fs,
+    marker::PhantomData,
+    path::{Path, PathBuf},
+};
 
 type ActionValue = Tensor;
 type ActMean = Tensor;
@@ -360,15 +365,24 @@ where
         self.opt_(buffer).expect("Failed in Awac::opt_()")
     }
 
-    fn save_params(&self, path: &Path) -> Result<()> {
+    fn save_params(&self, path: &Path) -> Result<Vec<PathBuf>> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
+        let mut paths = vec![];
+
         for (i, (critic, critic_tgt)) in self.critics.iter().zip(&self.critics_tgt).enumerate() {
-            critic.save(path.join(format!("critic_{}.pt", i)).as_path())?;
-            critic_tgt.save(path.join(format!("critic_tgt_{}.pt", i)).as_path())?;
+            let path1 = path.join(format!("critic_{}.pt", i)).to_path_buf();
+            let path2 = path.join(format!("critic_tgt_{}.pt", i)).to_path_buf();
+            critic.save(&path1)?;
+            critic_tgt.save(&path2)?;
+            paths.push(path1);
+            paths.push(path2);
         }
-        self.actor.save(path.join("actor.pt").as_path())?;
-        Ok(())
+        let path_actor = path.join("actor.pt").to_path_buf();
+        self.actor.save(&path_actor)?;
+        paths.push(path_actor);
+
+        Ok(paths)
     }
 
     fn load_params(&mut self, path: &Path) -> Result<()> {

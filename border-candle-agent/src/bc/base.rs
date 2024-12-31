@@ -9,7 +9,11 @@ use border_core::{
 use candle_core::{shape::D, DType, Device, Tensor};
 use candle_nn::loss::mse;
 use serde::{de::DeserializeOwned, Serialize};
-use std::{fs, marker::PhantomData, path::Path};
+use std::{
+    fs,
+    marker::PhantomData,
+    path::{Path, PathBuf},
+};
 
 #[allow(dead_code)]
 /// Behavior cloning (BC) agent implemented with candle.
@@ -131,12 +135,12 @@ where
     /// Save model parameters in the given directory.
     ///
     /// The parameters of the policy_model are saved as `policy_model.pt`.
-    fn save_params(&self, path: &Path) -> Result<()> {
+    fn save_params(&self, path: &Path) -> Result<Vec<PathBuf>> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
-        self.policy_model
-            .save(&path.join("policy_model.pt").as_path())?;
-        Ok(())
+        let path = path.join("policy_model.pt").to_path_buf();
+        self.policy_model.save(&path)?;
+        Ok(vec![path])
     }
 
     /// Load model parameters in the given directory.

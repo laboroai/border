@@ -13,9 +13,6 @@ pub struct TrainerConfig {
     /// The maximum number of optimization steps.
     pub max_opts: usize,
 
-    /// Directory where model parameters will be saved.
-    pub model_dir: Option<String>,
-
     /// Interval of optimization steps in environment steps.
     pub opt_interval: usize,
 
@@ -44,7 +41,6 @@ impl Default for TrainerConfig {
             max_opts: 0,
             eval_interval: 0,
             // eval_threshold: None,
-            model_dir: None,
             opt_interval: 1,
             flush_record_interval: usize::MAX,
             record_compute_cost_interval: usize::MAX,
@@ -73,12 +69,6 @@ impl TrainerConfig {
         unimplemented!();
         // self.eval_threshold = Some(v);
         // self
-    }
-
-    /// Sets the directory the trained model being saved.
-    pub fn model_dir<T: Into<String>>(mut self, model_dir: T) -> Self {
-        self.model_dir = Some(model_dir.into());
-        self
     }
 
     /// Sets the interval of optimization in environment steps.

@@ -14,7 +14,7 @@ use std::{
     convert::{TryFrom, TryInto},
     fs,
     marker::PhantomData,
-    path::Path,
+    path::{Path, PathBuf},
 };
 use tch::{no_grad, Device, Tensor};
 
@@ -345,12 +345,14 @@ where
     ///
     /// The parameters of the model are saved as `qnet.pt`.
     /// The parameters of the target model are saved as `qnet_tgt.pt`.
-    fn save_params(&self, path: &Path) -> Result<()> {
+    fn save_params(&self, path: &Path) -> Result<Vec<PathBuf>> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
-        self.qnet.save(path.join("qnet.pt.tch").as_path())?;
-        self.qnet_tgt.save(path.join("qnet_tgt.pt.tch").as_path())?;
-        Ok(())
+        let path1 = path.join("qnet.pt.tch").to_path_buf();
+        let path2 = path.join("qnet_tgt.pt.tch").to_path_buf();
+        self.qnet.save(&path1)?;
+        self.qnet_tgt.save(&path2)?;
+        Ok(vec![path1, path2])
     }
 
     fn load_params(&mut self, path: &Path) -> Result<()> {

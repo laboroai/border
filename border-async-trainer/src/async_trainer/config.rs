@@ -12,9 +12,6 @@ pub struct AsyncTrainerConfig {
     /// The maximum number of optimization steps.
     pub max_opts: usize,
 
-    /// Where to save the trained model.
-    pub model_dir: Option<String>,
-
     /// Interval of evaluation in training steps.
     pub eval_interval: usize,
 
@@ -44,12 +41,6 @@ impl AsyncTrainerConfig {
     /// Sets the interval of evaluation in optimization steps.
     pub fn eval_interval(mut self, v: usize) -> Result<Self> {
         self.eval_interval = v;
-        Ok(self)
-    }
-
-    /// Sets the directory the trained model being saved.
-    pub fn model_dir<T: Into<String>>(mut self, model_dir: T) -> Result<Self> {
-        self.model_dir = Some(model_dir.into());
         Ok(self)
     }
 
@@ -107,7 +98,6 @@ impl Default for AsyncTrainerConfig {
     fn default() -> Self {
         Self {
             max_opts: 10, //000,
-            model_dir: None,
             eval_interval: 5000,
             flush_record_interval: 5000,
             record_compute_cost_interval: 5000,

@@ -9,9 +9,9 @@ use border_core::{
         SimpleReplayBuffer, SimpleReplayBufferConfig, SimpleStepProcessor,
         SimpleStepProcessorConfig,
     },
-    record::AggregateRecorder,
-    Agent, Configurable, DefaultEvaluator, Env as _, Evaluator as _, ReplayBufferBase,
-    StepProcessor, Trainer, TrainerConfig,
+    record::Recorder,
+    Configurable, DefaultEvaluator, Env as _, Evaluator as _, ReplayBufferBase, StepProcessor,
+    Trainer, TrainerConfig,
 };
 use border_derive::{Act, BatchBase};
 use border_mlflow_tracking::MlflowTrackingClient;
@@ -61,7 +61,7 @@ mod obs_act_types {
     pub type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
     pub type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
     pub type Dqn = Dqn_<Env, Cnn, ReplayBuffer>;
-    pub type Evaluator = DefaultEvaluator<Env, Dqn>;
+    pub type Evaluator = DefaultEvaluator<Env>;
 }
 
 use config::DqnAtariConfig;
@@ -168,22 +168,6 @@ mod utils {
     pub fn model_dir(args: &Args) -> String {
         let name = &args.name;
         format!("./border/examples/atari/model/tch/dqn_{}", name)
-
-        // let mut params = Params::default();
-
-        // if matches.is_present("ddqn") {
-        //     params = params.ddqn();
-        // }
-
-        // if matches.is_present("per") {
-        //     params = params.per();
-        // }
-
-        // if matches.is_present("debug") {
-        //     params = params.debug();
-        // }
-
-        // model_dir_(name, &params)
     }
 
     pub fn model_dir_for_eval(args: &Args) -> String {
@@ -197,21 +181,25 @@ mod utils {
     pub fn create_recorder(
         args: &Args,
         model_dir: &str,
-        config: &DqnAtariConfig,
-    ) -> Result<Box<dyn AggregateRecorder>> {
+        config: Option<&DqnAtariConfig>,
+    ) -> Result<Box<dyn Recorder<Env, ReplayBuffer>>> {
         match args.mlflow {
             true => {
                 let name = &args.name;
-                let client = MlflowTrackingClient::new("http://localhost:8080")
-                    .set_experiment_id("Atari")?;
-                let recorder_run = client.create_recorder("")?;
-                recorder_run.log_params(&config)?;
-                recorder_run.set_tag("env", name)?;
-                recorder_run.set_tag("algo", "dqn")?;
-                recorder_run.set_tag("backend", "tch")?;
+                let client =
+                    MlflowTrackingClient::new("http://localhost:8080").set_experiment("Atari")?;
+                let recorder_run = client.create_recorder(format!("{}_tch", name))?;
+                if let Some(config) = config {
+                    recorder_run.log_params(&config)?;
+                    recorder_run.set_tag("env", name)?;
+                    recorder_run.set_tag("algo", "dqn")?;
+                    recorder_run.set_tag("backend", "tch")?;
+                }
                 Ok(Box::new(recorder_run))
             }
-            false => Ok(Box::new(TensorboardRecorder::new(model_dir))),
+            false => Ok(Box::new(TensorboardRecorder::new(
+                model_dir, model_dir, false,
+            ))),
         }
     }
 }
@@ -261,8 +249,7 @@ fn train(args: &Args) -> Result<()> {
             .device(cuda_if_available());
         agent_config
     };
-    let trainer_config =
-        config::load_trainer_config(model_dir.as_str())?.model_dir(model_dir.clone());
+    let trainer_config = config::load_trainer_config(model_dir.as_str())?;
     let replay_buffer_config = config::load_replay_buffer_config(model_dir.as_str())?;
     let step_proc_config = SimpleStepProcessorConfig {};
 
@@ -278,13 +265,10 @@ fn train(args: &Args) -> Result<()> {
         let mut trainer = Trainer::build(trainer_config);
         let env = Env::build(&env_config_train, 0)?;
         let step_proc = StepProc::build(&step_proc_config);
-        let mut agent = Dqn::build(agent_config);
+        let mut agent = Box::new(Dqn::build(agent_config)) as _;
         let mut buffer = ReplayBuffer::build(&replay_buffer_config);
-        let mut recorder = utils::create_recorder(&args, &model_dir, &config)?;
-        let mut evaluator = {
-            let env = Env::build(&env_config_eval, 0)?;
-            Evaluator::new(env, 1)?
-        };
+        let mut recorder = utils::create_recorder(&args, &model_dir, Some(&config))?;
+        let mut evaluator = Evaluator::new(&env_config_eval, 0, 1)?;
 
         trainer.train(
             env,
@@ -313,18 +297,15 @@ fn eval(args: &Args) -> Result<()> {
         let agent_config = config::load_dqn_config(model_dir.as_str())?
             .out_dim(n_actions as _)
             .device(device);
-        let mut agent = Dqn::build(agent_config);
-        agent.load_params(model_dir + "/best")?;
+        let mut agent = Box::new(Dqn::build(agent_config)) as _;
+        let recorder = utils::create_recorder(&args, model_dir.as_ref(), None)?;
+        recorder.load_model("best".as_ref(), &mut agent)?;
         agent.eval();
-        Box::new(agent)
-    };
+        agent
+    } as _;
     // let mut recorder = BufferedRecorder::new();
 
-    let _ = {
-        let env = Env::build(&env_config, 0)?;
-        Evaluator::new(env, 5)?
-    }
-    .evaluate(&mut agent);
+    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut agent);
 
     Ok(())
 }
