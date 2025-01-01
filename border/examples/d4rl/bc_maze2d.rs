@@ -6,7 +6,7 @@ use border_candle_agent::{
 };
 use border_core::{
     generic_replay_buffer::{BatchBase, SimpleReplayBuffer},
-    record::AggregateRecorder,
+    record::Recorder,
     Agent, Configurable, Env, Evaluator, ExperienceBufferBase, ReplayBufferBase, Trainer,
     TrainerConfig, TransitionBatch,
 };
@@ -79,8 +79,7 @@ fn create_trainer(args: &Args) -> Trainer {
             .max_opts(args.max_opts)
             .eval_interval(args.eval_interval)
             .flush_record_interval(args.max_opts / 50)
-            .record_agent_info_interval(args.max_opts / 50)
-            .model_dir(MODEL_DIR),
+            .record_agent_info_interval(args.max_opts / 50),
     )
 }
 
@@ -144,15 +143,19 @@ where
     Ok(buffer)
 }
 
-fn create_recorder(
+fn create_recorder<E, R>(
     args: &Args,
     agent_config: &impl Serialize,
-) -> Result<Box<dyn AggregateRecorder>> {
+) -> Result<Box<dyn Recorder<E, R>>>
+where
+    E: Env + 'static,
+    R: ReplayBufferBase + 'static,
+{
     log::info!("Create recorder");
     match args.mlflow {
         true => {
             let client =
-                MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("D4RL")?;
+                MlflowTrackingClient::new("http://localhost:8080").set_experiment("D4RL")?;
             let recorder_run = client.create_recorder("")?;
             recorder_run.log_params(&agent_config)?;
             recorder_run.set_tag("env", "maze2d")?;
@@ -160,7 +163,9 @@ fn create_recorder(
             recorder_run.set_tag("backend", "candle")?;
             Ok(Box::new(recorder_run))
         }
-        false => Ok(Box::new(TensorboardRecorder::new(MODEL_DIR))),
+        false => Ok(Box::new(TensorboardRecorder::new(
+            MODEL_DIR, MODEL_DIR, false,
+        ))),
     }
 }
 
