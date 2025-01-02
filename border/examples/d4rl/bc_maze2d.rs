@@ -25,9 +25,14 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 const MODEL_DIR: &str = "border/examples/d4rl/model/candle/bc_maze2d";
+const ENV_NAME: &str = "D4RL/pointmaze/umaze-v2";
 const MLFLOW_EXPERIMENT_NAME: &str = "D4RL";
 const MLFLOW_RUN_NAME: &str = "bc_maze2d_candle";
-const MLFLOW_TAGS: &[(&str, &str)] = &[("env", "maze2d"), ("algo", "sac"), ("backend", "candle")];
+const MLFLOW_TAGS: &[(&str, &str)] = &[
+    ("env", "pointmaze/umaze-v2"),
+    ("algo", "bc"),
+    ("backend", "candle"),
+];
 
 /// Train BC agent in maze2d environment
 #[derive(Parser, Debug, Serialize, Deserialize)]
@@ -153,9 +158,7 @@ where
     Ok(buffer)
 }
 
-fn create_recorder<E, R>(
-    config: &BcMaze2dConfig,
-) -> Result<Box<dyn Recorder<E, R>>>
+fn create_recorder<E, R>(config: &BcMaze2dConfig) -> Result<Box<dyn Recorder<E, R>>>
 where
     E: Env + 'static,
     R: ReplayBufferBase + 'static,
@@ -215,7 +218,7 @@ fn main() -> Result<()> {
     let args = Args::parse();
 
     let config = BcMaze2dConfig::new(args);
-    let dataset = MinariDataset::load_dataset("D4RL/pointmaze/umaze-v2", true)?;
+    let dataset = MinariDataset::load_dataset(ENV_NAME, true)?;
     let converter = PointMazeConverter::new(PointMazeConverterConfig {
         // Include goal position in observation
         include_goal: config.args.include_goal,

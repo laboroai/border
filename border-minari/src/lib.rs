@@ -317,9 +317,6 @@ pub struct MinariEnv<T: MinariConverter> {
     count_steps: usize,
     max_steps: Option<usize>,
     ref_score_minmax: Option<(f32, f32)>,
-    // will be used to get the normalized score via python method
-    // https://minari.farama.org/api/minari_functions/#normalize-score
-    // dataset: PyObject,
 }
 
 impl<T: MinariConverter> Env for MinariEnv<T> {
@@ -466,6 +463,9 @@ impl<T: MinariConverter> Drop for MinariEnv<T> {
 }
 
 impl<T: MinariConverter> MinariEnv<T> {
+    /// Normalize undiscounted return of an episode.
+    ///
+    /// This method internally calls [minari.get_normalized_score()](https://minari.farama.org/api/minari_functions/#normalize-score).
     pub fn get_normalized_score(&self, raw_score: f32) -> Option<f32> {
         if let Some((min, max)) = self.ref_score_minmax {
             Some((raw_score - min) / (max - min))

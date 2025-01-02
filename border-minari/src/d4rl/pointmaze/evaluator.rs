@@ -45,7 +45,9 @@ impl<T: MinariConverter> Evaluator<MinariEnv<T>> for PointMazeEvaluator<T> {
 
         // Normalized score
         if let Some(score) = self.env.get_normalized_score(score) {
-            record = record.merge(Record::from_scalar("Nomalized score", score));
+            // record = record.merge(Record::from_scalar("Nomalized score", score));
+            let name = format!("Average normalized score over {} episodes", self.n_episodes);
+            record = Record::from_scalar(name, score);
         }
 
         Ok(record)
