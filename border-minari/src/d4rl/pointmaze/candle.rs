@@ -48,7 +48,7 @@ mod obs_batch {
     /// It can be converted into [`Tensor`].　This allows a batch of observations to be fed into a neural network.
     ///
     /// [`Tensor`]: candle_core::Tensor
-    #[derive(Debug)]
+    #[derive(Clone, Debug)]
     pub struct PointMazeObsBatch {
         pub(super) capacity: usize,
         pub(super) obs: Option<Tensor>,
@@ -152,7 +152,7 @@ mod act_batch {
     /// It can be converted into [`Tensor`] for handling with neural networks.
     ///
     /// [`Tensor`]: candle_core::Tensor
-    #[derive(Debug)]
+    #[derive(Clone, Debug)]
     pub struct PointMazeActBatch {
         pub(super) action: Tensor,
     }

@@ -35,8 +35,8 @@ impl<P> ActorConfig<P>
 where
     P: DeserializeOwned + Serialize + OutDim,
 {
-    /// Sets configurations for action-value function.
-    pub fn policy_config(mut self, v: P) -> Self {
+    /// Sets configurations for policy function.
+    pub fn pi_config(mut self, v: P) -> Self {
         self.policy_config = Some(v);
         self
     }

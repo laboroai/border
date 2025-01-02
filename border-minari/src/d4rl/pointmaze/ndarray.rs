@@ -38,7 +38,7 @@ impl border_core::Obs for PointMazeObs {
 /// It can be converted from an observation, i.e., instance of [`PointMazeObs`].
 ///
 /// It can be converted into an ndarray.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct PointMazeObsBatch {
     pub obs: ArrayD<f32>,
 }
@@ -78,7 +78,7 @@ pub struct PointMazeAct {
 impl border_core::Act for PointMazeAct {}
 
 /// Batch of actions.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct PointMazeActBatch {
     pub action: ArrayD<f32>,
 }

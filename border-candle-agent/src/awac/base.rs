@@ -13,7 +13,6 @@ use candle_nn::loss::mse;
 use log::trace;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{
-    convert::TryInto,
     fs,
     marker::PhantomData,
     path::{Path, PathBuf},
@@ -79,14 +78,16 @@ where
     }
 
     /// Density transformation for tanh function
-    fn log_jacobian(a: &Tensor, eps: f64) -> Result<Tensor> {
-        let eps: Tensor = eps.try_into()?;
-        Ok((-1f64 * (1f64 - a.powf(2.0)? + eps)?.log()?)?)
+    fn log_jacobian(&self, a: &Tensor, eps: f64) -> Result<Tensor> {
+        let eps = Tensor::new(&[eps as f32], &self.device)?.broadcast_as(a.shape())?;
+        // let eps = Tensor::new(&[eps], self.device)?.broadcast_as(a.shape())?;
+        Ok((-1f64 * (1f64 - a.powf(2.0)? + eps)?.log()?)?.sum(D::Minus1)?)
     }
 
     /// Rerurns the log probabilities (densities) of the given actions
     fn logp<'a>(&self, obs: &P::Input, act: Q::Input2) -> Result<Tensor> {
         // Distribution parameters on the given observation
+        log::trace!("Distribution parameters on the given observation");
         let (mean, std) = {
             let (mean, lstd) = self.actor.forward(obs);
             let std = lstd.clamp(self.min_lstd, self.max_lstd)?.exp()?;
@@ -94,11 +95,13 @@ where
         };
 
         // Inverse transformation to the standard normal: N(0, 1)
-        let act = act.into();
+        log::trace!("Inverse transformation to the standard normal: N(0, 1)");
+        let act = act.into().to_device(&self.device)?;
         let z = ((Self::atanh(&act)? - &mean)? / &std)?;
 
         // Density
-        Ok((normal_logp(&z)? + Self::log_jacobian(&act, self.epsilon)?)?)
+        log::trace!("Density");
+        Ok((normal_logp(&z)? + self.log_jacobian(&act, self.epsilon)?)?)
     }
 
     /// Returns an action and its log probability based on the Normal distribution.
@@ -190,13 +193,16 @@ where
 
     fn update_actor(&mut self, batch: &R::Batch) -> Result<f32> {
         // Extract items in the batch
+        log::trace!("Extract items in the batch");
         let obs = batch.obs().clone();
         let act = batch.act().clone();
 
         // Action from the current policy
+        log::trace!("Action from the current policy");
         let (act_curr, _) = self.action_logp(&obs.clone().into())?;
 
         // Advantage
+        log::trace!("Advantage");
         let adv = {
             let q = self.qvals_min(&self.critics, &obs.clone().into(), &act.clone().into())?;
             let v = self.qvals_min(&self.critics, &obs.clone().into(), &act_curr.into())?;
@@ -204,14 +210,17 @@ where
         };
 
         // Weights
+        log::trace!("Weights");
         let w = (adv * self.inv_lambda)?
             .exp()?
             .clamp(0f64, self.exp_adv_max)?;
 
         // Log probability of actions in the batch
+        log::trace!("Log probability of actions in the batch");
         let logp = self.logp(&obs.into(), act.into())?;
 
         // Loss
+        log::trace!("Loss");
         let loss = (-1f64 * logp * w)?.mean_all()?;
 
         self.actor.backward_step(&loss)?;
