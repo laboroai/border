@@ -170,9 +170,13 @@ where
 
             // Loss
             let losses: Vec<_> = match self.critic_loss {
+                // CriticLoss::Mse => qs
+                //     .iter()
+                //     .map(|q| mse(&q.squeeze(D::Minus1).unwrap(), &tgt).unwrap())
+                //     .collect(),
                 CriticLoss::Mse => qs
                     .iter()
-                    .map(|q| mse(&q.squeeze(D::Minus1).unwrap(), &tgt).unwrap())
+                    .map(|pred| mse(&pred, &tgt).unwrap())
                     .collect(),
                 CriticLoss::SmoothL1 => qs
                     .iter()
