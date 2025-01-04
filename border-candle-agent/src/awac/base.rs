@@ -77,6 +77,7 @@ where
         Ok((0.5 * (((1. + &t)? / (1. - &t)?)?).log()?)?)
     }
 
+    #[allow(dead_code)]
     /// Density transformation for tanh function
     fn log_jacobian(&self, a: &Tensor, eps: f64) -> Result<Tensor> {
         let eps = Tensor::new(&[eps as f32], &self.device)?.broadcast_as(a.shape())?;
@@ -101,7 +102,8 @@ where
 
         // Density
         log::trace!("Density");
-        Ok((normal_logp(&z)? + self.log_jacobian(&act, self.epsilon)?)?)
+        // Ok((normal_logp(&z)? + self.log_jacobian(&act, self.epsilon)?)?) // tanh trans.
+        Ok(normal_logp(&z)?)
     }
 
     /// Returns an action and its log probability based on the Normal distribution.
@@ -290,7 +292,8 @@ where
         } else {
             mean
         };
-        act.tanh().unwrap().into()
+        // act.tanh().unwrap().into()
+        act.clamp(-1f32, 1f32).unwrap().into()
     }
 }
 

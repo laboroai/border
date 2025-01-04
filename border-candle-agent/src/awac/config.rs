@@ -123,7 +123,7 @@ where
             actor_config: Default::default(),
             critic_config: Default::default(),
             gamma: 0.99,
-            inv_lambda: 1.0,
+            inv_lambda: 10.0,
             tau: 0.005,
             epsilon: 1e-4,
             min_lstd: -20.0,

@@ -55,7 +55,7 @@ struct Args {
     max_opts: usize,
 
     /// Interval of evaluation
-    #[arg(long, default_value_t = 100000)]
+    #[arg(long, default_value_t = 10000)]
     eval_interval: usize,
 
     /// The number of evaluation episodes
@@ -83,8 +83,8 @@ impl AwacMaze2dConfig {
         let trainer_config = TrainerConfig::default()
             .max_opts(args.max_opts)
             .eval_interval(args.eval_interval)
-            .flush_record_interval(args.max_opts / 50)
-            .record_agent_info_interval(args.max_opts / 50);
+            .flush_record_interval(args.eval_interval)
+            .record_agent_info_interval(args.max_opts / 10);
         let agent_config = create_awac_config(&args).unwrap();
         Self {
             args,
@@ -104,6 +104,8 @@ fn create_awac_config(args: &Args) -> Result<AwacConfig<Mlp, Mlp2>> {
         false => 4,
     };
     let dim_act = 2;
+
+    // Actor/critic configs
     let actor_config = ActorConfig::default()
         .opt_config(OptimizerConfig::default().learning_rate(lr))
         .out_dim(dim_act)
@@ -111,7 +113,7 @@ fn create_awac_config(args: &Args) -> Result<AwacConfig<Mlp, Mlp2>> {
             dim_obs,
             vec![256, 256],
             dim_act,
-            Activation::Tanh,
+            Activation::None,
         ));
     let critic_config = CriticConfig::default()
         .opt_config(OptimizerConfig::default().learning_rate(lr))
@@ -121,6 +123,8 @@ fn create_awac_config(args: &Args) -> Result<AwacConfig<Mlp, Mlp2>> {
             1,
             Activation::None,
         ));
+
+    // AWAC config
     let awac_config = AwacConfig::<Mlp, Mlp2>::default()
         .actor_config(actor_config)
         .critic_config(critic_config)
