@@ -84,7 +84,7 @@ impl AwacMaze2dConfig {
             .max_opts(args.max_opts)
             .eval_interval(args.eval_interval)
             .flush_record_interval(args.eval_interval)
-            .record_agent_info_interval(args.max_opts / 10);
+            .record_agent_info_interval(args.eval_interval);
         let agent_config = create_awac_config(&args).unwrap();
         Self {
             args,

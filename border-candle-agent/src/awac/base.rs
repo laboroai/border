@@ -71,6 +71,7 @@ where
     <R::Batch as TransitionBatch>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
     <R::Batch as TransitionBatch>::ActBatch: Into<Q::Input2> + Into<Tensor> + Clone,
 {
+    #[allow(dead_code)]
     /// ArcTanh
     fn atanh(t: &Tensor) -> Result<Tensor> {
         let t = t.clamp(-0.999999, 0.999999)?;
@@ -98,7 +99,8 @@ where
         // Inverse transformation to the standard normal: N(0, 1)
         log::trace!("Inverse transformation to the standard normal: N(0, 1)");
         let act = act.into().to_device(&self.device)?;
-        let z = ((Self::atanh(&act)? - &mean)? / &std)?;
+        // let z = ((Self::atanh(&act)? - &mean)? / &std)?;
+        let z = ((&act - &mean)? / &std)?;
 
         // Density
         log::trace!("Density");
@@ -111,13 +113,8 @@ where
         let (mean, lstd) = self.actor.forward(o);
         let std = lstd.clamp(self.min_lstd, self.max_lstd)?.exp()?;
         let z = Tensor::randn(0f32, 1f32, mean.dims(), &self.device)?;
-        let a = (&std * &z + &mean)?.tanh()?;
-        let log_p = (normal_logp(&z)?
-            - 1f64
-                * ((1f64 - a.powf(2.0)?)? + self.epsilon)?
-                    .log()?
-                    .sum(D::Minus1)?)?
-        .squeeze(D::Minus1)?;
+        let a = (&std * &z + &mean)?.clamp(-1f32, 1f32)?;
+        let log_p = normal_logp(&z)?; // .sum(D::Minus1)?
 
         debug_assert_eq!(a.dims()[0], self.batch_size);
         debug_assert_eq!(log_p.dims(), [self.batch_size]);
@@ -174,10 +171,7 @@ where
                 //     .iter()
                 //     .map(|q| mse(&q.squeeze(D::Minus1).unwrap(), &tgt).unwrap())
                 //     .collect(),
-                CriticLoss::Mse => qs
-                    .iter()
-                    .map(|pred| mse(&pred, &tgt).unwrap())
-                    .collect(),
+                CriticLoss::Mse => qs.iter().map(|pred| mse(&pred, &tgt).unwrap()).collect(),
                 CriticLoss::SmoothL1 => qs
                     .iter()
                     .map(|pred| smooth_l1_loss(&pred, &tgt).unwrap())
