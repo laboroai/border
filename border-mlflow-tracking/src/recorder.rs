@@ -150,7 +150,15 @@ where
         Ok(())
     }
 
+    /// Set tag.
+    ///
+    /// This method does not overwrite tags.
     pub fn set_tag(&self, key: impl AsRef<str>, value: impl AsRef<str>) -> Result<()> {
+        if self.run.exist_tag(key.as_ref()) {
+            log::warn!("Tag {} exists, so set_tag() was ignored.", key.as_ref());
+            return Ok(());
+        }
+
         let url = format!("{}/api/2.0/mlflow/runs/set-tag", self.base_url);
         let params = SetTagParams {
             run_id: &self.run.info.run_id,
