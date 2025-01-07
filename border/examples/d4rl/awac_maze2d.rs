@@ -23,7 +23,7 @@ use border_tensorboard::TensorboardRecorder;
 use candle_core::{Device, Tensor};
 use clap::Parser;
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use std::{fmt::Debug, path::Path};
 
 const MODEL_DIR: &str = "border/examples/d4rl/model/candle/awac_maze2d";
 const ENV_NAME: &str = "D4RL/pointmaze/umaze-v2";
@@ -36,7 +36,7 @@ const MLFLOW_TAGS: &[(&str, &str)] = &[
 ];
 
 /// Train AWAC agent in maze2d environment
-#[derive(Parser, Debug, Serialize, Deserialize)]
+#[derive(Clone, Parser, Debug, Serialize, Deserialize)]
 #[command(version, about)]
 struct Args {
     /// train or eval
@@ -111,7 +111,7 @@ fn create_awac_config(args: &Args) -> Result<AwacConfig<Mlp, Mlp2>> {
         .out_dim(dim_act)
         .pi_config(MlpConfig::new(
             dim_obs,
-            vec![256, 256],
+            vec![256, 256, 256],
             dim_act,
             Activation::None,
         ));
@@ -119,7 +119,7 @@ fn create_awac_config(args: &Args) -> Result<AwacConfig<Mlp, Mlp2>> {
         .opt_config(OptimizerConfig::default().learning_rate(lr))
         .q_config(MlpConfig::new(
             dim_obs + dim_act,
-            vec![256, 256],
+            vec![256, 256, 256],
             1,
             Activation::None,
         ));
@@ -192,13 +192,18 @@ fn create_evaluator<T>(
     args: &Args,
     converter: T,
     dataset: &MinariDataset,
+    render: bool,
 ) -> Result<impl Evaluator<MinariEnv<T>>>
 where
     T: MinariConverter,
 {
     // Create evaluator
     log::info!("Create evaluator");
-    let env = dataset.recover_environment(converter, true, None)?;
+    let render_mode = match render {
+        true => Some("human"),
+        false => None,
+    };
+    let env = dataset.recover_environment(converter, true, render_mode)?;
     PointMazeEvaluator::new(env, args.eval_episodes)
 }
 
@@ -214,7 +219,7 @@ where
     let mut agent = create_agent(&config);
     let mut buffer = create_replay_buffer(&converter, &dataset)?;
     let mut recorder = create_recorder(&config)?;
-    let mut evaluator = create_evaluator(&config.args, converter, &dataset)?;
+    let mut evaluator = create_evaluator(&config.args, converter, &dataset, false)?;
 
     log::info!("Start training");
     let _ = trainer.train_offline(&mut agent, &mut buffer, &mut recorder, &mut evaluator);
@@ -222,16 +227,37 @@ where
     Ok(())
 }
 
+fn eval<T>(config: AwacMaze2dConfig, dataset: MinariDataset, converter: T) -> Result<()>
+where
+    T: MinariConverter + 'static,
+    T::Obs: std::fmt::Debug + Into<Tensor>,
+    T::Act: std::fmt::Debug + From<Tensor> + Into<Tensor>,
+    T::ObsBatch: std::fmt::Debug + Into<Tensor> + 'static + Clone,
+    T::ActBatch: std::fmt::Debug + Into<Tensor> + 'static + Clone,
+{
+    let mut agent: Box<dyn Agent<MinariEnv<T>, SimpleReplayBuffer<T::ObsBatch, T::ActBatch>>> =
+        create_agent(&config);
+    let recorder = create_recorder(&config)?; // used for loading a trained model
+    let mut evaluator = create_evaluator(&config.args, converter, &dataset, true)?;
+    recorder.load_model(Path::new("best"), &mut agent)?;
+    evaluator.evaluate(&mut agent)?;
+    Ok(())
+}
+
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     let args = Args::parse();
 
-    let config = AwacMaze2dConfig::new(args);
+    let config = AwacMaze2dConfig::new(args.clone());
     let dataset = MinariDataset::load_dataset(ENV_NAME, true)?;
     let converter = PointMazeConverter::new(PointMazeConverterConfig {
         // Include goal position in observation
         include_goal: config.args.include_goal,
     });
 
-    train(config, dataset, converter)
+    match args.mode.as_str() {
+        "train" => train(config, dataset, converter),
+        "eval" => eval(config, dataset, converter),
+        _ => panic!("mode must be either 'train' or 'eval'"),
+    }
 }

@@ -39,7 +39,11 @@ where
     /// The inverse of lambda in the paper.
     pub inv_lambda: f64,
 
-    pub epsilon: f64,
+    /// Minimum action value
+    pub action_min: f32,
+
+    /// Maximum action value
+    pub action_max: f32,
 
     /// Target smoothing coefficient.
     ///
@@ -96,7 +100,8 @@ where
             gamma: self.gamma.clone(),
             inv_lambda: self.inv_lambda.clone(),
             tau: self.tau.clone(),
-            epsilon: self.epsilon.clone(),
+            action_min: self.action_min,
+            action_max: self.action_max,
             min_lstd: self.min_lstd.clone(),
             max_lstd: self.max_lstd.clone(),
             n_updates_per_opt: self.n_updates_per_opt.clone(),
@@ -125,14 +130,15 @@ where
             gamma: 0.99,
             inv_lambda: 10.0,
             tau: 0.005,
-            epsilon: 1e-4,
+            action_min: -1.0,
+            action_max: 1.0,
             min_lstd: -20.0,
             max_lstd: 2.0,
             n_updates_per_opt: 1,
             batch_size: 1,
             critic_loss: CriticLoss::Mse,
             reward_scale: 1.0,
-            n_critics: 1,
+            n_critics: 2,
             exp_adv_max: 100.0,
             seed: None,
             device: None,

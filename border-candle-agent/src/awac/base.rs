@@ -42,7 +42,8 @@ where
     gamma: f64,
     tau: f64,
     inv_lambda: f64,
-    epsilon: f64,
+    action_min: f32,
+    action_max: f32,
     min_lstd: f64,
     max_lstd: f64,
     n_updates_per_opt: usize,
@@ -113,7 +114,7 @@ where
         let (mean, lstd) = self.actor.forward(o);
         let std = lstd.clamp(self.min_lstd, self.max_lstd)?.exp()?;
         let z = Tensor::randn(0f32, 1f32, mean.dims(), &self.device)?;
-        let a = (&std * &z + &mean)?.clamp(-1f32, 1f32)?;
+        let a = (&std * &z + &mean)?.clamp(self.action_min, self.action_max)?;
         let log_p = normal_logp(&z)?; // .sum(D::Minus1)?
 
         debug_assert_eq!(a.dims()[0], self.batch_size);
@@ -197,23 +198,26 @@ where
         let obs = batch.obs().clone();
         let act = batch.act().clone();
 
-        // Action from the current policy
-        log::trace!("Action from the current policy");
-        let (act_curr, _) = self.action_logp(&obs.clone().into())?;
-
-        // Advantage
-        log::trace!("Advantage");
-        let adv = {
-            let q = self.qvals_min(&self.critics, &obs.clone().into(), &act.clone().into())?;
-            let v = self.qvals_min(&self.critics, &obs.clone().into(), &act_curr.into())?;
-            (q - v)?
-        };
-
         // Weights
-        log::trace!("Weights");
-        let w = (adv * self.inv_lambda)?
-            .exp()?
-            .clamp(0f64, self.exp_adv_max)?;
+        let w = {
+            // Advantage
+            let adv = {
+                // Action from the current policy
+                log::trace!("Action from the current policy");
+                let (act_curr, _) = self.action_logp(&obs.clone().into())?;
+
+                log::trace!("Advantage");
+                let q = self.qvals_min(&self.critics, &obs.clone().into(), &act.clone().into())?;
+                let v = self.qvals_min(&self.critics, &obs.clone().into(), &act_curr.into())?;
+                (q - v)?
+            };
+
+            log::trace!("Weights");
+            (adv * self.inv_lambda)?
+                .exp()?
+                .clamp(0f64, self.exp_adv_max)?
+        }
+        .detach();
 
         // Log probability of actions in the batch
         log::trace!("Log probability of actions in the batch");
@@ -327,7 +331,8 @@ where
             actor,
             gamma: config.gamma,
             tau: config.tau,
-            epsilon: config.epsilon,
+            action_min: config.action_min,
+            action_max: config.action_max,
             min_lstd: config.min_lstd,
             max_lstd: config.max_lstd,
             n_updates_per_opt: config.n_updates_per_opt,
