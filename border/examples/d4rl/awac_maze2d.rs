@@ -44,6 +44,12 @@ struct Args {
     #[arg(long)]
     env: String,
 
+    /// Device name.
+    /// If set to `"Cpu"`, the CPU will be used.
+    /// Otherwise, the device will be determined by the `cuda_if_available()` method.
+    #[arg(long)]
+    device: Option<String>,
+
     // /// Waiting time in milliseconds between frames when evaluation
     // #[arg(long, default_value_t = 25)]
     // wait: u64,
@@ -137,11 +143,23 @@ fn create_awac_config(args: &Args) -> Result<AwacConfig<Mlp, Mlp2>> {
             Activation::None,
         ));
 
+    // Device
+    let device = if let Some(device) = &args.device {
+        match device.as_str() {
+            "cpu" => Device::Cpu,
+            _ => Device::cuda_if_available(0)?
+        }
+    }
+    else {
+        Device::cuda_if_available(0)?
+    };
+    log::info!("Device is {:?}", device);
+
     // AWAC config
     let awac_config = AwacConfig::<Mlp, Mlp2>::default()
         .actor_config(actor_config)
         .critic_config(critic_config)
-        .device(Device::cuda_if_available(0)?)
+        .device(device)
         .batch_size(args.batch_size);
     Ok(awac_config)
 }
