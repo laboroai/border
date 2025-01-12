@@ -39,14 +39,14 @@ impl<T: MinariConverter> Evaluator<MinariEnv<T>> for PointMazeEvaluator<T> {
         }
 
         // Average return
-        let name = format!("Average return over {} episodes", self.n_episodes);
+        let name = format!("Episode return");
         let score = r_total / self.n_episodes as f32;
         let mut record = Record::from_scalar(name, score);
 
         // Normalized score
         if let Some(score) = self.env.get_normalized_score(score) {
             // record = record.merge(Record::from_scalar("Nomalized score", score));
-            let name = format!("Average normalized score over {} episodes", self.n_episodes);
+            let name = "Normalized score";
             record = Record::from_scalar(name, score);
         }
 

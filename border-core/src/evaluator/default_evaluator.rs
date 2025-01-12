@@ -31,7 +31,7 @@ impl<E: Env> Evaluator<E> for DefaultEvaluator<E> {
             }
         }
 
-        let name = format!("Average return over {} episodes", self.n_episodes);
+        let name = format!("Episode return");
         Ok(Record::from_scalar(name, r_total / self.n_episodes as f32))
     }
 }

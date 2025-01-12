@@ -26,29 +26,32 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, path::Path};
 
 const MODEL_DIR: &str = "border/examples/d4rl/model/candle/awac_maze2d";
-const ENV_NAME: &str = "D4RL/pointmaze/umaze-v2";
 const MLFLOW_EXPERIMENT_NAME: &str = "D4RL";
-const MLFLOW_RUN_NAME: &str = "awac_maze2d_candle";
-const MLFLOW_TAGS: &[(&str, &str)] = &[
-    ("env", "pointmaze/umaze-v2"),
-    ("algo", "awac"),
-    ("backend", "candle"),
-];
+const MLFLOW_TAGS: &[(&str, &str)] = &[("algo", "awac"), ("backend", "candle")];
 
 /// Train AWAC agent in maze2d environment
 #[derive(Clone, Parser, Debug, Serialize, Deserialize)]
 #[command(version, about)]
 struct Args {
-    /// train or eval
+    /// "train" or "eval".
+    /// In evaluation mode, the trained model is loaded.
     #[arg(long)]
     mode: String,
+
+    /// Name of environment ID, e.g., umaze-v2.
+    /// See Minari documantation:
+    /// https://minari.farama.org/v0.5.1/datasets/D4RL/pointmaze/
+    #[arg(long)]
+    env: String,
 
     // /// Waiting time in milliseconds between frames when evaluation
     // #[arg(long, default_value_t = 25)]
     // wait: u64,
-    /// Log metrics with MLflow
-    #[arg(long, default_value_t = false)]
-    mlflow: bool,
+    /// Run name of MLflow.
+    /// When using this option, an MLflow server must be running.
+    /// If no name is provided, the log will be recorded in TensorBoard.
+    #[arg(long)]
+    mlflow_run_name: Option<String>,
 
     /// The number of optimization steps
     #[arg(long, default_value_t = 1000000)]
@@ -62,13 +65,23 @@ struct Args {
     #[arg(long, default_value_t = 5)]
     eval_episodes: usize,
 
-    /// If true, goal position is included in observation
+    /// If true, goal position is not included in observation
     #[arg(long, default_value_t = false)]
-    include_goal: bool,
+    not_include_goal: bool,
 
     /// Batch size
     #[arg(long, default_value_t = 256)]
     batch_size: usize,
+}
+
+impl Args {
+    pub fn env_name(&self) -> String {
+        format!("pointmaze/{}", self.env)
+    }
+
+    pub fn dataset_name(&self) -> String {
+        format!("D4RL/pointmaze/{}", self.env)
+    }
 }
 
 #[derive(Serialize)]
@@ -99,9 +112,9 @@ fn create_awac_config(args: &Args) -> Result<AwacConfig<Mlp, Mlp2>> {
     let lr = 0.0003;
 
     // Dimensions of observation and action
-    let dim_obs = match args.include_goal {
-        true => 6,
-        false => 4,
+    let dim_obs = match args.not_include_goal {
+        true => 4,
+        false => 6,
     };
     let dim_act = 2;
 
@@ -173,18 +186,18 @@ where
     R: ReplayBufferBase + 'static,
 {
     log::info!("Create recorder");
-    match config.args.mlflow {
-        true => {
-            let client = MlflowTrackingClient::new("http://localhost:8080")
-                .set_experiment(MLFLOW_EXPERIMENT_NAME)?;
-            let recorder_run = client.create_recorder(MLFLOW_RUN_NAME)?;
-            recorder_run.log_params(config)?;
-            recorder_run.set_tags(MLFLOW_TAGS)?;
-            Ok(Box::new(recorder_run))
-        }
-        false => Ok(Box::new(TensorboardRecorder::new(
+    if let Some(mlflow_run_name) = &config.args.mlflow_run_name {
+        let client = MlflowTrackingClient::new("http://localhost:8080")
+            .set_experiment(MLFLOW_EXPERIMENT_NAME)?;
+        let recorder_run = client.create_recorder(mlflow_run_name)?;
+        recorder_run.log_params(config)?;
+        recorder_run.set_tags(MLFLOW_TAGS)?;
+        recorder_run.set_tag("env", config.args.env_name())?;
+        Ok(Box::new(recorder_run))
+    } else {
+        Ok(Box::new(TensorboardRecorder::new(
             MODEL_DIR, MODEL_DIR, false,
-        ))),
+        )))
     }
 }
 
@@ -249,10 +262,10 @@ fn main() -> Result<()> {
     let args = Args::parse();
 
     let config = AwacMaze2dConfig::new(args.clone());
-    let dataset = MinariDataset::load_dataset(ENV_NAME, true)?;
+    let dataset = MinariDataset::load_dataset(args.dataset_name(), true)?;
     let converter = PointMazeConverter::new(PointMazeConverterConfig {
-        // Include goal position in observation
-        include_goal: config.args.include_goal,
+        // Not include goal position in observation
+        include_goal: !config.args.not_include_goal,
     });
 
     match args.mode.as_str() {
