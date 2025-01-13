@@ -1,5 +1,5 @@
 use border_core::generic_replay_buffer::BatchBase;
-use candle_core::{error::Result, DType, Device, Tensor};
+use candle_core::{error::Result, DType, Device, IndexOp, Tensor};
 
 /// Adds capability of constructing [`Tensor`] with a static method.
 ///
@@ -34,7 +34,7 @@ impl ZeroTensor for i64 {
 /// [`Tensor`]: https://docs.rs/candle-core/0.4.1/candle_core/struct.Tensor.html
 #[derive(Clone, Debug)]
 pub struct TensorBatch {
-    buf: Vec<Tensor>,
+    buf: Option<Tensor>,
     capacity: usize,
 }
 
@@ -42,55 +42,83 @@ impl TensorBatch {
     pub fn from_tensor(t: Tensor) -> Self {
         let capacity = t.dims()[0] as _;
         Self {
-            buf: vec![t],
+            buf: Some(t),
             capacity,
         }
+    }
+
+    pub fn to(&mut self, device: &Device) -> Result<()> {
+        if let Some(buf) = &self.buf {
+            self.buf = Some(buf.to_device(device)?);
+        }
+        Ok(())
     }
 }
 
 impl BatchBase for TensorBatch {
     fn new(capacity: usize) -> Self {
         Self {
-            buf: Vec::with_capacity(capacity),
+            buf: None,
             capacity: capacity,
         }
     }
 
     /// Pushes given data.
     ///
-    /// if ix + data.buf.len() exceeds the self.capacity,
-    /// the tail samples in data is placed in the head of the buffer of self.
-    fn push(&mut self, ix: usize, data: Self) {
-        if self.buf.len() == self.capacity {
-            for (i, sample) in data.buf.into_iter().enumerate() {
-                let ix_ = (ix + i) % self.capacity;
-                self.buf[ix_] = sample;
-            }
-        } else if self.buf.len() < self.capacity {
-            for (i, sample) in data.buf.into_iter().enumerate() {
-                if self.buf.len() < self.capacity {
-                    self.buf.push(sample);
-                } else {
-                    let ix_ = (ix + i) % self.capacity;
-                    self.buf[ix_] = sample;
-                }
-            }
+    /// If the internal buffer is empty, it will be initialized with the shape
+    /// `[capacity, data.buf.dims()[1..]]`.
+    fn push(&mut self, index: usize, data: Self) {
+        if data.buf.is_none() {
+            return;
+        }
+
+        let batch_size = data.buf.as_ref().unwrap().dims()[0];
+        if batch_size == 0 {
+            return;
+        }
+
+        if self.buf.is_none() {
+            let mut shape = data.buf.as_ref().unwrap().dims().to_vec();
+            shape[0] = self.capacity;
+            let dtype = data.buf.as_ref().unwrap().dtype();
+            let device = Device::Cpu;
+            self.buf = Some(Tensor::zeros(shape, dtype, &device).unwrap());
+        }
+
+        if index + batch_size > self.capacity {
+            let batch_size = self.capacity - index;
+            let data = &data.buf.unwrap();
+            let data1 = data.i((..batch_size,)).unwrap();
+            let data2 = data.i((batch_size..,)).unwrap();
+            self.buf
+                .as_mut()
+                .unwrap()
+                .slice_set(&data1, 0, index)
+                .unwrap();
+            self.buf.as_mut().unwrap().slice_set(&data2, 0, 0).unwrap();
         } else {
-            panic!("The length of the buffer is SubBatch is larger than its capacity.");
+            self.buf
+                .as_mut()
+                .unwrap()
+                .slice_set(&data.buf.unwrap(), 0, index)
+                .unwrap();
         }
     }
 
     fn sample(&self, ixs: &Vec<usize>) -> Self {
-        let buf = ixs.iter().map(|&ix| self.buf[ix].clone()).collect();
-        Self {
-            buf,
-            capacity: ixs.len(),
-        }
+        let capacity = ixs.len();
+        let ixs = {
+            let device = self.buf.as_ref().unwrap().device();
+            let ixs = ixs.iter().map(|x| *x as u32).collect();
+            Tensor::from_vec(ixs, &[capacity], device).unwrap()
+        };
+        let buf = Some(self.buf.as_ref().unwrap().index_select(&ixs, 0).unwrap());
+        Self { buf, capacity }
     }
 }
 
 impl From<TensorBatch> for Tensor {
     fn from(b: TensorBatch) -> Self {
-        Tensor::cat(&b.buf[..], 0).unwrap()
+        b.buf.unwrap()
     }
 }
