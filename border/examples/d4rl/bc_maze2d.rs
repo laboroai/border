@@ -22,52 +22,71 @@ use border_tensorboard::TensorboardRecorder;
 use candle_core::{Device, Tensor};
 use clap::Parser;
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use std::{fmt::Debug, path::Path};
 
 const MODEL_DIR: &str = "border/examples/d4rl/model/candle/bc_maze2d";
-const ENV_NAME: &str = "D4RL/pointmaze/umaze-v2";
 const MLFLOW_EXPERIMENT_NAME: &str = "D4RL";
-const MLFLOW_RUN_NAME: &str = "bc_maze2d_candle";
-const MLFLOW_TAGS: &[(&str, &str)] = &[
-    ("env", "pointmaze/umaze-v2"),
-    ("algo", "bc"),
-    ("backend", "candle"),
-];
+const MLFLOW_TAGS: &[(&str, &str)] = &[("algo", "bc"), ("backend", "candle")];
 
 /// Train BC agent in maze2d environment
-#[derive(Parser, Debug, Serialize, Deserialize)]
+#[derive(Clone, Parser, Debug, Serialize, Deserialize)]
 #[command(version, about)]
 struct Args {
-    /// train or eval
+    /// "train" or "eval".
+    /// In evaluation mode, the trained model is loaded.
     #[arg(long)]
     mode: String,
+
+    /// Name of environment ID, e.g., umaze-v2.
+    /// See Minari documantation:
+    /// https://minari.farama.org/v0.5.1/datasets/D4RL/pointmaze/
+    #[arg(long)]
+    env: String,
+
+    /// Device name.
+    /// If set to `"Cpu"`, the CPU will be used.
+    /// Otherwise, the device will be determined by the `cuda_if_available()` method.
+    #[arg(long)]
+    device: Option<String>,
 
     // /// Waiting time in milliseconds between frames when evaluation
     // #[arg(long, default_value_t = 25)]
     // wait: u64,
-    /// Log metrics with MLflow
-    #[arg(long, default_value_t = false)]
-    mlflow: bool,
+    /// Run name of MLflow.
+    /// When using this option, an MLflow server must be running.
+    /// If no name is provided, the log will be recorded in TensorBoard.
+    #[arg(long)]
+    mlflow_run_name: Option<String>,
 
     /// The number of optimization steps
     #[arg(long, default_value_t = 1000000)]
     max_opts: usize,
 
     /// Interval of evaluation
-    #[arg(long, default_value_t = 100000)]
+    #[arg(long, default_value_t = 10000)]
     eval_interval: usize,
 
     /// The number of evaluation episodes
     #[arg(long, default_value_t = 5)]
     eval_episodes: usize,
 
-    /// If true, goal position is included in observation
+    /// If true, goal position is not included in observation
     #[arg(long, default_value_t = false)]
-    include_goal: bool,
+    not_include_goal: bool,
 
     /// Batch size
     #[arg(long, default_value_t = 256)]
     batch_size: usize,
+}
+
+impl Args {
+    pub fn env_name(&self) -> String {
+        format!("pointmaze/{}", self.env)
+    }
+
+    pub fn dataset_name(&self) -> String {
+        format!("D4RL/pointmaze/{}", self.env)
+    }
 }
 
 #[derive(Serialize)]
@@ -82,46 +101,60 @@ impl BcMaze2dConfig {
         let trainer_config = TrainerConfig::default()
             .max_opts(args.max_opts)
             .eval_interval(args.eval_interval)
-            .flush_record_interval(args.max_opts / 50)
-            .record_agent_info_interval(args.max_opts / 50);
-
-        let agent_config = {
-            // Dimensions of observation and action
-            let dim_obs = match args.include_goal {
-                true => 6,
-                false => 4,
-            };
-            let dim_act = 2;
-
-            let policy_model_config = {
-                let policy_model_config = MlpConfig {
-                    in_dim: dim_obs,
-                    out_dim: dim_act,
-                    units: vec![256, 256],
-                    activation_out: Activation::Tanh,
-                };
-                BcModelConfig::default().policy_model_config(policy_model_config)
-            };
-            BcConfig::<Mlp>::default()
-                .policy_model_config(policy_model_config)
-                .batch_size(args.batch_size)
-                .device(Device::Cpu)
-                .action_type(BcActionType::Continuous)
-                .optimizer(border_candle_agent::opt::OptimizerConfig::AdamW {
-                    lr: 0.0003,
-                    beta1: candle_nn::ParamsAdamW::default().beta1,
-                    beta2: candle_nn::ParamsAdamW::default().beta2,
-                    eps: candle_nn::ParamsAdamW::default().eps,
-                    weight_decay: candle_nn::ParamsAdamW::default().weight_decay,
-                })
-        };
-
+            .flush_record_interval(args.eval_interval)
+            .record_agent_info_interval(args.eval_interval);
+        let agent_config = create_bc_config(&args).unwrap();
         Self {
             args,
             trainer_config,
             agent_config,
         }
     }
+}
+
+fn create_bc_config(args: &Args) -> Result<BcConfig<Mlp>> {
+    // Dimensions of observation and action
+    let dim_obs = match args.not_include_goal {
+        true => 4,
+        false => 6,
+    };
+    let dim_act = 2;
+
+    let policy_model_config = {
+        let policy_model_config = MlpConfig {
+            in_dim: dim_obs,
+            out_dim: dim_act,
+            units: vec![256, 256],
+            activation_out: Activation::Tanh,
+        };
+        BcModelConfig::default().policy_model_config(policy_model_config)
+    };
+
+    // Device
+    let device = if let Some(device) = &args.device {
+        match device.as_str() {
+            "cpu" => Device::Cpu,
+            _ => Device::cuda_if_available(0)?,
+        }
+    } else {
+        Device::cuda_if_available(0)?
+    };
+    log::info!("Device is {:?}", device);
+
+    // Agent config
+    let agent_config = BcConfig::<Mlp>::default()
+        .policy_model_config(policy_model_config)
+        .action_type(BcActionType::Continuous)
+        .optimizer(border_candle_agent::opt::OptimizerConfig::AdamW {
+            lr: 0.0003,
+            beta1: candle_nn::ParamsAdamW::default().beta1,
+            beta2: candle_nn::ParamsAdamW::default().beta2,
+            eps: candle_nn::ParamsAdamW::default().eps,
+            weight_decay: candle_nn::ParamsAdamW::default().weight_decay,
+        })
+        .device(device)
+        .batch_size(args.batch_size);
+    Ok(agent_config)
 }
 
 fn create_trainer(config: &BcMaze2dConfig) -> Trainer {
@@ -164,18 +197,18 @@ where
     R: ReplayBufferBase + 'static,
 {
     log::info!("Create recorder");
-    match config.args.mlflow {
-        true => {
-            let client = MlflowTrackingClient::new("http://localhost:8080")
-                .set_experiment(MLFLOW_EXPERIMENT_NAME)?;
-            let recorder_run = client.create_recorder(MLFLOW_RUN_NAME)?;
-            recorder_run.log_params(config)?;
-            recorder_run.set_tags(MLFLOW_TAGS)?;
-            Ok(Box::new(recorder_run))
-        }
-        false => Ok(Box::new(TensorboardRecorder::new(
+    if let Some(mlflow_run_name) = &config.args.mlflow_run_name {
+        let client = MlflowTrackingClient::new("http://localhost:8080")
+            .set_experiment(MLFLOW_EXPERIMENT_NAME)?;
+        let recorder_run = client.create_recorder(mlflow_run_name)?;
+        recorder_run.log_params(config)?;
+        recorder_run.set_tags(MLFLOW_TAGS)?;
+        recorder_run.set_tag("env", config.args.env_name())?;
+        Ok(Box::new(recorder_run))
+    } else {
+        Ok(Box::new(TensorboardRecorder::new(
             MODEL_DIR, MODEL_DIR, false,
-        ))),
+        )))
     }
 }
 
@@ -183,13 +216,18 @@ fn create_evaluator<T>(
     args: &Args,
     converter: T,
     dataset: &MinariDataset,
+    render: bool,
 ) -> Result<impl Evaluator<MinariEnv<T>>>
 where
     T: MinariConverter,
 {
     // Create evaluator
     log::info!("Create evaluator");
-    let env = dataset.recover_environment(converter, true, None)?;
+    let render_mode = match render {
+        true => Some("human"),
+        false => None,
+    };
+    let env = dataset.recover_environment(converter, true, render_mode)?;
     PointMazeEvaluator::new(env, args.eval_episodes)
 }
 
@@ -205,7 +243,7 @@ where
     let mut agent = create_agent(&config);
     let mut buffer = create_replay_buffer(&converter, &dataset)?;
     let mut recorder = create_recorder(&config)?;
-    let mut evaluator = create_evaluator(&config.args, converter, &dataset)?;
+    let mut evaluator = create_evaluator(&config.args, converter, &dataset, false)?;
 
     log::info!("Start training");
     let _ = trainer.train_offline(&mut agent, &mut buffer, &mut recorder, &mut evaluator);
@@ -213,16 +251,37 @@ where
     Ok(())
 }
 
+fn eval<T>(config: BcMaze2dConfig, dataset: MinariDataset, converter: T) -> Result<()>
+where
+    T: MinariConverter + 'static,
+    T::Obs: std::fmt::Debug + Into<Tensor>,
+    T::Act: std::fmt::Debug + From<Tensor> + Into<Tensor>,
+    T::ObsBatch: std::fmt::Debug + Into<Tensor> + 'static,
+    T::ActBatch: std::fmt::Debug + Into<Tensor> + 'static,
+{
+    let mut agent: Box<dyn Agent<MinariEnv<T>, SimpleReplayBuffer<T::ObsBatch, T::ActBatch>>> =
+        create_agent(&config);
+    let recorder = create_recorder(&config)?; // used for loading a trained model
+    let mut evaluator = create_evaluator(&config.args, converter, &dataset, true)?;
+    recorder.load_model(Path::new("best"), &mut agent)?;
+    evaluator.evaluate(&mut agent)?;
+    Ok(())
+}
+
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     let args = Args::parse();
 
-    let config = BcMaze2dConfig::new(args);
-    let dataset = MinariDataset::load_dataset(ENV_NAME, true)?;
+    let config = BcMaze2dConfig::new(args.clone());
+    let dataset = MinariDataset::load_dataset(args.dataset_name(), true)?;
     let converter = PointMazeConverter::new(PointMazeConverterConfig {
-        // Include goal position in observation
-        include_goal: config.args.include_goal,
+        // Not include goal position in observation
+        include_goal: !config.args.not_include_goal,
     });
 
-    train(config, dataset, converter)
+    match args.mode.as_str() {
+        "train" => train(config, dataset, converter),
+        "eval" => eval(config, dataset, converter),
+        _ => panic!("mode must be either 'train' or 'eval'"),
+    }
 }

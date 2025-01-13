@@ -114,15 +114,15 @@ impl AwacMaze2dConfig {
 }
 
 fn create_awac_config(args: &Args) -> Result<AwacConfig<Mlp, Mlp2>> {
-    // Actor/Critic learning rate
-    let lr = 0.0003;
-
     // Dimensions of observation and action
     let dim_obs = match args.not_include_goal {
         true => 4,
         false => 6,
     };
     let dim_act = 2;
+
+    // Actor/Critic learning rate
+    let lr = 0.0003;
 
     // Actor/critic configs
     let actor_config = ActorConfig::default()
@@ -147,21 +147,20 @@ fn create_awac_config(args: &Args) -> Result<AwacConfig<Mlp, Mlp2>> {
     let device = if let Some(device) = &args.device {
         match device.as_str() {
             "cpu" => Device::Cpu,
-            _ => Device::cuda_if_available(0)?
+            _ => Device::cuda_if_available(0)?,
         }
-    }
-    else {
+    } else {
         Device::cuda_if_available(0)?
     };
     log::info!("Device is {:?}", device);
 
-    // AWAC config
-    let awac_config = AwacConfig::<Mlp, Mlp2>::default()
+    // Agent config
+    let agent_config = AwacConfig::<Mlp, Mlp2>::default()
         .actor_config(actor_config)
         .critic_config(critic_config)
         .device(device)
         .batch_size(args.batch_size);
-    Ok(awac_config)
+    Ok(agent_config)
 }
 
 fn create_trainer(config: &AwacMaze2dConfig) -> Trainer {
