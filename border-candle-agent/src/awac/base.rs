@@ -313,14 +313,19 @@ where
 
     /// Constructs [`Awac`] agent.
     fn build(config: Self::Config) -> Self {
-        let device = config.device.expect("No device is given for SAC agent");
+        let device: Device = config
+            .device
+            .expect("No device is given for AWAC agent")
+            .into();
         let n_critics = config.n_critics;
         let actor = Actor::build(config.actor_config, device.clone().into()).unwrap();
         let mut critics = vec![];
         let mut critics_tgt = vec![];
-        for _ in 0..n_critics {
+        for i in 0..n_critics {
+            device.set_seed((i + 10) as _).unwrap();
             critics
                 .push(Critic::build(config.critic_config.clone(), device.clone().into()).unwrap());
+            device.set_seed((i + 10) as _).unwrap();
             critics_tgt
                 .push(Critic::build(config.critic_config.clone(), device.clone().into()).unwrap());
         }
