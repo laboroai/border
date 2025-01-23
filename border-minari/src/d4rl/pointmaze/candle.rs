@@ -242,12 +242,16 @@ impl PointMazeConverterConfig {
 /// Converter for the Point Maze environment implemented with candle.
 pub struct PointMazeConverter {
     include_goal: bool,
+    mean: Tensor, // for normalizing observation
+    std: Tensor, // for normalizing observation
 }
 
 impl PointMazeConverter {
     pub fn new(config: PointMazeConverterConfig) -> Self {
         Self {
             include_goal: config.include_goal,
+            mean: Tensor::zeros((2, 3), DType::F32, &Device::Cpu).unwrap(),
+            std: Tensor::zeros((2, 3), DType::F32, &Device::Cpu).unwrap(),
         }
     }
 }

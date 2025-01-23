@@ -163,7 +163,7 @@ impl MinariDataset {
     ///   All transitions in the episodes are flattened.
     pub fn create_replay_buffer<T: MinariConverter>(
         &self,
-        converter: &T,
+        converter: &mut T,
         episode_indices: Option<Vec<usize>>,
     ) -> Result<SimpleReplayBuffer<T::ObsBatch, T::ActBatch>>
     where
