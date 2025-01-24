@@ -240,10 +240,13 @@ impl PointMazeConverterConfig {
 }
 
 /// Converter for the Point Maze environment implemented with candle.
+///
+/// This struct normalizes observations based on the statistics
+/// of the observations in the dataset.
 pub struct PointMazeConverter {
     include_goal: bool,
     mean: Tensor, // for normalizing observation
-    std: Tensor, // for normalizing observation
+    std: Tensor,  // for normalizing observation
 }
 
 impl PointMazeConverter {
@@ -252,6 +255,16 @@ impl PointMazeConverter {
             include_goal: config.include_goal,
             mean: Tensor::zeros((2, 3), DType::F32, &Device::Cpu).unwrap(),
             std: Tensor::zeros((2, 3), DType::F32, &Device::Cpu).unwrap(),
+        }
+    }
+
+    fn normalize_observation(&self, obs: &Tensor) -> Result<Tensor> {
+        if self.mean.is_some() && self.std.is_some() {
+            let mean = self.mean.as_ref().unwrap();
+            let std = self.std.as_ref().unwrap();
+            Ok(((obs - mean)? / std)?)
+        } else {
+            panic!("Mean and std are not initialized.");
         }
     }
 }
@@ -266,13 +279,15 @@ impl MinariConverter for PointMazeConverter {
         match self.include_goal {
             false => {
                 let obs = obj.get_item("observation")?.extract()?;
+                let obs = arrayd_to_tensor(pyobj_to_arrayd::<f64, f32>(obs), Some(&[1, 4]))?;
                 Ok(PointMazeObs {
-                    obs: arrayd_to_tensor(pyobj_to_arrayd::<f64, f32>(obs), Some(&[1, 4]))?,
+                    obs: self.normalize_observation(&obs)?,
                 })
             }
             true => {
                 let obs = obj.get_item("observation")?.extract()?;
                 let obs = arrayd_to_tensor(pyobj_to_arrayd::<f64, f32>(obs), Some(&[1, 4]))?;
+                let obs = self.normalize_observation(&obs)?;
                 let goal = obj.get_item("desired_goal")?.extract()?;
                 let goal = arrayd_to_tensor(pyobj_to_arrayd::<f64, f32>(goal), Some(&[1, 2]))?;
                 Ok(PointMazeObs {
@@ -290,9 +305,14 @@ impl MinariConverter for PointMazeConverter {
         match self.include_goal {
             false => {
                 let obs = pyobj_to_tensor1(obj, "observation")?;
-                let capacity = obs.dims()[0];
+                let obs = self.normalize_observation(&obs)?;
+
+                // Check tensor size: expects [batch_size, obs_vec_dim]
+                let batch_size = obs.dims()[0];
+                debug_assert_eq!(obs.dims(), &[batch_size, 4]);
+
                 Ok(PointMazeObsBatch {
-                    capacity,
+                    capacity: batch_size,
                     obs: Some(obs),
                 })
             }
@@ -303,15 +323,20 @@ impl MinariConverter for PointMazeConverter {
                 // Drop the last dim
                 let obs = obs.squeeze(candle_core::D::Minus1)?;
                 let goal = goal.squeeze(candle_core::D::Minus1)?;
-                // Expects [batch_size, obs_vec_dim]
-                assert_eq!(obs.dims().len(), 2);
-                assert_eq!(goal.dims().len(), 2);
 
+                // Normalize
+                let obs = self.normalize_observation(&obs)?;
+
+                // Check tensor size: expects [batch_size, obs_vec_dim]
+                let batch_size = obs.dims()[0];
+                debug_assert_eq!(obs.dims(), &[batch_size, 4]);
+                debug_assert_eq!(goal.dims(), &[batch_size, 2]);
+
+                // Concat obs and goal
                 let obs = Tensor::cat(&[obs, goal], candle_core::D::Minus1)?;
-                let capacity = obs.dims()[0];
 
                 Ok(PointMazeObsBatch {
-                    capacity,
+                    capacity: batch_size,
                     obs: Some(obs),
                 })
             }
@@ -322,9 +347,14 @@ impl MinariConverter for PointMazeConverter {
         match self.include_goal {
             false => {
                 let obs = pyobj_to_tensor2(obj, "observation")?;
-                let capacity = obs.dims()[0];
+                let obs = self.normalize_observation(&obs)?;
+
+                // Check tensor size: expects [batch_size, obs_vec_dim]
+                let batch_size = obs.dims()[0];
+                debug_assert_eq!(obs.dims(), &[batch_size, 4]);
+
                 Ok(PointMazeObsBatch {
-                    capacity,
+                    capacity: batch_size,
                     obs: Some(obs),
                 })
             }
@@ -335,15 +365,20 @@ impl MinariConverter for PointMazeConverter {
                 // Drop the last dim
                 let obs = obs.squeeze(candle_core::D::Minus1)?;
                 let goal = goal.squeeze(candle_core::D::Minus1)?;
-                // Expects [batch_size, obs_vec_dim]
-                assert_eq!(obs.dims().len(), 2);
-                assert_eq!(goal.dims().len(), 2);
 
+                // Normalize
+                let obs = self.normalize_observation(&obs)?;
+
+                // Check tensor size: expects [batch_size, obs_vec_dim]
+                let batch_size = obs.dims()[0];
+                debug_assert_eq!(obs.dims(), &[batch_size, 4]);
+                debug_assert_eq!(goal.dims(), &[batch_size, 2]);
+
+                // Concat obs and goal
                 let obs = Tensor::cat(&[obs, goal], candle_core::D::Minus1)?;
-                let capacity = obs.dims()[0];
 
                 Ok(PointMazeObsBatch {
-                    capacity,
+                    capacity: batch_size,
                     obs: Some(obs),
                 })
             }
