@@ -122,7 +122,6 @@ impl MinariDataset {
         Python::with_gil(|py| {
             let minari = py.import("minari").unwrap();
             let dataset = minari
-                // .call1("load_dataset", (dataset_id.as_ref(), download))?
                 .getattr("load_dataset")?
                 .call1((dataset_id.as_ref(), download))?
                 .to_object(py);

@@ -250,22 +250,62 @@ pub struct PointMazeConverter {
 }
 
 impl PointMazeConverter {
-    pub fn new(config: PointMazeConverterConfig) -> Self {
-        Self {
+    /// Creates a new Point Maze converter.
+    ///
+    /// `dataset` is used to calculate the mean and standard deviation of the observations.
+    pub fn new(config: PointMazeConverterConfig, dataset: &MinariDataset) -> Result<Self> {
+        let (mean, std) = Python::with_gil(|py| {
+            // Iterate all episodes
+            let episodes = dataset.call_method1(py, "iterate_episodes", (None,))?;
+            let mut all_obs = match config.include_goal {
+                false => Tensor::empty(&[0, 4], DType::F32, &Device::Cpu)?,
+                true => Tensor::empty(&[0, 6], DType::F32, &Device::Cpu)?,
+            };
+
+            // Collect all observations
+            for ep in PyIterator::from_object(py, &episodes)? {
+                // ep is minari.dataset.episode_data.EpisodeData
+                let ep = ep?;
+                let obs = ep.getattr("observations")?;
+
+                let obs_batch = match config.include_goal {
+                    false => {
+                        let obs = obj.get_item("observation")?.extract()?;
+                        arrayd_to_tensor(pyobj_to_arrayd::<f64, f32>(obs), Some(&[1, 4]))?
+                    }
+                    true => {
+                        let obs = obj.get_item("observation")?.extract()?;
+                        let obs =
+                            arrayd_to_tensor(pyobj_to_arrayd::<f64, f32>(obs), Some(&[1, 4]))?;
+                        let goal = obj.get_item("desired_goal")?.extract()?;
+                        let goal =
+                            arrayd_to_tensor(pyobj_to_arrayd::<f64, f32>(goal), Some(&[1, 2]))?;
+                        Tensor::cat(&[obs, goal], candle_core::D::Minus1)?
+                    }
+                };
+                all_obs = Tensor::cat(&[all_obs, obs_batch], 0)?;
+            }
+
+            // Calculate mean and std
+            let mean = all_obs.mean(0)?;
+            let std = all_obs.var(0)?.sqrt()?;
+            match config.include_goal {
+                false => debug_assert_eq!(mean.dims(), &[1, 6]),
+                true => debug_assert_eq!(mean.dims(), &[1, 6]),
+            }
+
+            (mean, std)
+        });
+
+        Ok(Self {
             include_goal: config.include_goal,
-            mean: Tensor::zeros((2, 3), DType::F32, &Device::Cpu).unwrap(),
-            std: Tensor::zeros((2, 3), DType::F32, &Device::Cpu).unwrap(),
-        }
+            mean,
+            std,
+        })
     }
 
     fn normalize_observation(&self, obs: &Tensor) -> Result<Tensor> {
-        if self.mean.is_some() && self.std.is_some() {
-            let mean = self.mean.as_ref().unwrap();
-            let std = self.std.as_ref().unwrap();
-            Ok(((obs - mean)? / std)?)
-        } else {
-            panic!("Mean and std are not initialized.");
-        }
+        Ok(((obs - self.mean)? / self.std)?)
     }
 }
 
