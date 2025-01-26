@@ -71,9 +71,9 @@ struct Args {
     #[arg(long, default_value_t = 5)]
     eval_episodes: usize,
 
-    /// If true, goal position is not included in observation
+    /// If true, goal position is included in observation
     #[arg(long, default_value_t = false)]
-    not_include_goal: bool,
+    include_goal: bool,
 
     /// Batch size
     #[arg(long, default_value_t = 256)]
@@ -115,9 +115,9 @@ impl AwacMaze2dConfig {
 
 fn create_awac_config(args: &Args) -> Result<AwacConfig<Mlp, Mlp2>> {
     // Dimensions of observation and action
-    let dim_obs = match args.not_include_goal {
-        true => 4,
-        false => 6,
+    let dim_obs = match args.include_goal {
+        true => 6,
+        false => 4,
     };
     let dim_act = 2;
 
@@ -183,7 +183,7 @@ where
 }
 
 fn create_replay_buffer<T>(
-    converter: &T,
+    converter: &mut T,
     dataset: &MinariDataset,
 ) -> Result<SimpleReplayBuffer<T::ObsBatch, T::ActBatch>>
 where
@@ -237,7 +237,7 @@ where
     PointMazeEvaluator::new(env, args.eval_episodes)
 }
 
-fn train<T>(config: AwacMaze2dConfig, dataset: MinariDataset, converter: T) -> Result<()>
+fn train<T>(config: AwacMaze2dConfig, dataset: MinariDataset, mut converter: T) -> Result<()>
 where
     T: MinariConverter + 'static,
     T::Obs: std::fmt::Debug + Into<Tensor>,
@@ -247,7 +247,7 @@ where
 {
     let mut trainer = create_trainer(&config);
     let mut agent = create_agent(&config);
-    let mut buffer = create_replay_buffer(&converter, &dataset)?;
+    let mut buffer = create_replay_buffer(&mut converter, &dataset)?;
     let mut recorder = create_recorder(&config)?;
     let mut evaluator = create_evaluator(&config.args, converter, &dataset, false)?;
 
@@ -280,10 +280,13 @@ fn main() -> Result<()> {
 
     let config = AwacMaze2dConfig::new(args.clone());
     let dataset = MinariDataset::load_dataset(args.dataset_name(), true)?;
-    let converter = PointMazeConverter::new(PointMazeConverterConfig {
-        // Not include goal position in observation
-        include_goal: !config.args.not_include_goal,
-    });
+    let converter = PointMazeConverter::new(
+        PointMazeConverterConfig {
+            // Include goal position in observation
+            include_goal: config.args.include_goal,
+        },
+        &dataset,
+    )?;
 
     match args.mode.as_str() {
         "train" => train(config, dataset, converter),

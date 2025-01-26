@@ -1,15 +1,14 @@
 //! Observation, action types and corresponding converters for the Point Maze environment implemented with candle.
-use std::convert::{TryFrom, TryInto};
-
 use crate::{
     util::ndarray::{arrayd_to_pyobj, pyobj_to_arrayd},
-    MinariConverter,
+    MinariConverter, MinariDataset,
 };
 use anyhow::Result;
 use border_core::generic_replay_buffer::BatchBase;
 use candle_core::{DType, Device, Tensor};
 use ndarray::{ArrayBase, ArrayD, Axis, Slice};
-use pyo3::{PyAny, PyObject};
+use pyo3::{types::PyIterator, PyAny, PyObject, Python};
+use std::convert::{TryFrom, TryInto};
 
 mod obs {
     use super::Tensor;
@@ -254,48 +253,30 @@ impl PointMazeConverter {
     ///
     /// `dataset` is used to calculate the mean and standard deviation of the observations.
     pub fn new(config: PointMazeConverterConfig, dataset: &MinariDataset) -> Result<Self> {
-        let (mean, std) = Python::with_gil(|py| {
+        let (mean, std) = Python::with_gil(|py| -> Result<(Tensor, Tensor)> {
             // Iterate all episodes
-            let episodes = dataset.call_method1(py, "iterate_episodes", (None,))?;
-            let mut all_obs = match config.include_goal {
-                false => Tensor::empty(&[0, 4], DType::F32, &Device::Cpu)?,
-                true => Tensor::empty(&[0, 6], DType::F32, &Device::Cpu)?,
-            };
+            let episodes = dataset
+                .dataset
+                .call_method1(py, "iterate_episodes", (None::<i32>,))?;
+            let mut all_obs = Tensor::zeros(&[0, 4], DType::F32, &Device::Cpu)?;
 
-            // Collect all observations
+            // Collect all observations for calculating mean and std
             for ep in PyIterator::from_object(py, &episodes)? {
                 // ep is minari.dataset.episode_data.EpisodeData
                 let ep = ep?;
-                let obs = ep.getattr("observations")?;
+                let obj = ep.getattr("observations")?;
 
-                let obs_batch = match config.include_goal {
-                    false => {
-                        let obs = obj.get_item("observation")?.extract()?;
-                        arrayd_to_tensor(pyobj_to_arrayd::<f64, f32>(obs), Some(&[1, 4]))?
-                    }
-                    true => {
-                        let obs = obj.get_item("observation")?.extract()?;
-                        let obs =
-                            arrayd_to_tensor(pyobj_to_arrayd::<f64, f32>(obs), Some(&[1, 4]))?;
-                        let goal = obj.get_item("desired_goal")?.extract()?;
-                        let goal =
-                            arrayd_to_tensor(pyobj_to_arrayd::<f64, f32>(goal), Some(&[1, 2]))?;
-                        Tensor::cat(&[obs, goal], candle_core::D::Minus1)?
-                    }
-                };
+                let obs_batch = pyobj_to_tensor1(obj, "observation")?;
                 all_obs = Tensor::cat(&[all_obs, obs_batch], 0)?;
             }
 
             // Calculate mean and std
-            let mean = all_obs.mean(0)?;
-            let std = all_obs.var(0)?.sqrt()?;
-            match config.include_goal {
-                false => debug_assert_eq!(mean.dims(), &[1, 6]),
-                true => debug_assert_eq!(mean.dims(), &[1, 6]),
-            }
+            let mean = all_obs.mean(0)?.unsqueeze(0)?;
+            let std = all_obs.var(0)?.sqrt()?.unsqueeze(0)?;
+            debug_assert_eq!(mean.dims(), &[1, 4]);
 
-            (mean, std)
-        });
+            Ok((mean, std))
+        })?;
 
         Ok(Self {
             include_goal: config.include_goal,
@@ -305,7 +286,7 @@ impl PointMazeConverter {
     }
 
     fn normalize_observation(&self, obs: &Tensor) -> Result<Tensor> {
-        Ok(((obs - self.mean)? / self.std)?)
+        Ok(obs.broadcast_sub(&self.mean)?.broadcast_div(&self.std)?)
     }
 }
 
@@ -364,7 +345,7 @@ impl MinariConverter for PointMazeConverter {
                 let obs = obs.squeeze(candle_core::D::Minus1)?;
                 let goal = goal.squeeze(candle_core::D::Minus1)?;
 
-                // Normalize
+                // Normalize obs (keep goal unchanged)
                 let obs = self.normalize_observation(&obs)?;
 
                 // Check tensor size: expects [batch_size, obs_vec_dim]
