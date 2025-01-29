@@ -116,6 +116,27 @@ where
         let ixs = (0..self.size).collect::<Vec<_>>();
         self.act.sample(&ixs)
     }
+
+    /// Returns the number of terminated flags in the replay buffer.
+    pub fn num_terminated_flags(&self) -> usize {
+        self.is_terminated
+            .iter()
+            .map(|is_terminated| *is_terminated as usize)
+            .sum()
+    }
+
+    /// Returns the number of truncated flags in the replay buffer.
+    pub fn num_truncated_flags(&self) -> usize {
+        self.is_truncated
+            .iter()
+            .map(|is_truncated| *is_truncated as usize)
+            .sum()
+    }
+
+    /// Returns the sum of rewards in the replay buffer.
+    pub fn sum_rewards(&self) -> f32 {
+        self.reward.iter().sum()
+    }
 }
 
 impl<O, A> ExperienceBufferBase for SimpleReplayBuffer<O, A>

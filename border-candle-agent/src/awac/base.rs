@@ -100,7 +100,6 @@ where
         // Inverse transformation to the standard normal: N(0, 1)
         log::trace!("Inverse transformation to the standard normal: N(0, 1)");
         let act = act.into().to_device(&self.device)?;
-        // let z = ((Self::atanh(&act)? - &mean)? / &std)?;
         let z = ((&act - &mean)? / &std)?;
 
         // Density
@@ -115,7 +114,8 @@ where
         let std = lstd.clamp(self.min_lstd, self.max_lstd)?.exp()?;
         let z = Tensor::randn(0f32, 1f32, mean.dims(), &self.device)?;
         let a = (&std * &z + &mean)?.clamp(self.action_min, self.action_max)?;
-        let log_p = normal_logp(&z)?; // .sum(D::Minus1)?
+        let z_ = ((&a - &mean)? / &std)?;
+        let log_p = normal_logp(&z_)?; // .sum(D::Minus1)?
 
         debug_assert_eq!(a.dims()[0], self.batch_size);
         debug_assert_eq!(log_p.dims(), [self.batch_size]);
@@ -144,12 +144,16 @@ where
     fn update_critic(&mut self, batch: R::Batch) -> Result<f32> {
         let losses = {
             // Extract items in the batch
-            let (obs, act, next_obs, reward, is_terminated, _is_truncated, _, _) = batch.unpack();
+            let (obs, act, next_obs, reward, is_terminated, is_truncated, _, _) = batch.unpack();
             let batch_size = reward.len();
             let reward = Tensor::from_slice(&reward[..], (batch_size,), &self.device)?;
-            let is_terminated = {
-                let is_terminated = is_terminated.iter().map(|e| *e as f32).collect::<Vec<_>>();
-                Tensor::from_slice(&is_terminated[..], (batch_size,), &self.device)?
+            let not_done = {
+                let not_done = is_terminated
+                    .iter()
+                    .zip(is_truncated.iter())
+                    .map(|(e1, e2)| 1f32 - (*e1 | *e2) as f32)
+                    .collect::<Vec<_>>();
+                Tensor::from_slice(&not_done[..], (batch_size,), &self.device)?
             };
 
             // Prediction
@@ -161,8 +165,8 @@ where
             let q_next = self
                 .qvals_min(&self.critics_tgt, &next_obs.into(), &a_next.into())?
                 .detach();
-            let tgt = (((self.reward_scale as f64) * reward)?
-                + (1f64 - &is_terminated)? * self.gamma * q_next)?;
+            let reward = ((self.reward_scale as f64) * reward)?;
+            let tgt = (reward + (not_done * self.gamma * q_next)?)?;
 
             debug_assert_eq!(tgt.dims(), [self.batch_size]);
 

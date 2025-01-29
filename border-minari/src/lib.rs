@@ -196,6 +196,13 @@ impl MinariDataset {
                 replay_buffer.push(batch)?;
             }
 
+            // Stats in the replay buffer
+            log::info!("In replay buffer:");
+            log::info!("{} transitions", num_transitions);
+            log::info!("{} terminated flags", replay_buffer.num_terminated_flags());
+            log::info!("{} truncated flags", replay_buffer.num_truncated_flags());
+            log::info!("{} reward sum", replay_buffer.sum_rewards());
+
             Ok(replay_buffer)
         })
     }
