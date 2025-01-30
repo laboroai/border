@@ -156,8 +156,20 @@ required-features = ["candle"]
 test = false
 
 [[example]]
+name = "bc_pen"
+path = "examples/d4rl/bc_pen.rs"
+required-features = ["candle"]
+test = false
+
+[[example]]
 name = "awac_maze2d"
 path = "examples/d4rl/awac_maze2d.rs"
+required-features = ["candle"]
+test = false
+
+[[example]]
+name = "awac_pen"
+path = "examples/d4rl/awac_pen.rs"
 required-features = ["candle"]
 test = false
 

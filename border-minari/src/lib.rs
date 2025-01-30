@@ -63,7 +63,9 @@ use pyo3::{
     PyAny, PyObject, Python, ToPyObject,
 };
 pub mod d4rl;
+mod evaluator;
 pub mod util;
+pub use evaluator::MinariEvaluator;
 
 /// Conversion trait for observation and action.
 pub trait MinariConverter {
