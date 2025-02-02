@@ -4,6 +4,7 @@ pub mod dqn;
 // pub mod iqn;
 pub mod awac;
 pub mod bc;
+pub mod iql;
 pub mod mlp;
 pub mod model;
 pub mod opt;
