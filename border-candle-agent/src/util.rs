@@ -1,7 +1,7 @@
 //! Utilities.
 // use crate::model::ModelBase;
 use anyhow::Result;
-use candle_core::{DType, Tensor, WithDType};
+use candle_core::{DType, Device, Tensor, WithDType};
 use candle_nn::VarMap;
 use log::trace;
 use serde::{Deserialize, Serialize};
@@ -202,4 +202,28 @@ where
     let v: Vec<T> = t.flatten_all()?.to_vec1()?;
 
     Ok(ndarray::Array1::<T>::from(v).into_shape(ndarray::IxDyn(&shape))?)
+}
+
+pub fn gamma_not_done(
+    gamma: f32,
+    is_terminated: Vec<i8>,
+    is_truncated: Vec<i8>,
+    device: &Device,
+) -> Result<Tensor> {
+    let batch_size = is_terminated.len();
+    let not_done = is_terminated
+        .iter()
+        .zip(is_truncated.iter())
+        .map(|(e1, e2)| 1f32 - (*e1 | *e2) as f32 * gamma)
+        .collect::<Vec<_>>();
+    Ok(Tensor::from_slice(&not_done[..], (batch_size,), device)?)
+}
+
+pub fn reward(reward: Vec<f32>, device: &Device) -> Result<Tensor> {
+    let batch_size = reward.len();
+    Ok(Tensor::from_slice(&reward[..], (batch_size,), device)?)
+}
+
+pub fn asymmetric_l2_loss(u: &Tensor, tau: f64) -> Result<Tensor> {
+    Ok(((tau - u.lt(0f32)?)?.abs()? * u.powf(2.0)?)?)
 }
