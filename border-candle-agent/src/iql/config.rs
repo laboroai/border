@@ -61,7 +61,6 @@ where
 
     // /// Scaling factor for rewards.
     // pub reward_scale: f32,
-
     /// If true, advantage weights are calculated with softmax within each mini-batch.
     pub adv_softmax: bool,
 
@@ -181,6 +180,12 @@ where
     /// Critic loss.
     pub fn critic_loss(mut self, v: CriticLoss) -> Self {
         self.critic_loss = v;
+        self
+    }
+
+    /// Configuration of value function.
+    pub fn value_config(mut self, value_config: ValueConfig<V::Config>) -> Self {
+        self.value_config = value_config;
         self
     }
 

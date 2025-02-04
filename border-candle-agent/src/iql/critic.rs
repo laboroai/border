@@ -2,7 +2,7 @@
 use crate::{
     model::SubModel2,
     opt::{Optimizer, OptimizerConfig},
-    util::track,
+    util::track_with_replace_substring,
 };
 use anyhow::{Context, Result};
 use candle_core::{DType::F32, Device, Tensor, D};
@@ -37,7 +37,7 @@ impl<Q> Default for CriticConfig<Q> {
             n_nets: 2,
             q_config: None,
             opt_config: OptimizerConfig::default(),
-            tau: 0.0005,
+            tau: 0.005,
         }
     }
 }
@@ -167,7 +167,12 @@ where
     }
 
     pub fn soft_update(&mut self) -> Result<()> {
-        track(&mut self.varmap_tgt, &mut self.varmap, self.tau)?;
+        track_with_replace_substring(
+            &mut self.varmap_tgt,
+            &mut self.varmap,
+            self.tau,
+            ("critic", "critic_tgt"),
+        )?;
         Ok(())
     }
 

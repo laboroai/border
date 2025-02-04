@@ -8,7 +8,7 @@ use border_core::{
     record::{Record, RecordValue},
     Agent, Configurable, Env, Policy, ReplayBufferBase, TransitionBatch,
 };
-use candle_core::{Device, Tensor};
+use candle_core::{Device, Tensor, D};
 use candle_nn::{loss::mse, ops::softmax};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{
@@ -74,7 +74,7 @@ where
     fn update_value(&mut self, obs: &O, act: &A) -> Result<f32> {
         let loss = {
             let q = self.critic.qvals_min_tgt(obs, act)?.detach();
-            let v = self.value.forward(obs);
+            let v = self.value.forward(obs).squeeze(D::Minus1);
             let u = (q - v)?;
             asymmetric_l2_loss(&u, self.tau_iql)?
         };
@@ -97,7 +97,9 @@ where
             let preds = self.critic.qvals(obs, act);
 
             // Target
-            let tgt = (reward + (gamma_not_done * self.value.forward(next_obs))?)?.detach();
+            let tgt = (reward
+                + (gamma_not_done * self.value.forward(next_obs).squeeze(D::Minus1)?)?)?
+            .detach();
             debug_assert_eq!(tgt.dims(), [self.batch_size]);
 
             // Loss
@@ -122,7 +124,7 @@ where
             // Weights
             let w = {
                 let q = self.critic.qvals_min(&obs, &act)?;
-                let v = self.value.forward(&obs);
+                let v = self.value.forward(&obs).squeeze(D::Minus1)?;
                 let adv = (&q - &v)?;
                 debug_assert_eq!(adv.dims(), &[self.batch_size]);
 
@@ -144,8 +146,7 @@ where
             // Loss
             log::trace!("Loss");
             (-1f64 * logp * w)?.mean_all()?
-        }
-        .detach();
+        };
 
         self.actor.backward_step(&loss)?;
 

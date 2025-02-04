@@ -47,6 +47,29 @@ pub fn track(dest: &VarMap, src: &VarMap, tau: f64) -> Result<()> {
     Ok(())
 }
 
+pub fn track_with_replace_substring(
+    dest: &VarMap,
+    src: &VarMap,
+    tau: f64,
+    (ss_src, ss_dest): (&str, &str),
+) -> Result<()> {
+    trace!("dest");
+    let dest = dest.data().lock().unwrap();
+    trace!("src");
+    let src = src.data().lock().unwrap();
+
+    dest.iter().for_each(|(k_dest, v_dest)| {
+        let k_src = k_dest.replace(ss_dest, ss_src);
+        let v_src = src.get(&k_src).unwrap();
+        let t_src = v_src.as_tensor();
+        let t_dest = v_dest.as_tensor();
+        let t_dest = ((tau * t_src).unwrap() + (1.0 - tau) * t_dest).unwrap();
+        v_dest.set(&t_dest).unwrap();
+    });
+
+    Ok(())
+}
+
 // /// Concatenates slices.
 // pub fn concat_slices(s1: &[i64], s2: &[i64]) -> Vec<i64> {
 //     let mut v = Vec::from(s1);
@@ -225,5 +248,7 @@ pub fn reward(reward: Vec<f32>, device: &Device) -> Result<Tensor> {
 }
 
 pub fn asymmetric_l2_loss(u: &Tensor, tau: f64) -> Result<Tensor> {
-    Ok(((tau - u.lt(0f32)?)?.abs()? * u.powf(2.0)?)?)
+    // println!("u.dtype()   = {:?}", u.dtype());
+    // println!("tau.dtype() = {:?}", u.lt(0f32)?.dtype());
+    Ok(((tau - u.lt(0f32)?.to_dtype(DType::F32)?)?.abs()? * u.powf(2.0)?)?.mean_all()?)
 }

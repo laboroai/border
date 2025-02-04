@@ -167,7 +167,7 @@ where
     /// Rerurns the log probabilities (densities) of the given actions
     // pub fn logp<'a>(&self, obs: &P::Input, act: &Tensor) -> Result<Tensor> {
     pub fn logp<'a>(&self, obs: &P::Input, act: &Tensor) -> Result<Tensor> {
-            // Distribution parameters on the given observation
+        // Distribution parameters on the given observation
         log::trace!("Distribution parameters on the given observation");
         let (mean, std) = {
             let (mean, lstd) = self.forward(obs);
