@@ -17,7 +17,7 @@ use std::{
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 /// Configuration of [`Critic`].
-pub struct CriticConfig<Q> {
+pub struct MultiCriticConfig<Q> {
     /// The number of critic networks.
     pub n_nets: usize,
 
@@ -31,18 +31,18 @@ pub struct CriticConfig<Q> {
     pub tau: f64,
 }
 
-impl<Q> Default for CriticConfig<Q> {
+impl<Q> Default for MultiCriticConfig<Q> {
     fn default() -> Self {
         Self {
             n_nets: 2,
             q_config: None,
-            opt_config: OptimizerConfig::default(),
+            opt_config: OptimizerConfig::Adam { lr: 0.0003 },
             tau: 0.005,
         }
     }
 }
 
-impl<Q> CriticConfig<Q>
+impl<Q> MultiCriticConfig<Q>
 where
     Q: DeserializeOwned + Serialize,
 {
@@ -91,7 +91,7 @@ where
 /// It takes observations and actions as inputs and outputs action values.
 ///
 /// This struct has multiple q functions and corresponding target networks.
-pub struct Critic<Q>
+pub struct MultiCritic<Q>
 where
     Q: SubModel2<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize,
@@ -111,13 +111,13 @@ where
     opt: Optimizer, // no optimizer required for tatget networks
 }
 
-impl<Q> Critic<Q>
+impl<Q> MultiCritic<Q>
 where
     Q: SubModel2<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + Clone,
 {
     /// Constructs [`Critic`].
-    pub fn build(config: CriticConfig<Q::Config>, device: Device) -> Result<Critic<Q>> {
+    pub fn build(config: MultiCriticConfig<Q::Config>, device: Device) -> Result<MultiCritic<Q>> {
         let tau = config.tau;
         let n_nets = config.n_nets;
         let q_config = config.q_config.context("q_config is not set.")?;
@@ -213,7 +213,7 @@ where
     }
 }
 
-impl<Q> Clone for Critic<Q>
+impl<Q> Clone for MultiCritic<Q>
 where
     Q: SubModel2<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + Clone,
@@ -254,7 +254,7 @@ where
     }
 }
 
-impl<Q> Critic<Q>
+impl<Q> MultiCritic<Q>
 where
     Q: SubModel2<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize,

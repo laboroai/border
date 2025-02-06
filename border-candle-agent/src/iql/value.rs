@@ -28,7 +28,7 @@ impl<Q> Default for ValueConfig<Q> {
     fn default() -> Self {
         Self {
             value_config: None,
-            opt_config: OptimizerConfig::default(),
+            opt_config: OptimizerConfig::Adam { lr: 0.0003 },
         }
     }
 }

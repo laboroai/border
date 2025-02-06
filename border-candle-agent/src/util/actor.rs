@@ -1,8 +1,8 @@
 //! Actor with Gaussian policy.
-use crate::util::OutDim;
 use crate::{
     model::SubModel1,
     opt::{Optimizer, OptimizerConfig},
+    util::{atanh, log_jacobian_tanh, OutDim},
 };
 use anyhow::{Context, Result};
 use candle_core::{DType, Device, Tensor, D};
@@ -22,26 +22,26 @@ fn normal_logp(x: &Tensor) -> Result<Tensor> {
 }
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
-/// Configuration of [`Actor`].
-pub struct ActorConfig<P: OutDim> {
+/// Configuration of [`GaussianActor`].
+pub struct GaussianActorConfig<P: OutDim> {
     pub policy_config: Option<P>,
     pub opt_config: OptimizerConfig,
     pub min_log_std: f64,
     pub max_log_std: f64,
 }
 
-impl<P: OutDim> Default for ActorConfig<P> {
+impl<P: OutDim> Default for GaussianActorConfig<P> {
     fn default() -> Self {
         Self {
             policy_config: None,
-            opt_config: OptimizerConfig::default(),
+            opt_config: OptimizerConfig::Adam { lr: 0.0003 },
             min_log_std: -20.0,
             max_log_std: 2.0,
         }
     }
 }
 
-impl<P> ActorConfig<P>
+impl<P> GaussianActorConfig<P>
 where
     P: DeserializeOwned + Serialize + OutDim,
 {
@@ -95,7 +95,7 @@ where
 }
 
 /// Actor with Gaussian policy.
-pub struct Actor<P>
+pub struct GaussianActor<P>
 where
     P: SubModel1<Output = (Tensor, Tensor)>,
     P::Config: DeserializeOwned + Serialize + OutDim + Clone,
@@ -119,13 +119,16 @@ where
     max_log_std: f64,
 }
 
-impl<P> Actor<P>
+impl<P> GaussianActor<P>
 where
     P: SubModel1<Output = (Tensor, Tensor)>,
     P::Config: DeserializeOwned + Serialize + OutDim + Clone,
 {
     /// Constructs [`Actor`].
-    pub fn build(config: ActorConfig<P::Config>, device: Device) -> Result<Actor<P>> {
+    pub fn build(
+        config: GaussianActorConfig<P::Config>,
+        device: Device,
+    ) -> Result<GaussianActor<P>> {
         let min_log_std = config.min_log_std;
         let max_log_std = config.max_log_std;
         let policy_config = config.policy_config.context("policy_config is not set.")?;
@@ -165,7 +168,6 @@ where
     }
 
     /// Rerurns the log probabilities (densities) of the given actions
-    // pub fn logp<'a>(&self, obs: &P::Input, act: &Tensor) -> Result<Tensor> {
     pub fn logp<'a>(&self, obs: &P::Input, act: &Tensor) -> Result<Tensor> {
         // Distribution parameters on the given observation
         log::trace!("Distribution parameters on the given observation");
@@ -177,12 +179,12 @@ where
 
         // Inverse transformation to the standard normal: N(0, 1)
         log::trace!("Inverse transformation to the standard normal: N(0, 1)");
-        let act = act.to_device(&self.device)?;
+        let act = atanh(&act.to_device(&self.device)?)?;
         let z = ((&act - &mean)? / &std)?;
 
         // Density
         log::trace!("Density");
-        Ok(normal_logp(&z)?)
+        Ok((normal_logp(&z)? + log_jacobian_tanh(&act, 1e-4, &self.device)?)?)
     }
 
     /// Samples actions.
@@ -197,8 +199,11 @@ where
             .exp()
             .unwrap();
         match train {
-            true => ((std * mean.randn_like(0., 1.).unwrap()).unwrap() + mean).unwrap(),
-            false => mean,
+            true => ((std * mean.randn_like(0., 1.).unwrap()).unwrap() + mean)
+                .unwrap()
+                .tanh()
+                .unwrap(),
+            false => mean.tanh().unwrap(),
         }
     }
 
@@ -228,7 +233,7 @@ where
     }
 }
 
-impl<P> Clone for Actor<P>
+impl<P> Clone for GaussianActor<P>
 where
     P: SubModel1<Output = (Tensor, Tensor)>,
     P::Config: DeserializeOwned + Serialize + OutDim + Clone,

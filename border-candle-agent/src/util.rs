@@ -1,7 +1,6 @@
 //! Utilities.
-// use crate::model::ModelBase;
 use anyhow::Result;
-use candle_core::{DType, Device, Tensor, WithDType};
+use candle_core::{DType, Device, Tensor, WithDType, D};
 use candle_nn::VarMap;
 use log::trace;
 use serde::{Deserialize, Serialize};
@@ -13,6 +12,8 @@ use ndarray::ArrayD;
 use num_traits::AsPrimitive;
 pub use quantile_loss::quantile_huber_loss;
 use std::convert::TryFrom;
+pub mod actor;
+pub mod critic;
 
 /// Critic loss type.
 #[allow(clippy::upper_case_acronyms)]
@@ -237,7 +238,7 @@ pub fn gamma_not_done(
     let not_done = is_terminated
         .iter()
         .zip(is_truncated.iter())
-        .map(|(e1, e2)| 1f32 - (*e1 | *e2) as f32 * gamma)
+        .map(|(e1, e2)| (1f32 - (*e1 | *e2) as f32) * gamma)
         .collect::<Vec<_>>();
     Ok(Tensor::from_slice(&not_done[..], (batch_size,), device)?)
 }
@@ -251,4 +252,15 @@ pub fn asymmetric_l2_loss(u: &Tensor, tau: f64) -> Result<Tensor> {
     // println!("u.dtype()   = {:?}", u.dtype());
     // println!("tau.dtype() = {:?}", u.lt(0f32)?.dtype());
     Ok(((tau - u.lt(0f32)?.to_dtype(DType::F32)?)?.abs()? * u.powf(2.0)?)?.mean_all()?)
+}
+
+pub fn atanh(t: &Tensor) -> Result<Tensor> {
+    let t = t.clamp(-0.999999, 0.999999)?;
+    Ok((0.5 * (((1. + &t)? / (1. - &t)?)?).log()?)?)
+}
+
+/// Density transformation for tanh function
+pub fn log_jacobian_tanh(a: &Tensor, eps: f64, device: &Device) -> Result<Tensor> {
+    let eps = Tensor::new(&[eps as f32], device)?.broadcast_as(a.shape())?;
+    Ok((-1f64 * (1f64 - a.powf(2.0)? + eps)?.log()?)?.sum(D::Minus1)?)
 }

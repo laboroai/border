@@ -1,9 +1,8 @@
 //! Configuration of IQL agent.
-use super::{ActorConfig, CriticConfig, ValueConfig};
+use super::ValueConfig;
 use crate::{
     model::{SubModel1, SubModel2},
-    util::CriticLoss,
-    util::OutDim,
+    util::{actor::GaussianActorConfig, critic::MultiCriticConfig, CriticLoss, OutDim},
     Device,
 };
 use anyhow::Result;
@@ -33,10 +32,10 @@ where
     pub value_config: ValueConfig<V::Config>,
 
     /// Configuration of the critic model.
-    pub critic_config: CriticConfig<Q::Config>,
+    pub critic_config: MultiCriticConfig<Q::Config>,
 
     /// Configuration of the actor model.
-    pub actor_config: ActorConfig<P::Config>,
+    pub actor_config: GaussianActorConfig<P::Config>,
 
     /// Discont factor.
     pub gamma: f32,
@@ -190,13 +189,13 @@ where
     }
 
     /// Configuration of actor.
-    pub fn actor_config(mut self, actor_config: ActorConfig<P::Config>) -> Self {
+    pub fn actor_config(mut self, actor_config: GaussianActorConfig<P::Config>) -> Self {
         self.actor_config = actor_config;
         self
     }
 
     /// Configuration of critic.
-    pub fn critic_config(mut self, critic_config: CriticConfig<Q::Config>) -> Self {
+    pub fn critic_config(mut self, critic_config: MultiCriticConfig<Q::Config>) -> Self {
         self.critic_config = critic_config;
         self
     }

@@ -1,7 +1,10 @@
-use super::{Actor, Critic, IqlConfig, Value};
+use super::{IqlConfig, Value};
 use crate::{
     model::{SubModel1, SubModel2},
-    util::{asymmetric_l2_loss, gamma_not_done, reward, smooth_l1_loss, CriticLoss, OutDim},
+    util::{
+        actor::GaussianActor, asymmetric_l2_loss, critic::MultiCritic, gamma_not_done, reward,
+        smooth_l1_loss, CriticLoss, OutDim,
+    },
 };
 use anyhow::Result;
 use border_core::{
@@ -32,8 +35,8 @@ where
     P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
     V::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
 {
-    critic: Critic<Q>,
-    actor: Actor<P>,
+    critic: MultiCritic<Q>,
+    actor: GaussianActor<P>,
     value: Value<V>,
     gamma: f32,
     tau_iql: f64, // expectile percent
@@ -110,7 +113,7 @@ where
                     .map(|pred| smooth_l1_loss(&pred, &tgt).unwrap())
                     .collect(),
             };
-            Tensor::stack(&losses, 0)?.sum_all()?
+            Tensor::stack(&losses, 0)?.mean_all()?
         };
 
         self.critic.backward_step(&loss)?;
@@ -123,7 +126,7 @@ where
         let loss = {
             // Weights
             let w = {
-                let q = self.critic.qvals_min(&obs, &act)?;
+                let q = self.critic.qvals_min_tgt(&obs, &act)?;
                 let v = self.value.forward(&obs).squeeze(D::Minus1)?;
                 let adv = (&q - &v)?;
                 debug_assert_eq!(adv.dims(), &[self.batch_size]);
@@ -200,8 +203,9 @@ where
     V::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
 {
     fn sample(&mut self, obs: &E::Obs) -> E::Act {
-        let act = self.actor.sample(&obs.clone().into(), self.train);
-        act.clamp(self.action_min, self.action_max).unwrap().into()
+        // let act = self.actor.sample(&obs.clone().into(), self.train);
+        // act.clamp(self.action_min, self.action_max).unwrap().into()
+        self.actor.sample(&obs.clone().into(), self.train).into()
     }
 }
 
@@ -225,8 +229,8 @@ where
             .device
             .expect("No device is given for IQL agent")
             .into();
-        let critic = Critic::build(config.critic_config, device.clone()).unwrap();
-        let actor = Actor::build(config.actor_config, device.clone().into()).unwrap();
+        let critic = MultiCritic::build(config.critic_config, device.clone()).unwrap();
+        let actor = GaussianActor::build(config.actor_config, device.clone().into()).unwrap();
         let value = Value::build(config.value_config, device.clone()).unwrap();
 
         Iql {
