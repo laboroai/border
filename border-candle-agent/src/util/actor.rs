@@ -78,7 +78,7 @@ where
         self
     }
 
-    /// Loads [`ActorConfig`] from YAML file.
+    /// Loads [`GaussianActorConfig`] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let file = File::open(path)?;
         let rdr = BufReader::new(file);
@@ -86,7 +86,7 @@ where
         Ok(b)
     }
 
-    /// Saves [`ActorConfig`] as YAML file.
+    /// Saves [`GaussianActorConfig`] as YAML file.
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let mut file = File::create(path)?;
         file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;
@@ -124,7 +124,7 @@ where
     P: SubModel1<Output = (Tensor, Tensor)>,
     P::Config: DeserializeOwned + Serialize + OutDim + Clone,
 {
-    /// Constructs [`Actor`].
+    /// Constructs [`GaussianActor`].
     pub fn build(
         config: GaussianActorConfig<P::Config>,
         device: Device,

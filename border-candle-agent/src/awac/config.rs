@@ -1,9 +1,7 @@
 //! Configuration of AWAC agent.
-use super::{ActorConfig, CriticConfig};
 use crate::{
     model::{SubModel1, SubModel2},
-    util::CriticLoss,
-    util::OutDim,
+    util::{actor::GaussianActorConfig, critic::MultiCriticConfig, CriticLoss, OutDim},
     Device,
 };
 use anyhow::Result;
@@ -28,10 +26,10 @@ where
     P::Config: DeserializeOwned + Serialize + OutDim + Debug + PartialEq + Clone,
 {
     /// Configuration of the actor model.
-    pub actor_config: ActorConfig<P::Config>,
+    pub actor_config: GaussianActorConfig<P::Config>,
 
     /// Configuration of the critic model.
-    pub critic_config: CriticConfig<Q::Config>,
+    pub critic_config: MultiCriticConfig<Q::Config>,
 
     /// Discont factor.
     pub gamma: f64,
@@ -84,6 +82,9 @@ where
 
     /// Device used for the actor and critic models (e.g., CPU or GPU).
     pub device: Option<Device>,
+
+    /// If true, advantage weights are calculated with softmax within each mini-batch.
+    pub adv_softmax: bool,
 }
 
 impl<Q, P> Clone for AwacConfig<Q, P>
@@ -112,6 +113,7 @@ where
             exp_adv_max: self.exp_adv_max,
             seed: self.seed.clone(),
             device: self.device.clone(),
+            adv_softmax: self.adv_softmax,
         }
     }
 }
@@ -142,6 +144,7 @@ where
             exp_adv_max: 100.0,
             seed: None,
             device: None,
+            adv_softmax: false,
         }
     }
 }
@@ -153,6 +156,12 @@ where
     P: SubModel1<Output = (Tensor, Tensor)>,
     P::Config: DeserializeOwned + Serialize + OutDim + Debug + PartialEq + Clone,
 {
+    /// Sets lambda.
+    pub fn lambda(mut self, v: f64) -> Self {
+        self.inv_lambda = 1.0 / v;
+        self
+    }
+
     /// Sets the numper of parameter update steps per optimization step.
     pub fn n_updates_per_opt(mut self, v: usize) -> Self {
         self.n_updates_per_opt = v;
@@ -192,13 +201,13 @@ where
     }
 
     /// Configuration of actor.
-    pub fn actor_config(mut self, actor_config: ActorConfig<P::Config>) -> Self {
+    pub fn actor_config(mut self, actor_config: GaussianActorConfig<P::Config>) -> Self {
         self.actor_config = actor_config;
         self
     }
 
     /// Configuration of critic.
-    pub fn critic_config(mut self, critic_config: CriticConfig<Q::Config>) -> Self {
+    pub fn critic_config(mut self, critic_config: MultiCriticConfig<Q::Config>) -> Self {
         self.critic_config = critic_config;
         self
     }
@@ -221,13 +230,19 @@ where
         self
     }
 
+    /// If true, advantage weights are calculated with softmax within each mini-batch.
+    pub fn adv_softmax(mut self, b: bool) -> Self {
+        self.adv_softmax = b;
+        self
+    }
+
     /// Constructs [`AwacConfig`] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let path_ = path.as_ref().to_owned();
         let file = File::open(path)?;
         let rdr = BufReader::new(file);
         let b = serde_yaml::from_reader(rdr)?;
-        info!("Load config of SAC agent from {}", path_.to_str().unwrap());
+        info!("Load config of AWAC agent from {}", path_.to_str().unwrap());
         Ok(b)
     }
 
@@ -236,7 +251,7 @@ where
         let path_ = path.as_ref().to_owned();
         let mut file = File::create(path)?;
         file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;
-        info!("Save config of SAC agent into {}", path_.to_str().unwrap());
+        info!("Save config of AWAC agent into {}", path_.to_str().unwrap());
         Ok(())
     }
 }

@@ -16,7 +16,7 @@ use std::{
 };
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
-/// Configuration of [`Critic`].
+/// Configuration of [`MultiCritic`].
 pub struct MultiCriticConfig<Q> {
     /// The number of critic networks.
     pub n_nets: usize,
@@ -70,7 +70,7 @@ where
         self
     }
 
-    /// Constructs [`CriticConfig`] from YAML file.
+    /// Constructs [`MultiCriticConfig`] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let file = File::open(path)?;
         let rdr = BufReader::new(file);
@@ -78,7 +78,7 @@ where
         Ok(b)
     }
 
-    /// Saves [`CriticConfig`] as YAML file.
+    /// Saves [`MultiCriticConfig`] as YAML file.
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let mut file = File::create(path)?;
         file.write_all(serde_yaml::to_string(&self)?.as_bytes())?;
@@ -116,7 +116,7 @@ where
     Q: SubModel2<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + Clone,
 {
-    /// Constructs [`Critic`].
+    /// Constructs [`MultiCritic`].
     pub fn build(config: MultiCriticConfig<Q::Config>, device: Device) -> Result<MultiCritic<Q>> {
         let tau = config.tau;
         let n_nets = config.n_nets;

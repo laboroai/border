@@ -26,7 +26,7 @@ fn create_linear_layers(prefix: &str, vs: VarBuilder, config: &MlpConfig) -> Res
 ///
 /// The one is MLP, while the other is just a set of parameters.
 /// This is based on the code of a neural network used in AWAC of CORL:
-/// https://github.com/tinkoff-ai/CORL/blob/6afec90484bbf47dee05fdf525e26a3ebe028e9b/algorithms/offline/awac.py
+/// <https://github.com/tinkoff-ai/CORL/blob/6afec90484bbf47dee05fdf525e26a3ebe028e9b/algorithms/offline/awac.py>
 pub struct Mlp3 {
     _config: MlpConfig,
     device: Device,

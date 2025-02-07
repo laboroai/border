@@ -261,6 +261,8 @@ pub fn atanh(t: &Tensor) -> Result<Tensor> {
 
 /// Density transformation for tanh function
 pub fn log_jacobian_tanh(a: &Tensor, eps: f64, device: &Device) -> Result<Tensor> {
-    let eps = Tensor::new(&[eps as f32], device)?.broadcast_as(a.shape())?;
-    Ok((-1f64 * (1f64 - a.powf(2.0)? + eps)?.log()?)?.sum(D::Minus1)?)
+    // let eps = Tensor::new(&[eps as f32], device)?.broadcast_as(a.shape())?;
+    // Ok((-1f64 * (1f64 - a.powf(2.0)? + eps)?.log()?)?.sum(D::Minus1)?)
+    let a = a.clamp(-0.999999, 0.999999)?;
+    Ok((-1f64 * (1f64 - a.powf(2.0)?)?.log()?)?.sum(D::Minus1)?)
 }
