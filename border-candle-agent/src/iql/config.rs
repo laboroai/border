@@ -46,12 +46,6 @@ where
     /// The inverse of lambda in the paper.
     pub inv_lambda: f64,
 
-    /// Minimum action value
-    pub action_min: f32,
-
-    /// Maximum action value
-    pub action_max: f32,
-
     /// Number of parameter updates per optimization step.
     pub n_updates_per_opt: usize,
 
@@ -92,8 +86,6 @@ where
             gamma: self.gamma,
             tau_iql: self.tau_iql,
             inv_lambda: self.inv_lambda,
-            action_min: self.action_min,
-            action_max: self.action_max,
             n_updates_per_opt: self.n_updates_per_opt,
             batch_size: self.batch_size,
             // reward_scale: self.reward_scale,
@@ -122,8 +114,6 @@ where
             gamma: 0.99,
             tau_iql: 0.7,
             inv_lambda: 10.0,
-            action_min: -1.0,
-            action_max: 1.0,
             n_updates_per_opt: 1,
             batch_size: 1,
             // reward_scale: 1.0,

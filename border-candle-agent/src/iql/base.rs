@@ -41,8 +41,6 @@ where
     gamma: f32,
     tau_iql: f64, // expectile percent
     inv_lambda: f64,
-    action_min: f32,
-    action_max: f32,
     n_updates_per_opt: usize,
     batch_size: usize,
     train: bool,
@@ -203,9 +201,10 @@ where
     V::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
 {
     fn sample(&mut self, obs: &E::Obs) -> E::Act {
-        // let act = self.actor.sample(&obs.clone().into(), self.train);
-        // act.clamp(self.action_min, self.action_max).unwrap().into()
-        self.actor.sample(&obs.clone().into(), self.train).into()
+        self.actor
+            .sample(&obs.clone().into(), self.train)
+            .unwrap()
+            .into()
     }
 }
 
@@ -240,8 +239,6 @@ where
             gamma: config.gamma,
             tau_iql: config.tau_iql,
             inv_lambda: config.inv_lambda,
-            action_min: config.action_min,
-            action_max: config.action_max,
             n_updates_per_opt: config.n_updates_per_opt,
             batch_size: config.batch_size,
             // reward_scale: config.reward_scale,

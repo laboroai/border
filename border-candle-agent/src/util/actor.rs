@@ -22,12 +22,20 @@ fn normal_logp(x: &Tensor) -> Result<Tensor> {
 }
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
+/// Action limit type for [`GaussianActor`].
+pub enum ActionLimit {
+    Tanh { action_scale: f32 },
+    Clamp { action_min: f32, action_max: f32 },
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 /// Configuration of [`GaussianActor`].
 pub struct GaussianActorConfig<P: OutDim> {
     pub policy_config: Option<P>,
     pub opt_config: OptimizerConfig,
-    pub min_log_std: f64,
-    pub max_log_std: f64,
+    pub min_log_std: f32,
+    pub max_log_std: f32,
+    pub action_limit: ActionLimit,
 }
 
 impl<P: OutDim> Default for GaussianActorConfig<P> {
@@ -37,6 +45,10 @@ impl<P: OutDim> Default for GaussianActorConfig<P> {
             opt_config: OptimizerConfig::Adam { lr: 0.0003 },
             min_log_std: -20.0,
             max_log_std: 2.0,
+            action_limit: ActionLimit::Clamp {
+                action_min: -1.0,
+                action_max: 1.0,
+            },
         }
     }
 }
@@ -46,13 +58,13 @@ where
     P: DeserializeOwned + Serialize + OutDim,
 {
     /// Sets the minimum value of log std.
-    pub fn min_log_std(mut self, v: f64) -> Self {
+    pub fn min_log_std(mut self, v: f32) -> Self {
         self.min_log_std = v;
         self
     }
 
     /// Sets the maximum value of log std.
-    pub fn max_log_std(mut self, v: f64) -> Self {
+    pub fn max_log_std(mut self, v: f32) -> Self {
         self.max_log_std = v;
         self
     }
@@ -75,6 +87,12 @@ where
     /// Sets optimizer configuration.
     pub fn opt_config(mut self, v: OptimizerConfig) -> Self {
         self.opt_config = v;
+        self
+    }
+
+    /// Sets action limit.
+    pub fn action_limit(mut self, action_limit: ActionLimit) -> Self {
+        self.action_limit = action_limit;
         self
     }
 
@@ -117,6 +135,8 @@ where
     // Min/max log std
     min_log_std: f64,
     max_log_std: f64,
+
+    action_limit: ActionLimit,
 }
 
 impl<P> GaussianActor<P>
@@ -129,8 +149,8 @@ where
         config: GaussianActorConfig<P::Config>,
         device: Device,
     ) -> Result<GaussianActor<P>> {
-        let min_log_std = config.min_log_std;
-        let max_log_std = config.max_log_std;
+        let min_log_std = config.min_log_std as _;
+        let max_log_std = config.max_log_std as _;
         let policy_config = config.policy_config.context("policy_config is not set.")?;
         let out_dim = policy_config.get_out_dim();
         let varmap = VarMap::new();
@@ -140,6 +160,7 @@ where
         };
         let opt_config = config.opt_config;
         let opt = opt_config.build(varmap.all_vars()).unwrap();
+        let action_limit = config.action_limit;
 
         Ok(Self {
             device,
@@ -151,6 +172,7 @@ where
             policy_config,
             min_log_std,
             max_log_std,
+            action_limit,
         })
     }
 
@@ -170,7 +192,6 @@ where
     /// Rerurns the log probabilities (densities) of the given actions
     pub fn logp<'a>(&self, obs: &P::Input, act: &Tensor) -> Result<Tensor> {
         // Distribution parameters on the given observation
-        log::trace!("Distribution parameters on the given observation");
         let (mean, std) = {
             let (mean, lstd) = self.forward(obs);
             let std = lstd.clamp(self.min_log_std, self.max_log_std)?.exp()?;
@@ -178,8 +199,14 @@ where
         };
 
         // Inverse transformation to the standard normal: N(0, 1)
-        log::trace!("Inverse transformation to the standard normal: N(0, 1)");
-        let act = atanh(&act.to_device(&self.device)?)?;
+        let act = act.to_device(&self.device)?;
+        let act = match &self.action_limit {
+            ActionLimit::Clamp {
+                action_min: _,
+                action_max: _,
+            } => act,
+            ActionLimit::Tanh { action_scale } => atanh(&(&act / *action_scale as f64)?)?,
+        };
         let z = ((&act - &mean)? / &std)?;
 
         // Density
@@ -191,20 +218,21 @@ where
     ///
     /// If `train` is `true`, actions are sampled from a Gaussian distribution.
     /// Otherwise, the mean of the Gaussian distribution is returned.
-    pub fn sample(&mut self, obs: &P::Input, train: bool) -> Tensor {
+    pub fn sample(&mut self, obs: &P::Input, train: bool) -> Result<Tensor> {
         let (mean, lstd) = self.forward(&obs);
-        let std = lstd
-            .clamp(self.min_log_std, self.max_log_std)
-            .unwrap()
-            .exp()
-            .unwrap();
-        match train {
-            true => ((std * mean.randn_like(0., 1.).unwrap()).unwrap() + mean)
-                .unwrap()
-                .tanh()
-                .unwrap(),
-            false => mean.tanh().unwrap(),
-        }
+        let std = lstd.clamp(self.min_log_std, self.max_log_std)?.exp()?;
+        let act = match train {
+            true => ((std * mean.randn_like(0., 1.)?)? + mean)?,
+            false => mean.tanh()?,
+        };
+        let act = match self.action_limit {
+            ActionLimit::Clamp {
+                action_min,
+                action_max,
+            } => act.clamp(action_min, action_max)?,
+            ActionLimit::Tanh { action_scale } => (action_scale as f64 * act.tanh()?)?,
+        };
+        Ok(act)
     }
 
     pub fn backward_step(&mut self, loss: &Tensor) -> Result<()> {
@@ -251,6 +279,7 @@ where
         };
         let out_dim = self.out_dim;
         let opt = opt_config.build(varmap.all_vars()).unwrap();
+        let action_limit = self.action_limit.clone();
 
         // Copy varmap
         varmap.clone_from(&self.varmap);
@@ -265,6 +294,7 @@ where
             policy_config,
             min_log_std,
             max_log_std,
+            action_limit,
         }
     }
 }

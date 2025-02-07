@@ -36,10 +36,6 @@ where
     actor: GaussianActor<P>,
     gamma: f64,
     inv_lambda: f64,
-    // action_min: f32,
-    // action_max: f32,
-    // min_lstd: f64,
-    // max_lstd: f64,
     n_updates_per_opt: usize,
     batch_size: usize,
     train: bool,
@@ -81,7 +77,7 @@ where
             let tgt = {
                 let gamma_not_done =
                     gamma_not_done(self.gamma as f32, is_terminated, is_truncated, &self.device)?;
-                let next_act = self.actor.sample(&next_obs.clone().into(), self.train);
+                let next_act = self.actor.sample(&next_obs.clone().into(), self.train)?;
                 let next_q = self
                     .critic
                     .qvals_min_tgt(&next_obs.into(), &next_act.into())?;
@@ -114,7 +110,7 @@ where
         let act = batch.act().clone();
 
         let w = {
-            let act_ = self.actor.sample(&obs.clone().into(), self.train);
+            let act_ = self.actor.sample(&obs.clone().into(), self.train)?;
             let q = self
                 .critic
                 .qvals_min_tgt(&obs.clone().into(), &act.clone().into())?;
@@ -181,7 +177,10 @@ where
     P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
 {
     fn sample(&mut self, obs: &E::Obs) -> E::Act {
-        self.actor.sample(&obs.clone().into(), self.train).into()
+        self.actor
+            .sample(&obs.clone().into(), self.train)
+            .unwrap()
+            .into()
     }
 }
 

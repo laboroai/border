@@ -37,12 +37,6 @@ where
     /// The inverse of lambda in the paper.
     pub inv_lambda: f64,
 
-    /// Minimum action value
-    pub action_min: f32,
-
-    /// Maximum action value
-    pub action_max: f32,
-
     /// Target smoothing coefficient.
     ///
     /// This is a real number between 0 and 1.
@@ -101,8 +95,6 @@ where
             gamma: self.gamma.clone(),
             inv_lambda: self.inv_lambda.clone(),
             tau: self.tau.clone(),
-            action_min: self.action_min,
-            action_max: self.action_max,
             min_lstd: self.min_lstd.clone(),
             max_lstd: self.max_lstd.clone(),
             n_updates_per_opt: self.n_updates_per_opt.clone(),
@@ -132,8 +124,6 @@ where
             gamma: 0.99,
             inv_lambda: 10.0,
             tau: 0.005,
-            action_min: -1.0,
-            action_max: 1.0,
             min_lstd: -20.0,
             max_lstd: 2.0,
             n_updates_per_opt: 1,
