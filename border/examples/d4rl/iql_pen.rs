@@ -1,7 +1,7 @@
 use anyhow::Result;
 use border_candle_agent::{
     iql::{Iql, IqlConfig, ValueConfig},
-    mlp::{Mlp, Mlp2, MlpConfig},
+    mlp::{Mlp, Mlp3, MlpConfig},
     opt::OptimizerConfig,
     util::{
         actor::{ActionLimit, GaussianActorConfig},
@@ -16,7 +16,7 @@ use border_core::{
     TrainerConfig, TransitionBatch,
 };
 use border_minari::{
-    d4rl::pointmaze::candle::{PointMazeConverter, PointMazeConverterConfig},
+    d4rl::pen::candle::{PenConverter, PenConverterConfig},
     MinariConverter, MinariDataset, MinariEnv, MinariEvaluator,
 };
 use border_mlflow_tracking::MlflowTrackingClient;
@@ -26,11 +26,11 @@ use clap::Parser;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, path::Path};
 
-const MODEL_DIR: &str = "border/examples/d4rl/model/candle/iql_maze2d";
+const MODEL_DIR: &str = "border/examples/d4rl/model/candle/iql_pen";
 const MLFLOW_EXPERIMENT_NAME: &str = "D4RL";
 const MLFLOW_TAGS: &[(&str, &str)] = &[("algo", "iql"), ("backend", "candle")];
 
-/// Train IQL agent in maze2d environment
+/// Train IQL agent in pen environment
 #[derive(Clone, Parser, Debug, Serialize, Deserialize)]
 #[command(version, about)]
 struct Args {
@@ -39,9 +39,9 @@ struct Args {
     #[arg(long)]
     mode: String,
 
-    /// Name of environment ID, e.g., umaze-v2.
+    /// Name of environment ID, e.g., human-v2.
     /// See Minari documantation:
-    /// https://minari.farama.org/v0.5.1/datasets/D4RL/pointmaze/
+    /// https://minari.farama.org/v0.5.1/datasets/D4RL/pen/
     #[arg(long)]
     env: String,
 
@@ -71,10 +71,6 @@ struct Args {
     /// The number of evaluation episodes
     #[arg(long, default_value_t = 5)]
     eval_episodes: usize,
-
-    /// If true, goal position is included in observation
-    #[arg(long, default_value_t = false)]
-    include_goal: bool,
 
     /// Batch size
     #[arg(long, default_value_t = 256)]
@@ -107,13 +103,13 @@ impl Args {
 }
 
 #[derive(Serialize)]
-struct IqlMaze2dConfig {
+struct IqlPenConfig {
     args: Args,
     trainer_config: TrainerConfig,
-    agent_config: IqlConfig<Mlp, Mlp2, Mlp>,
+    agent_config: IqlConfig<Mlp, Mlp3, Mlp>,
 }
 
-impl IqlMaze2dConfig {
+impl IqlPenConfig {
     fn new(args: Args) -> Self {
         let trainer_config = TrainerConfig::default()
             .max_opts(args.max_opts)
@@ -129,13 +125,10 @@ impl IqlMaze2dConfig {
     }
 }
 
-fn create_iql_config(args: &Args) -> Result<IqlConfig<Mlp, Mlp2, Mlp>> {
+fn create_iql_config(args: &Args) -> Result<IqlConfig<Mlp, Mlp3, Mlp>> {
     // Dimensions of observation and action
-    let dim_obs = match args.include_goal {
-        true => 6,
-        false => 4,
-    };
-    let dim_act = 2;
+    let dim_obs = 45;
+    let dim_act = 24;
 
     // Actor/Critic learning rate
     let lr = 0.0003;
@@ -175,7 +168,7 @@ fn create_iql_config(args: &Args) -> Result<IqlConfig<Mlp, Mlp2, Mlp>> {
     log::info!("Device is {:?}", device);
 
     // Agent config
-    let agent_config = IqlConfig::<Mlp, Mlp2, Mlp>::default()
+    let agent_config = IqlConfig::<Mlp, Mlp3, Mlp>::default()
         .value_config(value_config)
         .actor_config(actor_config)
         .critic_config(critic_config)
@@ -185,12 +178,12 @@ fn create_iql_config(args: &Args) -> Result<IqlConfig<Mlp, Mlp2, Mlp>> {
     Ok(agent_config)
 }
 
-fn create_trainer(config: &IqlMaze2dConfig) -> Trainer {
+fn create_trainer(config: &IqlPenConfig) -> Trainer {
     log::info!("Create trainer");
     Trainer::build(config.trainer_config.clone())
 }
 
-fn create_agent<E, R>(config: &IqlMaze2dConfig) -> Box<dyn Agent<E, R>>
+fn create_agent<E, R>(config: &IqlPenConfig) -> Box<dyn Agent<E, R>>
 where
     E: Env + 'static,
     E::Obs: Into<Tensor>,
@@ -219,7 +212,7 @@ where
     Ok(buffer)
 }
 
-fn create_recorder<E, R>(config: &IqlMaze2dConfig) -> Result<Box<dyn Recorder<E, R>>>
+fn create_recorder<E, R>(config: &IqlPenConfig) -> Result<Box<dyn Recorder<E, R>>>
 where
     E: Env + 'static,
     R: ReplayBufferBase + 'static,
@@ -255,11 +248,12 @@ where
         true => Some("human"),
         false => None,
     };
-    let env = dataset.recover_environment(converter, true, render_mode)?;
+    // for minari 0.5.1 recover pen env with eval_env=True will fail
+    let env = dataset.recover_environment(converter, false, render_mode)?;
     MinariEvaluator::new(env, args.eval_episodes)
 }
 
-fn train<T>(config: IqlMaze2dConfig, dataset: MinariDataset, mut converter: T) -> Result<()>
+fn train<T>(config: IqlPenConfig, dataset: MinariDataset, mut converter: T) -> Result<()>
 where
     T: MinariConverter + 'static,
     T::Obs: std::fmt::Debug + Into<Tensor>,
@@ -279,7 +273,7 @@ where
     Ok(())
 }
 
-fn eval<T>(config: IqlMaze2dConfig, dataset: MinariDataset, converter: T) -> Result<()>
+fn eval<T>(config: IqlPenConfig, dataset: MinariDataset, converter: T) -> Result<()>
 where
     T: MinariConverter + 'static,
     T::Obs: std::fmt::Debug + Into<Tensor>,
@@ -300,15 +294,9 @@ fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     let args = Args::parse();
 
-    let config = IqlMaze2dConfig::new(args.clone());
+    let config = IqlPenConfig::new(args.clone());
     let dataset = MinariDataset::load_dataset(args.dataset_name(), true)?;
-    let converter = PointMazeConverter::new(
-        PointMazeConverterConfig {
-            // Include goal position in observation
-            include_goal: config.args.include_goal,
-        },
-        &dataset,
-    )?;
+    let converter = PenConverter::new(PenConverterConfig {}, &dataset)?;
 
     match args.mode.as_str() {
         "train" => train(config, dataset, converter),

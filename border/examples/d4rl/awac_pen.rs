@@ -1,8 +1,12 @@
 use anyhow::Result;
 use border_candle_agent::{
-    awac::{ActorConfig, Awac, AwacConfig, CriticConfig},
-    mlp::{Mlp, Mlp2, MlpConfig},
+    awac::{Awac, AwacConfig},
+    mlp::{Mlp, Mlp3, MlpConfig},
     opt::OptimizerConfig,
+    util::{
+        actor::{ActionLimit, GaussianActorConfig},
+        critic::MultiCriticConfig,
+    },
     Activation,
 };
 use border_core::{
@@ -71,6 +75,10 @@ struct Args {
     /// Batch size
     #[arg(long, default_value_t = 256)]
     batch_size: usize,
+
+    /// Action limit type ("clamp" or "tanh")
+    #[arg(long, default_value = "clamp")]
+    action_limit: String,
 }
 
 impl Args {
@@ -81,13 +89,24 @@ impl Args {
     pub fn dataset_name(&self) -> String {
         format!("D4RL/pen/{}", self.env)
     }
+
+    pub fn action_limit(&self) -> ActionLimit {
+        match self.action_limit.as_str() {
+            "clamp" => ActionLimit::Clamp {
+                action_min: -1.0,
+                action_max: 1.0,
+            },
+            "tanh" => ActionLimit::Tanh { action_scale: 1.0 },
+            _ => panic!("action_limit should be clamp or tanh"),
+        }
+    }
 }
 
 #[derive(Serialize)]
 struct PenConfig {
     args: Args,
     trainer_config: TrainerConfig,
-    agent_config: AwacConfig<Mlp, Mlp2>,
+    agent_config: AwacConfig<Mlp, Mlp3>,
 }
 
 impl PenConfig {
@@ -106,7 +125,7 @@ impl PenConfig {
     }
 }
 
-fn create_awac_config(args: &Args) -> Result<AwacConfig<Mlp, Mlp2>> {
+fn create_awac_config(args: &Args) -> Result<AwacConfig<Mlp, Mlp3>> {
     // Dimensions of observation and action
     let dim_obs = 45;
     let dim_act = 24;
@@ -115,20 +134,21 @@ fn create_awac_config(args: &Args) -> Result<AwacConfig<Mlp, Mlp2>> {
     let lr = 0.0003;
 
     // Actor/critic configs
-    let actor_config = ActorConfig::default()
+    let actor_config = GaussianActorConfig::default()
         .opt_config(OptimizerConfig::default().learning_rate(lr))
         .out_dim(dim_act)
-        .pi_config(MlpConfig::new(
+        .action_limit(args.action_limit())
+        .policy_config(MlpConfig::new(
             dim_obs,
-            vec![256, 256, 256],
+            vec![256, 256],
             dim_act,
             Activation::None,
         ));
-    let critic_config = CriticConfig::default()
+    let critic_config = MultiCriticConfig::default()
         .opt_config(OptimizerConfig::default().learning_rate(lr))
         .q_config(MlpConfig::new(
             dim_obs + dim_act,
-            vec![256, 256, 256],
+            vec![256, 256],
             1,
             Activation::None,
         ));
@@ -145,11 +165,13 @@ fn create_awac_config(args: &Args) -> Result<AwacConfig<Mlp, Mlp2>> {
     log::info!("Device is {:?}", device);
 
     // Agent config
-    let agent_config = AwacConfig::<Mlp, Mlp2>::default()
+    let agent_config = AwacConfig::<Mlp, Mlp3>::default()
         .actor_config(actor_config)
         .critic_config(critic_config)
         .device(device)
-        .batch_size(args.batch_size);
+        .batch_size(args.batch_size)
+        .lambda(0.3333)
+        .adv_softmax(true);
     Ok(agent_config)
 }
 

@@ -179,6 +179,12 @@ path = "examples/d4rl/iql_maze2d.rs"
 required-features = ["candle"]
 test = false
 
+[[example]]
+name = "iql_pen"
+path = "examples/d4rl/iql_pen.rs"
+required-features = ["candle"]
+test = false
+
 [dev-dependencies]
 clap = { workspace = true }
 csv = { workspace = true }
