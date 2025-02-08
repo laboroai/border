@@ -43,7 +43,7 @@ const N_EPISODES_PER_EVAL: usize = 5;
 const ENV_NAME: &str = "Pendulum-v1";
 const MODEL_DIR: &str = "./border/examples/gym/model/candle/sac_pendulum";
 const MLFLOW_EXPERIMENT_NAME: &str = "Gym";
-const MLFLOW_RUN_NAME: &str = "sac_pendulum_candle";
+const MLFLOW_RUN_NAME: &str = "sac-gym-pendulum-v1";
 const MLFLOW_TAGS: &[(&str, &str)] = &[("env", "pendulum"), ("algo", "sac"), ("backend", "candle")];
 
 mod obs_act_types {
