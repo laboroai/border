@@ -2,8 +2,13 @@ use anyhow::Result;
 use border_candle_agent::{
     mlp::{Mlp, Mlp2, MlpConfig},
     opt::OptimizerConfig,
-    sac::{ActorConfig, CriticConfig, Sac, SacConfig},
-    util::{arrayd_to_tensor, tensor_to_arrayd},
+    sac2::{Sac2, Sac2Config},
+    util::{
+        actor::{ActionLimit, GaussianActorConfig},
+        arrayd_to_tensor,
+        critic::MultiCriticConfig,
+        tensor_to_arrayd,
+    },
     Activation, TensorBatch,
 };
 use border_core::{
@@ -41,10 +46,11 @@ const EVAL_INTERVAL: usize = 10; //2_000;
 const REPLAY_BUFFER_CAPACITY: usize = 100_000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const ENV_NAME: &str = "Pendulum-v1";
-const MODEL_DIR: &str = "./border/examples/gym/model/candle/sac_pendulum";
+const MODEL_DIR: &str = "./border/examples/gym/model/candle/sac2_pendulum";
 const MLFLOW_EXPERIMENT_NAME: &str = "Gym";
-const MLFLOW_RUN_NAME: &str = "sac-gym-pendulum-v1";
-const MLFLOW_TAGS: &[(&str, &str)] = &[("env", "pendulum"), ("algo", "sac"), ("backend", "candle")];
+const MLFLOW_RUN_NAME: &str = "sac2-gym-pendulum-v1";
+const MLFLOW_TAGS: &[(&str, &str)] =
+    &[("env", "pendulum"), ("algo", "sac2"), ("backend", "candle")];
 
 mod obs_act_types {
     use super::*;
@@ -186,7 +192,7 @@ mod config {
     #[derive(Serialize)]
     pub struct SacPendulumConfig {
         pub env_config: EnvConfig,
-        pub agent_config: SacConfig<Mlp, Mlp2>,
+        pub agent_config: Sac2Config<Mlp, Mlp2>,
         pub trainer_config: TrainerConfig,
     }
 
@@ -225,27 +231,28 @@ mod config {
         env_config
     }
 
-    pub fn create_agent_config(in_dim: i64, out_dim: i64) -> SacConfig<Mlp, Mlp2> {
+    pub fn create_agent_config(in_dim: i64, out_dim: i64) -> Sac2Config<Mlp, Mlp2> {
         let device = Device::cuda_if_available(0).unwrap();
-        let actor_config = ActorConfig::default()
-            .opt_config(OptimizerConfig::default().learning_rate(LR_ACTOR))
+        let actor_config = GaussianActorConfig::default()
+            .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
             .out_dim(out_dim)
-            .pi_config(MlpConfig::new(
+            .action_limit(ActionLimit::Tanh { action_scale: 1.0 })
+            .policy_config(MlpConfig::new(
                 in_dim,
                 vec![64, 64],
                 out_dim,
-                Activation::Tanh,
+                Activation::None,
             ));
-        let critic_config = CriticConfig::default()
+        let critic_config = MultiCriticConfig::default()
+            .n_nets(1)
             .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
-            // .opt_config(OptimizerConfig::default().learning_rate(LR_CRITIC))
             .q_config(MlpConfig::new(
                 in_dim + out_dim,
                 vec![64, 64],
                 1,
                 Activation::None,
             ));
-        SacConfig::default()
+        Sac2Config::default()
             .batch_size(BATCH_SIZE)
             .actor_config(actor_config)
             .critic_config(critic_config)
@@ -307,7 +314,7 @@ fn train(args: &Args, max_opts: usize, model_dir: &str, eval_interval: usize) ->
 
     let env = Env::build(&config.env_config, 0)?;
     let step_proc = StepProc::build(&step_proc_config);
-    let mut agent = Box::new(Sac::build(config.agent_config)) as _;
+    let mut agent = Box::new(Sac2::build(config.agent_config)) as _;
     let mut buffer = ReplayBuffer::build(&replay_buffer_config);
     let mut evaluator = Evaluator::new(&config.env_config, 0, N_EPISODES_PER_EVAL)?;
 
@@ -327,7 +334,7 @@ fn eval(args: &Args, model_dir: &str, render: bool) -> Result<()> {
     let env_config = create_env_config(render);
     let mut agent: Box<dyn Agent<_, ReplayBuffer>> = {
         let agent_config = create_agent_config(DIM_OBS, DIM_ACT);
-        let mut agent = Box::new(Sac::build(agent_config)) as _;
+        let mut agent = Box::new(Sac2::build(agent_config)) as _;
         let recorder = create_recorder(&args, model_dir, None)?;
         recorder.load_model("best".as_ref(), &mut agent)?;
         agent.eval();

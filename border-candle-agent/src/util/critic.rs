@@ -156,7 +156,9 @@ where
         let varmap = VarMap::new();
         let qs = (0..n_nets)
             .map(|ix| {
-                device.set_seed((ix + 10) as _).unwrap();
+                if device.is_cuda() {
+                    device.set_seed((ix + 10) as _).unwrap();
+                }
                 let vb = VarBuilder::from_varmap(&varmap, F32, &device)
                     .set_prefix(format!("{}{}", prefix, ix));
                 Q::build(vb, q_config.clone())

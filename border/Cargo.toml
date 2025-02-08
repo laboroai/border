@@ -53,6 +53,12 @@ required-features = ["candle-core"]
 test = true
 
 [[example]]
+name = "sac2_pendulum"
+path = "examples/gym/sac2_pendulum.rs"
+required-features = ["candle-core"]
+test = false
+
+[[example]]
 name = "sac_lunarlander_cont"
 path = "examples/gym/sac_lunarlander_cont.rs"
 required-features = ["candle-core"]
