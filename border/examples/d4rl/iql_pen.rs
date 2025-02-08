@@ -83,11 +83,11 @@ struct Args {
 
 impl Args {
     pub fn env_name(&self) -> String {
-        format!("pointmaze/{}", self.env)
+        format!("pen/{}", self.env)
     }
 
     pub fn dataset_name(&self) -> String {
-        format!("D4RL/pointmaze/{}", self.env)
+        format!("D4RL/pen/{}", self.env)
     }
 
     pub fn action_limit(&self) -> ActionLimit {
@@ -135,10 +135,10 @@ fn create_iql_config(args: &Args) -> Result<IqlConfig<Mlp, Mlp3, Mlp>> {
 
     // Value/Actor/Critic configs
     let value_config = ValueConfig::default()
-        .opt_config(OptimizerConfig::default().learning_rate(lr))
+        .opt_config(OptimizerConfig::Adam { lr })
         .value_config(MlpConfig::new(dim_obs, vec![256, 256], 1, Activation::None));
     let actor_config = GaussianActorConfig::default()
-        .opt_config(OptimizerConfig::default().learning_rate(lr))
+        .opt_config(OptimizerConfig::Adam { lr })
         .out_dim(dim_act)
         .action_limit(args.action_limit())
         .policy_config(MlpConfig::new(
@@ -148,7 +148,7 @@ fn create_iql_config(args: &Args) -> Result<IqlConfig<Mlp, Mlp3, Mlp>> {
             Activation::None,
         ));
     let critic_config = MultiCriticConfig::default()
-        .opt_config(OptimizerConfig::default().learning_rate(lr))
+        .opt_config(OptimizerConfig::Adam { lr })
         .q_config(MlpConfig::new(
             dim_obs + dim_act,
             vec![256, 256],
