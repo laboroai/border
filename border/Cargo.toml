@@ -168,6 +168,12 @@ required-features = ["candle"]
 test = false
 
 [[example]]
+name = "awac_antmaze"
+path = "examples/d4rl/awac_antmaze.rs"
+required-features = ["candle"]
+test = false
+
+[[example]]
 name = "awac_pen"
 path = "examples/d4rl/awac_pen.rs"
 required-features = ["candle"]
