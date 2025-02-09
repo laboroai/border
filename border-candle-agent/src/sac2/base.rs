@@ -64,7 +64,7 @@ where
     fn update_critic(&mut self, batch: R::Batch) -> Result<f32> {
         let loss = {
             // Extract items in the batch
-            let (obs, act, next_obs, reward, is_terminated, is_truncated, _, _) = batch.unpack();
+            let (obs, act, next_obs, reward, is_terminated, _, _, _) = batch.unpack();
             let batch_size = reward.len();
             let reward = Tensor::from_slice(&reward[..], (batch_size,), &self.device)?;
 
@@ -74,13 +74,13 @@ where
             // Target
             let tgt = {
                 let gamma_not_done =
-                    gamma_not_done(self.gamma as f32, is_terminated, is_truncated, &self.device)?;
+                    gamma_not_done(self.gamma as f32, is_terminated, None, &self.device)?;
                 let next_act = self.actor.sample(&next_obs.clone().into(), self.train)?;
                 let next_log_p = self.actor.logp(&next_obs.clone().into(), &next_act)?;
                 let next_q = self
                     .critic
                     .qvals_min_tgt(&next_obs.into(), &next_act.into())?;
-                let next_q = next_q - self.ent_coef.alpha()?.broadcast_mul(&next_log_p)?;
+                let next_q = (next_q - self.ent_coef.alpha()?.broadcast_mul(&next_log_p)?)?;
                 (&reward + (&gamma_not_done * next_q)?)?.squeeze(D::Minus1)?
             }
             .detach();
@@ -98,7 +98,6 @@ where
         };
 
         self.critic.backward_step(&loss)?;
-        // self.critic.soft_update()?;
 
         Ok(loss.to_scalar::<f32>()?)
     }
@@ -129,8 +128,9 @@ where
 
         for _ in 0..self.n_updates_per_opt {
             let batch = buffer.batch(self.batch_size).unwrap();
-            loss_actor += 0.0; //self.update_actor(&batch)?;
+            // loss_actor += self.update_actor(&batch)?;
             loss_critic += self.update_critic(batch)?;
+            self.critic.soft_update()?;
             self.n_opts += 1;
         }
 

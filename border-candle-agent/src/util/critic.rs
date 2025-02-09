@@ -133,6 +133,9 @@ where
         // Optimizer, shared with critic networks
         let opt = opt_config.build(varmap.all_vars())?;
 
+        // Copy parameters
+        track_with_replace_substring(&varmap_tgt, &varmap, 1.0, ("critic", "critic_tgt"))?;
+
         Ok(Self {
             tau,
             n_nets,
@@ -170,8 +173,8 @@ where
 
     pub fn soft_update(&mut self) -> Result<()> {
         track_with_replace_substring(
-            &mut self.varmap_tgt,
-            &mut self.varmap,
+            &self.varmap_tgt,
+            &self.varmap,
             self.tau,
             ("critic", "critic_tgt"),
         )?;
@@ -193,8 +196,8 @@ where
     /// Returns minimum action values of all target critics.
     pub fn qvals_min(&self, obs: &Q::Input1, act: &Q::Input2) -> Result<Tensor> {
         let qvals = self.qvals(obs, act);
-        let qvals = Tensor::stack(&qvals, D::Minus1)?; // [batch_size, self.n_nets]
-        let qvals_min = qvals.min(D::Minus1)?.squeeze(D::Minus1)?; // [batch_size]
+        let qvals = Tensor::stack(&qvals, 0)?; // [batch_size, self.n_nets]
+        let qvals_min = qvals.min(0)?.squeeze(D::Minus1)?; // [batch_size]
         Ok(qvals_min)
     }
 
@@ -209,8 +212,8 @@ where
                 q
             })
             .collect();
-        let qvals = Tensor::stack(&qvals, D::Minus1)?; // [batch_size, self.n_nets]
-        let qvals_min = qvals.min(D::Minus1)?.squeeze(D::Minus1)?; // [batch_size]
+        let qvals = Tensor::stack(&qvals, 0)?; // [batch_size, self.n_nets]
+        let qvals_min = qvals.min(0)?.squeeze(D::Minus1)?; // [batch_size]
         Ok(qvals_min)
     }
 }

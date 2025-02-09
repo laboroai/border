@@ -231,15 +231,22 @@ where
 pub fn gamma_not_done(
     gamma: f32,
     is_terminated: Vec<i8>,
-    is_truncated: Vec<i8>,
+    is_truncated: Option<Vec<i8>>,
     device: &Device,
 ) -> Result<Tensor> {
     let batch_size = is_terminated.len();
-    let not_done = is_terminated
-        .iter()
-        .zip(is_truncated.iter())
-        .map(|(e1, e2)| (1f32 - (*e1 | *e2) as f32) * gamma)
-        .collect::<Vec<_>>();
+    let not_done = if let Some(is_truncated) = is_truncated.as_ref() {
+        is_terminated
+            .iter()
+            .zip(is_truncated.iter())
+            .map(|(e1, e2)| (1f32 - (*e1 | *e2) as f32) * gamma)
+            .collect::<Vec<_>>()
+    } else {
+        is_terminated
+            .iter()
+            .map(|e1| (1f32 - *e1 as f32) * gamma)
+            .collect::<Vec<_>>()
+    };
     Ok(Tensor::from_slice(&not_done[..], (batch_size,), device)?)
 }
 

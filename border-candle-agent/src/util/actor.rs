@@ -198,20 +198,27 @@ where
             (mean, std)
         };
 
-        // Inverse transformation to the standard normal: N(0, 1)
+        // Log probability
         let act = act.to_device(&self.device)?;
-        let act = match &self.action_limit {
+        match &self.action_limit {
             ActionLimit::Clamp {
                 action_min: _,
                 action_max: _,
-            } => act,
-            ActionLimit::Tanh { action_scale } => atanh(&(&act / *action_scale as f64)?)?,
-        };
-        let z = ((&act - &mean)? / &std)?;
-
-        // Density
-        log::trace!("Density");
-        Ok((normal_logp(&z)? + log_jacobian_tanh(&act, 1e-4, &self.device)?)?)
+            } => {
+                let z = ((&act - &mean)? / &std)?;
+                Ok(normal_logp(&z)?)
+            }
+            ActionLimit::Tanh { action_scale } => {
+                // Back to normal distributed RV
+                let x = atanh(&(&act / *action_scale as f64)?)?;
+                // Standard normal
+                let z = ((&x - &mean)? / &std)?;
+                // Log Jacobian
+                let lj = log_jacobian_tanh(&act, 1e-4, &self.device)?;
+                // Log probability
+                Ok((normal_logp(&z)? + lj)?)
+            }
+        }
     }
 
     /// Samples actions.
