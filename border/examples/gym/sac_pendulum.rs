@@ -36,8 +36,8 @@ const LR_CRITIC: f64 = 3e-4;
 const BATCH_SIZE: usize = 128;
 const WARMUP_PERIOD: usize = 1000;
 const OPT_INTERVAL: usize = 1;
-const MAX_OPTS: usize = 1000; //40_000;
-const EVAL_INTERVAL: usize = 10; //2_000;
+const MAX_OPTS: usize = 40_000;
+const EVAL_INTERVAL: usize = 100;
 const REPLAY_BUFFER_CAPACITY: usize = 100_000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const ENV_NAME: &str = "Pendulum-v1";
@@ -228,7 +228,8 @@ mod config {
     pub fn create_agent_config(in_dim: i64, out_dim: i64) -> SacConfig<Mlp, Mlp2> {
         let device = Device::cuda_if_available(0).unwrap();
         let actor_config = ActorConfig::default()
-            .opt_config(OptimizerConfig::default().learning_rate(LR_ACTOR))
+            // .opt_config(OptimizerConfig::default().learning_rate(LR_ACTOR))
+            .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
             .out_dim(out_dim)
             .pi_config(MlpConfig::new(
                 in_dim,

@@ -41,8 +41,8 @@ const LR_CRITIC: f64 = 3e-4;
 const BATCH_SIZE: usize = 128;
 const WARMUP_PERIOD: usize = 1000;
 const OPT_INTERVAL: usize = 1;
-const MAX_OPTS: usize = 1000; //40_000;
-const EVAL_INTERVAL: usize = 10; //2_000;
+const MAX_OPTS: usize = 40_000;
+const EVAL_INTERVAL: usize = 100;
 const REPLAY_BUFFER_CAPACITY: usize = 100_000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const ENV_NAME: &str = "Pendulum-v1";
@@ -110,7 +110,7 @@ mod obs_act_types {
         }
     }
 
-    #[derive(BatchBase)]
+    #[derive(Clone, BatchBase)]
     pub struct ActBatch(TensorBatch);
 
     impl From<Act> for ActBatch {

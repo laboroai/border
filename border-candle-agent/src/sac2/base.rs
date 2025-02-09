@@ -128,7 +128,7 @@ where
 
         for _ in 0..self.n_updates_per_opt {
             let batch = buffer.batch(self.batch_size).unwrap();
-            // loss_actor += self.update_actor(&batch)?;
+            loss_actor += self.update_actor(&batch)?;
             loss_critic += self.update_critic(batch)?;
             self.critic.soft_update()?;
             self.n_opts += 1;

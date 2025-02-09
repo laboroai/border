@@ -189,12 +189,12 @@ where
             let batch = buffer.batch(self.batch_size).unwrap();
 
             trace!("update_actor()");
-            // loss_actor += self.update_actor(&batch)?;
+            loss_actor += self.update_actor(&batch)?;
 
             trace!("update_critic()");
             loss_critic += self.update_critic(batch)?;
 
-            // trace!("soft_update()");
+            trace!("soft_update()");
             self.soft_update()?;
 
             self.n_opts += 1;
