@@ -98,6 +98,12 @@ impl SimpleReplayBufferConfig {
         self
     }
 
+    /// Sets random seed.
+    pub fn seed(mut self, seed: u64) -> Self {
+        self.seed = seed;
+        self
+    }
+
     /// Sets configuration of PER.
     pub fn per_config(mut self, per_config: Option<PerConfig>) -> Self {
         self.per_config = per_config;

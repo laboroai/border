@@ -301,7 +301,9 @@ struct Args {
 fn train(args: &Args, max_opts: usize, model_dir: &str, eval_interval: usize) -> Result<()> {
     let config = SacPendulumConfig::new(DIM_OBS, DIM_ACT, max_opts, eval_interval);
     let step_proc_config = SimpleStepProcessorConfig {};
-    let replay_buffer_config = SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
+    let replay_buffer_config = SimpleReplayBufferConfig::default()
+        .capacity(REPLAY_BUFFER_CAPACITY)
+        .seed(0);
     let mut recorder = create_recorder(&args, model_dir, Some(&config))?;
     let mut trainer = Trainer::build(config.trainer_config.clone());
 
