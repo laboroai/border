@@ -46,7 +46,6 @@ mod base;
 mod config;
 mod obs;
 pub mod util;
-mod vec;
 pub use act::{
     ContinuousActFilter, ContinuousActFilterConfig, DiscreteActFilter, DiscreteActFilterConfig,
 };
