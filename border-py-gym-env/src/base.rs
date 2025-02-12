@@ -292,8 +292,8 @@ where
             // Observation at the next step
             let obs = {
                 let obs_py = step.get_item(0).to_owned();
-                // self.converter.filt_obs(obs_py.to_object(py)).unwrap()
-                self.converter.filt_obs(obs_py.into()).unwrap()
+                self.converter.filt_obs(obs_py.to_object(py)).unwrap()
+                // self.converter.filt_obs(obs_py.into()).unwrap()
             };
 
             // Reward

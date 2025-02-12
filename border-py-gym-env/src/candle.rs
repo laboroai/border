@@ -2,6 +2,7 @@ use anyhow::Result;
 use candle_core::{Tensor, WithDType};
 use ndarray::ArrayD;
 use num_traits::AsPrimitive;
+pub mod ndarray_converter;
 pub mod tensor;
 mod tensor_batch;
 use std::convert::TryFrom;

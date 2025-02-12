@@ -16,7 +16,8 @@ use border_core::{
 use border_mlflow_tracking::MlflowTrackingClient;
 use border_py_gym_env::{
     candle::{
-        tensor::{TensorConverter, TensorConverterConfig},
+        // tensor_converter::{TensorConverter, TensorConverterConfig},
+        ndarray_converter::{NdarrayConverter, NdarrayConverterConfig},
         TensorBatch,
     },
     util::ActionType,
@@ -27,7 +28,7 @@ use candle_core::Device;
 use clap::Parser;
 use serde::Serialize;
 
-type Env = GymEnv<TensorConverter>;
+type Env = GymEnv<NdarrayConverter>;
 type ReplayBuffer = SimpleReplayBuffer<TensorBatch, TensorBatch>;
 type StepProc = SimpleStepProcessor<Env, TensorBatch, TensorBatch>;
 type Evaluator = DefaultEvaluator<Env>;
@@ -44,7 +45,7 @@ const EVAL_INTERVAL: usize = 2_000;
 const REPLAY_BUFFER_CAPACITY: usize = 100_000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const ENV_NAME: &str = "Pendulum-v1";
-const MODEL_DIR: &str = "./border/examples/gym/model/candle/sac_pendulum";
+const MODEL_DIR: &str = "./model/candle/sac_pendulum";
 const MLFLOW_EXPERIMENT_NAME: &str = "Gym";
 const MLFLOW_RUN_NAME: &str = "sac-gym-pendulum-v1-candle";
 const MLFLOW_TAGS: &[(&str, &str)] = &[("env", "pendulum"), ("algo", "sac"), ("backend", "candle")];
@@ -66,10 +67,10 @@ struct Args {
     mlflow: bool,
 }
 
-fn create_env_config(render: bool) -> Result<GymEnvConfig<TensorConverter>> {
+fn create_env_config(render: bool) -> Result<GymEnvConfig<NdarrayConverter>> {
     let mut env_config = GymEnvConfig::default()
         .name(ENV_NAME.to_string())
-        .converter_config(TensorConverterConfig {
+        .converter_config(NdarrayConverterConfig {
             action_type: ActionType::Continuous,
         });
 
@@ -128,7 +129,7 @@ fn create_recorder(
 
 #[derive(Serialize)]
 pub struct SacPendulumConfig {
-    pub env_config: GymEnvConfig<TensorConverter>,
+    pub env_config: GymEnvConfig<NdarrayConverter>,
     pub agent_config: SacConfig<Mlp, Mlp2>,
     pub trainer_config: TrainerConfig,
 }
