@@ -13,7 +13,7 @@ members = [
     "border-minari",
     "border",
 ]
-exclude = ["docker/"]
+exclude = ["docker/", "examples/"]
 
 [workspace.package]
 version = "0.0.8"

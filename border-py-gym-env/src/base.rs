@@ -1,17 +1,15 @@
 //! Wrapper of gym environments implemented in Python.
 #![allow(clippy::float_cmp)]
-use crate::{AtariWrapper, GymEnvConfig};
 use anyhow::Result;
 use border_core::{
     record::{Record, RecordValue::Scalar},
-    Act, Env, Info, Obs, Step,
+    Env, Info, Step,
 };
 use log::{info, trace};
 // use pyo3::IntoPy;
 use pyo3::types::{IntoPyDict, PyTuple};
 use pyo3::{types::PyModule, PyObject, Python, ToPyObject};
-use serde::{de::DeserializeOwned, Serialize};
-use std::marker::PhantomData;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{fmt::Debug, time::Duration};
 
 /// Information given at every step of the interaction with the environment.
@@ -21,121 +19,148 @@ pub struct GymInfo {}
 
 impl Info for GymInfo {}
 
-/// Convert [`PyObject`] to [`GymEnv`]::Obs with a preprocessing.
-///
-/// [`PyObject`]: https://docs.rs/pyo3/0.14.5/pyo3/type.PyObject.html
-pub trait GymObsFilter<O: Obs> {
-    /// Configuration.
-    type Config: Clone + Default + Serialize + DeserializeOwned;
+/// Convert objects for observation and action.
+pub trait GymEnvConverter {
+    /// Type of observation.
+    type Obs: border_core::Obs;
 
-    /// Build filter.
-    fn build(config: &Self::Config) -> Result<Self>
+    /// Type of action.
+    type Act: border_core::Act;
+
+    /// Configuration.
+    type Config: DeserializeOwned + Serialize + Clone + Default;
+
+    /// Convert [`PyObject`] to [`Self::O`].
+    fn filt_obs(&mut self, obs: PyObject) -> Result<Self::Obs>;
+
+    /// Convert [`Self::A`] to [`PyObject`].
+    fn filt_act(&mut self, act: Self::Act) -> Result<PyObject>;
+
+    /// Creates a converter.
+    fn new(config: &Self::Config) -> Result<Self>
     where
         Self: Sized;
-
-    /// Convert PyObject into observation with filtering.
-    fn filt(&mut self, obs: PyObject) -> (O, Record);
 
     /// Called when resetting the environment.
     ///
     /// This method is useful for stateful filters.
-    fn reset(&mut self, obs: PyObject) -> O {
-        let (obs, _) = self.filt(obs);
-        obs
-    }
-
-    /// Returns default configuration.
-    fn default_config() -> Self::Config {
-        Self::Config::default()
+    fn reset(&mut self, obs: PyObject) -> Result<Self::Obs> {
+        let obs = self.filt_obs(obs)?;
+        Ok(obs)
     }
 }
 
-/// Convert [`GymEnv`]::Act to [`PyObject`] with a preprocessing.
-///
-/// [`PyObject`]: https://docs.rs/pyo3/0.14.5/pyo3/type.PyObject.html
-pub trait GymActFilter<A: Act> {
-    /// Configuration.
-    type Config: Clone + Default + Serialize + DeserializeOwned;
+/// Configuration of [`GymEnv`].
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct GymEnvConfig<C>
+where
+    C: GymEnvConverter,
+{
+    /// The maximum interaction steps in an episode.
+    pub max_steps: Option<usize>,
 
-    /// Build filter.
-    fn build(config: &Self::Config) -> Result<Self>
-    where
-        Self: Sized;
+    /// `true` to support rendering for PyBullet gym environment.
+    pub pybullet: bool,
 
-    /// Filter action and convert it to PyObject.
-    ///
-    /// For vectorized environments, `act` should have actions for all environments in
-    /// the vectorized environment. The return values will be a `PyList` object, each
-    /// element is an action of the corresponding environment.
-    fn filt(&mut self, act: A) -> (PyObject, Record);
+    /// Name of the environment, e.g., `CartPole-v0`.
+    pub name: String,
 
-    /// Called when resetting the environment.
-    ///
-    /// This method is useful for stateful filters.
-    /// This method support vectorized environment
-    fn reset(&mut self, _is_done: &Option<&Vec<i8>>) {}
+    /// Rendering mode, e.g., "human" or "rgb_array".
+    pub render_mode: Option<String>,
 
-    /// Returns default configuration.
-    fn default_config() -> Self::Config {
-        Self::Config::default()
+    /// Wait time at every interaction steps.
+    pub wait: Duration,
+
+    /// Converter of observation and action.
+    pub converter_config: C::Config,
+}
+
+impl<C> Default for GymEnvConfig<C>
+where
+    C: GymEnvConverter,
+{
+    fn default() -> Self {
+        Self {
+            max_steps: None,
+            pybullet: false,
+            name: "".to_string(),
+            render_mode: None,
+            wait: Duration::from_millis(0),
+            converter_config: Default::default(),
+        }
+    }
+}
+
+impl<C> GymEnvConfig<C>
+where
+    C: GymEnvConverter,
+{
+    /// Set `True` when using PyBullet environments.
+    pub fn pybullet(mut self, v: bool) -> Self {
+        self.pybullet = v;
+        self
+    }
+
+    /// Set the name of the environment.
+    pub fn name(mut self, name: String) -> Self {
+        self.name = name;
+        self
+    }
+
+    pub fn render_mode(mut self, render_mode: Option<String>) -> Self {
+        self.render_mode = render_mode;
+        self
+    }
+
+    /// Set wait time in milli seconds.
+    pub fn set_wait_in_millis(mut self, millis: u64) -> Self {
+        self.wait = Duration::from_millis(millis);
+        self
+    }
+
+    pub fn converter_config(mut self, config: C::Config) -> Self {
+        self.converter_config = config;
+        self
     }
 }
 
 /// An wrapper of [Gymnasium](https://gymnasium.farama.org).
 #[derive(Debug)]
-pub struct GymEnv<O, A, OF, AF>
+pub struct GymEnv<C>
 where
-    O: Obs,
-    A: Act,
-    OF: GymObsFilter<O>,
-    AF: GymActFilter<A>,
+    C: GymEnvConverter,
 {
     render: bool,
-
     env: PyObject,
-
     count_steps: usize,
-
     max_steps: Option<usize>,
-
-    obs_filter: OF,
-
-    act_filter: AF,
-
+    converter: C,
     wait: Duration,
-
     pybullet: bool,
-
     pybullet_state: Option<PyObject>,
-
     /// Initial seed.
     ///
     /// This value will be used at the first call of the reset method.
     initial_seed: Option<i64>,
-
-    phantom: PhantomData<(O, A)>,
 }
 
-impl<O, A, OF, AF> GymEnv<O, A, OF, AF>
+impl<C> GymEnv<C>
 where
-    O: Obs,
-    A: Act,
-    OF: GymObsFilter<O>,
-    AF: GymActFilter<A>,
+    C: GymEnvConverter,
 {
     /// Set rendering mode.
     ///
     /// If `true`, it renders the state at every step.
-    pub fn set_render(&mut self, render: bool) {
+    pub fn set_render(&mut self, render: bool) -> Result<()> {
         self.render = render;
         if self.pybullet {
             pyo3::Python::with_gil(|py| {
-                // self.env.call_method0(py, "render").unwrap();
                 self.env
                     .call_method(py, "render", ("human",), None)
                     .unwrap();
             });
         }
+        Ok(())
     }
 
     /// Set the maximum number of steps in the environment.
@@ -149,41 +174,47 @@ where
         self.wait = d;
     }
 
-    /// Get the number of available actions of atari environments
-    pub fn get_num_actions_atari(&self) -> i64 {
-        pyo3::Python::with_gil(|py| {
-            let act_space = self.env.getattr(py, "action_space").unwrap();
-            act_space.getattr(py, "n").unwrap().extract(py).unwrap()
-        })
+    // /// Get the number of available actions of atari environments
+    // pub fn get_num_actions_atari(&self) -> i64 {
+    //     pyo3::Python::with_gil(|py| {
+    //         let act_space = self.env.getattr(py, "action_space").unwrap();
+    //         act_space.getattr(py, "n").unwrap().extract(py).unwrap()
+    //     })
+    // }
+
+    /// Returns `is_terminated` and `is_truncated`, extracted from `Step` object in Python.
+    fn is_done(step: &PyTuple) -> Result<(i8, i8)> {
+        // terminated or truncated
+        let is_terminated = match step.get_item(2).extract()? {
+            true => 1,
+            false => 0,
+        };
+        let is_truncated = match step.get_item(3).extract()? {
+            true => 1,
+            false => 0,
+        };
+
+        Ok((is_terminated, is_truncated))
     }
 }
 
-impl<O, A, OF, AF> Env for GymEnv<O, A, OF, AF>
+impl<C> Env for GymEnv<C>
 where
-    O: Obs,
-    A: Act + Debug,
-    OF: GymObsFilter<O>,
-    AF: GymActFilter<A>,
+    C: GymEnvConverter + Clone,
 {
-    type Obs = O;
-    type Act = A;
+    type Obs = <C as GymEnvConverter>::Obs;
+    type Act = <C as GymEnvConverter>::Act;
     type Info = GymInfo;
-    type Config = GymEnvConfig<O, A, OF, AF>;
+    type Config = GymEnvConfig<C>;
 
     /// Resets the environment and returns an observation.
     ///
-    /// This method also resets the [`GymObsFilter`] adn [`GymActFilter`].
+    /// This method also resets the converter of type `C`.
     ///
     /// In this environment, `is_done` should be None.
-    ///
-    /// [`GymObsFilter`]: crate::GymObsFilter
-    /// [`GymActFilter`]: crate::GymActFilter
-    fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<O> {
+    fn reset(&mut self, is_done: Option<&Vec<i8>>) -> Result<Self::Obs> {
         trace!("PyGymEnv::reset()");
         assert_eq!(is_done, None);
-
-        // Reset the action filter, required for stateful filters.
-        self.act_filter.reset(&is_done);
 
         // Initial observation
         let ret = pyo3::Python::with_gil(|py| {
@@ -206,7 +237,8 @@ where
                 let floor: &PyModule = self.pybullet_state.as_ref().unwrap().extract(py).unwrap();
                 floor.getattr("add_floor")?.call1((&self.env,)).unwrap();
             }
-            Ok(self.obs_filter.reset(obs))
+            // Reset the state
+            Ok(self.converter.reset(obs)?)
         });
 
         // Rendering
@@ -233,23 +265,7 @@ where
     /// Runs a step of the environment's dynamics.
     ///
     /// It returns [`Step`] and [`Record`] objects.
-    /// The [`Record`] is composed of [`Record`]s constructed in [`GymObsFilter`] and
-    /// [`GymActFilter`].
-    fn step(&mut self, act: &A) -> (Step<Self>, Record) {
-        fn is_done(step: &PyTuple) -> (i8, i8) {
-            // terminated or truncated
-            let is_terminated = match step.get_item(2).extract().unwrap() {
-                true => 1,
-                false => 0,
-            };
-            let is_truncated = match step.get_item(3).extract().unwrap() {
-                true => 1,
-                false => 0,
-            };
-
-            (is_terminated, is_truncated)
-        }
-
+    fn step(&mut self, act: &Self::Act) -> (Step<Self>, Record) {
         trace!("PyGymEnv::step()");
 
         pyo3::Python::with_gil(|py| {
@@ -258,7 +274,6 @@ where
                     let _ = self.env.call_method0(py, "render");
                 } else {
                     let cam: &PyModule = self.pybullet_state.as_ref().unwrap().extract(py).unwrap();
-                    // cam.call1("update_camera_pos", (&self.env,)).unwrap();
                     cam.getattr("update_camera_pos")
                         .unwrap()
                         .call1((&self.env,))
@@ -267,42 +282,33 @@ where
                 std::thread::sleep(self.wait);
             }
 
-            // State transition
-            let (
-                act,
-                next_obs,
-                reward,
-                is_terminated,
-                mut is_truncated,
-                mut record,
-                info,
-                init_obs,
-            ) = {
-                let (a_py, record_a) = self.act_filter.filt(act.clone());
-                let ret = self.env.call_method(py, "step", (a_py,), None).unwrap();
-                let step: &PyTuple = ret.extract(py).unwrap();
-                let next_obs = step.get_item(0).to_owned();
-                let (next_obs, record_o) = self.obs_filter.filt(next_obs.to_object(py));
-                let reward: Vec<f32> = vec![step.get_item(1).extract().unwrap()];
-                let (is_terminated, is_truncated) = is_done(step);
-                let is_terminated = vec![is_terminated];
-                let is_truncated = vec![is_truncated];
-                let record = record_o.merge(record_a);
-                let info = GymInfo {};
-                let init_obs = None;
-                let act = act.clone();
-
-                (
-                    act,
-                    next_obs,
-                    reward,
-                    is_terminated,
-                    is_truncated,
-                    record,
-                    info,
-                    init_obs,
-                )
+            // Run a step
+            let step_py = {
+                let a_py = self.converter.filt_act(act.clone()).unwrap();
+                self.env.call_method(py, "step", (a_py,), None).unwrap()
             };
+            let step: &PyTuple = step_py.extract(py).unwrap();
+
+            // Observation at the next step
+            let obs = {
+                let obs_py = step.get_item(0).to_owned();
+                // self.converter.filt_obs(obs_py.to_object(py)).unwrap()
+                self.converter.filt_obs(obs_py.into()).unwrap()
+            };
+
+            // Reward
+            let reward: Vec<f32> = vec![step.get_item(1).extract().unwrap()];
+
+            // Terminated/Truncated flags
+            let (is_terminated, mut is_truncated) = {
+                let (is_terminated, is_truncated) = Self::is_done(step).unwrap();
+                (vec![is_terminated], vec![is_truncated])
+            };
+
+            // Misc.
+            let mut record = Record::empty();
+            let info = GymInfo {};
+            let init_obs = None;
 
             self.count_steps += 1; //.replace(c + 1);
 
@@ -318,22 +324,22 @@ where
                 self.count_steps = 0;
             }
 
-            (
-                Step::new(
-                    next_obs,
-                    act,
-                    reward,
-                    is_terminated,
-                    is_truncated,
-                    info,
-                    init_obs,
-                ),
-                record,
-            )
+            // Returned step object
+            let step = Step {
+                obs,
+                act: act.clone(),
+                reward,
+                is_terminated,
+                is_truncated,
+                info,
+                init_obs,
+            };
+
+            (step, record)
         })
     }
 
-    /// Constructs [`GymEnv`].
+    /// Creates [`GymEnv`].
     ///
     /// * `seed` - The seed value of the random number generator.
     ///   This value will be used at the first call of the reset method.
@@ -360,17 +366,7 @@ where
         if py.import("IPython").is_ok() {}
 
         let name = config.name.as_str();
-        let (env, render) = if let Some(mode) = config.atari_wrapper.as_ref() {
-            let mode = match mode {
-                AtariWrapper::Train => true,
-                AtariWrapper::Eval => false,
-            };
-            let gym = py.import("atari_wrappers")?;
-            let env = gym
-                .getattr("make_env_single_proc")?
-                .call((name, true, mode), None)?;
-            (env, false)
-        } else if !config.pybullet {
+        let (env, render) = if !config.pybullet {
             let gym = py.import("f32_wrapper")?;
             let render = config.render_mode.is_some();
             let env = {
@@ -465,8 +461,7 @@ def update_camera_pos(env):
 
         Ok(GymEnv {
             env: env.into(),
-            obs_filter: OF::build(&config.obs_filter_config.as_ref().unwrap())?,
-            act_filter: AF::build(&config.act_filter_config.as_ref().unwrap())?,
+            converter: C::new(&config.converter_config)?,
             render,
             count_steps: 0,
             wait: config.wait,
@@ -474,7 +469,6 @@ def update_camera_pos(env):
             pybullet: config.pybullet,
             pybullet_state,
             initial_seed: Some(seed),
-            phantom: PhantomData,
         })
     }
 }

@@ -53,3 +53,6 @@ name = "pybullet_pyo3"
 
 [package.metadata.docs.rs]
 no-default-features = true
+
+[features]
+candle = [ "candle-core" ]

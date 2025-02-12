@@ -40,17 +40,16 @@
 //!
 //! [`Policy`]: border_core::Policy
 //! [`ArrayD`]: https://docs.rs/ndarray/0.15.1/ndarray/type.ArrayD.html
-mod act;
-mod atari;
+// mod act;
 mod base;
-mod config;
-mod obs;
+#[cfg(feature = "candle")]
+pub mod candle;
+// mod config;
+// mod obs;
 pub mod util;
-pub use act::{
-    ContinuousActFilter, ContinuousActFilterConfig, DiscreteActFilter, DiscreteActFilterConfig,
-};
-use atari::AtariWrapper;
-pub use base::{GymActFilter, GymEnv, GymInfo, GymObsFilter};
-pub use config::GymEnvConfig;
-#[allow(deprecated)]
-pub use obs::{ArrayDictObsFilter, ArrayDictObsFilterConfig, ArrayObsFilter, ArrayObsFilterConfig};
+// pub use act::{
+//     ContinuousActFilter, ContinuousActFilterConfig, DiscreteActFilter, DiscreteActFilterConfig,
+// };
+pub use base::{GymEnv, GymEnvConfig, GymEnvConverter, GymInfo};
+// #[allow(deprecated)]
+// pub use obs::{ArrayDictObsFilter, ArrayDictObsFilterConfig, ArrayObsFilter, ArrayObsFilterConfig};
