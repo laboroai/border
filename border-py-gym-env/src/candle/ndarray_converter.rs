@@ -1,11 +1,8 @@
 //! Converter for Observation and action of `ArrayD`.
 use super::{arrayd_to_tensor, tensor_to_arrayd, TensorBatch};
-use crate::{
-    util::{arrayd_to_pyobj, pyobj_to_arrayd, ActionType},
-    GymEnvConverter,
-};
+use crate::{util::pyobj_to_arrayd, GymEnvConverter};
 use anyhow::Result;
-use candle_core::Tensor;
+use candle_core::{DType, Tensor, D};
 use ndarray::ArrayD;
 use numpy::PyArrayDyn;
 use pyo3::{IntoPy, PyObject};
@@ -20,7 +17,7 @@ mod obs {
 
     #[derive(Clone, Debug)]
     /// Observation.
-    pub struct NdarrayObs(pub(super) ArrayD<f32>);
+    pub struct NdarrayObs(pub ArrayD<f32>);
 
     impl border_core::Obs for NdarrayObs {
         fn len(&self) -> usize {
@@ -46,19 +43,32 @@ mod act {
 
     #[derive(Clone, Debug)]
     /// Action.
-    pub struct NdarrayAct(pub(super) ArrayD<f32>);
+    pub enum NdarrayAct {
+        Continuous(ArrayD<f32>),
+        Discrete(ArrayD<i64>),
+    }
 
     impl border_core::Act for NdarrayAct {}
 
     impl Into<Tensor> for NdarrayAct {
         fn into(self) -> Tensor {
-            arrayd_to_tensor::<_, f32>(self.0, true).unwrap()
+            match self {
+                Self::Continuous(array) => arrayd_to_tensor::<_, f32>(array, true).unwrap(),
+                Self::Discrete(array) => {
+                    let t = arrayd_to_tensor::<_, i64>(array, true).unwrap();
+                    t.unsqueeze(D::Minus1).unwrap()
+                }
+            }
         }
     }
 
     impl From<Tensor> for NdarrayAct {
         fn from(t: Tensor) -> Self {
-            Self(tensor_to_arrayd(t, true).unwrap())
+            match t.dtype() {
+                DType::F32 => Self::Continuous(tensor_to_arrayd(t, true).unwrap()),
+                DType::I64 => Self::Discrete(tensor_to_arrayd(t, true).unwrap()),
+                _ => panic!(),
+            }
         }
     }
 
@@ -75,33 +85,30 @@ mod converter {
 
     #[derive(Clone, Debug, Deserialize, Serialize)]
     /// Configuration of [`NdarrayConverter`].
-    pub struct NdarrayConverterConfig {
-        pub action_type: ActionType,
-    }
+    pub struct NdarrayConverterConfig {}
 
     impl Default for NdarrayConverterConfig {
         fn default() -> Self {
-            Self {
-                action_type: ActionType::Discrete,
-            }
+            Self {}
         }
     }
 
     #[derive(Clone, Debug)]
     /// Converter for observation and action of [`candle_core::Tensor`].
-    pub struct NdarrayConverter {
-        action_type: ActionType,
-    }
+    ///
+    /// This struct supports continuous and discrete actions.
+    /// The former is represented as a vector, while the latter is represented as an integer.
+    /// The action type is automatically detected from samples, those are outputs
+    /// of the model being trained.
+    pub struct NdarrayConverter {}
 
     impl GymEnvConverter for NdarrayConverter {
         type Obs = NdarrayObs;
         type Act = NdarrayAct;
         type Config = NdarrayConverterConfig;
 
-        fn new(config: &Self::Config) -> Result<Self> {
-            let converter = Self {
-                action_type: config.action_type.clone(),
-            };
+        fn new(_config: &Self::Config) -> Result<Self> {
+            let converter = Self {};
             Ok(converter)
         }
 
@@ -123,21 +130,21 @@ mod converter {
 
         /// Convert [`Self::Act`] to [`PyObject`].
         fn filt_act(&mut self, act: Self::Act) -> Result<PyObject> {
-            match self.action_type {
-                ActionType::Discrete => {
-                    panic!();
-                    // let vec = act
-                    //     .0
-                    //     .to_vec1::<i64>()
-                    //     .expect("Failed to convert Tensor to Act");
-                    // let arrayd = tensor_to_arrayd::<i64>(act.0, true)?;
-                    // let pyobj = pyo3::Python::with_gil(|py| {
-                    //     let act = PyArrayDyn::<i64>::from_array(py, &arrayd);
-                    //     act.into_py(py)
-                    // });
-                    // Ok(pyobj)
+            match act {
+                NdarrayAct::Continuous(arrayd) => {
+                    let pyobj = pyo3::Python::with_gil(|py| {
+                        let act = PyArrayDyn::<f32>::from_array(py, &arrayd);
+                        act.into_py(py)
+                    });
+                    Ok(pyobj)
                 }
-                ActionType::Continuous => Ok(arrayd_to_pyobj(act.0)),
+                NdarrayAct::Discrete(arrayd) => {
+                    let pyobj = pyo3::Python::with_gil(|py| {
+                        let act = PyArrayDyn::<i64>::from_array(py, &arrayd);
+                        act.into_py(py)
+                    });
+                    Ok(pyobj)
+                }
             }
         }
     }
