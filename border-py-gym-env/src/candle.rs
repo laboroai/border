@@ -2,9 +2,13 @@ use anyhow::Result;
 use candle_core::{Tensor, WithDType};
 use ndarray::ArrayD;
 use num_traits::AsPrimitive;
+mod ndarray_act;
 pub mod ndarray_converter;
+mod ndarray_obs;
 pub mod tensor;
 mod tensor_batch;
+pub use ndarray_act::NdarrayAct;
+pub use ndarray_obs::NdarrayObs;
 use std::convert::TryFrom;
 pub use tensor_batch::{TensorBatch, ZeroTensor};
 
