@@ -18,7 +18,8 @@ use border_mlflow_tracking::MlflowTrackingClient;
 use border_py_gym_env::{
     candle::{
         // tensor_converter::{TensorConverter, TensorConverterConfig},
-        ndarray_converter::{NdarrayConverter, NdarrayConverterConfig},
+        NdarrayConverter,
+        NdarrayConverterConfig,
         TensorBatch,
     },
     GymEnv, GymEnvConfig,

@@ -1,8 +1,5 @@
-//! Converter for observation and action of [`NdarrayObs`] and [`NdarrayAct`].
-//!
-//! [`NdarrayObs`]: super::NdarrayObs
-//! [`NdarrayAct`]: super::NdarrayAct
-use super::{NdarrayAct, NdarrayObs};
+//! Converter for observation and action of [`NdarrayDictObs`] and [`NdarrayAct`].
+use super::{NdarrayAct, NdarrayDictObs};
 use crate::{util::pyobj_to_arrayd, GymEnvConverter};
 use anyhow::Result;
 use numpy::PyArrayDyn;
@@ -11,47 +8,51 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 /// Configuration of [`NdarrayConverter`].
-pub struct NdarrayConverterConfig {}
+pub struct NdarrayDictObsConverterConfig {
+    pub keys: Vec<String>,
+}
 
-impl Default for NdarrayConverterConfig {
+impl Default for NdarrayDictObsConverterConfig {
     fn default() -> Self {
-        Self {}
+        Self { keys: vec![] }
     }
 }
 
 #[derive(Clone, Debug)]
-/// Converter for observation and action of [`NdarrayObs`] and [`NdarrayAct`].
+/// Converter for observation and action of [`NdarrayDictObs`] and [`NdarrayAct`].
 ///
 /// This struct supports continuous and discrete actions.
 /// The former is represented as a vector, while the latter is represented as an integer.
 /// The action type is automatically detected from samples, those are outputs
 /// of the model being trained.
-pub struct NdarrayConverter {}
+pub struct NdarrayDictObsConverter {
+    obs_keys: Vec<String>,
+}
 
-impl GymEnvConverter for NdarrayConverter {
-    type Obs = NdarrayObs;
+impl GymEnvConverter for NdarrayDictObsConverter {
+    type Obs = NdarrayDictObs;
     type Act = NdarrayAct;
-    type Config = NdarrayConverterConfig;
+    type Config = NdarrayDictObsConverterConfig;
 
-    fn new(_config: &Self::Config) -> Result<Self> {
-        let converter = Self {};
+    fn new(config: &Self::Config) -> Result<Self> {
+        let converter = Self {
+            obs_keys: config.keys.clone(),
+        };
         Ok(converter)
     }
 
-    /// Convert observation.
-    ///
-    /// Data type should be f32.
+    /// Convert [`PyObject`] to [`NdarrayDictObs`].
     fn filt_obs(&mut self, obs: PyObject) -> Result<Self::Obs> {
-        // ndarray
         let obs = pyo3::Python::with_gil(|py| {
-            if obs.as_ref(py).get_type().name().unwrap() == "NoneType" {
-                panic!();
-            } else {
-                pyobj_to_arrayd::<f32, f32>(obs)
-            }
+            self.obs_keys
+                .iter()
+                .map(|key| {
+                    let pyobj = obs.call_method1(py, "get", (key,)).unwrap();
+                    (key.clone(), pyobj_to_arrayd::<f32, f32>(pyobj))
+                })
+                .collect::<Vec<_>>()
         });
-
-        Ok(NdarrayObs(obs))
+        Ok(NdarrayDictObs(obs))
     }
 
     /// Convert [`Self::Act`] to [`PyObject`].

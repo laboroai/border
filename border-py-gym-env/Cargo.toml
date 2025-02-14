@@ -52,6 +52,7 @@ test = false        # Skip test for now, PyBullet Gym requires modify code (see 
 name = "pybullet_pyo3"
 
 [package.metadata.docs.rs]
+features = ["candle"]
 no-default-features = true
 
 [features]

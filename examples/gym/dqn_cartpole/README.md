@@ -1,4 +1,4 @@
-# SAC on pendulum environment
+# DQN on cartpole environment
 
 ## Tensorboard
 
