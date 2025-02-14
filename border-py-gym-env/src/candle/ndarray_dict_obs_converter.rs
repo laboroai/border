@@ -7,7 +7,7 @@ use pyo3::{IntoPy, PyObject};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-/// Configuration of [`NdarrayConverter`].
+/// Configuration of [`NdarrayDictObsConverter`].
 pub struct NdarrayDictObsConverterConfig {
     pub keys: Vec<String>,
 }

@@ -29,17 +29,6 @@ fastrand = { workspace = true }
 env_logger = { workspace = true }
 csv = { workspace = true }
 
-# [features]
-# default = ["tch"]
-
-[[example]]
-name = "random_cartpole"
-test = true
-
-[[example]]
-name = "random_lunarlander_cont"
-test = false # due to box2d installation issue in github action
-
 [[example]]
 name = "random_fetch_reach"
 test = false
