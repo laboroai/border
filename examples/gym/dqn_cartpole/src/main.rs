@@ -216,3 +216,26 @@ fn main() -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempdir::TempDir;
+
+    #[test]
+    fn test_dqn_cartpole() -> Result<()> {
+        let tmp_dir = TempDir::new("dqn_cartpole")?;
+        let model_dir = match tmp_dir.as_ref().to_str() {
+            Some(s) => s,
+            None => panic!("Failed to get string of temporary directory"),
+        };
+        let args = Args {
+            train: false,
+            eval: false,
+            mlflow: false,
+        };
+        train(&args, 100, model_dir, 100)?;
+        eval(&args, model_dir, false)?;
+        Ok(())
+    }
+}

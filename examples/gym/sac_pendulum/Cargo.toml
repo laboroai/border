@@ -18,3 +18,6 @@ border-core = { version = "0.0.8", path = "../../../border-core" }
 border-tensorboard = { version = "0.0.8", path = "../../../border-tensorboard" }
 border-mlflow-tracking = { version = "0.0.8", path = "../../../border-mlflow-tracking" }
 serde = "1.0.194"
+
+[dev-dependencies]
+tempdir = "0.3.7"
