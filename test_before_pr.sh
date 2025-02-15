@@ -8,6 +8,7 @@ cargo test -p border-policy-no-backend --features=border-tch-agent
 cd examples/gym/dqn_cartpole; cargo test; cd ../../..
 cd examples/gym/sac_pendulum; cargo test; cd ../../..
 cd examples/gym/sac_fetch_reach; cargo test; cd ../../..
+cd examples/gym/dqn_cartpole_tch; cargo test; cd ../../..
 
 # cargo test --example dqn_cartpole_tch --features=tch
 # cargo test --example iqn_cartpole_tch --features=tch

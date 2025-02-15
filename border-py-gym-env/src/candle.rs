@@ -37,8 +37,6 @@ fn tensor_to_arrayd<T>(t: Tensor, delete_batch_dim: bool) -> Result<ArrayD<T>>
 where
     T: WithDType + std::fmt::Debug, //tch::kind::Element,
 {
-    println!("{:?}", t.dims());
-    panic!();
     let shape = match delete_batch_dim {
         false => t.dims()[..].iter().map(|x| *x as usize).collect::<Vec<_>>(),
         true => t.dims()[1..]

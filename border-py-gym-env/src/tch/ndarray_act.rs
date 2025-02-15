@@ -14,7 +14,7 @@ impl border_core::Act for NdarrayAct {}
 impl Into<Tensor> for NdarrayAct {
     fn into(self) -> Tensor {
         match self {
-            Self::Continuous(array) => arrayd_to_tensor::<_, f32>(array, true).unsqueeze(-1),
+            Self::Continuous(array) => arrayd_to_tensor::<_, f32>(array, true),
             Self::Discrete(array) => arrayd_to_tensor::<_, i64>(array, true),
         }
     }
