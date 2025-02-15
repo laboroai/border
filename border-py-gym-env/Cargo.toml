@@ -29,27 +29,17 @@ fastrand = { workspace = true }
 env_logger = { workspace = true }
 csv = { workspace = true }
 
-# [features]
-# default = ["tch"]
-
-[[example]]
-name = "random_cartpole"
-test = true
-
-[[example]]
-name = "random_lunarlander_cont"
-test = false # due to box2d installation issue in github action
-
-[[example]]
-name = "random_fetch_reach"
-test = false
-
 [[example]]
 name = "random_ant"
-test = false        # Skip test for now, PyBullet Gym requires modify code (see Dockerfile in this repository)
+test = true
+# test = false        # Skip test for now, PyBullet Gym requires modify code (see Dockerfile in this repository)
 
-[[example]]
-name = "pybullet_pyo3"
+# [[example]]
+# name = "pybullet_pyo3"
 
 [package.metadata.docs.rs]
+features = ["candle"]
 no-default-features = true
+
+[features]
+candle = [ "candle-core" ]
