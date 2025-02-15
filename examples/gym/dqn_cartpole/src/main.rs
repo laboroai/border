@@ -4,6 +4,7 @@ use border_candle_agent::{
     mlp::{Mlp, MlpConfig},
     opt::OptimizerConfig,
     util::CriticLoss,
+    Activation,
 };
 use border_core::{
     generic_replay_buffer::{
@@ -88,7 +89,7 @@ fn create_env_config(render: bool) -> Result<GymEnvConfig<NdarrayConverter>> {
 fn create_agent_config(in_dim: i64, out_dim: i64) -> Result<DqnConfig<Mlp>> {
     let device = Device::cuda_if_available(0)?;
     let opt_config = OptimizerConfig::default().learning_rate(LR_CRITIC);
-    let mlp_config = MlpConfig::new(in_dim, vec![256, 256], out_dim, false);
+    let mlp_config = MlpConfig::new(in_dim, vec![256, 256], out_dim, Activation::None);
     let model_config = DqnModelConfig::default()
         .q_config(mlp_config)
         .out_dim(out_dim)
