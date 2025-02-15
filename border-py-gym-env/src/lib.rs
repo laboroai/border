@@ -44,6 +44,7 @@
 mod base;
 #[cfg(feature = "candle")]
 pub mod candle;
+pub mod ndarray;
 // mod config;
 // mod obs;
 pub mod util;

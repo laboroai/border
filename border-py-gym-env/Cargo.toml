@@ -30,15 +30,12 @@ env_logger = { workspace = true }
 csv = { workspace = true }
 
 [[example]]
-name = "random_fetch_reach"
-test = false
-
-[[example]]
 name = "random_ant"
-test = false        # Skip test for now, PyBullet Gym requires modify code (see Dockerfile in this repository)
+test = true
+# test = false        # Skip test for now, PyBullet Gym requires modify code (see Dockerfile in this repository)
 
-[[example]]
-name = "pybullet_pyo3"
+# [[example]]
+# name = "pybullet_pyo3"
 
 [package.metadata.docs.rs]
 features = ["candle"]
