@@ -5,6 +5,13 @@ use numpy::{Element, PyArrayDyn};
 use pyo3::{IntoPy, PyObject};
 use serde::{Deserialize, Serialize};
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+/// Action type.
+pub enum ActionType {
+    Continuous,
+    Discrete,
+}
+
 /// Converts PyObject to ArrayD.
 pub fn pyobj_to_arrayd<T1, T2>(obs: PyObject) -> ArrayD<T2>
 where

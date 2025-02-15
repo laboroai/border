@@ -42,9 +42,9 @@ jobs:
           run: |
             pip install --upgrade pip
             pip install swig==4.2.1
-            pip install mujoco==2.3.7
+            pip install mujoco==3.1.6
             pip install gymnasium==1.0.0
-            pip install gymnasium-robotics==1.3.1
+            pip install git+https://github.com/Farama-Foundation/Gymnasium-Robotics
             pip install pybullet==3.2.5
             pip install torch==2.3.0 --index-url https://download.pytorch.org/whl/cpu
 
@@ -78,9 +78,6 @@ jobs:
         - name: Test border-core
           run: cargo test -p border-core
 
-        - name: Test border-py-gym-env
-          run: cargo test -p border-py-gym-env
-
         - if: matrix.os == 'ubuntu-latest'
           name: Check env vars
           run: printenv
@@ -96,14 +93,14 @@ jobs:
             sudo apt-get install -y --no-install-recommends --fix-missing \
               libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev libsdl2-ttf-dev \
               libsdl2-dev libsdl-image1.2-dev
-            cargo test --example dqn_cartpole_tch --features=tch
-            cargo test --example iqn_cartpole_tch --features=tch
-            cargo test --example sac_pendulum_tch --features=tch
-            cargo test --example dqn_cartpole --features=candle-core
-            cargo test --example sac_pendulum --features=candle-core
-            cd border-async-trainer; cargo test; cd ..
-            cd border-atari-env; cargo test; cd ..
-            cd border-candle-agent; cargo test; cd ..
-            cd border-tch-agent; cargo test; cd ..
-            cd border-policy-no-backend; cargo test --features=border-tch-agent; cd ..
-            cd border-py-gym-env; cargo test; cd ..
+            cargo test -p border-py-gym-env
+            cargo test -p border-async-trainer
+            cargo test -p border-atari-env
+            cargo test -p border-candle-agent
+            cargo test -p border-tch-agent
+            cargo test -p border-policy-no-backend --features=border-tch-agent
+            cd examples/gym/dqn_cartpole; cargo test; cd ../../..
+            cd examples/gym/sac_pendulum; cargo test; cd ../../..
+            cd examples/gym/sac_fetch_reach; cargo test; cd ../../..
+            cd examples/gym/dqn_cartpole_tch; cargo test; cd ../../..
+            cd examples/gym/sac_pendulum_tch; cargo test; cd ../../..
