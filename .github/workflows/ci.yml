@@ -78,9 +78,6 @@ jobs:
         - name: Test border-core
           run: cargo test -p border-core
 
-        - name: Test border-py-gym-env
-          run: cargo test -p border-py-gym-env
-
         - if: matrix.os == 'ubuntu-latest'
           name: Check env vars
           run: printenv
@@ -96,7 +93,6 @@ jobs:
             sudo apt-get install -y --no-install-recommends --fix-missing \
               libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev libsdl2-ttf-dev \
               libsdl2-dev libsdl-image1.2-dev
-            cargo test -p border-core
             cargo test -p border-py-gym-env
             cargo test -p border-async-trainer
             cargo test -p border-atari-env
@@ -106,3 +102,5 @@ jobs:
             cd examples/gym/dqn_cartpole; cargo test; cd ../../..
             cd examples/gym/sac_pendulum; cargo test; cd ../../..
             cd examples/gym/sac_fetch_reach; cargo test; cd ../../..
+            cd examples/gym/dqn_cartpole_tch; cargo test; cd ../../..
+            cd examples/gym/sac_pendulum_tch; cargo test; cd ../../..
