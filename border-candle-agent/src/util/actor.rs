@@ -10,15 +10,18 @@ use candle_nn::{VarBuilder, VarMap};
 use log::info;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
+    f32::consts::PI,
     fs::File,
     io::{BufReader, Write},
     path::{Path, PathBuf},
 };
 
-fn normal_logp(x: &Tensor) -> Result<Tensor> {
-    let tmp: Tensor =
-        ((-0.5 * (2.0 * std::f32::consts::PI).ln() as f64) - (0.5 * x.powf(2.0)?)?)?;
-    Ok(tmp.sum(D::Minus1)?)
+fn normal_logp(x: &Tensor, mean: &Tensor, std: &Tensor) -> Result<Tensor> {
+    let var = std.powf(2.0)?;
+    let ps = (-0.5 * (2.0 * PI).ln() as f64
+        - (0.5 * var.log()?)?
+        - ((0.5 / var)? * (x - mean)?.powf(2.0))?)?;
+    Ok(ps.sum(D::Minus1)?)
 }
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
@@ -204,19 +207,14 @@ where
             ActionLimit::Clamp {
                 action_min: _,
                 action_max: _,
-            } => {
-                let z = ((&act - &mean)? / &std)?;
-                Ok(normal_logp(&z)?)
-            }
+            } => Ok(normal_logp(&act, &mean, &std)?),
             ActionLimit::Tanh { action_scale } => {
                 // Back to normal distributed RV
                 let x = atanh(&(&act / *action_scale as f64)?)?;
-                // Standard normal
-                let z = ((&x - &mean)? / &std)?;
                 // Log Jacobian
-                let lj = log_jacobian_tanh(&act, 1e-4, &self.device)?;
+                let lj = log_jacobian_tanh(&act)?;
                 // Log probability
-                Ok((normal_logp(&z)? + lj)?)
+                Ok((normal_logp(&x, &mean, &std)? + lj)?)
             }
         }
     }
@@ -230,7 +228,7 @@ where
         let std = lstd.clamp(self.min_log_std, self.max_log_std)?.exp()?;
         let act = match train {
             true => ((std * mean.randn_like(0., 1.)?)? + mean)?,
-            false => mean.tanh()?,
+            false => mean,
         };
         let act = match self.action_limit {
             ActionLimit::Clamp {

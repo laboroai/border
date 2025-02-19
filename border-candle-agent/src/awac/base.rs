@@ -75,8 +75,12 @@ where
 
             // Target
             let tgt = {
-                let gamma_not_done =
-                    gamma_not_done(self.gamma as f32, is_terminated, is_truncated, &self.device)?;
+                let gamma_not_done = gamma_not_done(
+                    self.gamma as f32,
+                    is_terminated,
+                    Some(is_truncated),
+                    &self.device,
+                )?;
                 let next_act = self.actor.sample(&next_obs.clone().into(), self.train)?;
                 let next_q = self
                     .critic

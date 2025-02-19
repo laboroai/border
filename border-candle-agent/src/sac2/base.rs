@@ -13,7 +13,6 @@ use border_core::{
 };
 use candle_core::{Device, Tensor, D};
 use candle_nn::loss::mse;
-use log::trace;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{
     fs,
