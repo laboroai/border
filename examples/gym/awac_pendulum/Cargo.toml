@@ -1,0 +1,23 @@
+[package]
+name = "awac_pendulum"
+version = "0.1.0"
+edition = "2018"
+rust-version = "1.76"
+
+[dependencies]
+anyhow = "1.0.38"
+clap = { version = "4.5.8", features = ["derive"] }
+env_logger = "0.8.2"
+numpy = "0.14.1"
+candle-core = { version = "=0.6.0", feature = ["cuda", "cudnn"] }
+border-py-gym-env = { version = "0.0.8", path = "../../../border-py-gym-env", features = [
+    "candle",
+] }
+border-candle-agent = { version = "0.0.8", path = "../../../border-candle-agent" }
+border-core = { version = "0.0.8", path = "../../../border-core" }
+border-tensorboard = { version = "0.0.8", path = "../../../border-tensorboard" }
+border-mlflow-tracking = { version = "0.0.8", path = "../../../border-mlflow-tracking" }
+serde = "1.0.194"
+
+[dev-dependencies]
+tempdir = "0.3.7"
