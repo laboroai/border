@@ -63,8 +63,8 @@ where
     <R::Batch as TransitionBatch>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
     <R::Batch as TransitionBatch>::ActBatch: Into<Q::Input2> + Into<Tensor> + Clone,
 {
-    fn update_critic(&mut self, batch: R::Batch) -> Result<f32> {
-        let loss = {
+    fn update_critic(&mut self, batch: R::Batch) -> Result<(f32, f32)> {
+        let (loss, q_tgt_abs_mean) = {
             // Extract items in the batch
             let (obs, act, next_obs, reward, is_terminated, is_truncated, _, _) = batch.unpack();
             let batch_size = reward.len();
@@ -98,13 +98,17 @@ where
                     .map(|pred| smooth_l1_loss(&pred, &tgt).unwrap())
                     .collect(),
             };
-            Tensor::stack(&losses, 0)?.sum_all()?
+
+            // for debug
+            let q_tgt_abs_mean = tgt.abs()?.mean_all()?;
+
+            (Tensor::stack(&losses, 0)?.sum_all()?, q_tgt_abs_mean)
         };
 
         self.critic.backward_step(&loss)?;
         self.critic.soft_update()?;
 
-        Ok(loss.to_scalar::<f32>()?)
+        Ok((loss.to_scalar::<f32>()?, q_tgt_abs_mean.to_scalar::<f32>()?))
     }
 
     fn update_actor(&mut self, batch: &R::Batch) -> Result<f32> {
@@ -149,12 +153,16 @@ where
     fn opt_(&mut self, buffer: &mut R) -> Result<Record> {
         let mut loss_critic = 0f32;
         let mut loss_actor = 0f32;
+        let mut q_tgt_abs_mean = 0f32;
 
         for _ in 0..self.n_updates_per_opt {
             let batch = buffer.batch(self.batch_size).unwrap();
-
             loss_actor += self.update_actor(&batch)?;
-            loss_critic += self.update_critic(batch)?;
+
+            // loss_critic += self.update_critic(batch)?;
+            let (loss_critic_, q_tgt_abs_mean_) = self.update_critic(batch)?;
+            loss_critic += loss_critic_;
+            q_tgt_abs_mean += q_tgt_abs_mean_;
             self.n_opts += 1;
         }
 
@@ -164,6 +172,7 @@ where
         let record = Record::from_slice(&[
             ("loss_critic", RecordValue::Scalar(loss_critic)),
             ("loss_actor", RecordValue::Scalar(loss_actor)),
+            ("q_tgt_abs_mean", RecordValue::Scalar(q_tgt_abs_mean)),
         ]);
 
         Ok(record)

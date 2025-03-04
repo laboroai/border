@@ -212,7 +212,7 @@ where
                 q
             })
             .collect();
-        let qvals = Tensor::stack(&qvals, 0)?; // [batch_size, self.n_nets]
+        let qvals = Tensor::stack(&qvals, 0)?; // [self.n_nets, batch_size]
         let qvals_min = qvals.min(0)?.squeeze(D::Minus1)?; // [batch_size]
         Ok(qvals_min)
     }

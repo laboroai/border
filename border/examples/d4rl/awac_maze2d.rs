@@ -71,6 +71,10 @@ struct Args {
     #[arg(long, default_value_t = 10000)]
     eval_interval: usize,
 
+    // Interval of recording agent info
+    #[arg(long, default_value_t = 100)]
+    record_agent_info_interval: usize,
+
     /// The number of evaluation episodes
     #[arg(long, default_value_t = 5)]
     eval_episodes: usize,
@@ -121,8 +125,8 @@ impl AwacMaze2dConfig {
         let trainer_config = TrainerConfig::default()
             .max_opts(args.max_opts)
             .eval_interval(args.eval_interval)
-            .flush_record_interval(args.eval_interval)
-            .record_agent_info_interval(args.eval_interval);
+            .flush_record_interval(args.record_agent_info_interval)
+            .record_agent_info_interval(args.record_agent_info_interval);
         let agent_config = create_awac_config(&args).unwrap();
         Self {
             args,
