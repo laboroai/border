@@ -8,7 +8,7 @@ use crate::{
 use anyhow::Result;
 use border_core::generic_replay_buffer::BatchBase;
 use ndarray::{s, ArrayD, Axis, IxDyn, Slice};
-use pyo3::{PyAny, PyObject};
+use pyo3::{PyAny, PyObject, Python};
 
 const DIM_OBS: usize = 27;
 const DIM_ACT: usize = 8;
@@ -154,7 +154,7 @@ impl MinariConverter for AntMazeConverter {
         })
     }
 
-    fn env_params(&self) -> Vec<(&str, Option<&str>)> {
+    fn env_params(&self, py: Python<'_>) -> Vec<(&str, PyObject)> {
         vec![]
     }
 }

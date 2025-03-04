@@ -1,4 +1,7 @@
 //! Utinity functions for Python and Rust interoperation.
+#[cfg(feature = "candle")]
+pub mod candle;
+
 pub mod ndarray {
     use ndarray::ArrayD;
     use num_traits::cast::AsPrimitive;
@@ -29,7 +32,7 @@ pub mod ndarray {
     /// The first dimension of the input array, as expected to be a batch dimension, is removed.
     /// This function does not support batch action.
     pub fn arrayd_to_pyobj(act: ArrayD<f32>) -> PyObject {
-        let act = act.remove_axis(ndarray::Axis(0));
+        // let act = act.remove_axis(ndarray::Axis(0));
         pyo3::Python::with_gil(|py| {
             let act = act.mapv(f64::from);
             let act = PyArrayDyn::<f64>::from_array(py, &act);

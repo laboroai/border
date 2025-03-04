@@ -254,6 +254,7 @@ where
         false => None,
     };
     let env = dataset.recover_environment(converter, true, render_mode)?;
+    env.get_env_params();
     PointMazeEvaluator::new(env, args.eval_episodes)
 }
 

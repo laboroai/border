@@ -228,6 +228,10 @@ where
     Ok(ndarray::Array1::<T>::from(v).into_shape(ndarray::IxDyn(&shape))?)
 }
 
+/// Returns gamma values multipied by done flag values.
+///
+/// When `is_truncated` is given, done flag is set to 1 if either of
+/// `is_terminated` and `is_truncated` is true.
 pub fn gamma_not_done(
     gamma: f32,
     is_terminated: Vec<i8>,

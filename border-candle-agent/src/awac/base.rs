@@ -98,7 +98,7 @@ where
                     .map(|pred| smooth_l1_loss(&pred, &tgt).unwrap())
                     .collect(),
             };
-            Tensor::stack(&losses, 0)?.mean_all()?
+            Tensor::stack(&losses, 0)?.sum_all()?
         };
 
         self.critic.backward_step(&loss)?;

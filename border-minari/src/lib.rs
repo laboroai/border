@@ -59,7 +59,8 @@ use border_core::{
     Act, Env, ExperienceBufferBase, Obs, ReplayBufferBase, Step,
 };
 use pyo3::{
-    types::{IntoPyDict, PyIterator, PyTuple},
+    py_run,
+    types::{IntoPyDict, PyDict, PyIterator, PyTuple},
     PyAny, PyObject, Python, ToPyObject,
 };
 pub mod d4rl;
@@ -107,7 +108,7 @@ pub trait MinariConverter {
     fn convert_action_batch(&self, obj: &PyAny) -> Result<Self::ActBatch>;
 
     /// Returns optional parameters when recovering the environment for evaluation from the dataset.
-    fn env_params(&self) -> Vec<(&str, Option<&str>)>;
+    fn env_params(&self, py: Python<'_>) -> Vec<(&str, PyObject)>;
 }
 
 /// Common interface for Minari datasets.
@@ -259,14 +260,14 @@ impl MinariDataset {
     ) -> Result<MinariEnv<T>> {
         let env = {
             Python::with_gil(|py| {
-                let mut kwargs = vec![("render_mode", render_mode.into())];
-                kwargs.extend(converter.env_params());
+                let mut kwargs: Vec<(&str, PyObject)> =
+                    vec![("render_mode", render_mode.into().to_object(py))];
+                kwargs.extend(converter.env_params(py));
                 let kwargs = kwargs.into_py_dict(py);
                 let env =
                     self.dataset
                         .call_method(py, "recover_environment", (eval_env,), Some(&kwargs));
                 env
-                // env.to_object(py)
             })?
         };
 
@@ -480,5 +481,44 @@ impl<T: MinariConverter> MinariEnv<T> {
         } else {
             None
         }
+    }
+
+    pub fn get_env_params(&self) -> Result<Vec<(String, String)>> {
+        let mut result = vec![];
+        pyo3::Python::with_gil(|py| {
+            let builtins = pyo3::types::PyModule::import(py, "builtins")?;
+            let print = builtins.getattr("print")?;
+
+            // let dict1 = self.env.getattr(py, "__dict__")?;
+            // let keys = dict1.call_method0(py, "keys")?;
+            // py_run!(py, keys, "
+            //     for key in keys:
+            //         print(key)
+            // ");
+            let env = &self.env;
+            py_run!(py, env, "print(env)");
+            py_run!(py, env, "print(env._max_episode_steps)");
+            let dict = self
+                .env
+                .getattr(py, "env")?
+                .getattr(py, "env")?
+                .getattr(py, "env")?
+                .getattr(py, "__dict__")?;
+            py_run!(py, dict, "print('reward_type     = ', dict['reward_type'])");
+            py_run!(
+                py,
+                dict,
+                "print('continuing_task = ', dict['continuing_task'])"
+            );
+            py_run!(
+                py,
+                dict,
+                "print('reset_target    = ', dict['reset_target'])"
+            );
+            py_run!(py, dict, "print('spec            = ', dict['spec'])");
+
+            // panic!();
+            Ok(result)
+        })
     }
 }

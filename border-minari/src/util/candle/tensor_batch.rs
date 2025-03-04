@@ -1,31 +1,31 @@
 use border_core::generic_replay_buffer::BatchBase;
-use candle_core::{error::Result, DType, Device, Tensor};
+use candle_core::{/*error::Result, DType,*/ Device, Tensor};
 
-/// Adds capability of constructing [`Tensor`] with a static method.
-///
-/// [`Tensor`]: https://docs.rs/candle-core/0.4.1/candle_core/struct.Tensor.html
-pub trait ZeroTensor {
-    /// Constructs zero tensor.
-    fn zeros(shape: &[usize]) -> Result<Tensor>;
-}
+// /// Adds capability of constructing [`Tensor`] with a static method.
+// ///
+// /// [`Tensor`]: https://docs.rs/candle-core/0.4.1/candle_core/struct.Tensor.html
+// pub trait ZeroTensor {
+//     /// Constructs zero tensor.
+//     fn zeros(shape: &[usize]) -> Result<Tensor>;
+// }
 
-impl ZeroTensor for u8 {
-    fn zeros(shape: &[usize]) -> Result<Tensor> {
-        Tensor::zeros(shape, DType::U8, &Device::Cpu)
-    }
-}
+// impl ZeroTensor for u8 {
+//     fn zeros(shape: &[usize]) -> Result<Tensor> {
+//         Tensor::zeros(shape, DType::U8, &Device::Cpu)
+//     }
+// }
 
-impl ZeroTensor for f32 {
-    fn zeros(shape: &[usize]) -> Result<Tensor> {
-        Tensor::zeros(shape, DType::F32, &Device::Cpu)
-    }
-}
+// impl ZeroTensor for f32 {
+//     fn zeros(shape: &[usize]) -> Result<Tensor> {
+//         Tensor::zeros(shape, DType::F32, &Device::Cpu)
+//     }
+// }
 
-impl ZeroTensor for i64 {
-    fn zeros(shape: &[usize]) -> Result<Tensor> {
-        Tensor::zeros(shape, DType::I64, &Device::Cpu)
-    }
-}
+// impl ZeroTensor for i64 {
+//     fn zeros(shape: &[usize]) -> Result<Tensor> {
+//         Tensor::zeros(shape, DType::I64, &Device::Cpu)
+//     }
+// }
 
 /// A buffer consisting of a [`Tensor`].
 ///
@@ -98,10 +98,22 @@ impl From<TensorBatch> for Tensor {
 
 impl From<Tensor> for TensorBatch {
     fn from(t: Tensor) -> TensorBatch {
-        assert_eq!(t.dims()[0], 1);
-        TensorBatch {
-            buf: vec![t],
-            capacity: 1,
+        if t.dims()[0] == 1 {
+            TensorBatch {
+                buf: vec![t],
+                capacity: 1,
+            }
+        } else {
+            let buf = (0..t.dims()[0])
+                .map(|ix| {
+                    let ix = Tensor::from_vec(vec![ix as i64], &[1], &Device::Cpu).unwrap();
+                    t.index_select(&ix, 0).unwrap()
+                })
+                .collect();
+            TensorBatch {
+                buf,
+                capacity: t.dims()[0],
+            }
         }
     }
 }

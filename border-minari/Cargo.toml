@@ -13,7 +13,7 @@ readme = "README.md"
 border-core = { version = "0.0.8", path = "../border-core" }
 numpy = { workspace = true }
 pyo3 = { workspace = true, default-features = false, features = [
-    "auto-initialize",
+    "auto-initialize", "macros"
 ] }
 serde = { workspace = true, features = ["derive"] }
 log = { workspace = true }

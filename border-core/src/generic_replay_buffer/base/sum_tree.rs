@@ -141,8 +141,6 @@ impl SumTree {
         };
         let ws = ws.iter().map(|w| w * w_max_inv).collect::<Vec<f32>>();
 
-        // debug
-        // if self.n_samples % 100 == 0 || p_sum.is_nan() || w_max.is_nan() {
         if p_sum.is_nan() || w_max_inv.is_nan() || ws.iter().sum::<f32>().is_nan() {
             println!("self.n_samples: {:?}", self.n_samples);
             println!("p_sum: {:?}", p_sum);

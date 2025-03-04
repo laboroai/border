@@ -325,7 +325,7 @@ impl MinariConverter for PenConverter {
         })
     }
 
-    fn env_params(&self) -> Vec<(&str, Option<&str>)> {
+    fn env_params(&self, py: Python<'_>) -> Vec<(&str, PyObject)> {
         // not override the original parameters in Minari
         vec![]
 

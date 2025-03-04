@@ -8,7 +8,7 @@ use crate::{
 use anyhow::Result;
 use border_core::generic_replay_buffer::BatchBase;
 use ndarray::{s, ArrayD, Axis, IxDyn, Slice};
-use pyo3::{PyAny, PyObject};
+use pyo3::{PyAny, PyObject, Python};
 
 /// Observation of the Kitchen environment stored as ndarray.
 ///
@@ -151,7 +151,7 @@ impl MinariConverter for KitchenConverter {
         })
     }
 
-    fn env_params(&self) -> Vec<(&str, Option<&str>)> {
+    fn env_params(&self, py: Python<'_>) -> Vec<(&str, PyObject)> {
         vec![]
     }
 }

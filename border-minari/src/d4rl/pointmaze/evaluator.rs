@@ -23,6 +23,9 @@ impl<T: MinariConverter> Evaluator<MinariEnv<T>> for PointMazeEvaluator<T> {
 
         // Episode loop
         for ix in 0..self.n_episodes {
+            let mut n_steps = 0;
+            let mut reward = 0f32;
+
             log::trace!("Episode: {:?}", ix);
             let mut prev_obs = self.env.reset_with_index(ix)?;
 
@@ -30,12 +33,16 @@ impl<T: MinariConverter> Evaluator<MinariEnv<T>> for PointMazeEvaluator<T> {
             loop {
                 let act = policy.sample(&prev_obs);
                 let (step, _) = self.env.step(&act);
-                r_total += step.reward[0];
+                n_steps += 1;
+                reward += step.reward[0];
                 if step.is_done() {
                     break;
                 }
                 prev_obs = step.obs;
             }
+            log::trace!("Num. of steps = {}", n_steps);
+            log::trace!("Reward        = {}", reward);
+            r_total += reward;
         }
 
         // Average return

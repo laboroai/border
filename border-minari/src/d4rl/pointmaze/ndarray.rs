@@ -8,7 +8,7 @@ use crate::{
 use anyhow::Result;
 use border_core::generic_replay_buffer::BatchBase;
 use ndarray::{s, ArrayD, Axis, IxDyn, Slice};
-use pyo3::{PyAny, PyObject};
+use pyo3::{PyAny, PyObject, Python};
 
 const DIM_OBS: usize = 4;
 const DIM_ACT: usize = 2;
@@ -154,7 +154,7 @@ impl MinariConverter for PointMazeConverter {
         })
     }
 
-    fn env_params(&self) -> Vec<(&str, Option<&str>)> {
+    fn env_params(&self, py: Python<'_>) -> Vec<(&str, PyObject)> {
         // not override the original parameters in Minari
         // https://github.com/Farama-Foundation/minari-dataset-generation-scripts/blob/cc54b71147650b310f5a84c642dd6dc127f333a1/scripts/pointmaze/create_pointmaze_dataset.py#L157-L159
         vec![]

@@ -64,6 +64,7 @@ impl SubModel2 for Mlp {
     fn forward(&self, input1: &Self::Input1, input2: &Self::Input2) -> Self::Output {
         let input1: Tensor = input1.to_device(&self.device).unwrap();
         let input2: Tensor = input2.to_device(&self.device).unwrap();
+
         let input = Tensor::cat(&[input1, input2], D::Minus1)
             .unwrap()
             .to_device(&self.device)
