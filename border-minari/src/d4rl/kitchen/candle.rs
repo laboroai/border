@@ -212,7 +212,7 @@ impl MinariConverter for KitchenConverter {
         })
     }
 
-    fn env_params(&self, py: Python<'_>) -> Vec<(&str, PyObject)> {
+    fn env_params(&self, _py: Python<'_>) -> Vec<(&str, PyObject)> {
         vec![]
     }
 }

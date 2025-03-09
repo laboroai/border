@@ -63,8 +63,8 @@ where
     <R::Batch as TransitionBatch>::ObsBatch: Into<Q::Input1> + Into<P::Input> + Clone,
     <R::Batch as TransitionBatch>::ActBatch: Into<Q::Input2> + Into<Tensor> + Clone,
 {
-    fn update_critic(&mut self, batch: R::Batch) -> Result<(f32, f32)> {
-        let (loss, q_tgt_abs_mean) = {
+    fn update_critic(&mut self, batch: R::Batch) -> Result<(f32, f32, f32, f32)> {
+        let (loss, q_tgt_abs_mean, reward_mean, next_q_mean) = {
             // Extract items in the batch
             let (obs, act, next_obs, reward, is_terminated, is_truncated, _, _) = batch.unpack();
             let batch_size = reward.len();
@@ -74,7 +74,7 @@ where
             let qs = self.critic.qvals(&obs.into(), &act.into());
 
             // Target
-            let tgt = {
+            let (tgt, reward, next_q) = {
                 let gamma_not_done = gamma_not_done(
                     self.gamma as f32,
                     is_terminated,
@@ -85,9 +85,10 @@ where
                 let next_q = self
                     .critic
                     .qvals_min_tgt(&next_obs.into(), &next_act.into())?;
-                (&reward + (&gamma_not_done * next_q)?)?.squeeze(D::Minus1)?
-            }
-            .detach();
+                let tgt = (&reward + (&gamma_not_done * &next_q)?)?.squeeze(D::Minus1)?;
+
+                (tgt.detach(), reward, next_q)
+            };
             debug_assert_eq!(tgt.dims(), [self.batch_size]);
 
             // Loss
@@ -100,79 +101,115 @@ where
             };
 
             // for debug
-            let q_tgt_abs_mean = tgt.abs()?.mean_all()?;
+            let q_tgt_abs_mean = tgt.abs()?.mean_all()?.to_scalar::<f32>()?;
+            let reward_mean = reward.mean_all()?.to_scalar::<f32>()?;
+            let next_q_mean = next_q.mean_all()?.to_scalar::<f32>()?;
 
-            (Tensor::stack(&losses, 0)?.sum_all()?, q_tgt_abs_mean)
+            (
+                Tensor::stack(&losses, 0)?.sum_all()?,
+                q_tgt_abs_mean,
+                reward_mean,
+                next_q_mean,
+            )
         };
 
         self.critic.backward_step(&loss)?;
         self.critic.soft_update()?;
 
-        Ok((loss.to_scalar::<f32>()?, q_tgt_abs_mean.to_scalar::<f32>()?))
+        Ok((
+            loss.to_scalar::<f32>()?,
+            q_tgt_abs_mean,
+            reward_mean,
+            next_q_mean,
+        ))
     }
 
-    fn update_actor(&mut self, batch: &R::Batch) -> Result<f32> {
+    fn update_actor(&mut self, batch: &R::Batch) -> Result<(f32, f32, f32, f32)> {
         // Extract items in the batch
         log::trace!("Extract items in the batch");
         let obs = batch.obs().clone();
         let act = batch.act().clone();
 
-        let w = {
+        let (w, adv) = {
             let act_ = self.actor.sample(&obs.clone().into(), self.train)?;
             let q = self
                 .critic
-                .qvals_min_tgt(&obs.clone().into(), &act.clone().into())?;
-            let v = self
-                .critic
-                .qvals_min_tgt(&obs.clone().into(), &act_.into())?;
+                .qvals_min(&obs.clone().into(), &act.clone().into())?;
+            let v = self.critic.qvals_min(&obs.clone().into(), &act_.into())?;
             let adv = (&q - &v)?;
             debug_assert_eq!(adv.dims(), &[self.batch_size]);
 
-            match self.adv_softmax {
-                false => (adv * self.inv_lambda)?
+            let w = match self.adv_softmax {
+                false => (&adv * self.inv_lambda)?
                     .exp()?
                     .clamp(0f64, self.exp_adv_max)?,
-                true => softmax(&(adv * self.inv_lambda)?, 0)?,
+                true => softmax(&(&adv * self.inv_lambda)?, 0)?,
             }
-        }
-        .detach();
+            .detach();
+            (w, adv)
+        };
         debug_assert_eq!(w.dims(), &[self.batch_size]);
 
-        let loss = {
+        let (loss, logp) = {
             let logp = self.actor.logp(&obs.into(), &act.into())?;
             debug_assert_eq!(logp.dims(), &[self.batch_size]);
 
-            (-1f64 * logp * w)?.mean_all()?
+            ((-1f64 * &logp * w)?.mean_all()?, logp)
         };
 
         self.actor.backward_step(&loss)?;
 
-        Ok(loss.to_scalar::<f32>()?)
+        let loss = loss.to_scalar::<f32>()?;
+        let adv_mean = adv.mean_all()?.to_scalar::<f32>()?;
+        let adv_abs_mean = adv.abs()?.mean_all()?.to_scalar::<f32>()?;
+        let logp_mean = logp.mean_all()?.to_scalar::<f32>()?;
+
+        Ok((loss, adv_mean, adv_abs_mean, logp_mean))
     }
 
     fn opt_(&mut self, buffer: &mut R) -> Result<Record> {
         let mut loss_critic = 0f32;
         let mut loss_actor = 0f32;
         let mut q_tgt_abs_mean = 0f32;
+        let mut adv_mean = 0f32;
+        let mut adv_abs_mean = 0f32;
+        let mut logp_mean = 0f32;
+        let mut reward_mean = 0f32;
+        let mut next_q_mean = 0f32;
 
         for _ in 0..self.n_updates_per_opt {
             let batch = buffer.batch(self.batch_size).unwrap();
-            loss_actor += self.update_actor(&batch)?;
+            let (loss_actor_, adv_mean_, adv_abs_mean_, logp_mean_) = self.update_actor(&batch)?;
+            loss_actor += loss_actor_;
+            adv_mean += adv_mean_;
+            adv_abs_mean += adv_abs_mean_;
+            logp_mean += logp_mean_;
 
             // loss_critic += self.update_critic(batch)?;
-            let (loss_critic_, q_tgt_abs_mean_) = self.update_critic(batch)?;
+            let (loss_critic_, q_tgt_abs_mean_, reward_mean_, next_q_mean_) =
+                self.update_critic(batch)?;
             loss_critic += loss_critic_;
             q_tgt_abs_mean += q_tgt_abs_mean_;
+            reward_mean += reward_mean_;
+            next_q_mean += next_q_mean_;
             self.n_opts += 1;
         }
 
         loss_critic /= self.n_updates_per_opt as f32;
         loss_actor /= self.n_updates_per_opt as f32;
+        q_tgt_abs_mean /= self.n_updates_per_opt as f32;
+        adv_mean /= self.n_updates_per_opt as f32;
+        adv_abs_mean /= self.n_updates_per_opt as f32;
 
         let record = Record::from_slice(&[
             ("loss_critic", RecordValue::Scalar(loss_critic)),
             ("loss_actor", RecordValue::Scalar(loss_actor)),
             ("q_tgt_abs_mean", RecordValue::Scalar(q_tgt_abs_mean)),
+            ("adv_mean", RecordValue::Scalar(adv_mean)),
+            ("adv_abs_mean", RecordValue::Scalar(adv_abs_mean)),
+            ("logp_mean", RecordValue::Scalar(logp_mean)),
+            ("reward_mean", RecordValue::Scalar(reward_mean)),
+            ("next_q_mean", RecordValue::Scalar(next_q_mean)),
         ]);
 
         Ok(record)

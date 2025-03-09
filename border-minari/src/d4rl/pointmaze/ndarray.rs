@@ -154,7 +154,7 @@ impl MinariConverter for PointMazeConverter {
         })
     }
 
-    fn env_params(&self, py: Python<'_>) -> Vec<(&str, PyObject)> {
+    fn env_params(&self, _py: Python<'_>) -> Vec<(&str, PyObject)> {
         // not override the original parameters in Minari
         // https://github.com/Farama-Foundation/minari-dataset-generation-scripts/blob/cc54b71147650b310f5a84c642dd6dc127f333a1/scripts/pointmaze/create_pointmaze_dataset.py#L157-L159
         vec![]

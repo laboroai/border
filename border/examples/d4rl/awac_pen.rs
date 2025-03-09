@@ -30,7 +30,7 @@ const MODEL_DIR: &str = "border/examples/d4rl/model/candle/awac_pen";
 const MLFLOW_EXPERIMENT_NAME: &str = "D4RL";
 const MLFLOW_TAGS: &[(&str, &str)] = &[("algo", "awac"), ("backend", "candle")];
 
-/// Train BC agent in pen environment
+/// Train AWAC agent in pen environment
 #[derive(Clone, Parser, Debug, Serialize, Deserialize)]
 #[command(version, about)]
 struct Args {
@@ -65,8 +65,12 @@ struct Args {
     max_opts: usize,
 
     /// Interval of evaluation
-    #[arg(long, default_value_t = 10000)]
+    #[arg(long, default_value_t = 1000)]
     eval_interval: usize,
+
+    // Interval of recording agent info
+    #[arg(long, default_value_t = 100)]
+    record_agent_info_interval: usize,
 
     /// The number of evaluation episodes
     #[arg(long, default_value_t = 5)]
@@ -114,8 +118,8 @@ impl PenConfig {
         let trainer_config = TrainerConfig::default()
             .max_opts(args.max_opts)
             .eval_interval(args.eval_interval)
-            .flush_record_interval(args.eval_interval)
-            .record_agent_info_interval(args.eval_interval);
+            .flush_record_interval(args.record_agent_info_interval)
+            .record_agent_info_interval(args.record_agent_info_interval);
         let agent_config = create_awac_config(&args).unwrap();
         Self {
             args,
@@ -140,7 +144,7 @@ fn create_awac_config(args: &Args) -> Result<AwacConfig<Mlp, Mlp3>> {
         .action_limit(args.action_limit())
         .policy_config(MlpConfig::new(
             dim_obs,
-            vec![256, 256],
+            vec![256, 256, 256],
             dim_act,
             Activation::None,
         ));
@@ -148,7 +152,7 @@ fn create_awac_config(args: &Args) -> Result<AwacConfig<Mlp, Mlp3>> {
         .opt_config(OptimizerConfig::Adam { lr })
         .q_config(MlpConfig::new(
             dim_obs + dim_act,
-            vec![256, 256],
+            vec![256, 256, 256],
             1,
             Activation::None,
         ));
@@ -170,8 +174,8 @@ fn create_awac_config(args: &Args) -> Result<AwacConfig<Mlp, Mlp3>> {
         .critic_config(critic_config)
         .device(device)
         .batch_size(args.batch_size)
-        .lambda(0.3333)
-        .adv_softmax(true);
+        .lambda(0.1);
+    // .adv_softmax(true);
     Ok(agent_config)
 }
 
