@@ -18,7 +18,7 @@ exclude = ["docker/", "examples/"]
 [workspace.package]
 version = "0.0.8"
 edition = "2018"
-rust-version = "1.76"
+rust-version = "1.81"
 description = "Reinforcement learning library"
 repository = "https://github.com/laboroai/border"
 keywords = ["reinforcement", "learning"]
