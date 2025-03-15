@@ -2,8 +2,8 @@ use anyhow::Result;
 use border_candle_agent::{
     mlp::{Mlp, Mlp2, MlpConfig},
     opt::OptimizerConfig,
-    sac::{ActorConfig, CriticConfig, EntCoefMode, Sac, SacConfig},
-    util::CriticLoss,
+    sac::{EntCoefMode, Sac, SacConfig},
+    util::{actor::GaussianActorConfig, critic::MultiCriticConfig, CriticLoss},
     Activation,
 };
 use border_core::{
@@ -94,33 +94,74 @@ fn create_env_config(render: bool) -> Result<GymEnvConfig<NdarrayDictObsConverte
     Ok(env_config)
 }
 
-fn create_agent_config(in_dim: i64, out_dim: i64) -> Result<SacConfig<Mlp, Mlp2>> {
-    let target_ent = TARGET_ENTROPY;
-    let device = Device::cuda_if_available(0)?;
-    let actor_config = ActorConfig::default()
-        .opt_config(OptimizerConfig::default().learning_rate(LR_ACTOR))
+fn create_actor_config(in_dim: i64, out_dim: i64) -> GaussianActorConfig<MlpConfig> {
+    GaussianActorConfig::default()
+        .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
         .out_dim(out_dim)
-        .pi_config(MlpConfig::new(in_dim, vec![256, 256, 256], out_dim, Activation::None));
-    let critic_config = CriticConfig::default()
-        .opt_config(OptimizerConfig::default().learning_rate(LR_CRITIC))
+        // .action_limit(args.action_limit())
+        .policy_config(MlpConfig::new(
+            in_dim,
+            vec![256, 256, 256],
+            out_dim,
+            Activation::None,
+        ))
+}
+
+fn create_critic_config(in_dim: i64, out_dim: i64) -> MultiCriticConfig<MlpConfig> {
+    MultiCriticConfig::default()
+        .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
         .q_config(MlpConfig::new(
             in_dim + out_dim,
             vec![256, 256, 256],
             1,
             Activation::None,
-        ));
+        ))
+        .n_nets(N_CRITICS)
+        .tau(TAU)
+}
+
+fn create_agent_config(in_dim: i64, out_dim: i64) -> Result<SacConfig<Mlp, Mlp2>> {
+    let device = Device::cuda_if_available(0)?;
+    let actor_config = create_actor_config(in_dim, out_dim);
+    let critic_config = create_critic_config(in_dim, out_dim);
     let sac_config = SacConfig::default()
         .batch_size(BATCH_SIZE)
         .actor_config(actor_config)
         .critic_config(critic_config)
-        .tau(TAU)
+        .ent_coef_mode(EntCoefMode::Auto(TARGET_ENTROPY, LR_ENT_COEF))
         .critic_loss(CRITIC_LOSS)
-        .n_critics(N_CRITICS)
-        .ent_coef_mode(EntCoefMode::Auto(target_ent, LR_ENT_COEF))
         .device(device);
 
     Ok(sac_config)
 }
+
+// fn create_agent_config(in_dim: i64, out_dim: i64) -> Result<SacConfig<Mlp, Mlp2>> {
+//     let target_ent = TARGET_ENTROPY;
+//     let device = Device::cuda_if_available(0)?;
+//     let actor_config = ActorConfig::default()
+//         .opt_config(OptimizerConfig::default().learning_rate(LR_ACTOR))
+//         .out_dim(out_dim)
+//         .pi_config(MlpConfig::new(in_dim, vec![256, 256, 256], out_dim, Activation::None));
+//     let critic_config = CriticConfig::default()
+//         .opt_config(OptimizerConfig::default().learning_rate(LR_CRITIC))
+//         .q_config(MlpConfig::new(
+//             in_dim + out_dim,
+//             vec![256, 256, 256],
+//             1,
+//             Activation::None,
+//         ));
+//     let sac_config = SacConfig::default()
+//         .batch_size(BATCH_SIZE)
+//         .actor_config(actor_config)
+//         .critic_config(critic_config)
+//         .tau(TAU)
+//         .critic_loss(CRITIC_LOSS)
+//         .n_critics(N_CRITICS)
+//         .ent_coef_mode(EntCoefMode::Auto(target_ent, LR_ENT_COEF))
+//         .device(device);
+
+//     Ok(sac_config)
+// }
 
 /// `model_dir` - Directory where TFRecord and model parameters are saved with
 ///               [`TensorboardRecorder`].

@@ -9,7 +9,6 @@ pub mod mlp;
 pub mod model;
 pub mod opt;
 pub mod sac;
-pub mod sac2;
 mod tensor_batch;
 pub mod util;
 use candle_core::{backend::BackendDevice, DeviceLocation, Module};

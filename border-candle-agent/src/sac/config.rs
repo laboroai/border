@@ -1,7 +1,7 @@
 //! Configuration of SAC agent.
 use crate::{
     model::{SubModel1, SubModel2},
-    sac2::ent_coef::EntCoefMode,
+    sac::ent_coef::EntCoefMode,
     util::{actor::GaussianActorConfig, critic::MultiCriticConfig, CriticLoss, OutDim},
     Device,
 };
@@ -16,10 +16,10 @@ use std::{
     path::Path,
 };
 
-/// Configuration of [`Sac2`](super::Sac2).
+/// Configuration of [`Sac`](super::Sac).
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
-pub struct Sac2Config<Q, P>
+pub struct SacConfig<Q, P>
 where
     Q: SubModel2<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + Debug + PartialEq + Clone,
@@ -51,7 +51,7 @@ where
     pub device: Option<Device>,
 }
 
-impl<Q, P> Clone for Sac2Config<Q, P>
+impl<Q, P> Clone for SacConfig<Q, P>
 where
     Q: SubModel2<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + Debug + PartialEq + Clone,
@@ -72,7 +72,7 @@ where
     }
 }
 
-impl<Q, P> Default for Sac2Config<Q, P>
+impl<Q, P> Default for SacConfig<Q, P>
 where
     Q: SubModel2<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + Debug + PartialEq + Clone,
@@ -93,7 +93,7 @@ where
     }
 }
 
-impl<Q, P> Sac2Config<Q, P>
+impl<Q, P> SacConfig<Q, P>
 where
     Q: SubModel2<Output = Tensor>,
     Q::Config: DeserializeOwned + Serialize + Debug + PartialEq + Clone,
@@ -148,7 +148,7 @@ where
         self
     }
 
-    /// Constructs [`Sac2Config`] from YAML file.
+    /// Constructs [`SacConfig`] from YAML file.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let path_ = path.as_ref().to_owned();
         let file = File::open(path)?;
@@ -158,7 +158,7 @@ where
         Ok(b)
     }
 
-    /// Saves [`Sac2Config`].
+    /// Saves [`SacConfig`].
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let path_ = path.as_ref().to_owned();
         let mut file = File::create(path)?;

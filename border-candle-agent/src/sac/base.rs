@@ -1,4 +1,4 @@
-use super::{EntCoef, Sac2Config};
+use super::{EntCoef, SacConfig};
 use crate::{
     model::{SubModel1, SubModel2},
     util::{
@@ -25,7 +25,7 @@ type ActMean = Tensor;
 type ActStd = Tensor;
 
 /// Soft actor critic (SAC) agent.
-pub struct Sac2<E, Q, P, R>
+pub struct Sac<E, Q, P, R>
 where
     Q: SubModel2<Output = ActionValue>,
     P: SubModel1<Output = (ActMean, ActStd)>,
@@ -45,7 +45,7 @@ where
     device: Device,
 }
 
-impl<E, Q, P, R> Sac2<E, Q, P, R>
+impl<E, Q, P, R> Sac<E, Q, P, R>
 where
     E: Env,
     Q: SubModel2<Output = ActionValue>,
@@ -149,7 +149,7 @@ where
     }
 }
 
-impl<E, Q, P, R> Policy<E> for Sac2<E, Q, P, R>
+impl<E, Q, P, R> Policy<E> for Sac<E, Q, P, R>
 where
     E: Env,
     Q: SubModel2<Output = ActionValue>,
@@ -167,7 +167,7 @@ where
     }
 }
 
-impl<E, Q, P, R> Configurable for Sac2<E, Q, P, R>
+impl<E, Q, P, R> Configurable for Sac<E, Q, P, R>
 where
     E: Env,
     Q: SubModel2<Output = ActionValue>,
@@ -177,9 +177,9 @@ where
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
     P::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
 {
-    type Config = Sac2Config<Q, P>;
+    type Config = SacConfig<Q, P>;
 
-    /// Constructs [`Sac2`] agent.
+    /// Constructs [`Sac`] agent.
     fn build(config: Self::Config) -> Self {
         let device: Device = config
             .device
@@ -194,7 +194,7 @@ where
         //     tch::manual_seed(*seed);
         // }
 
-        Sac2 {
+        Sac {
             actor,
             critic,
             gamma: config.gamma,
@@ -210,7 +210,7 @@ where
     }
 }
 
-impl<E, Q, P, R> Agent<E, R> for Sac2<E, Q, P, R>
+impl<E, Q, P, R> Agent<E, R> for Sac<E, Q, P, R>
 where
     E: Env + 'static,
     Q: SubModel2<Output = ActionValue> + 'static,

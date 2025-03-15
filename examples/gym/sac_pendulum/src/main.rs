@@ -1,10 +1,13 @@
 use anyhow::Result;
 use border_candle_agent::{
-    sac2::{Sac2 as Sac, Sac2Config as SacConfig},
+    mlp::{Mlp, Mlp2, MlpConfig},
+    opt::OptimizerConfig,
+    sac::{Sac, SacConfig},
     util::{
         actor::{ActionLimit, GaussianActorConfig},
         critic::MultiCriticConfig,
     },
+    Activation,
 };
 use border_core::{
     generic_replay_buffer::{
