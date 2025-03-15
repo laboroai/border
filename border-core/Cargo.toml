@@ -21,7 +21,7 @@ fastrand = { workspace = true }
 segment-tree = { workspace = true }
 xxhash-rust = { workspace = true }
 # Consider to replace with fastrand
-rand = "0.8.4"
+rand = { workspace = true }
 
 [dev-dependencies]
 tempdir = { workspace = true }

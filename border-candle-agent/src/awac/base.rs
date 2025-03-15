@@ -185,7 +185,6 @@ where
             adv_abs_mean += adv_abs_mean_;
             logp_mean += logp_mean_;
 
-            // loss_critic += self.update_critic(batch)?;
             let (loss_critic_, q_tgt_abs_mean_, reward_mean_, next_q_mean_) =
                 self.update_critic(batch)?;
             loss_critic += loss_critic_;

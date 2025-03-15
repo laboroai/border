@@ -9,7 +9,7 @@ anyhow = "1.0.38"
 clap = { version = "4.5.8", features = ["derive"] }
 env_logger = "0.8.2"
 numpy = "0.14.1"
-candle-core = { version = "=0.6.0", feature = ["cuda", "cudnn"] }
+candle-core = { version = "0.8.4", feature = ["cuda", "cudnn"] }
 border-py-gym-env = { version = "0.0.8", path = "../../../border-py-gym-env", features = [
     "candle",
 ] }

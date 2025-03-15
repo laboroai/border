@@ -21,6 +21,8 @@ dirs = { workspace = true }
 zip = "0.5.12"
 reqwest = { workspace = true }
 border-core = { version = "0.0.8", path = "../border-core" }
+# Consider to replace with fastrand
+rand = { workspace = true }
 
 [[example]]
 name = "dqn_cartpole"
