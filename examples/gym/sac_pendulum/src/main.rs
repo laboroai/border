@@ -2,7 +2,11 @@ use anyhow::Result;
 use border_candle_agent::{
     mlp::{Mlp, Mlp2, MlpConfig},
     opt::OptimizerConfig,
-    sac::{ActorConfig, CriticConfig, Sac, SacConfig},
+    sac::{Sac, SacConfig},
+    util::{
+        actor::{ActionLimit, GaussianActorConfig},
+        critic::MultiCriticConfig,
+    },
     Activation,
 };
 use border_core::{
@@ -82,23 +86,50 @@ fn create_env_config(render: bool) -> Result<GymEnvConfig<NdarrayConverter>> {
     Ok(env_config)
 }
 
-fn create_agent_config(in_dim: i64, out_dim: i64) -> Result<SacConfig<Mlp, Mlp2>> {
-    let device = Device::cuda_if_available(0)?;
-    let actor_config = ActorConfig::default()
-        .opt_config(OptimizerConfig::default().learning_rate(LR_ACTOR))
-        .out_dim(out_dim)
-        .pi_config(MlpConfig::new(in_dim, vec![64, 64], out_dim, Activation::None));
-    let critic_config = CriticConfig::default()
-        .opt_config(OptimizerConfig::default().learning_rate(LR_CRITIC))
-        .q_config(MlpConfig::new(in_dim + out_dim, vec![64, 64], 1, Activation::None));
-    let sac_config = SacConfig::default()
-        .batch_size(BATCH_SIZE)
-        .actor_config(actor_config)
-        .critic_config(critic_config)
-        .device(device);
+mod agent {
+    use super::*;
 
-    Ok(sac_config)
+    fn create_actor_config(in_dim: i64, out_dim: i64) -> GaussianActorConfig<MlpConfig> {
+        GaussianActorConfig::default()
+            .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
+            .out_dim(out_dim)
+            // .action_limit(args.action_limit())
+            .policy_config(MlpConfig::new(
+                in_dim,
+                vec![64, 64],
+                out_dim,
+                Activation::None,
+            ))
+            .action_limit(ActionLimit::Tanh { action_scale: 1.0 })
+    }
+
+    fn create_critic_config(in_dim: i64, out_dim: i64) -> MultiCriticConfig<MlpConfig> {
+        MultiCriticConfig::default()
+            .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
+            .q_config(MlpConfig::new(
+                in_dim + out_dim,
+                vec![64, 64],
+                1,
+                Activation::None,
+            ))
+            .n_nets(1)
+    }
+
+    pub fn create_agent_config(in_dim: i64, out_dim: i64) -> Result<SacConfig<Mlp, Mlp2>> {
+        let device = Device::cuda_if_available(0)?;
+        let actor_config = create_actor_config(in_dim, out_dim);
+        let critic_config = create_critic_config(in_dim, out_dim);
+        let sac_config = SacConfig::default()
+            .batch_size(BATCH_SIZE)
+            .actor_config(actor_config)
+            .critic_config(critic_config)
+            .device(device);
+
+        Ok(sac_config)
+    }
 }
+
+use agent::create_agent_config;
 
 /// `model_dir` - Directory where TFRecord and model parameters are saved with
 ///               [`TensorboardRecorder`].
