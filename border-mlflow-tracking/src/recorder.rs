@@ -89,7 +89,7 @@ where
     ///
     /// This method adds a tag "host_start_time" with the current time.
     /// This tag is useful when using mlflow-export-import: it losts the original time.
-    /// See https://github.com/mlflow/mlflow-export-import/issues/72
+    /// See <https://github.com/mlflow/mlflow-export-import/issues/72>
     ///
     /// [`MlflowTrackingClient::create_recorder()`]: crate::MlflowTrackingClient::create_recorder
     pub fn new(
@@ -150,7 +150,15 @@ where
         Ok(())
     }
 
+    /// Set tag.
+    ///
+    /// This method does not overwrite tags.
     pub fn set_tag(&self, key: impl AsRef<str>, value: impl AsRef<str>) -> Result<()> {
+        if self.run.exist_tag(key.as_ref()) {
+            log::warn!("Tag {} exists, so set_tag() was ignored.", key.as_ref());
+            return Ok(());
+        }
+
         let url = format!("{}/api/2.0/mlflow/runs/set-tag", self.base_url);
         let params = SetTagParams {
             run_id: &self.run.info.run_id,

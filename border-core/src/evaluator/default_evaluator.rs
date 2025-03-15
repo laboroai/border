@@ -31,19 +31,15 @@ impl<E: Env> Evaluator<E> for DefaultEvaluator<E> {
             }
         }
 
-        let name = format!("Average return over {} episodes", self.n_episodes);
+        let name = format!("Episode return");
         Ok(Record::from_scalar(name, r_total / self.n_episodes as f32))
     }
 }
 
-impl<E: Env> DefaultEvaluator<E>
-where
-    E: Env,
-{
+impl<E: Env> DefaultEvaluator<E> {
     /// Constructs [`DefaultEvaluator`].
     ///
-    /// `config` - Configuration of the environment.
-    /// `seed` - Random seed, which will be used to create the environment.
+    /// `env` - Instance of the environment.
     /// `n_episodes` - The number of episodes for evaluation.
     ///   The evaluator returns the mean value of cumulative reward in each episode.
     pub fn new(config: &E::Config, seed: i64, n_episodes: usize) -> Result<Self> {

@@ -72,11 +72,6 @@ impl TensorBatch {
 
 impl BatchBase for TensorBatch {
     fn new(capacity: usize) -> Self {
-        // let capacity = capacity as i64;
-        // let mut shape: Vec<_> = S::shape().to_vec().iter().map(|e| *e as i64).collect();
-        // shape.insert(0, capacity);
-        // let buf = D::zeros(shape.as_slice());
-
         Self {
             buf: None,
             capacity: capacity as _,

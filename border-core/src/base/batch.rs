@@ -39,4 +39,7 @@ pub trait TransitionBatch {
 
     /// Returns `o_t`.
     fn obs(&self) -> &Self::ObsBatch;
+
+    /// Returns `a_t`.
+    fn act(&self) -> &Self::ActBatch;
 }

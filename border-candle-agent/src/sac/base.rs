@@ -129,7 +129,6 @@ where
                     + (1f64 - &is_terminated)? * self.gamma * next_q
             }?
             .detach();
-
             debug_assert_eq!(tgt.dims(), [self.batch_size]);
 
             let losses: Vec<_> = match self.critic_loss {

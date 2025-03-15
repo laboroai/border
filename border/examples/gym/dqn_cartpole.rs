@@ -4,7 +4,7 @@ use border_candle_agent::{
     mlp::{Mlp, MlpConfig},
     opt::OptimizerConfig,
     util::{arrayd_to_tensor, vec_to_tensor, CriticLoss},
-    TensorBatch,
+    Activation, TensorBatch,
 };
 use border_core::{
     generic_replay_buffer::{
@@ -211,7 +211,7 @@ mod config {
     pub fn create_agent_config(in_dim: i64, out_dim: i64) -> DqnConfig<Mlp> {
         let device = Device::cuda_if_available(0).unwrap();
         let opt_config = OptimizerConfig::default().learning_rate(LR_CRITIC);
-        let mlp_config = MlpConfig::new(in_dim, vec![256, 256], out_dim, false);
+        let mlp_config = MlpConfig::new(in_dim, vec![256, 256], out_dim, Activation::None);
         let model_config = DqnModelConfig::default()
             .q_config(mlp_config)
             .out_dim(out_dim)
@@ -283,7 +283,7 @@ fn train(args: &Args, max_opts: usize, model_dir: &str, eval_interval: usize) ->
     let step_proc = StepProc::build(&step_proc_config);
     let mut agent = Box::new(Dqn::build(config.agent_config)) as _;
     let mut buffer = ReplayBuffer::build(&replay_buffer_config);
-    let mut evaluator = Evaluator::new(&config.env_config, 0, N_EPISODES_PER_EVAL)?;
+    let mut evaluator = Evaluator::new(&config.env_config, 42, N_EPISODES_PER_EVAL)?;
 
     trainer.train(
         env,
@@ -307,7 +307,8 @@ fn eval(args: &Args, model_dir: &str, render: bool) -> Result<()> {
         agent.eval();
         agent
     };
-    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut agent);
+
+    let _ = Evaluator::new(&env_config, 42, 5)?.evaluate(&mut agent);
 
     Ok(())
 }

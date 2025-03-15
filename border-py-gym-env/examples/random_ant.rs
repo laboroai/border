@@ -53,7 +53,7 @@ fn main() -> Result<()> {
         .render_mode(Some("human".to_string()));
     let mut policy = Box::new(RandomPolicy) as _;
 
-    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
+    let _ = Evaluator::new(&env_config, 42, 5)?.evaluate(&mut policy);
 
     Ok(())
 }

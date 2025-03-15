@@ -13,6 +13,7 @@ readme = "README.md"
 aquamarine = { workspace = true }
 tch = { workspace = true, optional = true }
 candle-core = { workspace = true, optional = true }
+candle-nn = { workspace = true, optional = true }
 border-async-trainer = { version = "0.0.8", path = "../border-async-trainer", optional = true }
 anyhow = { workspace = true }
 log = { workspace = true }
@@ -20,6 +21,8 @@ dirs = { workspace = true }
 zip = "0.5.12"
 reqwest = { workspace = true }
 border-core = { version = "0.0.8", path = "../border-core" }
+# Consider to replace with fastrand
+rand = { workspace = true }
 
 [[example]]
 name = "dqn_cartpole"
@@ -50,6 +53,12 @@ name = "sac_pendulum"
 path = "examples/gym/sac_pendulum.rs"
 required-features = ["candle-core"]
 test = true
+
+[[example]]
+name = "sac2_pendulum"
+path = "examples/gym/sac2_pendulum.rs"
+required-features = ["candle-core"]
+test = false
 
 [[example]]
 name = "sac_lunarlander_cont"
@@ -142,6 +151,54 @@ test = false
 # required-features = ["border-async-trainer"]
 # test = false
 
+[[example]]
+name = "bc_kitchen"
+path = "examples/d4rl/bc_kitchen.rs"
+required-features = ["candle"]
+test = false
+
+[[example]]
+name = "bc_maze2d"
+path = "examples/d4rl/bc_maze2d.rs"
+required-features = ["candle"]
+test = false
+
+[[example]]
+name = "bc_pen"
+path = "examples/d4rl/bc_pen.rs"
+required-features = ["candle"]
+test = false
+
+[[example]]
+name = "awac_maze2d"
+path = "examples/d4rl/awac_maze2d.rs"
+required-features = ["candle"]
+test = false
+
+[[example]]
+name = "awac_antmaze"
+path = "examples/d4rl/awac_antmaze.rs"
+required-features = ["candle"]
+test = false
+
+[[example]]
+name = "awac_pen"
+path = "examples/d4rl/awac_pen.rs"
+required-features = ["candle"]
+test = false
+
+[[example]]
+name = "iql_maze2d"
+path = "examples/d4rl/iql_maze2d.rs"
+required-features = ["candle"]
+test = false
+
+[[example]]
+name = "iql_pen"
+path = "examples/d4rl/iql_pen.rs"
+required-features = ["candle"]
+test = false
+
 [dev-dependencies]
 clap = { workspace = true }
 csv = { workspace = true }
@@ -155,6 +212,7 @@ border-py-gym-env = { version = "0.0.8", path = "../border-py-gym-env" }
 border-atari-env = { version = "0.0.8", path = "../border-atari-env" }
 border-candle-agent = { version = "0.0.8", path = "../border-candle-agent" }
 border-mlflow-tracking = { version = "0.0.8", path = "../border-mlflow-tracking" }
+border-minari = { version = "0.0.8", path = "../border-minari" }
 serde = { workspace = true, features = ["derive"] }
 crossbeam-channel = { workspace = true }
 env_logger = { workspace = true }
@@ -177,3 +235,4 @@ doc-only = ["tch/doc-only"]
 cuda = ["candle-core/cuda"]
 cudnn = ["candle-core/cudnn"]
 border-tch-agent = []
+candle = ["border-minari/candle", "candle-core", "candle-nn"]

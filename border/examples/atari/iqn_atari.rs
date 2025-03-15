@@ -190,7 +190,10 @@ fn train(matches: ArgMatches) -> Result<()> {
         );
         let mut agent = Iqn::build(agent_config);
         let mut recorder = TensorboardRecorder::new(model_dir);
-        let mut evaluator = Evaluator::new(&env_config_eval, 0, 1)?;
+        let mut evaluator = {
+            let env = Env::build(env_config_eval, 0)?;
+            Evaluator::new(env, 1)?
+        };
 
         trainer.train(&mut agent, &mut recorder, &mut evaluator)?;
     }
@@ -219,7 +222,10 @@ fn play(matches: ArgMatches) -> Result<()> {
     };
     // let mut recorder = BufferedRecorder::new();
 
-    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut agent);
+    let _ = {
+        let env = Env::build(env_config, 0)?;
+        Evaluator::new(env, 5)?.evaluate(&mut agent)
+    };
 
     Ok(())
 }

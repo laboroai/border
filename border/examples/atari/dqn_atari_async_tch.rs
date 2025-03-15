@@ -65,6 +65,7 @@ mod obs_act_types {
 }
 
 use config::DqnAtariAsyncConfig;
+use env_logger::Env;
 use obs_act_types::*;
 
 mod config {
@@ -290,7 +291,10 @@ fn train(args: &Args) -> Result<()> {
             agent: agent_config.clone(),
         };
         let mut recorder = utils::create_recorder(&args, &model_dir, &config)?;
-        let mut evaluator = Evaluator::new(&env_config_eval, 0, 1)?;
+        let mut evaluator = {
+            let env = Env::build(&env_config_eval, 0)?;
+            Evaluator::new(env, 1)?
+        };
 
         train_async::<Agent, Env, ReplayBuffer, StepProc>(
             &agent_config,

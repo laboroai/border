@@ -115,8 +115,6 @@ fn create_env_config(render: bool) -> GymEnvConfig<Obs, Act, ObsFilter, ActFilte
 fn eval(path: &str, n_episodes: usize, render: bool) -> Result<()> {
     let env_config = create_env_config(render);
     let mut policy = Box::new(MlpAgent::from_serialized_path(path)?) as _;
-    //     ,
-    // )?) as _;
     let _ = Evaluator::new(&env_config, 0, n_episodes)?.evaluate(&mut policy);
 
     Ok(())

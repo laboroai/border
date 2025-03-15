@@ -6,7 +6,7 @@ use border_candle_agent::{
     sac::{ActorConfig, CriticConfig, EntCoefMode, Sac, SacConfig},
     util::CriticLoss,
     util::{arrayd_to_tensor, tensor_to_arrayd},
-    TensorBatch,
+    Activation, TensorBatch,
 };
 use border_core::{
     generic_replay_buffer::{
@@ -164,10 +164,20 @@ mod config {
         let actor_config = ActorConfig::default()
             .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
             .out_dim(dim_act)
-            .pi_config(MlpConfig::new(dim_obs, vec![400, 300], dim_act, false));
+            .pi_config(MlpConfig::new(
+                dim_obs,
+                vec![400, 300],
+                dim_act,
+                Activation::None,
+            ));
         let critic_config = CriticConfig::default()
             .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
-            .q_config(MlpConfig::new(dim_obs + dim_act, vec![400, 300], 1, false));
+            .q_config(MlpConfig::new(
+                dim_obs + dim_act,
+                vec![400, 300],
+                1,
+                Activation::None,
+            ));
 
         SacConfig::default()
             .batch_size(BATCH_SIZE)
@@ -264,7 +274,10 @@ fn train(args: &Args) -> Result<()> {
     let mut agent = Sac::build(agent_config);
     let mut buffer = ReplayBuffer::build(&replay_buffer_config);
     let mut recorder = utils::create_recorder(&args, &config)?;
-    let mut evaluator = Evaluator::new(&env_config, 0, N_EPISODES_PER_EVAL)?;
+    let mut evaluator = {
+        let env = Env::build(&env_config, 0)?;
+        Evaluator::new(env, N_EPISODES_PER_EVAL)?
+    };
 
     trainer.train(
         env,
@@ -301,7 +314,11 @@ fn eval(args: &Args, model_dir: &str, render: bool, wait: u64) -> Result<()> {
     };
     // let mut recorder = BufferedRecorder::new();
 
-    let _ = Evaluator::new(&env_config, 0, N_EPISODES_PER_EVAL)?.evaluate(&mut agent);
+    let _ = {
+        let env = Env::build(&env_config, 0)?;
+        Evaluator::new(env, N_EPISODES_PER_EVAL)?
+    }
+    .evaluate(&mut agent);
 
     Ok(())
 }

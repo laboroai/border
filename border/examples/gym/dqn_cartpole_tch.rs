@@ -283,7 +283,7 @@ fn train(args: &Args, max_opts: usize, model_dir: &str, eval_interval: usize) ->
     let step_proc = StepProc::build(&step_proc_config);
     let mut agent = Box::new(Dqn::build(config.agent_config)) as _;
     let mut buffer = ReplayBuffer::build(&replay_buffer_config);
-    let mut evaluator = Evaluator::new(&config.env_config, 0, N_EPISODES_PER_EVAL)?;
+    let mut evaluator = Evaluator::new(&config.env_config, 42, N_EPISODES_PER_EVAL)?;
 
     trainer.train(
         env,
@@ -306,7 +306,8 @@ fn eval(args: &Args, model_dir: &str, render: bool) -> Result<()> {
         agent.eval();
         agent
     };
-    let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut agent);
+
+    let _ = Evaluator::new(&env_config, 42, 5)?.evaluate(&mut agent)?;
 
     Ok(())
 }

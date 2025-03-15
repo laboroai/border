@@ -79,6 +79,10 @@ mod dummy {
             unimplemented!();
         }
 
+        fn act(&self) -> &Self::ActBatch {
+            unimplemented!();
+        }
+
         fn unpack(
             self,
         ) -> (

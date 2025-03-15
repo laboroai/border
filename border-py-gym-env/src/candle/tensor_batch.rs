@@ -41,6 +41,7 @@ pub struct TensorBatch {
 impl TensorBatch {
     pub fn from_tensor(t: Tensor) -> Self {
         let capacity = t.dims()[0] as _;
+        assert_eq!(capacity, 1);
         Self {
             buf: vec![t],
             capacity,
@@ -97,6 +98,7 @@ impl From<TensorBatch> for Tensor {
 
 impl From<Tensor> for TensorBatch {
     fn from(t: Tensor) -> TensorBatch {
+        assert_eq!(t.dims()[0], 1);
         TensorBatch {
             buf: vec![t],
             capacity: 1,

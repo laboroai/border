@@ -134,12 +134,16 @@ impl RecordStorage {
             })
             .collect();
 
-        Record::from_slice(&[
-            (format!("{}_min", key), min(&vs)),
-            (format!("{}_max", key), max(&vs)),
-            (format!("{}_mean", key), mean(&vs)),
-            (format!("{}_median", key), median(vs)),
-        ])
+        if vs.len() == 1 {
+            Record::from_slice(&[(format!("{}", key), RecordValue::Scalar(vs[0]))])
+        } else {
+            Record::from_slice(&[
+                (format!("{}_min", key), min(&vs)),
+                (format!("{}_max", key), max(&vs)),
+                (format!("{}_mean", key), mean(&vs)),
+                (format!("{}_median", key), median(vs)),
+            ])
+        }
     }
 
     /// Creates the storage.

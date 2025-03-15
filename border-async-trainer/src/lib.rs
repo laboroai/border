@@ -8,6 +8,7 @@
 //! #     TestAgent, TestAgentConfig, TestEnv, TestObs, TestObsBatch,
 //! #     TestAct, TestActBatch
 //! # };
+//! # use border_core::Env as _;
 //! # use border_async_trainer::{
 //! #     //test::{TestAgent, TestAgentConfig, TestEnv},
 //! #     ActorManager, ActorManagerConfig, AsyncTrainer, AsyncTrainerConfig,

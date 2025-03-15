@@ -37,7 +37,7 @@ impl SubModel1 for Mlp2 {
 
     fn forward(&self, xs: &Self::Input) -> Self::Output {
         let xs = xs.to_device(&self.device).unwrap();
-        let xs = mlp_forward(xs, &self.layers).relu().unwrap();
+        let xs = mlp_forward(xs, &self.layers, &crate::Activation::ReLU);
         let mean = self.head1.forward(&xs).unwrap();
         let std = self.head2.forward(&xs).unwrap().exp().unwrap();
         (mean, std)

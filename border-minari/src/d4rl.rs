@@ -1,2 +1,5 @@
 //! D4RL dataset in Minari.
-pub mod ndarray;
+pub mod antmaze;
+pub mod kitchen;
+pub mod pen;
+pub mod pointmaze;

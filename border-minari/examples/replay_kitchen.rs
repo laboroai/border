@@ -1,9 +1,6 @@
 use anyhow::Result;
 use border_core::Env;
-use border_minari::{d4rl::ndarray::KitchenNdarrayConverter, MinariDataset};
-use core::panic;
-use numpy::convert;
-use std::num;
+use border_minari::{d4rl::kitchen::ndarray::KitchenConverter, MinariDataset};
 
 fn main() -> Result<()> {
     let dataset = MinariDataset::load_dataset("D4RL/kitchen/complete-v1", true)?;
@@ -13,7 +10,7 @@ fn main() -> Result<()> {
     println!("{:?}", num_transitions);
 
     // Converter for observation and action
-    let converter = KitchenNdarrayConverter {};
+    let converter = KitchenConverter {};
 
     // Create replay buffer for the sixth episode
     let replay_buffer = dataset.create_replay_buffer(&converter, Some(vec![5]))?;
@@ -27,7 +24,7 @@ fn main() -> Result<()> {
     // Apply the actions to the environment
     env.reset(None)?;
 
-    for ix in 220..actions.action.shape()[0] {
+    for ix in 0..actions.action.shape()[0] {
         let act = actions.get(ix);
         let _ = env.step(&act);
     }

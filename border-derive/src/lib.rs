@@ -1,9 +1,9 @@
-//! Derive macros for implementing [`border_core::Act`] and
-//! [`border_core::generic_replay_buffer::BatchBase`].
+//! Derive macros for implementing `border_core::Act` and
+//! `border_core::generic_replay_buffer::BatchBase`.
 //!
 //! # Examples
 //!
-//! ## Newtype for [`BorderAtariAct`]
+//! ## Newtype for `BorderAtariAct`
 //!
 //! ```
 //! # use border_core::Act;
@@ -55,7 +55,7 @@
 //! }
 //! ```
 //!
-//! ## Newtype for [`GymContinuousAct`]
+//! ## Newtype for `GymContinuousAct`
 //!
 //! ```
 //! # use border_core::Act;
@@ -106,7 +106,7 @@
 //! }
 //! ```
 //!
-//! ## Newtype for [`GymDiscreteAct`]
+//! ## Newtype for `GymDiscreteAct`
 //!
 //! ```
 //! # use border_core::Act;
@@ -152,7 +152,7 @@
 //! }
 //! ```
 //!
-//! ## Newtype for [`TensorBatch`]
+//! ## Newtype for `TensorBatch`
 //!
 //! ```
 //! # use border_derive::BatchBase;
@@ -195,12 +195,6 @@
 //! ```
 //!
 //! [`border_core::Obs`]: border_core::Obs
-//! [`border_core::Act`]: border_core::Act
-//! [`border_core::generic_replay_buffer::BatchBase`]: border_core::generic_replay_buffer::BatchBase
-//! [`BorderAtariAct`]: border_atari_env::BorderAtariAct
-//! [`GymContinuousAct`]: border_py_gym_env::GymContinuousAct
-//! [`GymDiscreteAct`]: border_py_gym_env::GymDiscreteAct
-//! [`TensorBatch`]: border_tch_agent::TensorBatch
 
 mod act;
 mod obs;
@@ -215,13 +209,15 @@ pub fn derive1(input: TokenStream) -> TokenStream {
     obs::derive(input)
 }
 
-/// Implements [`border_core::generic_replay_buffer::BatchBase`] for the newtype.
+/// Implements `border_core::generic_replay_buffer::BatchBase` for the newtype.
 #[proc_macro_derive(BatchBase, attributes(my_trait))]
 pub fn derive2(input: TokenStream) -> TokenStream {
     subbatch::derive(input)
 }
 
 /// Implements [`border_core::Act`] for the newtype.
+///
+/// [`border_core::Act`]: https://docs.rs/border-core/latest/border_core/trait.Act.html
 #[proc_macro_derive(Act, attributes(my_trait))]
 pub fn derive3(input: TokenStream) -> TokenStream {
     act::derive(input)

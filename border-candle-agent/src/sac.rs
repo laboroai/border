@@ -15,6 +15,7 @@
 //!       Configurable,
 //! };
 //! use border_candle_agent::{
+//!     Activation,
 //!     sac::{ActorConfig, CriticConfig, Sac, SacConfig},
 //!     mlp::{Mlp, Mlp2, MlpConfig},
 //!     opt::OptimizerConfig
@@ -150,10 +151,10 @@
 //!     let actor_config = ActorConfig::default()
 //!         .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
 //!         .out_dim(out_dim)
-//!         .pi_config(MlpConfig::new(in_dim, vec![64, 64], out_dim, true));
+//!         .pi_config(MlpConfig::new(in_dim, vec![64, 64], out_dim, Activation::ReLU));
 //!     let critic_config = CriticConfig::default()
 //!         .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
-//!         .q_config(MlpConfig::new(in_dim + out_dim, vec![64, 64], 1, true));
+//!         .q_config(MlpConfig::new(in_dim + out_dim, vec![64, 64], 1, Activation::ReLU));
 //!     let sac_config = SacConfig::<Mlp, Mlp2>::default()
 //!         .batch_size(BATCH_SIZE)
 //!         .actor_config(actor_config)

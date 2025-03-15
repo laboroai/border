@@ -4,6 +4,7 @@ use border_candle_agent::{
     opt::OptimizerConfig,
     sac::{ActorConfig, CriticConfig, EntCoefMode, Sac, SacConfig},
     util::CriticLoss,
+    Activation,
 };
 use border_core::{
     generic_replay_buffer::{
@@ -99,14 +100,14 @@ fn create_agent_config(in_dim: i64, out_dim: i64) -> Result<SacConfig<Mlp, Mlp2>
     let actor_config = ActorConfig::default()
         .opt_config(OptimizerConfig::default().learning_rate(LR_ACTOR))
         .out_dim(out_dim)
-        .pi_config(MlpConfig::new(in_dim, vec![256, 256, 256], out_dim, false));
+        .pi_config(MlpConfig::new(in_dim, vec![256, 256, 256], out_dim, Activation::None));
     let critic_config = CriticConfig::default()
         .opt_config(OptimizerConfig::default().learning_rate(LR_CRITIC))
         .q_config(MlpConfig::new(
             in_dim + out_dim,
             vec![256, 256, 256],
             1,
-            false,
+            Activation::None,
         ));
     let sac_config = SacConfig::default()
         .batch_size(BATCH_SIZE)
@@ -128,7 +129,7 @@ fn create_agent_config(in_dim: i64, out_dim: i64) -> Result<SacConfig<Mlp, Mlp2>
 fn create_recorder(
     args: &Args,
     model_dir: &str,
-    config: Option<&SacPendulumConfig>,
+    config: Option<&SacFetchReachConfig>,
 ) -> Result<Box<dyn Recorder<Env, ReplayBuffer>>> {
     match args.mlflow {
         true => {
@@ -148,13 +149,13 @@ fn create_recorder(
 }
 
 #[derive(Serialize)]
-pub struct SacPendulumConfig {
+pub struct SacFetchReachConfig {
     pub env_config: GymEnvConfig<NdarrayDictObsConverter>,
     pub agent_config: SacConfig<Mlp, Mlp2>,
     pub trainer_config: TrainerConfig,
 }
 
-impl SacPendulumConfig {
+impl SacFetchReachConfig {
     pub fn new(in_dim: i64, out_dim: i64, max_opts: usize, eval_interval: usize) -> Result<Self> {
         let env_config = create_env_config(false)?;
         let agent_config = create_agent_config(in_dim, out_dim)?;
@@ -178,7 +179,7 @@ impl SacPendulumConfig {
 }
 
 fn train(args: &Args, max_opts: usize, model_dir: &str, eval_interval: usize) -> Result<()> {
-    let config = SacPendulumConfig::new(DIM_OBS, DIM_ACT, max_opts, eval_interval)?;
+    let config = SacFetchReachConfig::new(DIM_OBS, DIM_ACT, max_opts, eval_interval)?;
     let step_proc_config = SimpleStepProcessorConfig {};
     let replay_buffer_config = SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
     let mut recorder = create_recorder(&args, model_dir, Some(&config))?;
@@ -240,8 +241,8 @@ mod test {
     use tempdir::TempDir;
 
     #[test]
-    fn test_sac_pendulum() -> Result<()> {
-        let tmp_dir = TempDir::new("sac_pendulum")?;
+    fn test_sac_fetch_reach() -> Result<()> {
+        let tmp_dir = TempDir::new("sac_fetch_reach")?;
         let model_dir = match tmp_dir.as_ref().to_str() {
             Some(s) => s,
             None => panic!("Failed to get string of temporary directory"),

@@ -16,6 +16,7 @@ serde = { workspace = true, features = ["derive"] }
 log = { workspace = true }
 anyhow = { workspace = true }
 tch = { workspace = true, optional = true }
+rand = { workspace = true }
 
 [dev-dependencies]
 tempdir = { workspace = true }

@@ -4,7 +4,7 @@ use border_candle_agent::{
     opt::OptimizerConfig,
     sac::{ActorConfig, CriticConfig, Sac, SacConfig},
     util::{arrayd_to_tensor, tensor_to_arrayd},
-    TensorBatch,
+    Activation, TensorBatch,
 };
 use border_core::{
     generic_replay_buffer::{
@@ -37,13 +37,13 @@ const BATCH_SIZE: usize = 128;
 const WARMUP_PERIOD: usize = 1000;
 const OPT_INTERVAL: usize = 1;
 const MAX_OPTS: usize = 40_000;
-const EVAL_INTERVAL: usize = 2_000;
+const EVAL_INTERVAL: usize = 100;
 const REPLAY_BUFFER_CAPACITY: usize = 100_000;
 const N_EPISODES_PER_EVAL: usize = 5;
 const ENV_NAME: &str = "Pendulum-v1";
 const MODEL_DIR: &str = "./border/examples/gym/model/candle/sac_pendulum";
 const MLFLOW_EXPERIMENT_NAME: &str = "Gym";
-const MLFLOW_RUN_NAME: &str = "sac_pendulum_candle";
+const MLFLOW_RUN_NAME: &str = "sac-gym-pendulum-v1";
 const MLFLOW_TAGS: &[(&str, &str)] = &[("env", "pendulum"), ("algo", "sac"), ("backend", "candle")];
 
 mod obs_act_types {
@@ -228,12 +228,24 @@ mod config {
     pub fn create_agent_config(in_dim: i64, out_dim: i64) -> SacConfig<Mlp, Mlp2> {
         let device = Device::cuda_if_available(0).unwrap();
         let actor_config = ActorConfig::default()
-            .opt_config(OptimizerConfig::default().learning_rate(LR_ACTOR))
+            // .opt_config(OptimizerConfig::default().learning_rate(LR_ACTOR))
+            .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
             .out_dim(out_dim)
-            .pi_config(MlpConfig::new(in_dim, vec![64, 64], out_dim, false));
+            .pi_config(MlpConfig::new(
+                in_dim,
+                vec![64, 64],
+                out_dim,
+                Activation::Tanh,
+            ));
         let critic_config = CriticConfig::default()
-            .opt_config(OptimizerConfig::default().learning_rate(LR_CRITIC))
-            .q_config(MlpConfig::new(in_dim + out_dim, vec![64, 64], 1, false));
+            .opt_config(OptimizerConfig::Adam { lr: LR_CRITIC })
+            // .opt_config(OptimizerConfig::default().learning_rate(LR_CRITIC))
+            .q_config(MlpConfig::new(
+                in_dim + out_dim,
+                vec![64, 64],
+                1,
+                Activation::None,
+            ));
         SacConfig::default()
             .batch_size(BATCH_SIZE)
             .actor_config(actor_config)
@@ -290,7 +302,9 @@ struct Args {
 fn train(args: &Args, max_opts: usize, model_dir: &str, eval_interval: usize) -> Result<()> {
     let config = SacPendulumConfig::new(DIM_OBS, DIM_ACT, max_opts, eval_interval);
     let step_proc_config = SimpleStepProcessorConfig {};
-    let replay_buffer_config = SimpleReplayBufferConfig::default().capacity(REPLAY_BUFFER_CAPACITY);
+    let replay_buffer_config = SimpleReplayBufferConfig::default()
+        .capacity(REPLAY_BUFFER_CAPACITY)
+        .seed(0);
     let mut recorder = create_recorder(&args, model_dir, Some(&config))?;
     let mut trainer = Trainer::build(config.trainer_config.clone());
 
@@ -322,6 +336,8 @@ fn eval(args: &Args, model_dir: &str, render: bool) -> Result<()> {
         agent.eval();
         agent
     };
+    // let mut recorder = BufferedRecorder::new();
+
     let _ = Evaluator::new(&env_config, 0, 5)?.evaluate(&mut agent);
 
     // // Vec<_> field in a struct does not support writing a header in csv crate, so disable it.

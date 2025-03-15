@@ -1,4 +1,4 @@
-//! Observation, actiontypes and corresponding converters for the Kitchen environment impmented with ndarray.
+//! Observation, action types and corresponding converters for the Kitchen environment implemented with ndarray.
 use std::fmt::Debug;
 
 use crate::{
@@ -8,7 +8,7 @@ use crate::{
 use anyhow::Result;
 use border_core::generic_replay_buffer::BatchBase;
 use ndarray::{s, ArrayD, Axis, IxDyn, Slice};
-use pyo3::{PyAny, PyObject};
+use pyo3::{PyAny, PyObject, Python};
 
 /// Observation of the Kitchen environment stored as ndarray.
 ///
@@ -149,6 +149,10 @@ impl MinariConverter for KitchenConverter {
         Ok(KitchenActBatch {
             action: { pyobj_to_arrayd::<f64, f32>(obj.into()) },
         })
+    }
+
+    fn env_params(&self, _py: Python<'_>) -> Vec<(&str, PyObject)> {
+        vec![]
     }
 }
 

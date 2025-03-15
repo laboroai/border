@@ -8,6 +8,21 @@ pub struct Run {
     inputs: Option<RunInputs>,
 }
 
+impl Run {
+    pub fn exist_tag(&self, key: &str) -> bool {
+        if let Some(data) = &self.data {
+            if let Some(tags) = &data.tags {
+                for tag in tags.iter() {
+                    if tag.key.as_str() == key {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Clone, Debug, Deserialize)]
 pub struct RunInfo {

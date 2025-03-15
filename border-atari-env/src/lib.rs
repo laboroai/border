@@ -77,7 +77,8 @@
 //!
 //!     // Runs evaluation
 //!     let env_config = env_config.render(true);
-//!     let _ = DefaultEvaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
+//!     let _ = DefaultEvaluator::new(&env_config, 42, 5)?
+//!         .evaluate(&mut policy);
 //!
 //!     Ok(())
 //! }
