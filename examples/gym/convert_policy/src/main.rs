@@ -212,8 +212,8 @@ fn serialize_to_file(mlp: &Mlp, dest_path: &str) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    let src_path = "./border/examples/gym/model/tch/sac_pendulum/best";
-    let dest_path = "./border/examples/gym/model/edge/sac_pendulum/best/mlp.bincode";
+    let  src_path = "../sac_pendulum_tch/model/best";
+    let dest_path = "./model/mlp.bincode";
 
     let sac = load_sac_model(src_path)?;
     let mlp = create_mlp(&sac);
@@ -222,14 +222,14 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn test() -> Result<()> {
-    let src_path = "/root/border/border/examples/gym/model/tch/sac_pendulum/best";
-    let dest_path = "/root/border/border/examples/gym/model/edge/sac_pendulum/best/mlp.bincode";
+// #[test]
+// fn test() -> Result<()> {
+//     let src_path = "/root/border/border/examples/gym/model/tch/sac_pendulum/best";
+//     let dest_path = "/root/border/border/examples/gym/model/edge/sac_pendulum/best/mlp.bincode";
 
-    let sac = load_sac_model(src_path)?;
-    let mlp = create_mlp(&sac);
-    serialize_to_file(&mlp, dest_path)?;
+//     let sac = load_sac_model(src_path)?;
+//     let mlp = create_mlp(&sac);
+//     serialize_to_file(&mlp, dest_path)?;
 
-    Ok(())
-}
+//     Ok(())
+// }

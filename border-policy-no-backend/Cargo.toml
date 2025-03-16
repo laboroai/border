@@ -23,4 +23,4 @@ tempdir = { workspace = true }
 tch = { workspace = true }
 
 [features]
-border-tch-agent = ["dep:border-tch-agent", "dep:tch"]
+tch = ["border-tch-agent", "dep:tch"]

@@ -125,12 +125,6 @@ required-features = ["tch", "border-async-trainer"]
 test = false
 
 [[example]]
-name = "convert_sac_policy_to_edge"
-path = "examples/gym/convert_sac_policy_to_edge.rs"
-required-features = ["border-tch-agent", "tch"]
-test = false
-
-[[example]]
 name = "pendulum_edge"
 path = "examples/gym/pendulum_edge.rs"
 test = false
