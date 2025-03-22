@@ -163,7 +163,7 @@ where
             let batch = buffer.batch(self.batch_size).unwrap();
             let (obs, act, next_obs, _reward, is_terminated, is_truncated, _, _) = batch.unpack();
             let reward = reward(_reward, &self.device)?;
-            let gnd = gamma_not_done(self.gamma, is_terminated, is_truncated, &self.device)?;
+            let gnd = gamma_not_done(self.gamma, is_terminated, Some(is_truncated), &self.device)?;
             let obs = &obs.into();
             let act = &act.into();
             let next_obs = &next_obs.into();

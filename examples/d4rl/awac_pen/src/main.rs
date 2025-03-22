@@ -1,7 +1,12 @@
 use anyhow::Result;
 use border_candle_agent::{
-    bc::{Bc, BcActionType, BcConfig, BcModelConfig},
-    mlp::{Mlp, MlpConfig},
+    awac::{Awac, AwacConfig},
+    mlp::{Mlp, Mlp3, MlpConfig},
+    opt::OptimizerConfig,
+    util::{
+        actor::{ActionLimit, GaussianActorConfig},
+        critic::MultiCriticConfig,
+    },
     Activation,
 };
 use border_core::{
@@ -21,11 +26,11 @@ use clap::Parser;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, path::Path};
 
-const MODEL_DIR: &str = "border/examples/d4rl/model/candle/bc_pen";
+const MODEL_DIR: &str = "./model";
 const MLFLOW_EXPERIMENT_NAME: &str = "D4RL";
-const MLFLOW_TAGS: &[(&str, &str)] = &[("algo", "bc"), ("backend", "candle")];
+const MLFLOW_TAGS: &[(&str, &str)] = &[("algo", "awac"), ("backend", "candle")];
 
-/// Train BC agent in pen environment
+/// Train AWAC agent in pen environment
 #[derive(Clone, Parser, Debug, Serialize, Deserialize)]
 #[command(version, about)]
 struct Args {
@@ -60,8 +65,12 @@ struct Args {
     max_opts: usize,
 
     /// Interval of evaluation
-    #[arg(long, default_value_t = 10000)]
+    #[arg(long, default_value_t = 1000)]
     eval_interval: usize,
+
+    // Interval of recording agent info
+    #[arg(long, default_value_t = 100)]
+    record_agent_info_interval: usize,
 
     /// The number of evaluation episodes
     #[arg(long, default_value_t = 5)]
@@ -70,6 +79,10 @@ struct Args {
     /// Batch size
     #[arg(long, default_value_t = 256)]
     batch_size: usize,
+
+    /// Action limit type ("clamp" or "tanh")
+    #[arg(long, default_value = "clamp")]
+    action_limit: String,
 }
 
 impl Args {
@@ -80,13 +93,24 @@ impl Args {
     pub fn dataset_name(&self) -> String {
         format!("D4RL/pen/{}", self.env)
     }
+
+    pub fn action_limit(&self) -> ActionLimit {
+        match self.action_limit.as_str() {
+            "clamp" => ActionLimit::Clamp {
+                action_min: -1.0,
+                action_max: 1.0,
+            },
+            "tanh" => ActionLimit::Tanh { action_scale: 1.0 },
+            _ => panic!("action_limit should be clamp or tanh"),
+        }
+    }
 }
 
 #[derive(Serialize)]
 struct PenConfig {
     args: Args,
     trainer_config: TrainerConfig,
-    agent_config: BcConfig<Mlp>,
+    agent_config: AwacConfig<Mlp, Mlp3>,
 }
 
 impl PenConfig {
@@ -94,9 +118,9 @@ impl PenConfig {
         let trainer_config = TrainerConfig::default()
             .max_opts(args.max_opts)
             .eval_interval(args.eval_interval)
-            .flush_record_interval(args.eval_interval)
-            .record_agent_info_interval(args.eval_interval);
-        let agent_config = create_bc_config(&args).unwrap();
+            .flush_record_interval(args.record_agent_info_interval)
+            .record_agent_info_interval(args.record_agent_info_interval);
+        let agent_config = create_awac_config(&args).unwrap();
         Self {
             args,
             trainer_config,
@@ -105,20 +129,33 @@ impl PenConfig {
     }
 }
 
-fn create_bc_config(args: &Args) -> Result<BcConfig<Mlp>> {
+fn create_awac_config(args: &Args) -> Result<AwacConfig<Mlp, Mlp3>> {
     // Dimensions of observation and action
     let dim_obs = 45;
     let dim_act = 24;
 
-    let policy_model_config = {
-        let policy_model_config = MlpConfig {
-            in_dim: dim_obs,
-            out_dim: dim_act,
-            units: vec![256, 256],
-            activation_out: Activation::Tanh,
-        };
-        BcModelConfig::default().policy_model_config(policy_model_config)
-    };
+    // Actor/Critic learning rate
+    let lr = 0.0003;
+
+    // Actor/critic configs
+    let actor_config = GaussianActorConfig::default()
+        .opt_config(OptimizerConfig::Adam { lr })
+        .out_dim(dim_act)
+        .action_limit(args.action_limit())
+        .policy_config(MlpConfig::new(
+            dim_obs,
+            vec![256, 256, 256],
+            dim_act,
+            Activation::None,
+        ));
+    let critic_config = MultiCriticConfig::default()
+        .opt_config(OptimizerConfig::Adam { lr })
+        .q_config(MlpConfig::new(
+            dim_obs + dim_act,
+            vec![256, 256, 256],
+            1,
+            Activation::None,
+        ));
 
     // Device
     let device = if let Some(device) = &args.device {
@@ -132,18 +169,12 @@ fn create_bc_config(args: &Args) -> Result<BcConfig<Mlp>> {
     log::info!("Device is {:?}", device);
 
     // Agent config
-    let agent_config = BcConfig::<Mlp>::default()
-        .policy_model_config(policy_model_config)
-        .action_type(BcActionType::Continuous)
-        .optimizer(border_candle_agent::opt::OptimizerConfig::AdamW {
-            lr: 0.0003,
-            beta1: candle_nn::ParamsAdamW::default().beta1,
-            beta2: candle_nn::ParamsAdamW::default().beta2,
-            eps: candle_nn::ParamsAdamW::default().eps,
-            weight_decay: candle_nn::ParamsAdamW::default().weight_decay,
-        })
+    let agent_config = AwacConfig::<Mlp, Mlp3>::default()
+        .actor_config(actor_config)
+        .critic_config(critic_config)
         .device(device)
-        .batch_size(args.batch_size);
+        .batch_size(args.batch_size)
+        .lambda(0.1);
     Ok(agent_config)
 }
 
@@ -159,11 +190,11 @@ where
     E::Act: From<Tensor> + Into<Tensor>,
     R: ReplayBufferBase + 'static,
     R::Batch: TransitionBatch,
-    <R::Batch as TransitionBatch>::ObsBatch: Into<Tensor>,
-    <R::Batch as TransitionBatch>::ActBatch: Into<Tensor>,
+    <R::Batch as TransitionBatch>::ObsBatch: Into<Tensor> + Clone,
+    <R::Batch as TransitionBatch>::ActBatch: Into<Tensor> + Clone,
 {
     log::info!("Create agent");
-    Box::new(Bc::build(config.agent_config.clone()))
+    Box::new(Awac::build(config.agent_config.clone()))
 }
 
 fn create_replay_buffer<T>(
@@ -196,8 +227,9 @@ where
         recorder_run.set_tag("env", config.args.env_name())?;
         Ok(Box::new(recorder_run))
     } else {
+        let model_dir = format!("{}/{}", MODEL_DIR, config.args.env);
         Ok(Box::new(TensorboardRecorder::new(
-            MODEL_DIR, MODEL_DIR, false,
+            &model_dir, &model_dir, false,
         )))
     }
 }
@@ -227,8 +259,8 @@ where
     T: MinariConverter + 'static,
     T::Obs: std::fmt::Debug + Into<Tensor>,
     T::Act: std::fmt::Debug + From<Tensor> + Into<Tensor>,
-    T::ObsBatch: std::fmt::Debug + Into<Tensor> + 'static,
-    T::ActBatch: std::fmt::Debug + Into<Tensor> + 'static,
+    T::ObsBatch: std::fmt::Debug + Into<Tensor> + 'static + Clone,
+    T::ActBatch: std::fmt::Debug + Into<Tensor> + 'static + Clone,
 {
     let mut trainer = create_trainer(&config);
     let mut agent = create_agent(&config);
@@ -247,8 +279,8 @@ where
     T: MinariConverter + 'static,
     T::Obs: std::fmt::Debug + Into<Tensor>,
     T::Act: std::fmt::Debug + From<Tensor> + Into<Tensor>,
-    T::ObsBatch: std::fmt::Debug + Into<Tensor> + 'static,
-    T::ActBatch: std::fmt::Debug + Into<Tensor> + 'static,
+    T::ObsBatch: std::fmt::Debug + Into<Tensor> + 'static + Clone,
+    T::ActBatch: std::fmt::Debug + Into<Tensor> + 'static + Clone,
 {
     let mut agent: Box<dyn Agent<MinariEnv<T>, SimpleReplayBuffer<T::ObsBatch, T::ActBatch>>> =
         create_agent(&config);
@@ -278,13 +310,15 @@ fn main() -> Result<()> {
 fn test() -> Result<()> {
     let args = Args {
         mode: "train".to_string(),
-        env: "expert-v2".to_string(),
+        env: "human-v2".to_string(),
         device: None,
         mlflow_run_name: None,
         max_opts: 10,
         eval_interval: 100,
         eval_episodes: 100,
         batch_size: 256,
+        action_limit: "clamp".to_string(),
+        record_agent_info_interval: 1000,
     };
     let config = PenConfig::new(args.clone());
     let dataset = MinariDataset::load_dataset(args.dataset_name(), true)?;

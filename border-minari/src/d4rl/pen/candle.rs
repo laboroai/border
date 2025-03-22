@@ -118,7 +118,7 @@ impl MinariConverter for PenConverter {
 
         // Check tensor size: expects [batch_size, obs_vec_dim]
         let batch_size = obs.0.shape()[0];
-        debug_assert_eq!(obs.0.shape(), &[batch_size, 4]);
+        debug_assert_eq!(obs.0.shape(), &[batch_size, 45]);
 
         Ok(PenObsBatch::from(arrayd_to_tensor(obs.0, None)?))
     }

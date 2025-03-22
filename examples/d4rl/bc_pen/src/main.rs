@@ -21,7 +21,7 @@ use clap::Parser;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, path::Path};
 
-const MODEL_DIR: &str = "border/examples/d4rl/model/candle/bc_pen";
+const MODEL_DIR: &str = "./model";
 const MLFLOW_EXPERIMENT_NAME: &str = "D4RL";
 const MLFLOW_TAGS: &[(&str, &str)] = &[("algo", "bc"), ("backend", "candle")];
 
@@ -33,12 +33,6 @@ struct Args {
     /// In evaluation mode, the trained model is loaded.
     #[arg(long)]
     mode: String,
-
-    /// Name of environment ID, e.g., human-v2.
-    /// See Minari documantation:
-    /// https://minari.farama.org/v0.5.1/datasets/D4RL/pen/
-    #[arg(long)]
-    env: String,
 
     /// Device name.
     /// If set to `"Cpu"`, the CPU will be used.
@@ -55,13 +49,23 @@ struct Args {
     #[arg(long)]
     mlflow_run_name: Option<String>,
 
+    /// Name of environment ID, e.g., human-v2.
+    /// See Minari documantation:
+    /// https://minari.farama.org/v0.5.1/datasets/D4RL/pen/
+    #[arg(long)]
+    env: String,
+
     /// The number of optimization steps
     #[arg(long, default_value_t = 1000000)]
     max_opts: usize,
 
     /// Interval of evaluation
-    #[arg(long, default_value_t = 10000)]
+    #[arg(long, default_value_t = 1000)]
     eval_interval: usize,
+
+    // Interval of recording agent info
+    #[arg(long, default_value_t = 100)]
+    record_agent_info_interval: usize,
 
     /// The number of evaluation episodes
     #[arg(long, default_value_t = 5)]
@@ -159,8 +163,8 @@ where
     E::Act: From<Tensor> + Into<Tensor>,
     R: ReplayBufferBase + 'static,
     R::Batch: TransitionBatch,
-    <R::Batch as TransitionBatch>::ObsBatch: Into<Tensor>,
-    <R::Batch as TransitionBatch>::ActBatch: Into<Tensor>,
+    <R::Batch as TransitionBatch>::ObsBatch: Into<Tensor> + Clone,
+    <R::Batch as TransitionBatch>::ActBatch: Into<Tensor> + Clone,
 {
     log::info!("Create agent");
     Box::new(Bc::build(config.agent_config.clone()))
@@ -196,9 +200,10 @@ where
         recorder_run.set_tag("env", config.args.env_name())?;
         Ok(Box::new(recorder_run))
     } else {
+        let model_dir = format!("{}/{}", MODEL_DIR, config.args.env);
         Ok(Box::new(TensorboardRecorder::new(
-            MODEL_DIR, MODEL_DIR, false,
-        )))
+            &model_dir, &model_dir, false,
+       )))
     }
 }
 
@@ -227,8 +232,8 @@ where
     T: MinariConverter + 'static,
     T::Obs: std::fmt::Debug + Into<Tensor>,
     T::Act: std::fmt::Debug + From<Tensor> + Into<Tensor>,
-    T::ObsBatch: std::fmt::Debug + Into<Tensor> + 'static,
-    T::ActBatch: std::fmt::Debug + Into<Tensor> + 'static,
+    T::ObsBatch: std::fmt::Debug + Into<Tensor> + 'static + Clone,
+    T::ActBatch: std::fmt::Debug + Into<Tensor> + 'static + Clone,
 {
     let mut trainer = create_trainer(&config);
     let mut agent = create_agent(&config);
@@ -247,8 +252,8 @@ where
     T: MinariConverter + 'static,
     T::Obs: std::fmt::Debug + Into<Tensor>,
     T::Act: std::fmt::Debug + From<Tensor> + Into<Tensor>,
-    T::ObsBatch: std::fmt::Debug + Into<Tensor> + 'static,
-    T::ActBatch: std::fmt::Debug + Into<Tensor> + 'static,
+    T::ObsBatch: std::fmt::Debug + Into<Tensor> + 'static + Clone,
+    T::ActBatch: std::fmt::Debug + Into<Tensor> + 'static + Clone,
 {
     let mut agent: Box<dyn Agent<MinariEnv<T>, SimpleReplayBuffer<T::ObsBatch, T::ActBatch>>> =
         create_agent(&config);
@@ -278,13 +283,14 @@ fn main() -> Result<()> {
 fn test() -> Result<()> {
     let args = Args {
         mode: "train".to_string(),
-        env: "expert-v2".to_string(),
+        env: "human-v2".to_string(),
         device: None,
         mlflow_run_name: None,
         max_opts: 10,
         eval_interval: 100,
         eval_episodes: 100,
         batch_size: 256,
+        record_agent_info_interval: 1000,
     };
     let config = PenConfig::new(args.clone());
     let dataset = MinariDataset::load_dataset(args.dataset_name(), true)?;

@@ -96,11 +96,11 @@
 //! [`GenericTransitionBatch`]: generic_replay_buffer::GenericTransitionBatch
 //! [`SimpleStepProcessor`]: replay_buffer::SimpleStepProcessor
 //! [`SimpleStepProcessor<E, O, A>`]: generic_replay_buffer::SimpleStepProcessor
+pub mod dummy;
 pub mod error;
 mod evaluator;
 pub mod generic_replay_buffer;
 pub mod record;
-pub mod dummy;
 
 mod base;
 pub use base::{
