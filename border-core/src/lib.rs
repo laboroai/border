@@ -100,6 +100,7 @@ pub mod error;
 mod evaluator;
 pub mod generic_replay_buffer;
 pub mod record;
+pub mod dummy;
 
 mod base;
 pub use base::{
