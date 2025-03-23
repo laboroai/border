@@ -1,4 +1,4 @@
-use super::CnnConfig;
+use super::AtariCnnConfig;
 use crate::model::SubModel1;
 use anyhow::Result;
 use candle_core::{DType::F32, Device, Tensor};
@@ -12,7 +12,7 @@ use candle_nn::{
 #[allow(clippy::upper_case_acronyms)]
 #[allow(dead_code)]
 /// Convolutional neural network, which has the same architecture of the DQN paper.
-pub struct Cnn {
+pub struct AtariCnn {
     n_stack: i64,
     out_dim: i64,
     device: Device,
@@ -20,7 +20,7 @@ pub struct Cnn {
     skip_linear: bool,
 }
 
-impl Cnn {
+impl AtariCnn {
     fn stride(s: i64) -> Conv2dConfig {
         Conv2dConfig {
             stride: s as _,
@@ -58,8 +58,8 @@ impl Cnn {
     }
 }
 
-impl SubModel1 for Cnn {
-    type Config = CnnConfig;
+impl SubModel1 for AtariCnn {
+    type Config = AtariCnnConfig;
     type Input = Tensor;
     type Output = Tensor;
 

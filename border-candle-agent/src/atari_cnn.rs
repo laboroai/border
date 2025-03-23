@@ -5,5 +5,5 @@
 //! pixel intensities with casting from `u8` to `f32`.
 mod base;
 mod config;
-pub use base::Cnn;
-pub use config::CnnConfig;
+pub use base::AtariCnn;
+pub use config::AtariCnnConfig;

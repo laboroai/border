@@ -2,7 +2,7 @@ use crate::args::Args;
 use crate::types::*;
 use border_atari_env::BorderAtariEnvConfig;
 use border_candle_agent::{
-    cnn::{Cnn, CnnConfig},
+    atari_cnn::{AtariCnn, AtariCnnConfig},
     dqn::{DqnConfig, DqnExplorer, DqnModelConfig, EpsilonGreedy},
     opt::OptimizerConfig,
     util::CriticLoss,
@@ -16,7 +16,7 @@ pub struct DqnAtariConfig {
     pub args: Args,
     pub env_config: EnvConfig,
     pub replay_buffer_config: SimpleReplayBufferConfig,
-    pub agent_config: DqnConfig<Cnn>,
+    pub agent_config: DqnConfig<AtariCnn>,
     pub trainer_config: TrainerConfig,
 }
 
@@ -64,7 +64,7 @@ fn create_replay_buffer_config(_args: &Args) -> SimpleReplayBufferConfig {
     }
 }
 
-fn create_agent_config(args: &Args) -> DqnConfig<Cnn> {
+fn create_agent_config(args: &Args) -> DqnConfig<AtariCnn> {
     let device = if let Some(device) = &args.device {
         match device.as_str() {
             "Cpu" => candle_core::Device::Cpu,
@@ -76,7 +76,7 @@ fn create_agent_config(args: &Args) -> DqnConfig<Cnn> {
 
     DqnConfig {
         model_config: DqnModelConfig {
-            q_config: Some(CnnConfig {
+            q_config: Some(AtariCnnConfig {
                 n_stack: 4,
                 out_dim: 0,
                 skip_linear: false,

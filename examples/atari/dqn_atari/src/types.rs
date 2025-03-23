@@ -3,7 +3,7 @@ use border_atari_env::{
     BorderAtariAct, BorderAtariActRawFilter, BorderAtariEnv, BorderAtariEnvConfig, BorderAtariObs,
     BorderAtariObsRawFilter,
 };
-use border_candle_agent::{cnn::Cnn, dqn::Dqn as Dqn_, TensorBatch};
+use border_candle_agent::{atari_cnn::AtariCnn, dqn::Dqn as Dqn_, TensorBatch};
 use border_core::{
     generic_replay_buffer::{SimpleReplayBuffer, SimpleStepProcessor},
     DefaultEvaluator,
@@ -19,5 +19,5 @@ pub type EnvConfig = BorderAtariEnvConfig<Obs, Act, ObsFilter, ActFilter>;
 pub type Env = BorderAtariEnv<Obs, Act, ObsFilter, ActFilter>;
 pub type StepProc = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
 pub type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
-pub type Dqn = Dqn_<Env, Cnn, ReplayBuffer>;
+pub type Dqn = Dqn_<Env, AtariCnn, ReplayBuffer>;
 pub type Evaluator = DefaultEvaluator<Env>;
