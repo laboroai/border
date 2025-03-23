@@ -30,6 +30,33 @@ impl From<u8> for BorderAtariAct {
     }
 }
 
+#[cfg(feature = "candle")]
+pub mod candle {
+    use super::*;
+    use border_candle_agent::TensorBatch;
+    use candle_core::{Device::Cpu, Tensor};
+
+    impl From<BorderAtariAct> for Tensor {
+        fn from(act: BorderAtariAct) -> Tensor {
+            Tensor::from_vec(vec![act.act as f32], &[1, 1], &Cpu).unwrap()
+        }
+    }
+
+    impl From<BorderAtariAct> for TensorBatch {
+        fn from(act: BorderAtariAct) -> Self {
+            let tensor = act.into();
+            TensorBatch::from_tensor(tensor)
+        }
+    }
+
+    impl From<Tensor> for BorderAtariAct {
+        /// `t` must have single item.
+        fn from(t: Tensor) -> Self {
+            t.to_vec0::<u8>().unwrap().into()
+        }
+    }
+}
+
 /// Converts action of type `A` to [`BorderAtariAct`].
 pub trait BorderAtariActFilter<A: Act> {
     /// Configuration of the filter.

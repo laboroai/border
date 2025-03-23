@@ -23,6 +23,7 @@ itertools = "0.10.1"
 fastrand = { workspace = true }
 pollster = "=0.2.4"
 rand = { workspace = true }
+border-candle-agent = { workspace = "0.0.8", path = "../border-candle-agent", optional = true }
 
 # The following crates are required by the code adapted from atari-env
 atari-env-sys = { version = "0.1.0", optional = true }
@@ -44,9 +45,9 @@ default = [
     "winit_input_helper",
     "minifb",
     "pixels",
-    # "tch",
 ]
 sdl = ["atari-env-sys/sdl"]
+candle = ["border-candle-agent", "candle-core"]
 
 [[example]]
 name = "random_pong"
