@@ -19,5 +19,8 @@ border-atari-env = { version = "0.0.8", path = "../../../border-atari-env", feat
 serde = "1.0.194"
 serde_yaml = "0.8.7"
 
+[features]
+cuda = ["candle-core/cuda", "candle-core/cudnn"]
+
 [dev-dependencies]
 tempdir = "0.3.7"
