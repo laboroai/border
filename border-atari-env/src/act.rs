@@ -38,7 +38,7 @@ pub mod candle {
 
     impl From<BorderAtariAct> for Tensor {
         fn from(act: BorderAtariAct) -> Tensor {
-            Tensor::from_vec(vec![act.act as f32], &[1, 1], &Cpu).unwrap()
+            Tensor::from_vec(vec![act.act as u8], &[1, 1], &Cpu).unwrap()
         }
     }
 
@@ -52,7 +52,7 @@ pub mod candle {
     impl From<Tensor> for BorderAtariAct {
         /// `t` must have single item.
         fn from(t: Tensor) -> Self {
-            t.to_vec0::<u8>().unwrap().into()
+            (t.to_vec1::<i64>().unwrap()[0] as u8).into()
         }
     }
 }

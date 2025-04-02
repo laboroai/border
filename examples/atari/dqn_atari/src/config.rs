@@ -109,11 +109,11 @@ fn create_trainer_config(_args: &Args) -> TrainerConfig {
     TrainerConfig {
         max_opts: 3000000,
         opt_interval: 1,
-        eval_interval: 10,
-        record_agent_info_interval: 10,
-        record_compute_cost_interval: 10,
-        flush_record_interval: 10,
+        eval_interval: 3000,
+        record_agent_info_interval: 3000,
+        record_compute_cost_interval: 3000,
+        flush_record_interval: 3000,
         warmup_period: 32,
-        save_interval: 100,
+        save_interval: 300000,
     }
 }
