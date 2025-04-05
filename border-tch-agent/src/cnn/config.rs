@@ -7,18 +7,18 @@ fn default_skip_linear() -> bool {
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
-/// Configuration of [`Cnn`](super::Cnn).
+/// Configuration of [`AtariCnn`](super::AtariCnn).
 ///
 /// If `skip_linear` is `true`, `out_dim` is not used.
-pub struct CnnConfig {
+pub struct AtariCnnConfig {
     pub n_stack: i64,
     pub out_dim: i64,
     #[serde(default = "default_skip_linear")]
     pub skip_linear: bool,
 }
 
-impl CnnConfig {
-    /// Constructs [`CnnConfig`]
+impl AtariCnnConfig {
+    /// Constructs [`AtariCnnConfig`]
     pub fn new(n_stack: i64, out_dim: i64) -> Self {
         Self {
             n_stack,
@@ -33,7 +33,7 @@ impl CnnConfig {
     }
 }
 
-impl OutDim for CnnConfig {
+impl OutDim for AtariCnnConfig {
     /// Gets output dimension.
     fn get_out_dim(&self) -> i64 {
         self.out_dim

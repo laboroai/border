@@ -1,10 +1,10 @@
-use super::CnnConfig;
+use super::AtariCnnConfig;
 use crate::model::SubModel;
 use tch::{nn, nn::Module, Device, Tensor};
 
 #[allow(clippy::upper_case_acronyms)]
-/// Convolutional neural network, which has the same architecture of the DQN paper.
-pub struct Cnn {
+/// Convolutional neural network for Atari games, which has the same architecture of the DQN paper.
+pub struct AtariCnn {
     n_stack: i64,
     out_dim: i64,
     device: Device,
@@ -12,7 +12,7 @@ pub struct Cnn {
     skip_linear: bool,
 }
 
-impl Cnn {
+impl AtariCnn {
     fn stride(s: i64) -> nn::ConvConfig {
         nn::ConvConfig {
             stride: s,
@@ -48,8 +48,8 @@ impl Cnn {
     }
 }
 
-impl SubModel for Cnn {
-    type Config = CnnConfig;
+impl SubModel for AtariCnn {
+    type Config = AtariCnnConfig;
     type Input = Tensor;
     type Output = Tensor;
 
