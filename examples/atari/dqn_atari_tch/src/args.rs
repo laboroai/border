@@ -28,4 +28,4 @@ pub struct Args {
 
     /// Name of the game
     pub name: String,
-} 
+}

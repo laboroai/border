@@ -66,7 +66,7 @@ pub mod tch_ {
 
     impl From<BorderAtariAct> for Tensor {
         fn from(act: BorderAtariAct) -> Tensor {
-            Tensor::from_slice(&[act.act as i64])
+            Tensor::from_slice(&[act.act as i64]).unsqueeze(-1)
         }
     }
 

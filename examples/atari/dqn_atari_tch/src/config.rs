@@ -1,6 +1,7 @@
 use crate::args::Args;
 use crate::types::*;
 use border_atari_env::BorderAtariEnvConfig;
+use border_core::{generic_replay_buffer::SimpleReplayBufferConfig, TrainerConfig};
 use border_tch_agent::{
     cnn::{AtariCnn, AtariCnnConfig},
     dqn::{DqnConfig, DqnExplorer, DqnModelConfig, EpsilonGreedy},
@@ -8,7 +9,6 @@ use border_tch_agent::{
     util::CriticLoss,
     Device,
 };
-use border_core::{generic_replay_buffer::SimpleReplayBufferConfig, TrainerConfig};
 use serde::Serialize;
 use std::marker::PhantomData;
 
@@ -117,4 +117,4 @@ fn create_trainer_config(_args: &Args) -> TrainerConfig {
         warmup_period: 32,
         save_interval: 300000,
     }
-} 
+}

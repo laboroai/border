@@ -15,10 +15,7 @@ use types::*;
 
 fn create_agent(config: &DqnAtariConfig) -> Result<Box<dyn Agent<Env, ReplayBuffer>>> {
     let n_actions = Env::build(&config.env_config, 0)?.get_num_actions_atari() as i64;
-    let agent_config = config
-        .agent_config
-        .clone()
-        .out_dim(n_actions);
+    let agent_config = config.agent_config.clone().out_dim(n_actions);
     Ok(Box::new(Dqn::build(agent_config)))
 }
 
@@ -98,4 +95,4 @@ fn main() -> Result<()> {
     }
 
     Ok(())
-} 
+}
