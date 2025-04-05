@@ -72,7 +72,7 @@ fn create_agent_config(args: &Args) -> DqnConfig<AtariCnn> {
             _ => Device::Cuda(0),
         }
     } else {
-        Device::Cuda(0)
+        Device::from(tch::Device::cuda_if_available())
     };
 
     DqnConfig {

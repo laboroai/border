@@ -61,8 +61,8 @@ pub mod candle {
 pub mod tch_ {
     use super::*;
     use border_tch_agent::TensorBatch;
-    use tch::Tensor;
     use std::convert::TryInto;
+    use tch::Tensor;
 
     impl From<BorderAtariAct> for Tensor {
         fn from(act: BorderAtariAct) -> Tensor {
