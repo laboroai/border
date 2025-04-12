@@ -54,15 +54,11 @@ impl DqnAtariAsyncConfig {
     pub fn clone_trainer_config(&self) -> AsyncTrainerConfig {
         self.trainer_config.clone()
     }
-
-    pub fn model_dir(&self) -> String {
-        format!("./model/{}", self.args.name)
-    }
 }
 
 fn create_replay_buffer_config(_args: &Args) -> SimpleReplayBufferConfig {
     SimpleReplayBufferConfig {
-        capacity: 262144,
+        capacity: 4096, //262144,
         seed: 42,
         per_config: None,
     }

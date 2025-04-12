@@ -3,7 +3,7 @@ use border_core::{
     Agent, Configurable, Env, ExperienceBufferBase, ReplayBufferBase, Sampler, StepProcessor,
 };
 use crossbeam_channel::Sender;
-use log::info;
+use log::{debug, info};
 use std::{
     marker::PhantomData,
     ops::DerefMut,
@@ -102,7 +102,7 @@ where
         if model_info.0 > *n_opt_steps {
             *n_opt_steps = model_info.0;
             agent.sync_model(&model_info.1);
-            info!(
+            debug!(
                 "Synchronized the model info of {} opt steps in actor {}",
                 n_opt_steps, id
             );

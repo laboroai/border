@@ -15,6 +15,10 @@ use clap::Parser;
 use config::DqnAtariAsyncConfig;
 use types::*;
 
+const MODEL_DIR: &str = "./model";
+const MLFLOW_EXPERIMENT_NAME: &str = "Atari";
+const MLFLOW_TAGS: &[(&str, &str)] = &[("algo", "dqn_async"), ("backend", "tch")];
+
 fn create_agent(config: &DqnAtariAsyncConfig) -> Result<Box<dyn Agent<Env, ReplayBuffer>>> {
     let n_actions = Env::build(&config.env_config, 0)?.get_num_actions_atari() as i64;
     let agent_config = config.agent_config.clone().out_dim(n_actions);
@@ -23,28 +27,24 @@ fn create_agent(config: &DqnAtariAsyncConfig) -> Result<Box<dyn Agent<Env, Repla
 
 fn create_recorder(
     args: &Args,
-    model_dir: &str,
     config: Option<&DqnAtariAsyncConfig>,
 ) -> Result<Box<dyn Recorder<Env, ReplayBuffer>>> {
-    match true {
-        //args.mlflow {
-        true => {
-            let name = &args.name;
-            let client =
-                MlflowTrackingClient::new("http://localhost:8080").set_experiment("Atari")?;
-            let recorder_run = client.create_recorder(format!("{}_tch", name))?;
-            if let Some(config) = config {
-                recorder_run.log_params(&config)?;
-                recorder_run.set_tag("env", name)?;
-                recorder_run.set_tag("algo", "dqn_async")?;
-                recorder_run.set_tag("backend", "tch")?; 
-                recorder_run.set_tag("n_actors", args.n_actors.to_string())?;
-            }
-            Ok(Box::new(recorder_run))
+    if let Some(mlflow_run_name) = &args.mlflow_run_name {
+        let client = MlflowTrackingClient::new("http://localhost:8080")
+            .set_experiment(MLFLOW_EXPERIMENT_NAME)?;
+        let recorder_run = client.create_recorder(format!("{}_tch", mlflow_run_name))?;
+        if let Some(config) = config {
+            recorder_run.log_params(&config)?;
+            recorder_run.set_tag("env", &args.name)?;
+            recorder_run.set_tags(MLFLOW_TAGS)?;
+            recorder_run.set_tag("n_actors", args.n_actors.to_string())?;
         }
-        false => Ok(Box::new(TensorboardRecorder::new(
-            model_dir, model_dir, false,
-        ))),
+        Ok(Box::new(recorder_run))
+    } else {
+        let model_dir = format!("{}/{}", MODEL_DIR, &args.name);
+        Ok(Box::new(TensorboardRecorder::new(
+            &model_dir, &model_dir, false,
+        )))
     }
 }
 
@@ -71,7 +71,7 @@ fn train(config: &DqnAtariAsyncConfig) -> Result<()> {
     let actor_man_config = ActorManagerConfig::default();
     let trainer_config = config.clone_trainer_config();
 
-    let mut recorder = create_recorder(&config.args, config.model_dir().as_ref(), Some(config))?;
+    let mut recorder = create_recorder(&config.args, Some(config))?;
     let mut evaluator = Evaluator::new(&env_config_eval, 0, 1)?;
 
     train_async::<Dqn, Env, types::ReplayBuffer, types::StepProc>(
@@ -96,7 +96,7 @@ fn eval(config: &DqnAtariAsyncConfig) -> Result<()> {
     let mut evaluator = Evaluator::new(&env_config, 0, 5)?;
 
     // recorder is used to load model parameters
-    let recorder = create_recorder(&config.args, config.model_dir().as_ref(), None)?;
+    let recorder = create_recorder(&config.args, None)?;
     recorder.load_model("best".as_ref(), &mut agent)?;
 
     let _ = evaluator.evaluate(&mut agent);

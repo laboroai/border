@@ -4,7 +4,7 @@ use border_core::{
     Agent, Configurable, Env, Evaluator, ExperienceBufferBase, ReplayBufferBase,
 };
 use crossbeam_channel::{Receiver, Sender};
-use log::info;
+use log::{debug, info};
 use std::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
@@ -113,7 +113,7 @@ where
 impl<A, E, R> AsyncTrainer<A, E, R>
 where
     A: Agent<E, R> + Configurable + SyncModel + 'static,
-    E: Env,
+    E: Env, 
     // R: ReplayBufferBase + Sync + Send + 'static,
     R: ExperienceBufferBase + ReplayBufferBase,
     R::Item: Send + 'static,
@@ -296,7 +296,7 @@ where
 
             // Sync the current model
             if opt_steps % self.sync_interval == 0 {
-                info!("Sends the trained model info to ActorManager");
+                debug!("Sends the trained model info to ActorManager");
                 self.sync(Self::downcast_mut(&mut agent));
             }
 

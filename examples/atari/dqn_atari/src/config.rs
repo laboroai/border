@@ -50,10 +50,6 @@ impl DqnAtariConfig {
     pub fn clone_trainer_config(&self) -> TrainerConfig {
         self.trainer_config.clone()
     }
-
-    pub fn model_dir(&self) -> String {
-        format!("./model/{}", self.args.name)
-    }
 }
 
 fn create_replay_buffer_config(_args: &Args) -> SimpleReplayBufferConfig {
