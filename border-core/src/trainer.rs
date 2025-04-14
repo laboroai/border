@@ -107,15 +107,15 @@ pub struct Trainer {
     /// The maximal number of optimization steps.
     max_opts: usize,
 
+    /// Warmup period, for filling replay buffer, in environment steps.
+    /// This is ignored for offline training.
+    warmup_period: usize,
+
     /// Optimization steps for computing optimization steps per second.
     opt_steps_for_ops: usize,
 
     /// Timer for computing for optimization steps per second.
     timer_for_ops: Duration,
-
-    /// Warmup period, for filling replay buffer, in environment steps.
-    /// This is ignored for offline training.
-    warmup_period: usize,
 
     /// Max value of evaluation reward.
     max_eval_reward: f32,

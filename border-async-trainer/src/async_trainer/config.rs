@@ -21,6 +21,9 @@ pub struct AsyncTrainerConfig {
     /// Interval of recording agent information in optimization steps.
     pub record_compute_cost_interval: usize,
 
+    /// Interval of recording agent information in optimization steps.
+    pub record_agent_info_interval: usize,
+
     /// Interval of saving the model in optimization steps.
     pub save_interval: usize,
 
@@ -101,6 +104,7 @@ impl Default for AsyncTrainerConfig {
             eval_interval: 5000,
             flush_record_interval: 5000,
             record_compute_cost_interval: 5000,
+            record_agent_info_interval: 5000,
             save_interval: 50000,
             sync_interval: 100,
             warmup_period: 10000,

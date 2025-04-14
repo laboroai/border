@@ -58,7 +58,7 @@ impl DqnAtariAsyncConfig {
 
 fn create_replay_buffer_config(_args: &Args) -> SimpleReplayBufferConfig {
     SimpleReplayBufferConfig {
-        capacity: 4096, //262144,
+        capacity: 262144,
         seed: 42,
         per_config: None,
     }
@@ -109,10 +109,11 @@ fn create_trainer_config(_args: &Args) -> AsyncTrainerConfig {
     AsyncTrainerConfig {
         max_opts: 3000000,
         eval_interval: 3000,
-        flush_record_interval: 3000,
+        record_agent_info_interval: 3000,
         record_compute_cost_interval: 3000,
+        flush_record_interval: 3000,
+        warmup_period: 32,
         save_interval: 300000,
         sync_interval: 1,
-        warmup_period: 32,
     }
 }

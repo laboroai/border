@@ -40,7 +40,6 @@ impl Default for TrainerConfig {
         Self {
             max_opts: 0,
             eval_interval: 0,
-            // eval_threshold: None,
             opt_interval: 1,
             flush_record_interval: usize::MAX,
             record_compute_cost_interval: usize::MAX,
