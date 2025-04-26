@@ -1,9 +1,0 @@
----
-capacity: 1048576
-seed: 42
-per_config:
-  alpha: 0.6000000238418579
-  beta_0: 0.4000000059604645
-  beta_final: 1.0
-  n_opts_final: 200000000
-  normalize: All

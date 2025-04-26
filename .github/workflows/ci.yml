@@ -83,7 +83,7 @@ jobs:
           run: printenv
 
         - if: matrix.os == 'ubuntu-latest'
-          name: Test border examples
+          name: Test border
           env:
             LIBTORCH_USE_PYTORCH: 1
           run: |
