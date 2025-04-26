@@ -105,6 +105,8 @@ fn eval(config: &DqnAtariAsyncConfig) -> Result<()> {
 }
 
 fn main() -> Result<()> {
+    tch::set_num_threads(1);
+
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     let config: DqnAtariAsyncConfig = Args::parse().into();
 
