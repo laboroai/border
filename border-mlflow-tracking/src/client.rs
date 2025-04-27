@@ -123,6 +123,7 @@ impl MlflowTrackingClient {
         })
     }
 
+    #[allow(rustdoc::private_intra_doc_links)]
     /// Gets [`Experiment`] by name from the tracking server.
     ///
     /// If the experiment with given name does not exist in the trackingserver,

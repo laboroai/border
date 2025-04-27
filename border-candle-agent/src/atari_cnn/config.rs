@@ -7,7 +7,7 @@ fn default_skip_linear() -> bool {
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
-/// Configuration of [`Cnn`](super::Cnn).
+/// Configuration of [`AtariCnn`](super::AtariCnn).
 ///
 /// If `skip_linear` is `true`, `out_dim` is not used.
 pub struct AtariCnnConfig {
