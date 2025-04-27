@@ -23,22 +23,6 @@ use crate::{Env, ReplayBufferBase};
 ///
 /// * `E` - The environment type that implements the [`Env`] trait
 /// * `R` - The replay buffer type that implements the [`ReplayBufferBase`] trait
-///
-/// # Examples
-///
-/// ```rust
-/// use border_core::{
-///     record::{NullRecorder, Record, Recorder},
-///     Env, ReplayBufferBase,
-/// };
-///
-/// // Create a new null recorder
-/// let mut recorder = NullRecorder::<MyEnv, MyReplayBuffer>::new();
-///
-/// // All records are silently discarded
-/// recorder.write(Record::from_scalar("reward", 1.0)); // No-op
-/// recorder.flush(100); // No-op
-/// ```
 pub struct NullRecorder<E, R>
 where
     E: Env,

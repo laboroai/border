@@ -55,22 +55,6 @@ pub enum RecordValue {
 /// This structure provides a flexible way to store and retrieve different types
 /// of data using string keys. It supports merging records and provides type-safe
 /// access to stored values.
-///
-/// # Examples
-///
-/// ```rust
-/// use border_core::record::{Record, RecordValue};
-///
-/// // Create a record with a scalar value
-/// let mut record = Record::from_scalar("loss", 0.5);
-///
-/// // Add more values
-/// record.insert("accuracy", RecordValue::Scalar(0.95));
-/// record.insert("timestamp", RecordValue::DateTime(Local::now()));
-///
-/// // Retrieve values
-/// let loss = record.get_scalar("loss").unwrap();
-/// ```
 #[derive(Debug)]
 pub struct Record(HashMap<String, RecordValue>);
 

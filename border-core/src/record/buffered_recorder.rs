@@ -20,24 +20,6 @@ use std::marker::PhantomData;
 ///
 /// * `E` - The environment type that implements the [`Env`] trait
 /// * `R` - The replay buffer type that implements the [`ReplayBufferBase`] trait
-///
-/// # Examples
-///
-/// ```rust
-/// use border_core::{
-///     record::{BufferedRecorder, Record},
-///     Env, ReplayBufferBase,
-/// };
-///
-/// // Create a new buffered recorder
-/// let recorder = BufferedRecorder::<MyEnv, MyReplayBuffer>::new();
-///
-/// // Records can be added and later accessed for analysis
-/// recorder.write(Record::from_scalar("reward", 1.0));
-/// for record in recorder.iter() {
-///     // Process each record
-/// }
-/// ```
 #[derive(Default)]
 pub struct BufferedRecorder<E, R>
 where

@@ -34,18 +34,6 @@ impl Default for SimpleStepProcessorConfig {
 /// * `E` - The environment type, must implement `Env`
 /// * `O` - The observation batch type, must implement `BatchBase` and `From<E::Obs>`
 /// * `A` - The action batch type, must implement `BatchBase` and `From<E::Act>`
-///
-/// # Examples
-///
-/// ```rust
-/// use border_core::{
-///     Env, StepProcessor,
-///     generic_replay_buffer::{SimpleStepProcessor, SimpleStepProcessorConfig}
-/// };
-///
-/// let config = SimpleStepProcessorConfig::default();
-/// let mut processor = SimpleStepProcessor::<MyEnv, Tensor, Tensor>::build(&config);
-/// ```
 pub struct SimpleStepProcessor<E, O, A> {
     /// The previous observation, used to construct transitions.
     prev_obs: Option<O>,
