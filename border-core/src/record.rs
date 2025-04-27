@@ -1,9 +1,22 @@
-//! Types for recording various values obtained during training and evaluation.
+//! Types and traits for recording and managing training metrics.
 //!
-//! [`Record`] is a [`HashMap`], where its key and values represents various values obtained during training and
-//! evaluation. A record may contains multiple types of values.
+//! This module provides a comprehensive system for recording, storing, and managing
+//! various types of data during reinforcement learning training and evaluation.
+//! It includes support for different data types, aggregation, and flexible storage
+//! backends.
 //!
-//! ```no_run
+//! # Core Components
+//!
+//! * [`Record`] - A flexible container for storing key-value pairs of various data types
+//! * [`RecordValue`] - An enum representing different types of values that can be stored
+//! * [`Recorder`] - A trait defining the interface for recording and storing data
+//! * [`RecordStorage`] - A storage system with aggregation capabilities
+//! * [`BufferedRecorder`] - A recorder that temporarily stores records in memory
+//! * [`NullRecorder`] - A recorder that discards all records (useful for testing)
+//!
+//! # Basic Usage
+//!
+//! ```rust
 //! use border_core::record::{Record, RecordValue};
 //!
 //! // following values are obtained with some process in reality
@@ -17,9 +30,22 @@
 //! record.insert("Obs", RecordValue::Array1(obs));
 //! ```
 //!
-//! A typical usecase is to record internal values obtained in training processes.
-//! [Trainer::train](crate::Trainer::train), which executes a training loop, writes a record
-//! in a [`Recorder`] given as an input argument.
+//! # Integration with Training
+//!
+//! The recording system is designed to work seamlessly with the training process.
+//! The [`Trainer`](crate::Trainer) uses a [`Recorder`] to log training metrics
+//! and other relevant information during the training loop.
+//!
+//! # Data Types
+//!
+//! The module supports various data types through [`RecordValue`]:
+//!
+//! * `Scalar(f32)` - Single floating-point values
+//! * `DateTime(DateTime<Local>)` - Timestamps
+//! * `Array1(Vec<f32>)` - 1-dimensional arrays
+//! * `Array2(Vec<f32>, [usize; 2])` - 2-dimensional arrays with shape
+//! * `Array3(Vec<f32>, [usize; 3])` - 3-dimensional arrays with shape
+//! * `String(String)` - Text values
 //!
 //! [`HashMap`]: std::collections::HashMap
 mod base;
