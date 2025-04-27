@@ -6,7 +6,6 @@ members = [
     "border-py-gym-env",
     "border-tch-agent",
     "border-candle-agent",
-    "border-derive",
     "border-atari-env",
     "border-async-trainer",
     "border-policy-no-backend",
