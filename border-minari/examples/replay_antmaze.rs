@@ -10,10 +10,10 @@ fn main() -> Result<()> {
     println!("{:?}", num_transitions);
 
     // Converter for observation and action
-    let converter = AntMazeConverter {};
+    let mut converter = AntMazeConverter {};
 
     // Create replay buffer for the sixth episode
-    let replay_buffer = dataset.create_replay_buffer(&converter, Some(vec![0]))?;
+    let replay_buffer = dataset.create_replay_buffer(&mut converter, Some(vec![0]))?;
 
     // Recover the environment from the dataset
     let mut env = dataset.recover_environment(converter, false, "human")?;

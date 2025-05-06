@@ -10,10 +10,10 @@ fn main() -> Result<()> {
     println!("{:?}", num_transitions);
 
     // Converter for observation and action
-    let converter = KitchenConverter {};
+    let mut converter = KitchenConverter {};
 
     // Create replay buffer for the sixth episode
-    let replay_buffer = dataset.create_replay_buffer(&converter, Some(vec![5]))?;
+    let replay_buffer = dataset.create_replay_buffer(&mut converter, Some(vec![5]))?;
 
     // Recover the environment from the dataset
     let mut env = dataset.recover_environment(converter, false, "human")?;
