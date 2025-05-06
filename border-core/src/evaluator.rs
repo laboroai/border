@@ -58,7 +58,9 @@ pub trait Evaluator<E: Env> {
     ///
     /// # Returns
     ///
-    /// A [`Record`] containing the evaluation results
+    /// A tuple of (performance metric, [`Record`] containing the evaluation results)
+    /// 
+    /// In [`Trainer`], the performance metric is used to choose the best model.
     ///
     /// # Errors
     ///
@@ -73,7 +75,9 @@ pub trait Evaluator<E: Env> {
     /// such as switching between training and evaluation modes. This allows
     /// for flexible evaluation strategies that may require different agent
     /// configurations.
-    fn evaluate<R>(&mut self, agent: &mut Box<dyn Agent<E, R>>) -> Result<Record>
+    /// 
+    /// [`Trainer`]: crate::Trainer
+    fn evaluate<R>(&mut self, agent: &mut Box<dyn Agent<E, R>>) -> Result<(f32, Record)>
     where
         R: ReplayBufferBase;
 }

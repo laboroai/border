@@ -244,17 +244,14 @@ impl Trainer {
         if self.opt_steps % self.eval_interval == 0 {
             info!("Starts evaluation of the trained model");
             agent.eval();
-            let eval_reward = evaluator.evaluate(agent)?;
-            let eval_reward_value = eval_reward.get_scalar_without_key();
+            let (score, record_eval) = evaluator.evaluate(agent)?;
             agent.train();
-            record.merge_inplace(eval_reward);
+            record.merge_inplace(record_eval);
 
             // Save the best model up to the current iteration
-            if let Some(eval_reward) = eval_reward_value {
-                if eval_reward > self.max_eval_reward {
-                    self.max_eval_reward = eval_reward;
-                    recorder.save_model("best".as_ref(), agent)?;
-                }
+            if score > self.max_eval_reward {
+                self.max_eval_reward = score;
+                recorder.save_model("best".as_ref(), agent)?;
             }
         };
 

@@ -15,7 +15,7 @@ impl<T: MinariConverter> Evaluator<MinariEnv<T>> for MinariEvaluator<T> {
     fn evaluate<R: ReplayBufferBase>(
         &mut self,
         policy: &mut Box<dyn Agent<MinariEnv<T>, R>>,
-    ) -> Result<Record> {
+    ) -> Result<(f32, Record)> {
         log::debug!("Evaluation");
         let mut r_total = 0f32;
 
@@ -48,7 +48,7 @@ impl<T: MinariConverter> Evaluator<MinariEnv<T>> for MinariEvaluator<T> {
             record = Record::from_scalar(name, score);
         }
 
-        Ok(record)
+        Ok((score, record))
     }
 }
 

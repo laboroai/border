@@ -54,14 +54,14 @@ impl<E: Env> Evaluator<E> for DefaultEvaluator<E> {
     ///
     /// # Returns
     ///
-    /// A [`Record`] containing the average return across all episodes
+    /// A tuple of (performance metric, [`Record`] containing the evaluation results)
     ///
     /// # Errors
     ///
     /// Returns an error if:
     /// - The environment fails to reset
     /// - The environment fails to step
-    fn evaluate<R>(&mut self, policy: &mut Box<dyn Agent<E, R>>) -> Result<Record>
+    fn evaluate<R>(&mut self, policy: &mut Box<dyn Agent<E, R>>) -> Result<(f32, Record)>
     where
         R: ReplayBufferBase,
     {
@@ -81,8 +81,10 @@ impl<E: Env> Evaluator<E> for DefaultEvaluator<E> {
             }
         }
 
-        let name = format!("Episode return");
-        Ok(Record::from_scalar(name, r_total / self.n_episodes as f32))
+        let performance = r_total / self.n_episodes as f32;
+        let record = Record::from_scalar("Episode return", performance);
+
+        Ok((performance, record))
     }
 }
 
