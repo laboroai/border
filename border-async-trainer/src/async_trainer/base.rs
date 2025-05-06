@@ -105,14 +105,17 @@ where
     /// Sender of model info.
     model_info_sender: Sender<(usize, A::ModelInfo)>,
 
-    /// Optimization steps for computing optimization steps per second.
-    opt_steps_for_ops: usize,
+    /// Counter for replay buffer samples.
+    samples_counter: usize,
 
-    /// Samples for computing samples per second.
-    samples: usize,
+    /// Timer for replay buffer samples.
+    timer_for_samples: Duration,
 
-    /// Timer for computing for optimization steps per second.
-    timer_for_ops: Duration,
+    /// Counter for optimization steps.
+    opt_steps_counter: usize,
+
+    /// Timer for optimization steps.
+    timer_for_opt_steps: Duration,
 
     /// Max value of evaluation reward.
     max_eval_reward: f32,
@@ -156,23 +159,35 @@ where
             r_bulk_pushed_item,
             model_info_sender,
             stop,
-            opt_steps_for_ops: 0,
-            samples: 0,
-            timer_for_ops: Duration::new(0, 0),
+            samples_counter: 0,
+            timer_for_samples: Duration::new(0, 0),
+            opt_steps_counter: 0,
+            timer_for_opt_steps: Duration::new(0, 0),
             max_eval_reward: f32::MIN,
             opt_steps: 0,
             phantom: PhantomData,
         }
     }
 
-    /// Returns optimization steps per second and samples per second, then reset the internal counter.
-    fn opt_steps_and_samples_per_sec(&mut self) -> (f32, f32) {
-        let ops = 1000. * self.opt_steps_for_ops as f32 / (self.timer_for_ops.as_millis() as f32);
-        let sps = 1000. * self.samples as f32 / (self.timer_for_ops.as_millis() as f32);
-        self.opt_steps_for_ops = 0;
-        self.samples = 0;
-        self.timer_for_ops = Duration::new(0, 0);
-        (ops, sps)
+    /// Resets the counters.
+    fn reset_counters(&mut self) {
+        self.samples_counter = 0;
+        self.timer_for_samples = Duration::new(0, 0);
+        self.opt_steps_counter = 0;
+        self.timer_for_opt_steps = Duration::new(0, 0);
+    }
+
+    /// Calculates average time for optimization steps and samples in milliseconds.
+    fn average_time(&mut self) -> (f32, f32) {
+        let avr_opt_time = match self.opt_steps_counter {
+            0 => -1f32,
+            n => self.timer_for_opt_steps.as_millis() as f32 / n as f32,
+        };
+        let avr_sample_time = match self.samples_counter {
+            0 => -1f32,
+            n => self.timer_for_samples.as_millis() as f32 / n as f32,
+        };
+        (avr_opt_time, avr_sample_time)
     }
 
     #[inline]
@@ -193,38 +208,32 @@ where
             let timer = SystemTime::now();
             let record = agent.opt_with_record(buffer);
             self.opt_steps += 1;
-            self.opt_steps_for_ops += 1;
-            self.timer_for_ops += timer.elapsed().unwrap();
+            self.opt_steps_counter += 1;
+            self.timer_for_opt_steps += timer.elapsed().unwrap();
             return record;
         } else {
             let timer = SystemTime::now();
             agent.opt(buffer);
             self.opt_steps += 1;
-            self.opt_steps_for_ops += 1;
-            self.timer_for_ops += timer.elapsed().unwrap();
+            self.opt_steps_counter += 1;
+            self.timer_for_opt_steps += timer.elapsed().unwrap();
             return Record::empty();
         }
     }
 
+    /// Evaluates the agent, saves the best model, and syncs the model.
     fn post_process<D>(
         &mut self,
         agent: &mut Box<dyn Agent<E, R>>,
         evaluator: &mut D,
         recorder: &mut Box<dyn Recorder<E, R>>,
-        mut record: Record,
+        record: &mut Record,
     ) -> Result<()>
     where
         E: Env,
         R: ReplayBufferBase,
         D: Evaluator<E>,
     {
-        // Add stats wrt computation cost
-        if self.opt_steps % self.record_compute_cost_interval == 0 {
-            let (ops, sps) = self.opt_steps_and_samples_per_sec();
-            record.insert("opt_steps_per_sec", Scalar(ops));
-            record.insert("samples_per_sec", Scalar(sps));
-        }
-
         // Evaluation
         if self.opt_steps % self.eval_interval == 0 {
             info!("Starts evaluation of the trained model");
@@ -254,16 +263,6 @@ where
             self.sync(Self::downcast_mut(agent));
         }
 
-        // Store record to the recorder
-        if !record.is_empty() {
-            recorder.store(record);
-        }
-
-        // Flush records
-        if self.opt_steps % self.flush_records_interval == 0 {
-            recorder.flush(self.opt_steps as _);
-        }
-
         Ok(())
     }
 
@@ -279,7 +278,7 @@ where
     fn update_replay_buffer(&mut self, buffer: &mut R, samples_total: &mut usize) {
         let msgs: Vec<_> = self.r_bulk_pushed_item.try_iter().collect();
         msgs.into_iter().for_each(|msg| {
-            self.samples += msg.pushed_items.len();
+            self.samples_counter += msg.pushed_items.len();
             *samples_total += msg.pushed_items.len();
             msg.pushed_items
                 .into_iter()
@@ -319,9 +318,8 @@ where
         let mut buffer = R::build(&self.replay_buffer_config);
         agent.train();
 
+        self.reset_counters();
         self.opt_steps = 0;
-        self.samples = 0;
-        self.timer_for_ops = Duration::new(0, 0);
         self.max_eval_reward = f32::MIN;
         let time_total = SystemTime::now();
         let mut samples_total = 0;
@@ -340,16 +338,37 @@ where
 
         info!("Starts training loop");
         loop {
+            // Update replay buffer
+            let now = SystemTime::now();
             self.update_replay_buffer(&mut buffer, &mut samples_total);
+            self.timer_for_samples += now.elapsed().unwrap();
 
             // Performe optimization step(s)
-            let record = self.train_step(&mut agent, &mut buffer);
+            let mut record = self.train_step(&mut agent, &mut buffer);
 
             // Postprocessing after each training step
-            self.post_process(&mut agent, evaluator, recorder, record)
+            self.post_process(&mut agent, evaluator, recorder, &mut record)
                 .unwrap(); // TODO: error handling
 
-            // Finish the training loop
+            // Record average time for optimization steps and sampling steps in milliseconds
+            if self.opt_steps % self.record_compute_cost_interval == 0 {
+                let (avr_opt_time, avr_sample_time) = self.average_time();
+                record.insert("average_opt_time", Scalar(avr_opt_time));
+                record.insert("average_sample_time", Scalar(avr_sample_time));
+                self.reset_counters();
+            }
+
+            // Store record to the recorder
+            if !record.is_empty() {
+                recorder.store(record);
+            }
+
+            // Flush records
+            if (self.opt_steps - 1) % self.flush_records_interval == 0 {
+                recorder.flush(self.opt_steps as _);
+            }
+
+            // Finish training
             if self.opt_steps == self.max_opts {
                 // Flush channels
                 *self.stop.lock().unwrap() = true;

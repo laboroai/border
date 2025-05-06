@@ -19,7 +19,6 @@
 //!    * Track episode length and performance metrics
 //!
 //! 3. Performance Monitoring:
-//!    * Track frames per second (FPS)
 //!    * Monitor episode length
 //!    * Record environment metrics
 use crate::{record::Record, Agent, Env, ExperienceBufferBase, ReplayBufferBase, StepProcessor};
@@ -48,24 +47,6 @@ where
 
     /// Processor for converting steps into transitions
     step_processor: P,
-
-    /// Number of environment steps used for FPS calculation
-    n_env_steps_for_fps: usize,
-
-    /// Total time taken for the last n_env_steps_for_fps steps
-    time: f32,
-
-    /// Current episode length in environment steps
-    n_env_steps_in_episode: usize,
-
-    /// Total number of environment steps taken
-    n_env_steps_total: usize,
-
-    /// Interval for recording environment metrics
-    ///
-    /// If `None`, environment metrics are not recorded.
-    /// If `Some(n)`, metrics are recorded every n steps.
-    interval_env_record: Option<usize>,
 }
 
 impl<E, P> Sampler<E, P>
@@ -88,11 +69,6 @@ where
             env,
             prev_obs: None,
             step_processor,
-            n_env_steps_for_fps: 0,
-            time: 0f32,
-            n_env_steps_in_episode: 0,
-            n_env_steps_total: 0,
-            interval_env_record: None,
         }
     }
 
@@ -129,8 +105,6 @@ where
         R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
         R_: ExperienceBufferBase<Item = R::Item>,
     {
-        let now = std::time::SystemTime::now();
-
         // Reset environment(s) if required
         if self.prev_obs.is_none() {
             // For a vectorized environments, reset all environments in `env`
@@ -141,19 +115,10 @@ where
         }
 
         // Sample an action and apply it to the environment
-        let (step, mut record, is_done) = {
+        let (step, record, is_done) = {
             let act = agent.sample(self.prev_obs.as_ref().unwrap());
-            let (step, mut record) = self.env.step_with_reset(&act);
-            self.n_env_steps_in_episode += 1;
-            self.n_env_steps_total += 1;
+            let (step, record) = self.env.step_with_reset(&act);
             let is_done = step.is_done(); // not support vectorized env
-            if let Some(interval) = &self.interval_env_record {
-                if self.n_env_steps_total % interval != 0 {
-                    record = Record::empty();
-                }
-            } else {
-                record = Record::empty();
-            }
             (step, record, is_done)
         };
 
@@ -173,45 +138,8 @@ where
         if is_done {
             self.step_processor
                 .reset(self.prev_obs.as_ref().unwrap().clone());
-            record.insert(
-                "episode_length",
-                crate::record::RecordValue::Scalar(self.n_env_steps_in_episode as _),
-            );
-            self.n_env_steps_in_episode = 0;
-        }
-
-        // Count environment steps
-        if let Ok(time) = now.elapsed() {
-            self.n_env_steps_for_fps += 1;
-            self.time += time.as_millis() as f32;
         }
 
         Ok(record)
-    }
-
-    /// Calculates and returns the current frames per second (FPS).
-    ///
-    /// This method should be called after a sufficient number of steps
-    /// to get an accurate measurement.
-    ///
-    /// # Returns
-    ///
-    /// The current FPS value
-    pub fn fps(&mut self) -> f32 {
-        if self.time == 0f32 {
-            0f32
-        } else {
-            let fps = self.n_env_steps_for_fps as f32 / self.time * 1000f32;
-            self.reset_fps_counter();
-            fps
-        }
-    }
-
-    /// Resets the FPS counter.
-    ///
-    /// This should be called when starting a new measurement period.
-    pub fn reset_fps_counter(&mut self) {
-        self.n_env_steps_for_fps = 0;
-        self.time = 0f32;
     }
 }
