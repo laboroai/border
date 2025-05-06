@@ -24,6 +24,9 @@ border-core = { version = "0.0.8", path = "../border-core" }
 # Consider to replace with fastrand
 rand = { workspace = true }
 
+[dev-dependencies]
+env_logger = { workspace = true }
+
 [package.metadata.docs.rs]
 features = ["doc-only"]
 
