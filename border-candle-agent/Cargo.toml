@@ -1,8 +1,8 @@
 [package]
 name = "border-candle-agent"
+description = "Candle agent for Border"
 version.workspace = true
 edition.workspace = true
-description.workspace = true
 repository.workspace = true
 keywords.workspace = true
 categories.workspace = true

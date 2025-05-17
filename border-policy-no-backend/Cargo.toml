@@ -1,8 +1,8 @@
 [package]
 name = "border-policy-no-backend"
+description = "Policy for Border without backend"
 version.workspace = true
 edition.workspace = true
-description.workspace = true
 repository.workspace = true
 keywords.workspace = true
 categories.workspace = true

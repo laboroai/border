@@ -1,8 +1,8 @@
 [package]
 name = "border-core"
+description = "Core functionality for Border"
 version.workspace = true
 edition.workspace = true
-description.workspace = true
 repository.workspace = true
 keywords.workspace = true
 categories.workspace = true

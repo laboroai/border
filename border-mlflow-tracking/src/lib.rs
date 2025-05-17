@@ -2,13 +2,20 @@
 //!
 //! This crate is based on [MLflow](https://mlflow.org) tracking.
 //!
-//! Before running the program using this crate, run a tracking server with the following command:
+//! # Setup
+//!
+//! To use this crate, you need to start an MLflow tracking server first. You can do this by running:
 //!
 //! ```bash
 //! mlflow server --host 127.0.0.1 --port 8080
 //! ```
 //!
-//! Then, training configurations and metrices can be logged to the tracking server.
+//! Before running the program using this crate, you need to set the `MLFLOW_DEFAULT_ARTIFACT_ROOT`
+//! environment variable to specify where model parameters and artifacts will be saved during training.
+//! Typically, you should set this to the `mlruns` directory of your MLflow installation.
+//!
+//! # Example
+//!
 //! The following code is an example. Nested configuration parameters will be flattened,
 //! logged like `hyper_params.param1`, `hyper_params.param2`.
 //!
@@ -68,7 +75,8 @@
 //!     };
 //!
 //!     // Set experiment for runs
-//!     let client = MlflowTrackingClient::new("http://localhost:8080").set_experiment("Default")?;
+//!     let client = MlflowTrackingClient::new("http://localhost:8080")
+//!         .set_experiment("Default")?;
 //!
 //!     // Create recorders for logging
 //!     let mut recorder_run1 = client.create_recorder("")?;

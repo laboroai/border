@@ -1,4 +1,4 @@
-//! SAC agent.
+//! Soft actor-critic (SAC) agent.
 mod base;
 mod config;
 mod ent_coef;

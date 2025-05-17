@@ -1,8 +1,8 @@
 [package]
 name = "border-py-gym-env"
+description = "Python Gym environment for Border"
 version.workspace = true
 edition.workspace = true
-description.workspace = true
 repository.workspace = true
 keywords.workspace = true
 categories.workspace = true

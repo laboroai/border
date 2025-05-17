@@ -94,11 +94,11 @@
 //! runs the policy in the environment for a specified number of episodes. At the start of each episode,
 //! the environment is reset using [`Env::reset_with_index()`] to control specific evaluation conditions.
 //!
-//! [`SimpleReplayBuffer`]: replay_buffer::SimpleReplayBuffer
+//! [`SimpleReplayBuffer`]: generic_replay_buffer::SimpleReplayBuffer
 //! [`SimpleReplayBuffer<O, A>`]: generic_replay_buffer::SimpleReplayBuffer
 //! [`BatchBase`]: generic_replay_buffer::BatchBase
 //! [`GenericTransitionBatch`]: generic_replay_buffer::GenericTransitionBatch
-//! [`SimpleStepProcessor`]: replay_buffer::SimpleStepProcessor
+//! [`SimpleStepProcessor`]: generic_replay_buffer::SimpleStepProcessor
 //! [`SimpleStepProcessor<E, O, A>`]: generic_replay_buffer::SimpleStepProcessor
 pub mod dummy;
 pub mod error;

@@ -1,17 +1,27 @@
+//! Evaluator for Minari environments.
 use crate::{MinariConverter, MinariEnv};
 use anyhow::Result;
 use border_core::{record::Record, Agent, Env, Evaluator, ReplayBufferBase};
 
 /// An evaluator for Minari environments.
+///
+/// This struct implements the `Evaluator` trait for Minari environments.
+/// This struct evaluates the policy on the Minari environment for a given number of episodes.
+/// The average return over episodes is returned.
+/// If the environment has ref_min_score and ref_max_score, the normalized score is also returned
+/// in the record.
 pub struct MinariEvaluator<T: MinariConverter> {
     n_episodes: usize,
     env: MinariEnv<T>,
 }
 
 impl<T: MinariConverter> Evaluator<MinariEnv<T>> for MinariEvaluator<T> {
-    /// Returns the normalized score, i.e., normalized average return over episodes,
-    /// if the environment has ref_min_score and ref_max_score.
-    /// If not, returns the average return over episodes.
+    /// Evaluates the policy on the Minari environment.
+    ///
+    /// This function evaluates the policy on the Minari environment for a given number of episodes.
+    /// The average return over episodes is returned.
+    /// If the environment has ref_min_score and ref_max_score, the normalized score is also returned
+    /// in the record.
     fn evaluate<R: ReplayBufferBase>(
         &mut self,
         policy: &mut Box<dyn Agent<MinariEnv<T>, R>>,
