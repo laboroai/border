@@ -1,42 +1,52 @@
-//! Samples transitions and pushes them into a replay buffer.
+//! Experience sampling and replay buffer management.
+//!
+//! This module provides functionality for sampling experiences from the environment
+//! and storing them in a replay buffer. It handles the interaction between the agent,
+//! environment, and replay buffer, while also tracking performance metrics.
+//!
+//! # Sampling Process
+//!
+//! The sampling process involves:
+//!
+//! 1. Environment Interaction:
+//!    * Agent observes environment state
+//!    * Agent selects and executes action
+//!    * Environment transitions to new state
+//!
+//! 2. Experience Processing:
+//!    * Convert environment step into transition
+//!    * Store transition in replay buffer
+//!    * Track episode length and performance metrics
+//!
+//! 3. Performance Monitoring:
+//!    * Monitor episode length
+//!    * Record environment metrics
 use crate::{record::Record, Agent, Env, ExperienceBufferBase, ReplayBufferBase, StepProcessor};
 use anyhow::Result;
 
-/// Encapsulates sampling steps. Specifically it does the followint steps:
+/// Manages the sampling of experiences from the environment.
 ///
-/// 1. Samples an action from the [`Agent`], apply to the [`Env`] and takes [`Step`].
-/// 2. Convert [`Step`] into a transition (typically a batch) with [`StepProcessor`].
-/// 3. Pushes the trainsition to [`ReplayBufferBase`].
-/// 4. Count episode length and pushes to [`Record`].
+/// This struct handles the interaction between the agent and environment,
+/// processes the resulting experiences, and stores them in a replay buffer.
+/// It also tracks various metrics about the sampling process.
 ///
-/// TODO: being able to set `interval_env_record`
+/// # Type Parameters
 ///
-/// [`Step`]: crate::Step
-/// [`StepProcessor`]: crate::StepProcessor
+/// * `E` - The environment type
+/// * `P` - The step processor type
 pub struct Sampler<E, P>
 where
     E: Env,
     P: StepProcessor<E>,
 {
+    /// The environment being sampled from
     env: E,
+
+    /// Previous observation from the environment
     prev_obs: Option<E::Obs>,
+
+    /// Processor for converting steps into transitions
     step_processor: P,
-    /// Number of environment steps for counting frames per second.
-    n_env_steps_for_fps: usize,
-
-    /// Total time of takes n_frames.
-    time: f32,
-
-    /// Number of environment steps in an episode.
-    n_env_steps_in_episode: usize,
-
-    /// Total number of environment steps.
-    n_env_steps_total: usize,
-
-    /// Interval of recording from the environment in environment steps.
-    ///
-    /// Default to None (record from environment discarded)
-    interval_env_record: Option<usize>,
 }
 
 impl<E, P> Sampler<E, P>
@@ -44,32 +54,57 @@ where
     E: Env,
     P: StepProcessor<E>,
 {
-    /// Creates a sampler.
+    /// Creates a new sampler with the given environment and step processor.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment to sample from
+    /// * `step_processor` - The processor for converting steps into transitions
+    ///
+    /// # Returns
+    ///
+    /// A new `Sampler` instance
     pub fn new(env: E, step_processor: P) -> Self {
         Self {
             env,
             prev_obs: None,
             step_processor,
-            n_env_steps_for_fps: 0,
-            time: 0f32,
-            n_env_steps_in_episode: 0,
-            n_env_steps_total: 0,
-            interval_env_record: None,
         }
     }
 
-    /// Samples transitions and pushes them into the replay buffer.
+    /// Samples an experience and pushes it to the replay buffer.
     ///
-    /// The replay buffer `R_`, to which samples will be pushed, has to accept
-    /// `Item` that are the same with `Agent::R`.
-    pub fn sample_and_push<A, R, R_>(&mut self, agent: &mut A, buffer: &mut R_) -> Result<Record>
+    /// This method:
+    /// 1. Resets the environment if needed
+    /// 2. Samples an action from the agent
+    /// 3. Applies the action to the environment
+    /// 4. Processes the resulting step
+    /// 5. Stores the experience in the replay buffer
+    ///
+    /// # Arguments
+    ///
+    /// * `agent` - The agent to sample actions from
+    /// * `buffer` - The replay buffer to store experiences in
+    ///
+    /// # Returns
+    ///
+    /// A `Record` containing metrics about the sampling process
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// * The environment fails to reset
+    /// * The environment step fails
+    /// * The replay buffer operation fails
+    pub fn sample_and_push<R, R_>(
+        &mut self,
+        agent: &mut Box<dyn Agent<E, R>>,
+        buffer: &mut R_,
+    ) -> Result<Record>
     where
-        A: Agent<E, R>,
         R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
         R_: ExperienceBufferBase<Item = R::Item>,
     {
-        let now = std::time::SystemTime::now();
-
         // Reset environment(s) if required
         if self.prev_obs.is_none() {
             // For a vectorized environments, reset all environments in `env`
@@ -80,25 +115,16 @@ where
         }
 
         // Sample an action and apply it to the environment
-        let (step, mut record, is_done) = {
+        let (step, record, is_done) = {
             let act = agent.sample(self.prev_obs.as_ref().unwrap());
-            let (step, mut record) = self.env.step_with_reset(&act);
-            self.n_env_steps_in_episode += 1;
-            self.n_env_steps_total += 1;
+            let (step, record) = self.env.step_with_reset(&act);
             let is_done = step.is_done(); // not support vectorized env
-            if let Some(interval) = &self.interval_env_record {
-                if self.n_env_steps_total % interval != 0 {
-                    record = Record::empty();
-                }
-            } else {
-                record = Record::empty();
-            }
             (step, record, is_done)
         };
 
         // Update previouos observation
         self.prev_obs = match is_done {
-            true => Some(step.init_obs.clone()),
+            true => Some(step.init_obs.clone().expect("Failed to unwrap init_obs")),
             false => Some(step.obs.clone()),
         };
 
@@ -112,39 +138,8 @@ where
         if is_done {
             self.step_processor
                 .reset(self.prev_obs.as_ref().unwrap().clone());
-            record.insert(
-                "episode_length",
-                crate::record::RecordValue::Scalar(self.n_env_steps_in_episode as _),
-            );
-            self.n_env_steps_in_episode = 0;
-        }
-
-        // Count environment steps
-        if let Ok(time) = now.elapsed() {
-            self.n_env_steps_for_fps += 1;
-            self.time += time.as_millis() as f32;
         }
 
         Ok(record)
-    }
-
-    /// Returns frames (environment steps) per second, then resets the internal counter.
-    ///
-    /// A frame involves taking action, applying it to the environment,
-    /// producing transition, and pushing it into the replay buffer.
-    pub fn fps(&mut self) -> f32 {
-        if self.time == 0f32 {
-            0f32
-        } else {
-            let fps = self.n_env_steps_for_fps as f32 / self.time * 1000f32;
-            self.reset_fps_counter();
-            fps
-        }
-    }
-
-    /// Reset stats for computing FPS.
-    pub fn reset_fps_counter(&mut self) {
-        self.n_env_steps_for_fps = 0;
-        self.time = 0f32;
     }
 }

@@ -1,8 +1,8 @@
 [package]
 name = "border-policy-no-backend"
+description = "Policy for Border without backend"
 version.workspace = true
 edition.workspace = true
-description.workspace = true
 repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
@@ -10,17 +10,17 @@ license.workspace = true
 readme = "README.md"
 
 [dependencies]
-border-core = { version = "0.0.7", path = "../border-core" }
-border-tch-agent = { version = "0.0.7", path = "../border-tch-agent", optional = true }
+border-core = { version = "0.0.8", path = "../border-core" }
+border-tch-agent = { version = "0.0.8", path = "../border-tch-agent", optional = true }
 serde = { workspace = true, features = ["derive"] }
 log = { workspace = true }
 anyhow = { workspace = true }
 tch = { workspace = true, optional = true }
+rand = { workspace = true }
 
 [dev-dependencies]
 tempdir = { workspace = true }
 tch = { workspace = true }
 
-
 [features]
-border-tch-agent = ["dep:border-tch-agent", "dep:tch"]
+tch = ["border-tch-agent", "dep:tch"]

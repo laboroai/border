@@ -1,7 +1,6 @@
 //! Utilities.
-// use crate::model::ModelBase;
 use anyhow::Result;
-use candle_core::{DType, Tensor};
+use candle_core::{DType, Device, Tensor, WithDType, D};
 use candle_nn::VarMap;
 use log::trace;
 use serde::{Deserialize, Serialize};
@@ -9,8 +8,12 @@ mod named_tensors;
 mod quantile_loss;
 use border_core::record::{Record, RecordValue};
 pub use named_tensors::NamedTensors;
+use ndarray::ArrayD;
+use num_traits::AsPrimitive;
 pub use quantile_loss::quantile_huber_loss;
 use std::convert::TryFrom;
+pub mod actor;
+pub mod critic;
 
 /// Critic loss type.
 #[allow(clippy::upper_case_acronyms)]
@@ -26,7 +29,7 @@ pub enum CriticLoss {
 /// Apply soft update on variables.
 ///
 /// Variables are identified by their names.
-/// 
+///
 /// dest = tau * src + (1.0 - tau) * dest
 pub fn track(dest: &VarMap, src: &VarMap, tau: f64) -> Result<()> {
     trace!("dest");
@@ -36,6 +39,29 @@ pub fn track(dest: &VarMap, src: &VarMap, tau: f64) -> Result<()> {
 
     dest.iter().for_each(|(k_dest, v_dest)| {
         let v_src = src.get(k_dest).unwrap();
+        let t_src = v_src.as_tensor();
+        let t_dest = v_dest.as_tensor();
+        let t_dest = ((tau * t_src).unwrap() + (1.0 - tau) * t_dest).unwrap();
+        v_dest.set(&t_dest).unwrap();
+    });
+
+    Ok(())
+}
+
+pub fn track_with_replace_substring(
+    dest: &VarMap,
+    src: &VarMap,
+    tau: f64,
+    (ss_src, ss_dest): (&str, &str),
+) -> Result<()> {
+    trace!("dest");
+    let dest = dest.data().lock().unwrap();
+    trace!("src");
+    let src = src.data().lock().unwrap();
+
+    dest.iter().for_each(|(k_dest, v_dest)| {
+        let k_src = k_dest.replace(ss_dest, ss_src);
+        let v_src = src.get(&k_src).unwrap();
         let t_src = v_src.as_tensor();
         let t_dest = v_dest.as_tensor();
         let t_dest = ((tau * t_src).unwrap() + (1.0 - tau) * t_dest).unwrap();
@@ -154,4 +180,100 @@ pub fn param_stats(varmap: &VarMap) -> Record {
     }
 
     record
+}
+
+pub fn vec_to_tensor<T1, T2>(v: Vec<T1>, add_batch_dim: bool) -> Result<Tensor>
+where
+    T1: AsPrimitive<T2>,
+    T2: WithDType,
+{
+    let v = v.iter().map(|e| e.as_()).collect::<Vec<_>>();
+    let t: Tensor = TryFrom::<Vec<T2>>::try_from(v).unwrap();
+
+    match add_batch_dim {
+        true => Ok(t.unsqueeze(0)?),
+        false => Ok(t),
+    }
+}
+
+pub fn arrayd_to_tensor<T1, T2>(a: ArrayD<T1>, add_batch_dim: bool) -> Result<Tensor>
+where
+    T1: AsPrimitive<T2>,
+    T2: WithDType,
+{
+    let shape = a.shape();
+    let v = a.iter().map(|e| e.as_()).collect::<Vec<_>>();
+    let t: Tensor = TryFrom::<Vec<T2>>::try_from(v)?;
+    let t = t.reshape(shape)?;
+
+    match add_batch_dim {
+        true => Ok(t.unsqueeze(0)?),
+        false => Ok(t),
+    }
+}
+
+pub fn tensor_to_arrayd<T>(t: Tensor, delete_batch_dim: bool) -> Result<ArrayD<T>>
+where
+    T: WithDType, //tch::kind::Element,
+{
+    let shape = match delete_batch_dim {
+        false => t.dims()[..].iter().map(|x| *x as usize).collect::<Vec<_>>(),
+        true => t.dims()[1..]
+            .iter()
+            .map(|x| *x as usize)
+            .collect::<Vec<_>>(),
+    };
+    let v: Vec<T> = t.flatten_all()?.to_vec1()?;
+
+    Ok(ndarray::Array1::<T>::from(v).into_shape(ndarray::IxDyn(&shape))?)
+}
+
+/// Returns gamma values multipied by done flag values.
+///
+/// When `is_truncated` is given, done flag is set to 1 if either of
+/// `is_terminated` and `is_truncated` is true.
+pub fn gamma_not_done(
+    gamma: f32,
+    is_terminated: Vec<i8>,
+    is_truncated: Option<Vec<i8>>,
+    device: &Device,
+) -> Result<Tensor> {
+    let batch_size = is_terminated.len();
+    let not_done = if let Some(is_truncated) = is_truncated.as_ref() {
+        is_terminated
+            .iter()
+            .zip(is_truncated.iter())
+            .map(|(e1, e2)| (1f32 - (*e1 | *e2) as f32) * gamma)
+            .collect::<Vec<_>>()
+    } else {
+        is_terminated
+            .iter()
+            .map(|e1| (1f32 - *e1 as f32) * gamma)
+            .collect::<Vec<_>>()
+    };
+    Ok(Tensor::from_slice(&not_done[..], (batch_size,), device)?)
+}
+
+pub fn reward(reward: Vec<f32>, device: &Device) -> Result<Tensor> {
+    let batch_size = reward.len();
+    Ok(Tensor::from_slice(&reward[..], (batch_size,), device)?)
+}
+
+pub fn asymmetric_l2_loss(u: &Tensor, tau: f64) -> Result<Tensor> {
+    // println!("u.dtype()   = {:?}", u.dtype());
+    // println!("tau.dtype() = {:?}", u.lt(0f32)?.dtype());
+    Ok(((tau - u.lt(0f32)?.to_dtype(DType::F32)?)?.abs()? * u.powf(2.0)?)?.mean_all()?)
+}
+
+pub fn atanh(t: &Tensor) -> Result<Tensor> {
+    let t = t.clamp(-0.999999, 0.999999)?;
+    Ok((0.5 * (((1. + &t)? / (1. - &t)?)?).log()?)?)
+}
+
+/// Density transformation for tanh function
+pub fn log_jacobian_tanh(a: &Tensor) -> Result<Tensor> {
+    // let eps = Tensor::new(&[eps as f32], device)?.broadcast_as(a.shape())?;
+    // Ok((-1f64 * (1f64 - a.powf(2.0)? + eps)?.log()?)?.sum(D::Minus1)?)
+    let a = a.clamp(-0.999999, 0.999999)?;
+    Ok((-1f64 * (1f64 - a.powf(2.0)?)?.log()?)?.sum(D::Minus1)?)
 }

@@ -8,6 +8,7 @@
 //! #     TestAgent, TestAgentConfig, TestEnv, TestObs, TestObsBatch,
 //! #     TestAct, TestActBatch
 //! # };
+//! # use border_core::Env as _;
 //! # use border_async_trainer::{
 //! #     //test::{TestAgent, TestAgentConfig, TestEnv},
 //! #     ActorManager, ActorManagerConfig, AsyncTrainer, AsyncTrainerConfig,
@@ -17,8 +18,10 @@
 //! #         SimpleReplayBuffer, SimpleReplayBufferConfig,
 //! #         SimpleStepProcessorConfig, SimpleStepProcessor
 //! #     },
-//! #     record::{AggregateRecorder, NullRecorder}, DefaultEvaluator,
+//! #     record::{Recorder, NullRecorder}, DefaultEvaluator,
 //! # };
+//! #
+//! # use std::path::{Path, PathBuf};
 //! #
 //! # fn agent_config() -> TestAgentConfig {
 //! #     TestAgentConfig
@@ -27,24 +30,24 @@
 //! # fn env_config() -> usize {
 //! #     0
 //! # }
-//! 
+//!
 //! type Env = TestEnv;
 //! type ObsBatch = TestObsBatch;
 //! type ActBatch = TestActBatch;
 //! type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
 //! type StepProcessor = SimpleStepProcessor<Env, ObsBatch, ActBatch>;
-//! 
+//!
 //! // Create a new agent by wrapping the existing agent in order to implement SyncModel.
 //! struct TestAgent2(TestAgent);
-//! 
-//! impl border_core::Configurable<Env> for TestAgent2 {
+//!
+//! impl border_core::Configurable for TestAgent2 {
 //!     type Config = TestAgentConfig;
-//! 
+//!
 //!     fn build(config: Self::Config) -> Self {
 //!         Self(TestAgent::build(config))
 //!     }
 //! }
-//! 
+//!
 //! impl border_core::Agent<Env, ReplayBuffer> for TestAgent2 {
 //!     // Boilerplate code to delegate the method calls to the inner agent.
 //!     fn train(&mut self) {
@@ -55,25 +58,33 @@
 //! #     fn is_train(&self) -> bool {
 //! #         self.0.is_train()
 //! #     }
-//! # 
+//! #
 //! #     fn eval(&mut self) {
 //! #         self.0.eval();
 //! #     }
-//! # 
+//! #
 //! #     fn opt_with_record(&mut self, buffer: &mut ReplayBuffer) -> border_core::record::Record {
 //! #         self.0.opt_with_record(buffer)
 //! #     }
-//! # 
-//! #     fn save_params<T: AsRef<std::path::Path>>(&self, path: T) -> anyhow::Result<()> {
+//! #
+//! #     fn save_params(&self, path: &Path) -> anyhow::Result<Vec<PathBuf>> {
 //! #         self.0.save_params(path)
 //! #     }
-//! # 
-//! #     fn load_params<T: AsRef<std::path::Path>>(&mut self, path: T) -> anyhow::Result<()> {
+//! #
+//! #     fn load_params(&mut self, path: &Path) -> anyhow::Result<()> {
 //! #         self.0.load_params(path)
 //! #     }
-//! # 
+//! #
 //! #     fn opt(&mut self, buffer: &mut ReplayBuffer) {
 //! #         self.0.opt_with_record(buffer);
+//! #     }
+//! #
+//! #     fn as_any_ref(&self) -> &dyn std::any::Any {
+//! #         self
+//! #     }
+//! #
+//! #     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+//! #         self
 //! #     }
 //! }
 //!
@@ -84,11 +95,11 @@
 //! #         self.0.sample(obs)
 //! #     }
 //! }
-//! 
+//!
 //! impl border_async_trainer::SyncModel for TestAgent2{
 //!     // Self::ModelInfo shold include the model parameters.
 //!     type ModelInfo = usize;
-//! 
+//!
 //!
 //!     fn model_info(&self) -> (usize, Self::ModelInfo) {
 //!         // Extracts the model parameters and returns them as Self::ModelInfo.
@@ -108,10 +119,10 @@
 //! let step_proc_config = SimpleStepProcessorConfig::default();
 //! let actor_man_config = ActorManagerConfig::default();
 //! let async_trainer_config = AsyncTrainerConfig::default();
-//! let mut recorder: Box<dyn AggregateRecorder> = Box::new(NullRecorder {});
-//! let mut evaluator = DefaultEvaluator::<TestEnv, TestAgent2>::new(&env_config_eval, 0, 1).unwrap();
+//! let mut recorder: Box<dyn Recorder<_, _>> = Box::new(NullRecorder::new());
+//! let mut evaluator = DefaultEvaluator::<TestEnv>::new(&env_config_eval, 0, 1).unwrap();
 //!
-//! border_async_trainer::util::train_async::<_, _, _, StepProcessor>(
+//! border_async_trainer::util::train_async::<TestAgent2, _, _, StepProcessor>(
 //!     &agent_config(),
 //!     &agent_configs,
 //!     &env_config_train,
@@ -168,6 +179,7 @@ pub use sync_model::SyncModel;
 #[cfg(test)]
 pub mod test {
     use serde::{Deserialize, Serialize};
+    use std::path::{Path, PathBuf};
 
     /// Obs for testing.
     #[derive(Clone, Debug)]
@@ -176,10 +188,6 @@ pub mod test {
     }
 
     impl border_core::Obs for TestObs {
-        fn dummy(_n: usize) -> Self {
-            Self { obs: 0 }
-        }
-
         fn len(&self) -> usize {
             1
         }
@@ -291,9 +299,9 @@ pub mod test {
                 is_terminated: vec![0],
                 is_truncated: vec![0],
                 info: TestInfo {},
-                init_obs: TestObs {
+                init_obs: Some(TestObs {
                     obs: self.state_init,
-                },
+                }),
             };
             return (step, border_core::record::Record::empty());
         }
@@ -310,9 +318,9 @@ pub mod test {
                 is_terminated: vec![0],
                 is_truncated: vec![0],
                 info: TestInfo {},
-                init_obs: TestObs {
+                init_obs: Some(TestObs {
                     obs: self.state_init,
-                },
+                }),
             };
             return (step, border_core::record::Record::empty());
         }
@@ -351,12 +359,20 @@ pub mod test {
             border_core::record::Record::empty()
         }
 
-        fn save_params<T: AsRef<std::path::Path>>(&self, _path: T) -> anyhow::Result<()> {
+        fn save_params(&self, _path: &Path) -> anyhow::Result<Vec<PathBuf>> {
+            Ok(vec![])
+        }
+
+        fn load_params(&mut self, _path: &Path) -> anyhow::Result<()> {
             Ok(())
         }
 
-        fn load_params<T: AsRef<std::path::Path>>(&mut self, _path: T) -> anyhow::Result<()> {
-            Ok(())
+        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+            self
+        }
+
+        fn as_any_ref(&self) -> &dyn std::any::Any {
+            self
         }
     }
 
@@ -366,7 +382,7 @@ pub mod test {
         }
     }
 
-    impl border_core::Configurable<TestEnv> for TestAgent {
+    impl border_core::Configurable for TestAgent {
         type Config = TestAgentConfig;
 
         fn build(_config: Self::Config) -> Self {

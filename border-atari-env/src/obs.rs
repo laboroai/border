@@ -14,12 +14,8 @@
 //! Instead, the scaling is applied in CNN model.
 use anyhow::Result;
 use border_core::{record::Record, Obs};
-#[cfg(feature = "candle-core")]
-use candle_core::{Device::Cpu, Tensor};
 use serde::{Deserialize, Serialize};
 use std::{default::Default, marker::PhantomData};
-#[cfg(feature = "tch")]
-use {std::convert::TryFrom, tch::Tensor};
 
 /// Observation of [`BorderAtariEnv`](super::BorderAtariEnv).
 #[derive(Debug, Clone)]
@@ -35,35 +31,56 @@ impl From<Vec<u8>> for BorderAtariObs {
 }
 
 impl Obs for BorderAtariObs {
-    fn dummy(_n: usize) -> Self {
-        Self {
-            frames: vec![0; 4 * 84 * 84],
-        }
-    }
-
     fn len(&self) -> usize {
         1
     }
 }
 
 #[cfg(feature = "tch")]
-impl From<BorderAtariObs> for Tensor {
-    fn from(obs: BorderAtariObs) -> Tensor {
-        let tmp = &obs.frames;
-        // Assumes the batch size is 1, implying non-vectorized environment
-        Tensor::try_from(tmp).unwrap().reshape(&[1, 4, 1, 84, 84])
+pub mod tch_ {
+    use super::*;
+    use border_tch_agent::TensorBatch;
+    use tch::Tensor;
+
+    impl From<BorderAtariObs> for Tensor {
+        fn from(obs: BorderAtariObs) -> Tensor {
+            // Assumes the batch size is 1, implying non-vectorized environment
+            Tensor::from_slice(&obs.frames)
+                .reshape(&[1, 4, 1, 84, 84])
+                .to_kind(tch::Kind::Float)
+        }
+    }
+
+    impl From<BorderAtariObs> for TensorBatch {
+        fn from(obs: BorderAtariObs) -> Self {
+            let tensor = obs.into();
+            TensorBatch::from_tensor(tensor)
+        }
     }
 }
 
-#[cfg(feature = "candle-core")]
-impl From<BorderAtariObs> for Tensor {
-    fn from(obs: BorderAtariObs) -> Tensor {
-        let tmp = obs.frames;
-        // Assumes the batch size is 1, implying non-vectorized environment
-        Tensor::from_vec(tmp, &[1 * 4 * 1 * 84 * 84], &Cpu)
-            .unwrap()
-            .reshape(&[1, 4, 1, 84, 84])
-            .unwrap()
+#[cfg(feature = "candle")]
+pub mod canadle {
+    use super::*;
+    use border_candle_agent::TensorBatch;
+    use candle_core::{Device::Cpu, Tensor};
+
+    impl From<BorderAtariObs> for Tensor {
+        fn from(obs: BorderAtariObs) -> Tensor {
+            let tmp = obs.frames;
+            // Assumes the batch size is 1, implying non-vectorized environment
+            Tensor::from_vec(tmp, &[1 * 4 * 1 * 84 * 84], &Cpu)
+                .unwrap()
+                .reshape(&[1, 4, 1, 84, 84])
+                .unwrap()
+        }
+    }
+
+    impl From<BorderAtariObs> for TensorBatch {
+        fn from(obs: BorderAtariObs) -> Self {
+            let tensor = obs.into();
+            TensorBatch::from_tensor(tensor)
+        }
     }
 }
 

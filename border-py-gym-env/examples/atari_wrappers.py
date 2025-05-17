@@ -1,8 +1,13 @@
 import gymnasium as gym
+try:
+    import gymnasium_robotics
+except ImportError:
+    pass
 import numpy as np
 from collections import deque
 from PIL import Image
 from multiprocessing import Process, Pipe
+
 
 # atari_wrappers.py
 class NoopResetEnv(gym.Wrapper):

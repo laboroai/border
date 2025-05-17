@@ -6,21 +6,21 @@ members = [
     "border-py-gym-env",
     "border-tch-agent",
     "border-candle-agent",
-    "border-derive",
     "border-atari-env",
     "border-async-trainer",
     "border-policy-no-backend",
+    "border-minari",
     "border",
 ]
-exclude = ["docker/"]
+exclude = ["docker/", "examples/"]
 
 [workspace.package]
-version = "0.0.7"
+version = "0.0.8"
 edition = "2018"
-rust-version = "1.76"
+rust-version = "1.84"
 description = "Reinforcement learning library"
 repository = "https://github.com/laboroai/border"
-keywords = ["reinforcement", "learning"]
+keywords = ["reinforcement", "learning", "rl"]
 categories = ["science"]
 license = "MIT OR Apache-2.0"
 
@@ -48,12 +48,12 @@ ndarray = "0.15.1"
 chrono = "0.4"
 segment-tree = "2.0.0"
 image = "0.23.14"
-candle-core = { version = "=0.4.1", feature = ["cuda", "cudnn"] }
-candle-nn = "0.4.1"
-rand = { version = "0.8.5", features = ["small_rng"] }
+candle-core = { version = "=0.8.4" }
+candle-nn = "0.8.4"
+rand = { version = "=0.8.5", features = ["small_rng"] }
 itertools = "0.12.1"
 ordered-float = "4.2.0"
 reqwest = { version = "0.11.26", features = ["json", "blocking"] }
 xxhash-rust = { version = "0.8.10", features = ["xxh3"] }
-candle-optimisers = "0.4.0"
+candle-optimisers = "0.8.0"
 bincode = "1.3.3"

@@ -1,7 +1,7 @@
 use crate::Mat;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "border-tch-agent")]
+#[cfg(feature = "tch")]
 use tch::nn::VarStore;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -24,10 +24,10 @@ impl Mlp {
                 x = x.relu();
             }
         }
-        x
+        x.tanh()
     }
 
-    #[cfg(feature = "border-tch-agent")]
+    #[cfg(feature = "tch")]
     pub fn from_varstore(vs: &VarStore, w_names: &[&str], b_names: &[&str]) -> Self {
         let vars = vs.variables();
         let ws: Vec<Mat> = w_names

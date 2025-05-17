@@ -8,7 +8,7 @@
 //! #     Env as Env_, Obs as Obs_, Act as Act_, Step, test::{
 //! #         TestAct as TestAct_, TestActBatch as TestActBatch_,
 //! #         TestEnv as TestEnv_,
-//! #         TestObs as TestObs_, TestObsBatch as TestObsBatch_, 
+//! #         TestObs as TestObs_, TestObsBatch as TestObsBatch_,
 //! #     },
 //! #     record::Record,
 //! #     generic_replay_buffer::{SimpleReplayBuffer, BatchBase},
@@ -19,7 +19,7 @@
 //!     mlp::{Mlp, Mlp2, MlpConfig},
 //!     opt::OptimizerConfig
 //! };
-//! 
+//!
 //! # struct TestEnv(TestEnv_);
 //! # #[derive(Clone, Debug)]
 //! # struct TestObs(TestObs_);
@@ -29,10 +29,6 @@
 //! # struct TestActBatch(TestActBatch_);
 //! #
 //! # impl Obs_ for TestObs {
-//! #     fn dummy(n: usize) -> Self {
-//! #         Self(TestObs_::dummy(n))
-//! #     }
-//! #
 //! #     fn len(&self) -> usize {
 //! #         self.0.len()
 //! #     }
@@ -109,7 +105,7 @@
 //! #             is_terminated: step.is_terminated,
 //! #             is_truncated: step.is_truncated,
 //! #             info: step.info,
-//! #             init_obs: TestObs(step.init_obs),
+//! #             init_obs: Some(TestObs(step.init_obs.unwrap())),
 //! #         };
 //! #         (step, record)
 //! #     }
@@ -127,7 +123,7 @@
 //! #             is_terminated: step.is_terminated,
 //! #             is_truncated: step.is_truncated,
 //! #             info: step.info,
-//! #             init_obs: TestObs(step.init_obs),
+//! #             init_obs: Some(TestObs(step.init_obs.unwrap())),
 //! #         };
 //! #         (step, record)
 //! #     }
@@ -141,16 +137,16 @@
 //! # type ObsBatch = TestObsBatch;
 //! # type ActBatch = TestActBatch;
 //! # type ReplayBuffer = SimpleReplayBuffer<ObsBatch, ActBatch>;
-//! # 
+//! #
 //! const DIM_OBS: i64 = 3;
 //! const DIM_ACT: i64 = 1;
 //! const LR_ACTOR: f64 = 1e-3;
 //! const LR_CRITIC: f64 = 1e-3;
 //! const BATCH_SIZE: usize = 256;
-//! 
+//!
 //! fn create_agent(in_dim: i64, out_dim: i64) -> Sac<Env, Mlp, Mlp2, ReplayBuffer> {
 //!     let device = tch::Device::cuda_if_available();
-//! 
+//!
 //!     let actor_config = ActorConfig::default()
 //!         .opt_config(OptimizerConfig::Adam { lr: LR_ACTOR })
 //!         .out_dim(out_dim)

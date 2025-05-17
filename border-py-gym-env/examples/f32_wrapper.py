@@ -1,4 +1,8 @@
 import gymnasium as gym
+try:
+    import gymnasium_robotics
+except ImportError:
+    pass
 import numpy as np
 import inspect
 

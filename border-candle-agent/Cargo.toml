@@ -1,8 +1,8 @@
 [package]
 name = "border-candle-agent"
+description = "Candle agent for Border"
 version.workspace = true
 edition.workspace = true
-description.workspace = true
 repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
@@ -10,8 +10,8 @@ license.workspace = true
 readme = "README.md"
 
 [dependencies]
-border-core = { version = "0.0.7", path = "../border-core" }
-border-async-trainer = { version = "0.0.7", path = "../border-async-trainer", optional = true }
+border-core = { version = "0.0.8", path = "../border-core" }
+border-async-trainer = { version = "0.0.8", path = "../border-async-trainer", optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_yaml = { workspace = true }
 tensorboard-rs = { workspace = true }
@@ -28,6 +28,8 @@ rand = { workspace = true }
 itertools = { workspace = true }
 ordered-float = { workspace = true }
 candle-optimisers = { workspace = true }
+num-traits = { workspace = true }
+ndarray = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
 tempdir = { workspace = true }

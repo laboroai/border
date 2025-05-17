@@ -3,8 +3,8 @@ use crate::{
     actor_stats_fmt, ActorManager, ActorManagerConfig, AsyncTrainer, AsyncTrainerConfig, SyncModel,
 };
 use border_core::{
-    record::AggregateRecorder, Agent, Configurable, Env, Evaluator, ExperienceBufferBase,
-    ReplayBufferBase, StepProcessor,
+    record::Recorder, Agent, Configurable, Env, Evaluator, ExperienceBufferBase, ReplayBufferBase,
+    StepProcessor,
 };
 use crossbeam_channel::unbounded;
 use log::info;
@@ -37,10 +37,10 @@ pub fn train_async<A, E, R, S>(
     replay_buffer_config: &R::Config,
     actor_man_config: &ActorManagerConfig,
     async_trainer_config: &AsyncTrainerConfig,
-    recorder: &mut Box<dyn AggregateRecorder>,
-    evaluator: &mut impl Evaluator<E, A>,
+    recorder: &mut Box<dyn Recorder<E, R>>,
+    evaluator: &mut impl Evaluator<E>,
 ) where
-    A: Agent<E, R> + Configurable<E> + SyncModel,
+    A: Agent<E, R> + Configurable + SyncModel + 'static,
     E: Env,
     R: ExperienceBufferBase<Item = S::Output> + Send + 'static + ReplayBufferBase,
     S: StepProcessor<E>,

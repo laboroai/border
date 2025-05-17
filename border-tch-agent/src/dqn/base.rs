@@ -14,7 +14,7 @@ use std::{
     convert::{TryFrom, TryInto},
     fs,
     marker::PhantomData,
-    path::Path,
+    path::{Path, PathBuf},
 };
 use tch::{no_grad, Device, Tensor};
 
@@ -229,8 +229,8 @@ where
                 }
             } else {
                 if fastrand::f32() < 0.01 {
-                    let n_actions = a.size()[1] as i32;
-                    let a = fastrand::i32(0..n_actions);
+                    let n_actions = a.size()[1] as i64;
+                    let a = fastrand::i64(0..n_actions);
                     Tensor::from(a)
                 } else {
                     a.argmax(-1, true)
@@ -241,7 +241,7 @@ where
     }
 }
 
-impl<E, Q, R> Configurable<E> for Dqn<E, Q, R>
+impl<E, Q, R> Configurable for Dqn<E, Q, R>
 where
     E: Env,
     Q: SubModel<Output = Tensor>,
@@ -287,9 +287,9 @@ where
 
 impl<E, Q, R> Agent<E, R> for Dqn<E, Q, R>
 where
-    E: Env,
-    Q: SubModel<Output = Tensor>,
-    R: ReplayBufferBase,
+    E: Env + 'static,
+    Q: SubModel<Output = Tensor> + 'static,
+    R: ReplayBufferBase + 'static,
     E::Obs: Into<Q::Input>,
     E::Act: From<Q::Output>,
     Q::Config: DeserializeOwned + Serialize + OutDim + std::fmt::Debug + PartialEq + Clone,
@@ -342,25 +342,31 @@ where
     }
 
     /// Save model parameters in the given directory.
-    /// 
+    ///
     /// The parameters of the model are saved as `qnet.pt`.
     /// The parameters of the target model are saved as `qnet_tgt.pt`.
-    fn save_params<T: AsRef<Path>>(&self, path: T) -> Result<()> {
+    fn save_params(&self, path: &Path) -> Result<Vec<PathBuf>> {
         // TODO: consider to rename the path if it already exists
         fs::create_dir_all(&path)?;
-        self.qnet
-            .save(&path.as_ref().join("qnet.pt.tch").as_path())?;
-        self.qnet_tgt
-            .save(&path.as_ref().join("qnet_tgt.pt.tch").as_path())?;
+        let path1 = path.join("qnet.pt.tch").to_path_buf();
+        let path2 = path.join("qnet_tgt.pt.tch").to_path_buf();
+        self.qnet.save(&path1)?;
+        self.qnet_tgt.save(&path2)?;
+        Ok(vec![path1, path2])
+    }
+
+    fn load_params(&mut self, path: &Path) -> Result<()> {
+        self.qnet.load(path.join("qnet.pt.tch").as_path())?;
+        self.qnet_tgt.load(path.join("qnet_tgt.pt.tch").as_path())?;
         Ok(())
     }
 
-    fn load_params<T: AsRef<Path>>(&mut self, path: T) -> Result<()> {
-        self.qnet
-            .load(&path.as_ref().join("qnet.pt.tch").as_path())?;
-        self.qnet_tgt
-            .load(&path.as_ref().join("qnet_tgt.pt.tch").as_path())?;
-        Ok(())
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn as_any_ref(&self) -> &dyn std::any::Any {
+        self
     }
 }
 

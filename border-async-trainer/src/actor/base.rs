@@ -3,9 +3,10 @@ use border_core::{
     Agent, Configurable, Env, ExperienceBufferBase, ReplayBufferBase, Sampler, StepProcessor,
 };
 use crossbeam_channel::Sender;
-use log::info;
+use log::{debug, info};
 use std::{
     marker::PhantomData,
+    ops::DerefMut,
     sync::{Arc, Mutex},
 };
 
@@ -23,7 +24,7 @@ use std::{
 ///   C-->|ReplayBufferBase::PushedItem|F[ReplayBufferProxy]
 /// ```
 ///
-/// In [`Actor`], an [`Agent`] runs on an [`Env`] and generates [`Step`] objects. 
+/// In [`Actor`], an [`Agent`] runs on an [`Env`] and generates [`Step`] objects.
 /// These objects are processed with [`StepProcessor`] and sent to [`ReplayBufferProxy`].
 /// The [`Agent`] in the [`Actor`] periodically synchronizes with the [`Agent`] in
 /// [`AsyncTrainer`] via [`SyncModel::ModelInfo`].
@@ -37,20 +38,18 @@ use std::{
 /// [`Step`]: border_core::Step
 pub struct Actor<A, E, P, R>
 where
-    A: Agent<E, R> + Configurable<E> + SyncModel,
+    A: Agent<E, R> + Configurable + SyncModel + 'static,
     E: Env,
     P: StepProcessor<E>,
     R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
 {
     /// Stops sampling process if this field is set to `true`.
     id: usize,
-    // #[allow(dead_code)] // TODO: remove this
     stop: Arc<Mutex<bool>>,
     agent_config: A::Config,
     env_config: E::Config,
     step_proc_config: P::Config,
     replay_buffer_config: ReplayBufferProxyConfig,
-    #[allow(dead_code)] // TODO: remove this
     env_seed: i64,
     stats: Arc<Mutex<Option<ActorStat>>>,
     phantom: PhantomData<(A, E, P, R)>,
@@ -58,7 +57,7 @@ where
 
 impl<A, E, P, R> Actor<A, E, P, R>
 where
-    A: Agent<E, R> + Configurable<E> + SyncModel,
+    A: Agent<E, R> + Configurable + SyncModel + 'static,
     E: Env,
     P: StepProcessor<E>,
     R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
@@ -103,11 +102,16 @@ where
         if model_info.0 > *n_opt_steps {
             *n_opt_steps = model_info.0;
             agent.sync_model(&model_info.1);
-            info!(
+            debug!(
                 "Synchronized the model info of {} opt steps in actor {}",
                 n_opt_steps, id
             );
         }
+    }
+
+    #[inline]
+    fn downcast_mut(agent: &mut Box<dyn Agent<E, R>>) -> &mut A {
+        agent.deref_mut().as_any_mut().downcast_mut::<A>().unwrap()
     }
 
     /// Runs sampling loop until `self.stop` becomes `true`.
@@ -120,7 +124,7 @@ where
         guard: Arc<Mutex<bool>>,
         guard_init_model: Arc<Mutex<bool>>,
     ) {
-        let mut agent = A::build(self.agent_config.clone());
+        let mut agent: Box<dyn Agent<E, R>> = Box::new(A::build(self.agent_config.clone()));
         let mut buffer =
             ReplayBufferProxy::<R>::build_with_sender(self.id, &self.replay_buffer_config, sender);
         let mut sampler = {
@@ -139,7 +143,7 @@ where
         // Waits and syncs the initial model
         {
             let mut guard_init_model = guard_init_model.lock().unwrap();
-            Self::sync_model_first(&mut agent, &model_info, self.id);
+            Self::sync_model_first(Self::downcast_mut(&mut agent), &model_info, self.id);
             *guard_init_model = true;
         }
 
@@ -150,7 +154,12 @@ where
         info!("Starts sampling loop in actor {}", self.id);
         loop {
             // Check model update and synchronize
-            Self::sync_model(&mut agent, &mut n_opt_steps, &model_info, self.id);
+            Self::sync_model(
+                Self::downcast_mut(&mut agent),
+                &mut n_opt_steps,
+                &model_info,
+                self.id,
+            );
 
             // TODO: error handling
             let _record = sampler.sample_and_push(&mut agent, &mut buffer).unwrap();

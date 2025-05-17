@@ -1,0 +1,40 @@
+[package]
+name = "border-minari"
+description = "Interface to Minari for Border"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
+readme = "README.md"
+
+[dependencies]
+border-core = { version = "0.0.8", path = "../border-core" }
+numpy = { workspace = true }
+pyo3 = { workspace = true, default-features = false, features = [
+    "auto-initialize", "macros"
+] }
+serde = { workspace = true, features = ["derive"] }
+log = { workspace = true }
+num-traits = { workspace = true }
+ndarray = { workspace = true, features = ["serde"] }
+anyhow = { workspace = true }
+candle-core = { workspace = true, optional = true }
+rand = { workspace = true }
+
+[dev-dependencies]
+env_logger = { workspace = true }
+
+[[example]]
+name = "replay_kitchen"
+path = "examples/replay_kitchen.rs"
+test = false
+
+[[example]]
+name = "replay_antmaze"
+path = "examples/replay_antmaze.rs"
+test = false
+
+[features]
+candle = [ "candle-core" ]

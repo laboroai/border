@@ -1,5 +1,8 @@
 use anyhow::Result;
-use border_core::record::{Record, RecordValue, Recorder};
+use border_core::{
+    dummy::{DummyEnv, DummyReplayBuffer},
+    record::{Record, RecordValue, Recorder},
+};
 use border_mlflow_tracking::MlflowTrackingClient;
 use serde::Serialize;
 
@@ -53,11 +56,13 @@ fn main() -> Result<()> {
     };
 
     // Set experiment for runs
-    let client = MlflowTrackingClient::new("http://localhost:8080").set_experiment_id("Default")?;
+    let client = MlflowTrackingClient::new("http://localhost:8080").set_experiment("Default")?;
 
     // Create recorders for logging
-    let mut recorder_run1 = client.create_recorder("")?;
-    let mut recorder_run2 = client.create_recorder("")?;
+    type E = DummyEnv;
+    type R = DummyReplayBuffer;
+    let mut recorder_run1 = client.create_recorder::<E, R>("")?;
+    let mut recorder_run2 = client.create_recorder::<E, R>("")?;
     recorder_run1.log_params(&config1)?;
     recorder_run2.log_params(&config2)?;
 

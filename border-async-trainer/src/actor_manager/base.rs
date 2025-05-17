@@ -22,7 +22,7 @@ use std::{
 /// [`AsyncTrainer`]: crate::AsyncTrainer
 pub struct ActorManager<A, E, R, P>
 where
-    A: Agent<E, R> + Configurable<E> + SyncModel,
+    A: Agent<E, R> + Configurable + SyncModel,
     E: Env,
     P: StepProcessor<E>,
     R: ExperienceBufferBase<Item = P::Output> + ReplayBufferBase,
@@ -69,7 +69,7 @@ where
 
 impl<A, E, R, P> ActorManager<A, E, R, P>
 where
-    A: Agent<E, R> + Configurable<E> + SyncModel,
+    A: Agent<E, R> + Configurable + SyncModel + 'static,
     E: Env,
     P: StepProcessor<E>,
     R: ExperienceBufferBase<Item = P::Output> + Send + 'static + ReplayBufferBase,
@@ -225,7 +225,7 @@ where
             let msg = receiver.recv();
             if msg.is_ok() {
                 _n_samples += 1;
-                sender.try_send(msg.unwrap()).unwrap();    
+                sender.try_send(msg.unwrap()).unwrap();
             }
 
             // Stop the loop

@@ -3,7 +3,9 @@ use border_atari_env::{
     BorderAtariAct, BorderAtariActRawFilter, BorderAtariEnv, BorderAtariEnvConfig, BorderAtariObs,
     BorderAtariObsRawFilter,
 };
-use border_core::{Configurable, DefaultEvaluator, Env as _, Evaluator, Policy};
+use border_core::{
+    Agent, Configurable, DefaultEvaluator, Env as _, Evaluator, NullReplayBuffer, Policy,
+};
 use serde::Deserialize;
 
 type Obs = BorderAtariObs;
@@ -28,7 +30,9 @@ impl Policy<Env> for RandomPolicy {
     }
 }
 
-impl Configurable<Env> for RandomPolicy {
+impl Agent<Env, NullReplayBuffer> for RandomPolicy {}
+
+impl Configurable for RandomPolicy {
     type Config = RandomPolicyConfig;
 
     fn build(config: Self::Config) -> Self {
@@ -60,12 +64,12 @@ fn main() -> Result<()> {
                 n_acts: n_acts as _,
             }
         };
-        RandomPolicy::build(policy_config)
+        Box::new(RandomPolicy::build(policy_config)) as _
     };
 
     // Runs evaluation
     let env_config = env_config.render(true);
-    let _ = DefaultEvaluator::new(&env_config, 0, 5)?.evaluate(&mut policy);
+    let _ = DefaultEvaluator::new(&env_config, 42, 5)?.evaluate(&mut policy);
 
     Ok(())
 }
