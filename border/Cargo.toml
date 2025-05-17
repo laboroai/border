@@ -8,30 +8,3 @@ keywords.workspace = true
 categories.workspace = true
 license = "GPL-2.0-or-later"
 readme = "README.md"
-
-[dependencies]
-aquamarine = { workspace = true }
-tch = { workspace = true, optional = true }
-candle-core = { workspace = true, optional = true }
-candle-nn = { workspace = true, optional = true }
-border-async-trainer = { version = "0.0.8", path = "../border-async-trainer", optional = true }
-anyhow = { workspace = true }
-log = { workspace = true }
-dirs = { workspace = true }
-zip = "0.5.12"
-reqwest = { workspace = true }
-border-core = { version = "0.0.8", path = "../border-core" }
-# Consider to replace with fastrand
-rand = { workspace = true }
-
-[dev-dependencies]
-env_logger = { workspace = true }
-
-[package.metadata.docs.rs]
-features = ["doc-only"]
-
-[features]
-doc-only = ["tch/doc-only"]
-cuda = ["candle-core/cuda"]
-cudnn = ["candle-core/cudnn"]
-border-tch-agent = []

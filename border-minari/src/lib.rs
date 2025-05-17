@@ -49,7 +49,6 @@
 //! [`candle_core::Tensor`]: candle_core::Tensor
 //! [`border_minari::d4rl::kitchen`]: crate::d4rl::kitchen
 //! [`border_minari::d4rl::kitchen::ndarray`]: crate::d4rl::kitchen::ndarray
-//! [`border_minari::d4rl::kitchen::candle`]: crate::d4rl::kitchen::candle
 mod converter;
 mod dataset;
 mod env;
