@@ -25,10 +25,10 @@
 //!     let dataset = MinariDataset::load_dataset("D4RL/kitchen/complete-v1", true)?;
 //!
 //!     // Converter for observation and action
-//!     let converter = KitchenConverter {};
+//!     let mut converter = KitchenConverter {};
 //!
 //!     // Create replay buffer for the sixth episode
-//!     let replay_buffer = dataset.create_replay_buffer(&converter, Some(vec![5]))?;
+//!     let replay_buffer = dataset.create_replay_buffer(&mut converter, Some(vec![5]))?;
 //!
 //!     // Recover the environment from the dataset
 //!     let mut env = dataset.recover_environment(converter, false, "human")?;
@@ -49,7 +49,6 @@
 //! [`candle_core::Tensor`]: candle_core::Tensor
 //! [`border_minari::d4rl::kitchen`]: crate::d4rl::kitchen
 //! [`border_minari::d4rl::kitchen::ndarray`]: crate::d4rl::kitchen::ndarray
-//! [`border_minari::d4rl::kitchen::candle`]: crate::d4rl::kitchen::candle
 mod converter;
 mod dataset;
 mod env;

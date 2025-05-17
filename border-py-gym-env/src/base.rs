@@ -30,10 +30,10 @@ pub trait GymEnvConverter {
     /// Configuration.
     type Config: DeserializeOwned + Serialize + Clone + Default;
 
-    /// Convert [`PyObject`] to [`Self::O`].
+    /// Convert [`PyObject`] to [`Self::Obs`].
     fn filt_obs(&mut self, obs: PyObject) -> Result<Self::Obs>;
 
-    /// Convert [`Self::A`] to [`PyObject`].
+    /// Convert [`Self::Act`] to [`PyObject`].
     fn filt_act(&mut self, act: Self::Act) -> Result<PyObject>;
 
     /// Creates a converter.

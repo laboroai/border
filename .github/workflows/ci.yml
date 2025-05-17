@@ -14,7 +14,7 @@ jobs:
       strategy:
         matrix:
           os: [ubuntu-latest, windows-latest, macOS-latest]
-          rust: [1.81.0]
+          rust: [1.84.0]
           python-version: ["3.11"]
       steps:
         - uses: actions/checkout@v2
@@ -83,7 +83,7 @@ jobs:
           run: printenv
 
         - if: matrix.os == 'ubuntu-latest'
-          name: Test border examples
+          name: Test border
           env:
             LIBTORCH_USE_PYTORCH: 1
           run: |
@@ -98,7 +98,7 @@ jobs:
             cargo test -p border-atari-env
             cargo test -p border-candle-agent
             cargo test -p border-tch-agent
-            cargo test -p border-policy-no-backend --features=border-tch-agent
+            cargo test -p border-policy-no-backend --features=tch
             cd examples/gym/dqn_cartpole; cargo test; cd ../../..
             cd examples/gym/sac_pendulum; cargo test; cd ../../..
             cd examples/gym/sac_fetch_reach; cargo test; cd ../../..

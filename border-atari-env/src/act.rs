@@ -30,6 +30,61 @@ impl From<u8> for BorderAtariAct {
     }
 }
 
+#[cfg(feature = "candle")]
+pub mod candle {
+    use super::*;
+    use border_candle_agent::TensorBatch;
+    use candle_core::{Device::Cpu, Tensor};
+
+    impl From<BorderAtariAct> for Tensor {
+        fn from(act: BorderAtariAct) -> Tensor {
+            Tensor::from_vec(vec![act.act as u8], &[1, 1], &Cpu).unwrap()
+        }
+    }
+
+    impl From<BorderAtariAct> for TensorBatch {
+        fn from(act: BorderAtariAct) -> Self {
+            let tensor = act.into();
+            TensorBatch::from_tensor(tensor)
+        }
+    }
+
+    impl From<Tensor> for BorderAtariAct {
+        /// `t` must have single item.
+        fn from(t: Tensor) -> Self {
+            (t.to_vec1::<i64>().unwrap()[0] as u8).into()
+        }
+    }
+}
+
+#[cfg(feature = "tch")]
+pub mod tch_ {
+    use super::*;
+    use border_tch_agent::TensorBatch;
+    use std::convert::TryInto;
+    use tch::Tensor;
+
+    impl From<BorderAtariAct> for Tensor {
+        fn from(act: BorderAtariAct) -> Tensor {
+            Tensor::from_slice(&[act.act as i64]).unsqueeze(-1)
+        }
+    }
+
+    impl From<BorderAtariAct> for TensorBatch {
+        fn from(act: BorderAtariAct) -> Self {
+            let tensor = act.into();
+            TensorBatch::from_tensor(tensor)
+        }
+    }
+
+    impl From<Tensor> for BorderAtariAct {
+        /// `t` must have single item.
+        fn from(t: Tensor) -> Self {
+            (TryInto::<i64>::try_into(t).unwrap() as u8).into()
+        }
+    }
+}
+
 /// Converts action of type `A` to [`BorderAtariAct`].
 pub trait BorderAtariActFilter<A: Act> {
     /// Configuration of the filter.

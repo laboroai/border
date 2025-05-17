@@ -1,17 +1,67 @@
+//! Default implementation of the [`Evaluator`] trait.
+//!
+//! This module provides a simple evaluator that runs a fixed number of episodes
+//! and calculates the average return across all episodes.
+
 use super::Evaluator;
 use crate::{record::Record, Agent, Env, ReplayBufferBase};
 use anyhow::Result;
 
-/// A default [`Evaluator`].
+/// A default implementation of the [`Evaluator`] trait.
 ///
-/// This struct runs episodes of the given number of times.
+/// This evaluator runs a specified number of episodes and calculates the average
+/// return (cumulative reward) across all episodes. It is useful for:
+/// - Evaluating the performance of trained agents
+/// - Comparing different policies or algorithms
+/// - Monitoring training progress
+///
+/// # Type Parameters
+///
+/// * `E` - The environment type
+///
+/// # Examples
+///
+/// ```ignore
+/// let config = EnvConfig::default();
+/// let mut evaluator = DefaultEvaluator::new(&config, 42, 10)?;
+///
+/// // Evaluate a policy
+/// let record = evaluator.evaluate(&mut agent)?;
+/// println!("Average return: {}", record.get_scalar("Episode return")?);
+/// ```
 pub struct DefaultEvaluator<E: Env> {
+    /// The number of episodes to run during evaluation.
     n_episodes: usize,
+
+    /// The environment instance used for evaluation.
     env: E,
 }
 
 impl<E: Env> Evaluator<E> for DefaultEvaluator<E> {
-    fn evaluate<R>(&mut self, policy: &mut Box<dyn Agent<E, R>>) -> Result<Record>
+    /// Evaluates a policy by running multiple episodes and calculating the average return.
+    ///
+    /// This method:
+    /// 1. Runs the specified number of episodes
+    /// 2. For each episode:
+    ///    - Resets the environment with a unique index
+    ///    - Runs the episode until termination
+    ///    - Accumulates the total reward
+    /// 3. Returns the average return across all episodes
+    ///
+    /// # Arguments
+    ///
+    /// * `policy` - The policy to evaluate
+    ///
+    /// # Returns
+    ///
+    /// A tuple of (performance metric, [`Record`] containing the evaluation results)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The environment fails to reset
+    /// - The environment fails to step
+    fn evaluate<R>(&mut self, policy: &mut Box<dyn Agent<E, R>>) -> Result<(f32, Record)>
     where
         R: ReplayBufferBase,
     {
@@ -31,17 +81,32 @@ impl<E: Env> Evaluator<E> for DefaultEvaluator<E> {
             }
         }
 
-        let name = format!("Episode return");
-        Ok(Record::from_scalar(name, r_total / self.n_episodes as f32))
+        let performance = r_total / self.n_episodes as f32;
+        let record = Record::from_scalar("Episode return", performance);
+
+        Ok((performance, record))
     }
 }
 
 impl<E: Env> DefaultEvaluator<E> {
-    /// Constructs [`DefaultEvaluator`].
+    /// Constructs a new [`DefaultEvaluator`].
     ///
-    /// `env` - Instance of the environment.
-    /// `n_episodes` - The number of episodes for evaluation.
-    ///   The evaluator returns the mean value of cumulative reward in each episode.
+    /// # Arguments
+    ///
+    /// * `config` - Configuration for the environment
+    /// * `seed` - Random seed for environment initialization
+    /// * `n_episodes` - Number of episodes to run during evaluation
+    ///
+    /// # Returns
+    ///
+    /// A new evaluator instance
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let config = EnvConfig::default();
+    /// let evaluator = DefaultEvaluator::new(&config, 42, 10)?;
+    /// ```
     pub fn new(config: &E::Config, seed: i64, n_episodes: usize) -> Result<Self> {
         Ok(Self {
             n_episodes,

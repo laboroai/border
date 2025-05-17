@@ -1,41 +1,112 @@
-//! Environment step.
+//! Step processing interface for reinforcement learning.
+//!
+//! This module defines the core interfaces for processing environment steps in reinforcement learning.
+//! It provides structures and traits for handling the transition between states, including
+//! observations, actions, rewards, and episode termination information.
+
 use super::Env;
 
-/// Additional information to `Obs` and `Act`.
+/// Additional information that can be associated with environment steps.
+///
+/// This trait is used to define custom information types that can be attached to
+/// environment steps. It is typically implemented for types that provide extra
+/// context about the environment's state or the agent's actions.
+///
+/// # Examples
+///
+/// ```ignore
+/// #[derive(Debug)]
+/// struct CustomInfo {
+///     velocity: f32,
+///     position: (f32, f32),
+/// }
+///
+/// impl Info for CustomInfo {}
+/// ```
 pub trait Info {}
 
 impl Info for () {}
 
-/// Represents an action, observation and reward tuple `(a_t, o_t+1, r_t)`
-/// with some additional information.
+/// Represents a single step in the environment, containing the action taken,
+/// the resulting observation, reward, and episode status.
 ///
-/// An environment emits [`Step`] object at every interaction steps.
-/// This object might be used to create transitions `(o_t, a_t, o_t+1, r_t)`.
+/// This struct encapsulates all the information produced by an environment
+/// during a single interaction step. It is used to create transitions of the form
+/// `(o_t, a_t, o_t+1, r_t)` for training reinforcement learning agents.
+///
+/// # Type Parameters
+///
+/// * `E` - The environment type that produced this step
+///
+/// # Fields
+///
+/// * `act` - The action taken by the agent
+/// * `obs` - The observation received from the environment
+/// * `reward` - The reward received for the action
+/// * `is_terminated` - Flags indicating if the episode has terminated
+/// * `is_truncated` - Flags indicating if the episode has been truncated
+/// * `info` - Additional environment-specific information
+/// * `init_obs` - The initial observation of the next episode (if applicable)
+///
+/// # Examples
+///
+/// ```ignore
+/// let step = Step::new(
+///     observation,
+///     action,
+///     vec![0.5],  // reward
+///     vec![0],    // not terminated
+///     vec![0],    // not truncated
+///     info,
+///     None,       // no initial observation
+/// );
+///
+/// if step.is_done() {
+///     // Handle episode completion
+/// }
+/// ```
 pub struct Step<E: Env> {
-    /// Action.
+    /// The action taken by the agent in this step.
     pub act: E::Act,
 
-    /// Observation.
+    /// The observation received from the environment after taking the action.
     pub obs: E::Obs,
 
-    /// Reward.
+    /// The reward received for taking the action.
     pub reward: Vec<f32>,
 
-    /// Flag denoting if episode is terminated.
+    /// Flags indicating if the episode has terminated.
+    /// A value of 1 indicates termination.
     pub is_terminated: Vec<i8>,
 
-    /// Flag denoting if episode is truncated.
+    /// Flags indicating if the episode has been truncated.
+    /// A value of 1 indicates truncation.
     pub is_truncated: Vec<i8>,
 
-    /// Information defined by user.
+    /// Additional environment-specific information.
     pub info: E::Info,
 
-    /// Initial observation. If `is_done[i] == 0`, the corresponding element will not be used.
+    /// The initial observation of the next episode, if applicable.
+    /// This is used when an episode ends and a new one begins.
     pub init_obs: Option<E::Obs>,
 }
 
 impl<E: Env> Step<E> {
-    /// Constructs a [`Step`] object.
+    /// Constructs a new [`Step`] object with the given components.
+    ///
+    /// # Arguments
+    ///
+    /// * `obs` - The observation received from the environment
+    /// * `act` - The action taken by the agent
+    /// * `reward` - The reward received for the action
+    /// * `is_terminated` - Flags indicating episode termination
+    /// * `is_truncated` - Flags indicating episode truncation
+    /// * `info` - Additional environment-specific information
+    /// * `init_obs` - The initial observation of the next episode
+    ///
+    /// # Returns
+    ///
+    /// A new [`Step`] object containing all the provided information
     pub fn new(
         obs: E::Obs,
         act: E::Act,
@@ -56,35 +127,100 @@ impl<E: Env> Step<E> {
         }
     }
 
+    /// Checks if the episode has ended, either through termination or truncation.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the episode has ended, `false` otherwise
     #[inline]
-    /// Terminated or truncated.
     pub fn is_done(&self) -> bool {
         self.is_terminated[0] == 1 || self.is_truncated[0] == 1
     }
 }
 
-/// Process [`Step`] and output an item [`Self::Output`].
+/// Processes environment steps and produces items for a replay buffer.
 ///
-/// This trait is used in [`Trainer`](crate::Trainer). [`Step`] object is transformed to
-/// [`Self::Output`], which will be pushed into a replay buffer implementing
-/// [`ExperienceBufferBase`](crate::ExperienceBufferBase).
-/// The type [`Self::Output`] should be the same with [`ExperienceBufferBase::Item`].
+/// This trait defines the interface for converting [`Step`] objects into items
+/// that can be stored in a replay buffer. It is used by the [`Trainer`] to
+/// transform environment interactions into training samples.
 ///
-/// [`Self::Output`]: StepProcessor::Output
-/// [`ExperienceBufferBase::Item`]: crate::ExperienceBufferBase::Item
+/// # Type Parameters
+///
+/// * `E` - The environment type
+///
+/// # Associated Types
+///
+/// * `Config` - Configuration parameters for the processor
+/// * `Output` - The type of items produced by the processor
+///
+/// # Examples
+///
+/// ```ignore
+/// struct SimpleProcessor;
+///
+/// impl<E: Env> StepProcessor<E> for SimpleProcessor {
+///     type Config = ();
+///     type Output = (E::Obs, E::Act, E::Obs, f32);
+///
+///     fn build(_: &Self::Config) -> Self {
+///         Self
+///     }
+///
+///     fn reset(&mut self, _: E::Obs) {}
+///
+///     fn process(&mut self, step: Step<E>) -> Self::Output {
+///         (step.init_obs.unwrap(), step.act, step.obs, step.reward[0])
+///     }
+/// }
+/// ```
+///
+/// [`Trainer`]: crate::Trainer
 pub trait StepProcessor<E: Env> {
-    /// Configuration.
+    /// Configuration parameters for the processor.
+    ///
+    /// This type must implement `Clone` to support building multiple instances
+    /// with the same configuration.
     type Config: Clone;
 
-    /// The type of transitions produced by this trait.
+    /// The type of items produced by the processor.
+    ///
+    /// This type should match the `Item` type of the replay buffer that will
+    /// store the processed steps.
     type Output;
 
-    /// Build a producer.
+    /// Builds a new processor with the given configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - The configuration parameters
+    ///
+    /// # Returns
+    ///
+    /// A new instance of the processor
     fn build(config: &Self::Config) -> Self;
 
-    /// Resets the object.
+    /// Resets the processor with a new initial observation.
+    ///
+    /// This method is called at the start of each episode to initialize
+    /// the processor with the first observation.
+    ///
+    /// # Arguments
+    ///
+    /// * `init_obs` - The initial observation of the episode
     fn reset(&mut self, init_obs: E::Obs);
 
-    /// Processes a [`Step`] object.
+    /// Processes a step and produces an item for the replay buffer.
+    ///
+    /// This method transforms a [`Step`] object into an item that can be
+    /// stored in a replay buffer. The transformation typically involves
+    /// creating a transition tuple of the form `(o_t, a_t, o_t+1, r_t)`.
+    ///
+    /// # Arguments
+    ///
+    /// * `step` - The step to process
+    ///
+    /// # Returns
+    ///
+    /// An item ready to be stored in a replay buffer
     fn process(&mut self, step: Step<E>) -> Self::Output;
 }

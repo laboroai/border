@@ -1,0 +1,28 @@
+[package]
+name = "bc_pen"
+version = "0.1.0"
+edition = "2018"
+rust-version = "1.81"
+
+[dependencies]
+log = "0.4"
+anyhow = "1.0.38"
+clap = { version = "4.5.8", features = ["derive"] }
+env_logger = "0.8.2"
+numpy = "0.14.1"
+candle-core = { version = "0.8.4", feature = ["cuda", "cudnn"] }
+candle-nn = { version = "0.8.4" }
+border-minari = { version = "0.0.8", path = "../../../border-minari", features = [
+    "candle",
+] }
+border-candle-agent = { version = "0.0.8", path = "../../../border-candle-agent" }
+border-core = { version = "0.0.8", path = "../../../border-core" }
+border-tensorboard = { version = "0.0.8", path = "../../../border-tensorboard" }
+border-mlflow-tracking = { version = "0.0.8", path = "../../../border-mlflow-tracking" }
+serde = "1.0.194"
+
+[dev-dependencies]
+tempdir = "0.3.7"
+
+[features]
+cuda = ["candle-core/cuda", "candle-core/cudnn"]

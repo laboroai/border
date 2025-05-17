@@ -1,0 +1,22 @@
+[package]
+name = "convert_policy"
+version = "0.1.0"
+edition = "2018"
+rust-version = "1.81"
+
+[dependencies]
+anyhow = "1.0.38"
+clap = { version = "4.5.8", features = ["derive"] }
+env_logger = "0.8.2"
+numpy = "0.14.1"
+border-policy-no-backend = { version = "0.0.8", path = "../../../border-policy-no-backend", features = [
+    "tch",
+] }
+border-tch-agent = { version = "0.0.8", path = "../../../border-tch-agent" }
+border-core = { version = "0.0.8", path = "../../../border-core" }
+serde = "1.0.194"
+tch = "0.16.0"
+bincode = "1.3.3"
+
+[dev-dependencies]
+tempdir = "0.3.7"

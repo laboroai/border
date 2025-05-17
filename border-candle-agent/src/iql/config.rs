@@ -54,7 +54,6 @@ where
 
     // /// Scaling factor for rewards.
     // pub reward_scale: f32,
-
     /// If true, advantage weights are calculated with softmax within each mini-batch.
     pub adv_softmax: bool,
 

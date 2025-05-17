@@ -14,7 +14,6 @@ Border consists of the following crates:
   * [border-tensorboard](https://crates.io/crates/border-tensorboard) ([doc](https://docs.rs/border-core/latest/border_tensorboard/)) has `TensorboardRecorder` struct to write records which can be shown in Tensorboard. It is based on [tensorboard-rs](https://crates.io/crates/tensorboard-rs).
   * [border-mlflow-tracking](https://crates.io/crates/border-mlflow-tracking) ([doc](https://docs.rs/border-core/latest/border_mlflow_tracking/)) support MLflow tracking to log metrices during training via REST API.
   * [border-async-trainer](https://crates.io/crates/border-async-trainer) ([doc](https://docs.rs/border-core/latest/border_async_trainer/)) defines some traits and functions for asynchronous training of RL agents by multiple actors, which runs sampling processes in parallel. In each sampling process, an agent interacts with an environment to collect samples to be sent to a shared replay buffer.
-  * [border](https://crates.io/crates/border) is just a collection of examples.
 * Environment
   * [border-py-gym-env](https://crates.io/crates/border-py-gym-env) ([doc](https://docs.rs/border-core/latest/border_py_gym_env/)) is a wrapper of the [Gymnasium](https://gymnasium.farama.org) environments written in Python.
   * [border-atari-env](https://crates.io/crates/border-atari-env) ([doc](https://docs.rs/border-core/latest/border_atari_env/)) is a wrapper of [atari-env](https://crates.io/crates/atari-env), which is a part of [gym-rs](https://crates.io/crates/gym-rs).
@@ -35,7 +34,7 @@ There are some example sctipts in `border/examples` directory. These are tested 
 
 ## Docker
 
-In `docker` directory, there are scripts for running a Docker container, in which you can try the examples described above. Currently, only `aarch64` is mainly used for the development.
+You can find Docker container scripts for developing these crates in the following repository: https://github.com/taku-y/dev-border.
 
 ## License
 
@@ -51,4 +50,3 @@ Crates                    | License
 `border-tch-agent`        | MIT OR Apache-2.0
 `border-candle-agent`     | MIT OR Apache-2.0
 `border-policy-no-backend`| MIT OR Apache-2.0
-`border`                  | GPL-2.0-or-later
