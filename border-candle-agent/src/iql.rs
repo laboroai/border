@@ -1,4 +1,4 @@
-/// IQL agent.
+//! Implicit Q-learning agent.
 mod base;
 mod config;
 mod value;

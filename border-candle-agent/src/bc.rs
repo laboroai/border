@@ -1,3 +1,4 @@
+//! Behavior cloning agent.
 mod base;
 mod config;
 mod model;

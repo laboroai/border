@@ -1,3 +1,10 @@
+//! Environment interface for Minari datasets.
+//!
+//! This module provides a Rust implementation of the environment interface for Minari datasets.
+//! It allows for the interaction with environments defined in Minari datasets using the Border framework.
+//!
+//! The `MinariEnv` struct is the main entry point for interacting with Minari environments.
+//! It implements the `Env` trait from the `border-core` crate, which provides a common interface for interacting with environments.
 use crate::MinariConverter;
 use anyhow::Result;
 use border_core::{

@@ -1,18 +1,27 @@
-//! Interface to access [Minari](https://minari.farama.org/index.html#) datasets.
+//! A wrapper for [Minari](https://minari.farama.org) environments.
 //!
-//! [`MinariDataset`] and [`MinariEnv`] provide a common interface to access Minari datasets.
-//! These structs are used with concrete observation and action types.
-//! For example, [`border_minari::d4rl::kitchen`] provides observation and action types,
-//! and the corresponding converter for the [Kitchen datasets](https://minari.farama.org/datasets/D4RL/kitchen/).
+//! This crate provides a Rust interface for Minari datasets, which are collections of offline reinforcement learning data.
+//! It allows users to load and interact with Minari datasets in a way that is compatible with the Border framework.
 //!
-//! The implementation of data types and converters depends on the backend for implementing
-//! your agents. In [`border_minari::d4rl::kitchen::ndarray`], the observation and action types are
-//! defined essentially as [`ndarray::ArrayD`]. In [`border_minari::d4rl::kitchen::candle`],
-//! the observation and action types are defined as [`candle_core::Tensor`].
+//! # Features
 //!
-//! In the below example, we load an episode in the Kitchen dataset and create a replay buffer for that.
-//! Then, we recover the environment from the dataset and apply the actions in the episode.
-//! The observation and action types are implemented with [`ndarray::ArrayD`].
+//! - **Dataset Loading**: Load Minari datasets from disk or from the Minari registry.
+//! - **Environment Interaction**: Interact with the loaded datasets using the Border environment interface.
+//! - **Data Access**: Access observations, actions, rewards, and other data from the datasets.
+//!
+//! # Example
+//!
+//! The following example demonstrates how to:
+//! 1. Load a D4RL Kitchen dataset
+//! 2. Create a replay buffer from a specific episode
+//! 3. Recover the environment state
+//! 4. Replay the actions from the dataset
+//!
+//! This is particularly useful for:
+//! - Analyzing expert demonstrations
+//! - Testing environment behavior
+//! - Validating dataset quality
+//! - Reproducing recorded trajectories
 //!
 //! ```no_run
 //! # use anyhow::Result;
@@ -22,21 +31,24 @@
 //! # use std::num;
 //!
 //! fn main() -> Result<()> {
+//!     // Load the D4RL Kitchen dataset
 //!     let dataset = MinariDataset::load_dataset("D4RL/kitchen/complete-v1", true)?;
 //!
-//!     // Converter for observation and action
+//!     // Create a converter for handling observation and action types
 //!     let mut converter = KitchenConverter {};
 //!
-//!     // Create replay buffer for the sixth episode
+//!     // Create a replay buffer containing only the sixth episode
 //!     let replay_buffer = dataset.create_replay_buffer(&mut converter, Some(vec![5]))?;
 //!
-//!     // Recover the environment from the dataset
+//!     // Recover the environment state from the dataset
+//!     // The 'false' parameter indicates not to use the initial state
+//!     // 'human' indicates the agent type
 //!     let mut env = dataset.recover_environment(converter, false, "human")?;
 //!
-//!     // Sequence of actions in the episode
+//!     // Get the sequence of actions from the replay buffer
 //!     let actions = replay_buffer.whole_actions();
 //!
-//!     // Apply the actions to the environment
+//!     // Reset the environment and replay the actions
 //!     env.reset(None)?;
 //!     for ix in 0..actions.action.shape()[0] {
 //!         let act = actions.get(ix);
@@ -46,17 +58,29 @@
 //!     Ok(())
 //! }
 //! ```
-//! [`candle_core::Tensor`]: candle_core::Tensor
-//! [`border_minari::d4rl::kitchen`]: crate::d4rl::kitchen
-//! [`border_minari::d4rl::kitchen::ndarray`]: crate::d4rl::kitchen::ndarray
+//!
+//! The example uses the following key components:
+//! - [`KitchenConverter`]: Handles conversion between Python and Rust types for the Kitchen environment
+//! - [`MinariDataset`]: Manages the dataset and provides methods for data access
+//! - [`Env`]: The Border environment interface for interaction
+//!
+//! [`KitchenConverter`]: crate::d4rl::kitchen::ndarray::KitchenConverter
+//! [`MinariDataset`]: crate::MinariDataset
+//! [`Env`]: border_core::Env
+//!
+//! # Integration with Border
+//!
+//! This crate implements the [`Env`] trait from `border-core`, making it compatible with other Border components
+//! such as agents, policies, and trainers. It can be used in both online and offline reinforcement learning scenarios.
+//!
+//! [`Env`]: border_core::Env
+
 mod converter;
-mod dataset;
-mod env;
-mod evaluator;
-
 pub mod d4rl;
+mod dataset;
+pub mod env;
+pub mod evaluator;
 pub mod util;
-
 pub use converter::MinariConverter;
 pub use dataset::MinariDataset;
 pub use env::MinariEnv;
